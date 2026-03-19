@@ -1,0 +1,70 @@
+{
+  "COMMON": {
+    "LOADING": "Cargando...",
+    "SAVING": "Guardando...",
+    "SAVE": "Guardar",
+    "SAVED": "Guardado",
+    "CONTINUE": "Continuar",
+    "SAVE_CONTINUE": "Guardar y continuar",
+    "ENTER_APP": "Entrar a la app",
+    "GENERATING": "Generando...",
+    "COPY": "Copiar al portapapeles",
+    "COPIED": "¡Copiado!"
+  },
+  "WELCOME": {
+    "TITLE": "Bienvenido a {{name}} Copilot",
+    "SUBTITLE": "Desarrollado por Biomet VetAI",
+    "BODY": "Es la primera vez que tu clínica configura {{name}} Copilot. Comencemos.",
+    "TERMS_PRE": "Al hacer clic en continuar, aceptas nuestros",
+    "TERMS_LINK": "Términos de Servicio",
+    "TERMS_AND": "y",
+    "PRIVACY_LINK": "Política de Privacidad"
+  },
+  "CLINIC_SETUP": {
+    "TITLE": "Configura tu cuenta de clínica",
+    "SUBTITLE": "Estás configurando los datos compartidos de tu clínica. Tu equipo usará esta información.",
+    "NAME_LABEL": "Nombre de la clínica",
+    "NAME_PLACEHOLDER": "Ingresa el nombre legal de tu clínica",
+    "ADDRESS_LABEL": "Dirección",
+    "ADDRESS_PLACEHOLDER": "Calle / ciudad",
+    "EMAIL_LABEL": "Correo electrónico",
+    "EMAIL_PLACEHOLDER": "correo@dominio.com",
+    "PHONE_LABEL": "Teléfono",
+    "PHONE_PLACEHOLDER": "555 555 5555",
+    "NOTIFICATION_LABEL": "Método de notificación",
+    "NOTIFICATION_EMAIL": "Correo",
+    "NOTIFICATION_SMS": "SMS"
+  },
+  "ADMIN_PROFILE": {
+    "TITLE": "Configura tu perfil",
+    "SUBTITLE": "Estás configurando los datos compartidos de tu clínica. Tu equipo usará esta información.",
+    "NAME_LABEL": "Nombre completo",
+    "NAME_PLACEHOLDER": "Ingresa tu nombre",
+    "PHONE_LABEL": "Teléfono",
+    "PHONE_PLACEHOLDER": "555 555 5555",
+    "EMAIL_LABEL": "Correo electrónico",
+    "EMAIL_PLACEHOLDER": "correo@dominio.com",
+    "INVITE_TEXT": "Invita a tu equipo a unirse a {{name}} Copilot. Heredarán la configuración de tu clínica y solo necesitarán completar sus datos personales. Se enviará un enlace mágico al correo de tu clínica para compartir.",
+    "CREATE_LINK": "Crear enlace mágico",
+    "LINK_LABEL": "Enlace mágico:"
+  },
+  "STAFF_PROFILE": {
+    "TITLE": "Bienvenido a LabX Copilot",
+    "SUBTITLE": "Desarrollado por Biomet VetAI",
+    "INVITED": "Has sido invitado a unirte a {{name}} Copilot. Completa tus datos para finalizar la configuración",
+    "NAME_LABEL": "Nombre completo",
+    "NAME_PLACEHOLDER": "Ingresa tu nombre",
+    "PHONE_LABEL": "Teléfono",
+    "PHONE_PLACEHOLDER": "555 555 5555",
+    "EMAIL_LABEL": "Correo electrónico",
+    "EMAIL_PLACEHOLDER": "correo@dominio.com",
+    "ROLE_LABEL": "Rol",
+    "ROLE_PLACEHOLDER": "seleccionar",
+    "ROLE_VET": "Veterinario",
+    "ROLE_TECH": "Técnico",
+    "ROLE_ADMIN": "Administrador"
+  },
+  "BRANDING": {
+    "POWERED_BY": "Desarrollado por Biomet VetAI"
+  }
+}

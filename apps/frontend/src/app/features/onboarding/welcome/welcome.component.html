@@ -1,0 +1,63 @@
+<div class="min-h-screen bg-white flex flex-col">
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+    <!-- Logo -->
+    <div class="mb-8">
+      <div class="w-32 h-32 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl flex items-center justify-center">
+        <img
+          src="/assets/icons/icon-128x128.png"
+          alt="LabX Copilot Logo"
+          class="w-24 h-24"
+        />
+      </div>
+    </div>
+
+    <!-- Title -->
+    <h1 class="text-3xl font-bold text-gray-900 mb-2 text-center">
+      {{ 'WELCOME.TITLE' | translate: { name: tenantName() } }}
+    </h1>
+
+    <!-- Subtitle -->
+    <p class="text-lg text-gray-600 mb-8 text-center">
+      {{ 'WELCOME.SUBTITLE' | translate }}
+    </p>
+
+    <!-- Body Text -->
+    <p class="text-base text-gray-700 text-center max-w-sm mb-12 leading-relaxed">
+      {{ 'WELCOME.BODY' | translate: { name: tenantName() } }}
+    </p>
+
+    <!-- Continue Button -->
+    <div class="w-full max-w-sm mb-6">
+      <app-button
+        type="button"
+        variant="primary"
+        (click)="onContinue()"
+        [disabled]="loading()"
+      >
+        {{ loading() ? ('COMMON.LOADING' | translate) : ('COMMON.CONTINUE' | translate) }}
+      </app-button>
+    </div>
+
+    <!-- Terms Text -->
+    <p class="text-xs text-gray-500 text-center max-w-sm px-4">
+      {{ 'WELCOME.TERMS_PRE' | translate }}
+      <a href="#" class="text-cyan underline">{{ 'WELCOME.TERMS_LINK' | translate }}</a>
+      {{ 'WELCOME.TERMS_AND' | translate }}
+      <a href="#" class="text-cyan underline">{{ 'WELCOME.PRIVACY_LINK' | translate }}</a>
+    </p>
+  </div>
+
+  <!-- Language Toggle -->
+  <div class="pb-8">
+    <app-language-toggle
+      [selected]="languageService.currentLang()"
+      (languageChange)="onLanguageChange($event)"
+    />
+  </div>
+
+  <!-- Bottom Bar (Home Indicator for iOS) -->
+  <div class="h-8 bg-white border-t border-gray-200 flex items-center justify-center">
+    <div class="w-32 h-1 bg-black rounded-full"></div>
+  </div>
+</div>

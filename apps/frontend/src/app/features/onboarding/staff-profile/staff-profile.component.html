@@ -1,0 +1,82 @@
+<div class="min-h-screen bg-white flex flex-col">
+  <!-- Logo -->
+  <div class="flex justify-center pt-12 mb-8">
+    <div class="w-32 h-32 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl flex items-center justify-center">
+      <img
+        src="/assets/icons/icon-128x128.png"
+        alt="LabX Copilot Logo"
+        class="w-24 h-24"
+      />
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="px-6 pb-4">
+    <h1 class="text-2xl font-bold text-gray-900 mb-2 text-center">
+      {{ 'STAFF_PROFILE.TITLE' | translate }}
+    </h1>
+    <p class="text-lg text-gray-600 mb-4 text-center">
+      {{ 'STAFF_PROFILE.SUBTITLE' | translate }}
+    </p>
+    <p class="text-sm text-gray-700 text-center leading-relaxed">
+      {{ 'STAFF_PROFILE.INVITED' | translate: { name: tenantName() } }}
+    </p>
+  </div>
+
+  <!-- Form -->
+  <form [formGroup]="staffForm" (ngSubmit)="onSubmit()" class="flex-1 px-6 py-4">
+    <div class="space-y-8 mb-6">
+      <!-- Full Name -->
+      <app-input
+        id="fullName"
+        label="STAFF_PROFILE.NAME_LABEL"
+        type="text"
+        placeholder="STAFF_PROFILE.NAME_PLACEHOLDER"
+        formControlName="fullName"
+      />
+
+      <!-- Telephone -->
+      <app-input
+        id="telephone"
+        label="STAFF_PROFILE.PHONE_LABEL"
+        type="tel"
+        placeholder="STAFF_PROFILE.PHONE_PLACEHOLDER"
+        formControlName="telephone"
+      />
+
+      <!-- Email -->
+      <app-input
+        id="email"
+        label="STAFF_PROFILE.EMAIL_LABEL"
+        type="email"
+        placeholder="STAFF_PROFILE.EMAIL_PLACEHOLDER"
+        formControlName="email"
+      />
+
+      <!-- Role -->
+      <app-select
+        id="role"
+        label="STAFF_PROFILE.ROLE_LABEL"
+        placeholder="STAFF_PROFILE.ROLE_PLACEHOLDER"
+        [options]="roleOptions"
+        formControlName="role"
+      />
+    </div>
+
+    <!-- Submit Button -->
+    <div class="mb-6">
+      <app-button
+        type="submit"
+        variant="primary"
+        [disabled]="staffForm.invalid || loading()"
+      >
+        {{ loading() ? ('COMMON.SAVING' | translate) : ('COMMON.SAVE_CONTINUE' | translate) }}
+      </app-button>
+    </div>
+  </form>
+
+  <!-- Bottom Bar -->
+  <div class="h-8 bg-white border-t border-gray-200 flex items-center justify-center">
+    <div class="w-32 h-1 bg-black rounded-full"></div>
+  </div>
+</div>

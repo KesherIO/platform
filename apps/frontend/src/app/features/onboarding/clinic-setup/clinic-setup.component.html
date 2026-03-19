@@ -1,0 +1,78 @@
+<div class="min-h-screen bg-white flex flex-col">
+  <!-- Header -->
+  <div class="px-6 pt-8 pb-4">
+    <h1 class="text-2xl font-bold text-gray-900 mb-2">
+      {{ 'CLINIC_SETUP.TITLE' | translate }}
+    </h1>
+    <p class="text-sm text-gray-600">
+      {{ 'CLINIC_SETUP.SUBTITLE' | translate }}
+    </p>
+  </div>
+
+  <!-- Form -->
+  <form [formGroup]="clinicForm" (ngSubmit)="onSubmit()" class="flex-1 px-6 py-4">
+    <div class="space-y-8 mb-6">
+      <!-- Clinic Name -->
+      <app-input
+        id="clinicName"
+        label="CLINIC_SETUP.NAME_LABEL"
+        type="text"
+        placeholder="CLINIC_SETUP.NAME_PLACEHOLDER"
+        formControlName="name"
+      />
+
+      <!-- Address -->
+      <app-input
+        id="address"
+        label="CLINIC_SETUP.ADDRESS_LABEL"
+        type="text"
+        placeholder="CLINIC_SETUP.ADDRESS_PLACEHOLDER"
+        formControlName="address"
+      />
+
+      <!-- Email -->
+      <app-input
+        id="email"
+        label="CLINIC_SETUP.EMAIL_LABEL"
+        type="email"
+        placeholder="CLINIC_SETUP.EMAIL_PLACEHOLDER"
+        formControlName="email"
+      />
+
+      <!-- Telephone -->
+      <app-input
+        id="telephone"
+        label="CLINIC_SETUP.PHONE_LABEL"
+        type="tel"
+        placeholder="CLINIC_SETUP.PHONE_PLACEHOLDER"
+        formControlName="telephone"
+      />
+
+      <!-- Notification Method -->
+      <app-toggle
+        label="CLINIC_SETUP.NOTIFICATION_LABEL"
+        [options]="notificationOptions"
+        formControlName="notificationMethod"
+      />
+    </div>
+
+    <!-- Submit Button -->
+    <div class="mb-6">
+      <app-button
+        type="submit"
+        variant="primary"
+        [disabled]="clinicForm.invalid || loading()"
+      >
+        {{ loading() ? ('COMMON.SAVING' | translate) : ('COMMON.SAVE_CONTINUE' | translate) }}
+      </app-button>
+    </div>
+  </form>
+
+  <!-- Branding Footer -->
+  <app-branding-footer />
+
+  <!-- Bottom Bar -->
+  <div class="h-8 bg-white border-t border-gray-200 flex items-center justify-center">
+    <div class="w-32 h-1 bg-black rounded-full"></div>
+  </div>
+</div>

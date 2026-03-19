@@ -1,0 +1,103 @@
+<div class="min-h-screen bg-gray-50">
+  <header class="bg-white shadow-sm">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex items-center gap-4">
+        <button routerLink="/cases" class="text-gray-600 hover:text-gray-900">
+          ← Back
+        </button>
+        <h1 class="text-2xl font-bold text-gray-900">New Case</h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <form [formGroup]="caseForm" (ngSubmit)="onSubmit()" class="space-y-6">
+      <!-- Owner Information -->
+      <div class="card">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Owner Information</h2>
+        <div class="space-y-4">
+          <div>
+            <label for="ownerName" class="block text-sm font-medium text-gray-700 mb-1">Owner Name *</label>
+            <input id="ownerName" type="text" formControlName="ownerName" class="input-field" placeholder="Enter owner name" />
+          </div>
+          <div>
+            <label for="ownerPhone" class="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+            <input id="ownerPhone" type="tel" formControlName="ownerPhone" class="input-field" placeholder="Enter phone number" />
+          </div>
+          <div>
+            <label for="ownerEmail" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input id="ownerEmail" type="email" formControlName="ownerEmail" class="input-field" placeholder="Enter email (optional)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Patient Information -->
+      <div class="card">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Patient Information</h2>
+        <div class="space-y-4">
+          <div>
+            <label for="patientName" class="block text-sm font-medium text-gray-700 mb-1">Patient Name *</label>
+            <input id="patientName" type="text" formControlName="patientName" class="input-field" placeholder="Enter patient name" />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="species" class="block text-sm font-medium text-gray-700 mb-1">Species *</label>
+              <select id="species" formControlName="species" class="input-field">
+                <option value="">Select species</option>
+                <option value="canine">Canine</option>
+                <option value="feline">Feline</option>
+                <option value="avian">Avian</option>
+                <option value="exotic">Exotic</option>
+              </select>
+            </div>
+            <div>
+              <label for="sex" class="block text-sm font-medium text-gray-700 mb-1">Sex *</label>
+              <select id="sex" formControlName="sex" class="input-field">
+                <option value="">Select sex</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="neutered_male">Neutered Male</option>
+                <option value="spayed_female">Spayed Female</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="ageMonths" class="block text-sm font-medium text-gray-700 mb-1">Age (months) *</label>
+              <input id="ageMonths" type="number" formControlName="ageMonths" class="input-field" placeholder="Age in months" min="0" />
+            </div>
+            <div>
+              <label for="weightKg" class="block text-sm font-medium text-gray-700 mb-1">Weight (kg) *</label>
+              <input id="weightKg" type="number" formControlName="weightKg" class="input-field" placeholder="Weight in kg" min="0" step="0.1" />
+            </div>
+          </div>
+          <div>
+            <label for="breed" class="block text-sm font-medium text-gray-700 mb-1">Breed</label>
+            <input id="breed" type="text" formControlName="breed" class="input-field" placeholder="Enter breed (optional)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Chief Complaint -->
+      <div class="card">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Chief Complaint</h2>
+        <textarea
+          formControlName="chiefComplaint"
+          rows="3"
+          class="input-field"
+          placeholder="Briefly describe the reason for the visit..."
+        ></textarea>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-3 justify-end sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-4">
+        <button type="button" routerLink="/cases" class="btn-secondary">
+          Cancel
+        </button>
+        <button type="submit" [disabled]="!caseForm.valid" class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+          Create Case
+        </button>
+      </div>
+    </form>
+  </main>
+</div>

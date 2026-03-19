@@ -1,0 +1,70 @@
+{
+  "COMMON": {
+    "LOADING": "Loading...",
+    "SAVING": "Saving...",
+    "SAVE": "Save",
+    "SAVED": "Saved",
+    "CONTINUE": "Continue",
+    "SAVE_CONTINUE": "Save and continue",
+    "ENTER_APP": "Enter the app",
+    "GENERATING": "Generating...",
+    "COPY": "Copy to clipboard",
+    "COPIED": "Copied!"
+  },
+  "WELCOME": {
+    "TITLE": "Welcome to {{name}} Copilot",
+    "SUBTITLE": "Powered by Biomet VetAI",
+    "BODY": "This is the first time your clinic is setting up {{name}} Copilot. Let's get started.",
+    "TERMS_PRE": "By clicking continue, you agree to our",
+    "TERMS_LINK": "Terms of Service",
+    "TERMS_AND": "and",
+    "PRIVACY_LINK": "Privacy Policy"
+  },
+  "CLINIC_SETUP": {
+    "TITLE": "Setup your clinic account",
+    "SUBTITLE": "You are setting up the shared details for your clinic. Your team will use this information.",
+    "NAME_LABEL": "Clinic name",
+    "NAME_PLACEHOLDER": "Enter your clinic legal name",
+    "ADDRESS_LABEL": "Address",
+    "ADDRESS_PLACEHOLDER": "Street / city",
+    "EMAIL_LABEL": "Email",
+    "EMAIL_PLACEHOLDER": "email@domain.com",
+    "PHONE_LABEL": "Telephone",
+    "PHONE_PLACEHOLDER": "555 555 5555",
+    "NOTIFICATION_LABEL": "Notification method",
+    "NOTIFICATION_EMAIL": "Email",
+    "NOTIFICATION_SMS": "SMS"
+  },
+  "ADMIN_PROFILE": {
+    "TITLE": "Setup your profile",
+    "SUBTITLE": "You are setting up the shared details for your clinic. Your team will use this information.",
+    "NAME_LABEL": "Full name",
+    "NAME_PLACEHOLDER": "Enter name",
+    "PHONE_LABEL": "Telephone",
+    "PHONE_PLACEHOLDER": "555 555 5555",
+    "EMAIL_LABEL": "Email",
+    "EMAIL_PLACEHOLDER": "email@domain.com",
+    "INVITE_TEXT": "Invite your staff to join {{name}} Copilot. They'll inherit your clinic settings and only need to complete their personal details. A magic link will be sent to your clinic email for sharing.",
+    "CREATE_LINK": "Create magic link",
+    "LINK_LABEL": "Magic Link:"
+  },
+  "STAFF_PROFILE": {
+    "TITLE": "Welcome to LabX Copilot",
+    "SUBTITLE": "Powered by Biomet VetAI",
+    "INVITED": "You've been invited to join {{name}} Copilot. Please complete your details to finish setup",
+    "NAME_LABEL": "Full name",
+    "NAME_PLACEHOLDER": "Enter name",
+    "PHONE_LABEL": "Telephone",
+    "PHONE_PLACEHOLDER": "555 555 5555",
+    "EMAIL_LABEL": "Email",
+    "EMAIL_PLACEHOLDER": "email@domain.com",
+    "ROLE_LABEL": "Role",
+    "ROLE_PLACEHOLDER": "select",
+    "ROLE_VET": "Veterinarian",
+    "ROLE_TECH": "Technician",
+    "ROLE_ADMIN": "Administrator"
+  },
+  "BRANDING": {
+    "POWERED_BY": "Powered by Biomet VetAI"
+  }
+}
