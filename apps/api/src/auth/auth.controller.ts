@@ -1,20 +1,49 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { Public } from './decorators/public.decorator';
+import { AuthenticatedUser } from '@vet-ai/shared-types';
 
+@ApiTags('auth')
+@ApiBearerAuth()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // TODO: Integrate with Supabase/Auth0
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  login(@Body() _body: { email: string; password: string }) {
-    return this.authService.login();
+  /**
+   * Bootstrap endpoint — Angular calls this after Supabase login to get the
+   * full user profile, tenant memberships, and role in one request.
+   */
+  @Get('me')
+  @ApiOperation({ summary: 'Get current user profile and tenant memberships' })
+  @ApiOkResponse({ description: 'User profile with tenant memberships' })
+  getMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getMe(user.id);
   }
 
-  @Post('logout')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  logout() {
-    return this.authService.logout();
+  /**
+   * Lightweight check — returns 200 if JWT is valid, 401 otherwise.
+   */
+  @Get('verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify JWT token is valid' })
+  verify(@CurrentUser() user: AuthenticatedUser) {
+    return { valid: true, userId: user.id };
+  }
+
+  /**
+   * Public health check — not protected.
+   */
+  @Get('health')
+  @Public()
+  @ApiOperation({ summary: 'Auth service health check (public)' })
+  health() {
+    return { status: 'ok' };
   }
 }

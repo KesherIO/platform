@@ -16,6 +16,10 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["@vet-ai/source"]
+    "customConditions": ["@vet-ai/source"],
+    "baseUrl": ".",
+    "paths": {
+      "@vet-ai/shared-types": ["libs/shared-types/src/index.ts"]
+    }
   }
 }

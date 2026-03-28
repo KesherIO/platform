@@ -1,52 +1,71 @@
 <div class="min-h-screen bg-white flex flex-col">
-  <!-- Main Content -->
-  <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
-    <!-- Logo -->
-    <div class="mb-8">
-      <div class="w-32 h-32 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl flex items-center justify-center">
-        <img
-          src="/assets/icons/icon-128x128.png"
-          alt="LabX Copilot Logo"
-          class="w-24 h-24"
-        />
+
+  <!-- Loading state -->
+  @if (loading()) {
+    <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <p class="text-base text-gray-500">{{ 'WELCOME.LOADING' | translate }}</p>
+    </div>
+  }
+
+  <!-- Error state (no token, expired, used, not found) -->
+  @if (!loading() && errorReason()) {
+    <div class="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+      <!-- Icon -->
+      <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
+        <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        </svg>
       </div>
+
+      <h1 class="text-2xl font-bold text-gray-900 mb-3">
+        {{ errorTitleKey | translate }}
+      </h1>
+      <p class="text-base text-gray-600 max-w-sm leading-relaxed">
+        {{ errorBodyKey | translate }}
+      </p>
     </div>
+  }
 
-    <!-- Title -->
-    <h1 class="text-3xl font-bold text-gray-900 mb-2 text-center">
-      {{ 'WELCOME.TITLE' | translate: { name: tenantName() } }}
-    </h1>
+  <!-- Valid token — welcome screen -->
+  @if (!loading() && !errorReason()) {
+    <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
 
-    <!-- Subtitle -->
-    <p class="text-lg text-gray-600 mb-8 text-center">
-      {{ 'WELCOME.SUBTITLE' | translate }}
-    </p>
+      <!-- Title -->
+      <h1 class="text-3xl font-bold text-gray-900 mb-2 text-center">
+        {{ 'WELCOME.TITLE' | translate: { name: clinicName() } }}
+      </h1>
 
-    <!-- Body Text -->
-    <p class="text-base text-gray-700 text-center max-w-sm mb-12 leading-relaxed">
-      {{ 'WELCOME.BODY' | translate: { name: tenantName() } }}
-    </p>
+      <!-- Subtitle -->
+      <p class="text-lg text-gray-600 mb-8 text-center">
+        {{ 'WELCOME.SUBTITLE' | translate }}
+      </p>
 
-    <!-- Continue Button -->
-    <div class="w-full max-w-sm mb-6">
-      <app-button
-        type="button"
-        variant="primary"
-        (click)="onContinue()"
-        [disabled]="loading()"
-      >
-        {{ loading() ? ('COMMON.LOADING' | translate) : ('COMMON.CONTINUE' | translate) }}
-      </app-button>
+      <!-- Body -->
+      <p class="text-base text-gray-700 text-center max-w-sm mb-12 leading-relaxed">
+        {{ 'WELCOME.BODY' | translate: { name: clinicName() } }}
+      </p>
+
+      <!-- Continue Button -->
+      <div class="w-full max-w-sm mb-6">
+        <app-button
+          type="button"
+          variant="primary"
+          (click)="onContinue()"
+        >
+          {{ 'COMMON.CONTINUE' | translate }}
+        </app-button>
+      </div>
+
+      <!-- Terms Text -->
+      <p class="text-xs text-gray-500 text-center max-w-sm px-4">
+        {{ 'WELCOME.TERMS_PRE' | translate }}
+        <a href="#" class="text-cyan underline">{{ 'WELCOME.TERMS_LINK' | translate }}</a>
+        {{ 'WELCOME.TERMS_AND' | translate }}
+        <a href="#" class="text-cyan underline">{{ 'WELCOME.PRIVACY_LINK' | translate }}</a>
+      </p>
     </div>
-
-    <!-- Terms Text -->
-    <p class="text-xs text-gray-500 text-center max-w-sm px-4">
-      {{ 'WELCOME.TERMS_PRE' | translate }}
-      <a href="#" class="text-cyan underline">{{ 'WELCOME.TERMS_LINK' | translate }}</a>
-      {{ 'WELCOME.TERMS_AND' | translate }}
-      <a href="#" class="text-cyan underline">{{ 'WELCOME.PRIVACY_LINK' | translate }}</a>
-    </p>
-  </div>
+  }
 
   <!-- Language Toggle -->
   <div class="pb-8">

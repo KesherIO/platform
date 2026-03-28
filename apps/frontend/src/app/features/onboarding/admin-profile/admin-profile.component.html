@@ -1,101 +1,159 @@
 <div class="min-h-screen bg-white flex flex-col">
-  <!-- Header -->
-  <div class="px-6 pt-8 pb-4">
-    <h1 class="text-2xl font-bold text-gray-900 mb-2">
-      {{ 'ADMIN_PROFILE.TITLE' | translate }}
-    </h1>
-    <p class="text-sm text-gray-600">
-      {{ 'ADMIN_PROFILE.SUBTITLE' | translate }}
-    </p>
-  </div>
 
-  <!-- Form -->
-  <form [formGroup]="profileForm" (ngSubmit)="onSave()" class="flex-1 px-6 py-4">
-    <div class="space-y-8 mb-6">
-      <!-- Full Name -->
-      <app-input
-        id="fullName"
-        label="ADMIN_PROFILE.NAME_LABEL"
-        type="text"
-        placeholder="ADMIN_PROFILE.NAME_PLACEHOLDER"
-        formControlName="fullName"
-      />
-
-      <!-- Telephone -->
-      <app-input
-        id="telephone"
-        label="ADMIN_PROFILE.PHONE_LABEL"
-        type="tel"
-        placeholder="ADMIN_PROFILE.PHONE_PLACEHOLDER"
-        formControlName="telephone"
-      />
-
-      <!-- Email -->
-      <app-input
-        id="email"
-        label="ADMIN_PROFILE.EMAIL_LABEL"
-        type="email"
-        placeholder="ADMIN_PROFILE.EMAIL_PLACEHOLDER"
-        formControlName="email"
-      />
-    </div>
-
-    <!-- Save Button -->
-    <div class="mb-6">
-      <app-button
-        type="submit"
-        variant="primary"
-        [disabled]="profileForm.invalid || loading() || profileSaved()"
-      >
-        {{ loading() ? ('COMMON.SAVING' | translate) : (profileSaved() ? ('COMMON.SAVED' | translate) : ('COMMON.SAVE' | translate)) }}
-      </app-button>
-    </div>
-
-    @if (showInviteSection()) {
-      <!-- Invite Section -->
-      <div class="bg-gray-50 rounded-lg p-4 mb-6">
-        <p class="text-sm text-gray-700 mb-4 leading-relaxed">
-          {{ 'ADMIN_PROFILE.INVITE_TEXT' | translate: { name: tenantName() } }}
-        </p>
-
-        <div class="flex flex-col gap-3">
-          <!-- Create Magic Link Button -->
-          <app-button
-            type="button"
-            variant="gradient"
-            [disabled]="generatingLink()"
-            (click)="onCreateMagicLink()"
-          >
-            {{ generatingLink() ? ('COMMON.GENERATING' | translate) : ('ADMIN_PROFILE.CREATE_LINK' | translate) }}
-          </app-button>
-
-          <!-- Magic Link Display -->
-          @if (magicLink()) {
-            <div class="bg-white rounded-lg p-3 border border-gray-200">
-              <p class="text-xs text-gray-600 mb-1">{{ 'ADMIN_PROFILE.LINK_LABEL' | translate }}</p>
-              <p class="text-xs text-cyan font-mono break-all">{{ magicLink() }}</p>
-              <button
-                type="button"
-                (click)="copyToClipboard()"
-                class="mt-2 text-xs text-cyan hover:text-cyan-dark underline"
-              >
-                {{ copied() ? ('COMMON.COPIED' | translate) : ('COMMON.COPY' | translate) }}
-              </button>
-            </div>
-          }
-
-          <!-- Enter App Button -->
-          <app-button
-            type="button"
-            variant="primary"
-            (click)="onEnterApp()"
-          >
-            {{ 'COMMON.ENTER_APP' | translate }}
-          </app-button>
-        </div>
+  <!-- Success screen -->
+  @if (completed()) {
+    <div class="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+      <!-- Checkmark icon -->
+      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
+        <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
       </div>
-    }
-  </form>
+
+      <h1 class="text-2xl font-bold text-gray-900 mb-3">
+        {{ 'ADMIN_PROFILE.SUCCESS_TITLE' | translate }}
+      </h1>
+      <p class="text-base text-gray-600 max-w-sm leading-relaxed mb-8">
+        {{ 'ADMIN_PROFILE.SUCCESS_BODY' | translate }}
+      </p>
+
+      <!-- Logo upload warning (non-fatal) -->
+      @if (logoUploadWarning()) {
+        <div class="w-full max-w-sm mb-6 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-sm text-yellow-800 text-left">
+          {{ logoUploadWarning() }}
+        </div>
+      }
+
+      <div class="w-full max-w-sm">
+        <app-button type="button" variant="primary" (click)="onGoToSignIn()">
+          {{ 'ADMIN_PROFILE.SUCCESS_BUTTON' | translate }}
+        </app-button>
+      </div>
+    </div>
+  }
+
+  <!-- Profile form -->
+  @if (!completed()) {
+
+    <!-- Wizard nav bar: back arrow + step indicator -->
+    <div class="flex items-center px-4 pt-6 pb-2">
+      <button
+        type="button"
+        (click)="onBack()"
+        class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
+        [attr.aria-label]="'COMMON.BACK' | translate"
+      >
+        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <span class="flex-1 text-center text-sm text-gray-400 font-medium">
+        {{ 'COMMON.STEP_OF' | translate: { current: 3, total: 3 } }}
+      </span>
+      <!-- Spacer to keep the step text visually centred -->
+      <div class="w-9"></div>
+    </div>
+
+    <!-- Header -->
+    <div class="px-6 pt-2 pb-4">
+      <h1 class="text-2xl font-bold text-gray-900 mb-2">
+        {{ 'ADMIN_PROFILE.TITLE' | translate }}
+      </h1>
+      <p class="text-sm text-gray-600">
+        {{ 'ADMIN_PROFILE.SUBTITLE' | translate }}
+      </p>
+    </div>
+
+    <form [formGroup]="profileForm" (ngSubmit)="onSave()" class="flex-1 px-6 pt-2">
+      <div class="space-y-8 mb-6">
+
+        <!-- First Name -->
+        <app-input
+          id="firstName"
+          label="ADMIN_PROFILE.FIRST_NAME_LABEL"
+          type="text"
+          placeholder="ADMIN_PROFILE.FIRST_NAME_PLACEHOLDER"
+          formControlName="firstName"
+        />
+
+        <!-- Last Name -->
+        <app-input
+          id="lastName"
+          label="ADMIN_PROFILE.LAST_NAME_LABEL"
+          type="text"
+          placeholder="ADMIN_PROFILE.LAST_NAME_PLACEHOLDER"
+          formControlName="lastName"
+        />
+
+        <!-- Email -->
+        <app-input
+          id="email"
+          label="ADMIN_PROFILE.EMAIL_LABEL"
+          type="email"
+          placeholder="ADMIN_PROFILE.EMAIL_PLACEHOLDER"
+          formControlName="email"
+        />
+
+        <!-- Telephone (optional) -->
+        <app-input
+          id="telephone"
+          label="ADMIN_PROFILE.PHONE_LABEL"
+          type="tel"
+          placeholder="ADMIN_PROFILE.PHONE_PLACEHOLDER"
+          formControlName="telephone"
+        />
+
+        <!-- Password -->
+        <app-input
+          id="password"
+          label="ADMIN_PROFILE.PASSWORD_LABEL"
+          type="password"
+          placeholder="ADMIN_PROFILE.PASSWORD_PLACEHOLDER"
+          formControlName="password"
+        />
+
+        <!-- Confirm Password -->
+        <app-input
+          id="confirmPassword"
+          label="ADMIN_PROFILE.CONFIRM_PASSWORD_LABEL"
+          type="password"
+          placeholder="ADMIN_PROFILE.CONFIRM_PASSWORD_PLACEHOLDER"
+          formControlName="confirmPassword"
+        />
+
+        <!-- Password mismatch error -->
+        @if (passwordMismatch) {
+          <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+            {{ 'ADMIN_PROFILE.PASSWORD_MISMATCH' | translate }}
+          </p>
+        }
+      </div>
+
+      <!-- Generic error -->
+      @if (error()) {
+        <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">{{ error() }}</p>
+      }
+
+      <!-- Button row: Back (secondary) + Create account (primary) -->
+      <div class="flex gap-3 mb-6">
+        <app-button
+          type="button"
+          variant="secondary"
+          [disabled]="loading()"
+          (click)="onBack()"
+        >
+          {{ 'COMMON.BACK' | translate }}
+        </app-button>
+        <app-button
+          type="submit"
+          variant="primary"
+          [disabled]="profileForm.invalid || loading()"
+        >
+          {{ loading() ? ('ADMIN_PROFILE.COMPLETING' | translate) : ('ADMIN_PROFILE.SUBMIT_BUTTON' | translate) }}
+        </app-button>
+      </div>
+    </form>
+  }
 
   <!-- Branding Footer -->
   <app-branding-footer />

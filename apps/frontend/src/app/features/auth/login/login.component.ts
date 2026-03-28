@@ -1,52 +1,78 @@
-import { Component } from '@angular/core';
-
-import { RouterModule } from '@angular/router';
+import { Component, inject, signal } from '@angular/core';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { TranslatePipe } from '@ngx-translate/core';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
-    selector: 'app-login',
-    imports: [RouterModule],
-    template: `
-    <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div class="max-w-md w-full space-y-8">
-        <div>
-          <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Vet AI App
-          </h2>
-          <p class="mt-2 text-center text-sm text-gray-600">
-            Sign in to your account
-          </p>
-        </div>
-        <div class="mt-8 space-y-6">
-          <div class="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label for="email-address" class="sr-only">Email address</label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autocomplete="email"
-                required
-                class="input-field rounded-t-md"
-                placeholder="Email address"
-              />
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              Send Magic Link
-            </button>
-          </div>
-
-          <div class="text-center text-sm text-gray-600">
-            <p>We'll send you a secure link to sign in.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  `
+  selector: 'app-login',
+  standalone: true,
+  imports: [ReactiveFormsModule, TranslatePipe],
+  templateUrl: './login.component.html',
+  styleUrl: './login.component.scss',
 })
-export class LoginComponent {}
+export class LoginComponent {
+  private readonly auth = inject(AuthService);
+  private readonly fb = inject(FormBuilder);
+
+  readonly form = this.fb.group({
+    email:    ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(6)]],
+  });
+
+  readonly resetForm = this.fb.group({
+    email: ['', [Validators.required, Validators.email]],
+  });
+
+  readonly view = signal<'login' | 'reset'>('login');
+  readonly loading = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly resetSent = signal(false);
+
+  showReset(): void {
+    this.view.set('reset');
+    this.error.set(null);
+    this.resetSent.set(false);
+  }
+
+  showLogin(): void {
+    this.view.set('login');
+    this.error.set(null);
+  }
+
+  submit(): void {
+    if (this.form.invalid) return;
+
+    this.loading.set(true);
+    this.error.set(null);
+
+    const { email, password } = this.form.getRawValue();
+
+    this.auth.signInWithPassword(email!, password!).subscribe({
+      next: () => this.loading.set(false),
+      error: (err: { message?: string }) => {
+        this.loading.set(false);
+        this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
+      },
+    });
+  }
+
+  submitReset(): void {
+    if (this.resetForm.invalid) return;
+
+    this.loading.set(true);
+    this.error.set(null);
+
+    const { email } = this.resetForm.getRawValue();
+
+    this.auth.resetPassword(email!).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.resetSent.set(true);
+      },
+      error: (err: { message?: string }) => {
+        this.loading.set(false);
+        this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
+      },
+    });
+  }
+}

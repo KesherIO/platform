@@ -1,0 +1,45 @@
+<div class="flex flex-col items-center gap-3">
+  <!-- Logo preview -->
+  <div class="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+    <img
+      [src]="displayUrl()"
+      alt="Clinic logo"
+      class="w-full h-full object-contain"
+    />
+  </div>
+
+  <!-- Upload button -->
+  <label
+    for="logo-file-input"
+    class="cursor-pointer inline-flex items-center gap-2 text-sm font-medium text-cyan hover:text-cyan/80 transition-colors"
+    [class.opacity-50]="uploading()"
+    [class.pointer-events-none]="uploading()"
+  >
+    @if (uploading()) {
+      <span>{{ 'COMMON.UPLOADING' | translate }}</span>
+    } @else {
+      <span>{{ (previewUrl() ? 'CLINIC_SETUP.LOGO_CHANGE' : 'CLINIC_SETUP.LOGO_UPLOAD') | translate }}</span>
+    }
+  </label>
+
+  <input
+    id="logo-file-input"
+    type="file"
+    accept="image/png,image/jpeg,image/webp"
+    class="hidden"
+    [disabled]="uploading()"
+    (change)="onFileChange($event)"
+  />
+
+  <!-- Helper text -->
+  <p class="text-xs text-gray-400 text-center">
+    {{ 'CLINIC_SETUP.LOGO_HINT' | translate }}
+  </p>
+
+  <!-- Validation error -->
+  @if (validationError()) {
+    <p class="text-xs text-red-500 text-center">
+      {{ validationError()! | translate }}
+    </p>
+  }
+</div>

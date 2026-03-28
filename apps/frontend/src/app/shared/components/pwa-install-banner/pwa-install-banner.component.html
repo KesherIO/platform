@@ -1,0 +1,34 @@
+@if (visible()) {
+  <div class="fixed bottom-6 left-4 right-4 z-50 bg-gray-900 text-white rounded-2xl px-4 py-4 flex items-center gap-4 shadow-xl">
+    <!-- App icon -->
+    <img
+      src="/assets/icons/icon-128x128.png"
+      alt="App icon"
+      class="h-12 w-12 rounded-xl flex-shrink-0"
+    />
+
+    <!-- Text -->
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-semibold truncate">{{ 'PWA.INSTALL_TITLE' | translate }}</p>
+      <p class="text-xs text-gray-400 mt-0.5 leading-snug">{{ 'PWA.INSTALL_BODY' | translate }}</p>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex flex-col gap-1 flex-shrink-0">
+      <button
+        type="button"
+        (click)="install()"
+        class="text-xs font-semibold text-cyan bg-transparent border border-cyan rounded-lg px-3 py-1.5 hover:bg-cyan hover:text-gray-900 transition-colors"
+      >
+        {{ 'PWA.INSTALL_BUTTON' | translate }}
+      </button>
+      <button
+        type="button"
+        (click)="dismiss()"
+        class="text-xs text-gray-500 hover:text-gray-300 transition-colors text-center"
+      >
+        {{ 'PWA.INSTALL_DISMISS' | translate }}
+      </button>
+    </div>
+  </div>
+}

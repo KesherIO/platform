@@ -1,9 +1,16 @@
 export interface Tenant {
   id: string;
   name: string;
-  logoUrl?: string;
+  slug: string;
+  // Contact details — collected during clinic-setup onboarding step
+  address?: string;
+  email?: string;
+  phone?: string;
+  country?: string;
+  notificationMethod?: 'email' | 'sms';
+  // Branding — optional, populated via future branding/settings step
+  logoUrl?: string;   // URL in storage; never store raw file data
   primaryColor?: string;
-  isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -11,6 +18,6 @@ export interface Tenant {
 export interface TenantBranding {
   tenantId: string;
   tenantName: string;
-  logoUrl?: string;
-  primaryColor?: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
 }

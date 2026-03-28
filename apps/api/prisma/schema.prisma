@@ -1,0 +1,121 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum TenantRole {
+  OWNER
+  ADMIN
+  VET
+  TECHNICIAN
+  RECEPTIONIST
+}
+
+enum OnboardingTokenType {
+  ADMIN
+}
+
+// ---------------------------------------------------------------------------
+// Auth / Multi-tenancy
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id                 String   @id @default(cuid())
+  name               String
+  slug               String   @unique
+  // Contact & clinic details — collected during onboarding clinic-setup step
+  address            String?
+  city               String?
+  email              String?
+  phone              String?
+  country            String?
+  notificationMethod String?  // 'email' | 'sms'
+  // Branding — optional, populated via future branding/settings step
+  logoUrl            String?  // URL to uploaded logo in storage (never store file data here)
+  primaryColor       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  memberships UserTenantMembership[]
+  invitations TenantInvitation[]
+
+  @@map("tenants")
+}
+
+model User {
+  id        String   @id // Supabase Auth UUID — never auto-generate, always comes from JWT sub
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships UserTenantMembership[]
+  sentInvitations TenantInvitation[]
+
+  @@map("users")
+}
+
+model UserTenantMembership {
+  userId    String
+  tenantId  String
+  role      TenantRole
+  createdAt DateTime   @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([userId, tenantId])  // composite PK — no surrogate id needed
+  @@index([tenantId])
+  @@index([userId])
+  @@map("user_tenant_memberships")
+}
+
+/// Pending invitations sent by clinic owners/admins to bring staff onboard.
+/// Token is a signed short-lived value; acceptedAt is set on acceptance.
+model TenantInvitation {
+  id            String     @id @default(cuid())
+  tenantId      String
+  email         String
+  role          TenantRole
+  token         String     @unique
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  invitedByUserId String
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedBy  User   @relation(fields: [invitedByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([email])
+  @@map("tenant_invitations")
+}
+
+/// Onboarding tokens created by Biomet to invite clinic admins.
+/// Each token is single-use and expires after 7 days.
+/// On completion, the backend creates the Supabase user, Tenant, and ADMIN membership.
+model OnboardingToken {
+  id              String              @id @default(cuid())
+  token           String              @unique
+  type            OnboardingTokenType @default(ADMIN)
+  clinicName      String
+  clinicEmail     String              // contact email for the clinic (Tenant.email)
+  biometClinicId  String?             // optional external reference from Biomet
+  expiresAt       DateTime
+  used            Boolean             @default(false)
+  usedAt          DateTime?
+  createdAt       DateTime            @default(now())
+
+  @@index([token])
+  @@map("onboarding_tokens")
+}

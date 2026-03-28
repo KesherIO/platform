@@ -1,4 +1,4 @@
-<div class="flex flex-col gap-3">
+<div class="flex flex-col gap-1">
   @if (label) {
     <label [for]="id" class="text-sm font-medium text-gray-700">
       {{ label | translate }}
@@ -10,11 +10,11 @@
     [value]="value"
     (change)="onChange($event)"
     (blur)="onTouched()"
-    class="px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed appearance-none bg-white"
+    class="px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed appearance-none bg-white text-base"
   >
-    <option value="" disabled selected>{{ placeholder | translate }}</option>
+    <option value="" disabled>{{ placeholder | translate }}</option>
     @for (option of options; track option.value) {
-      <option [value]="option.value">
+      <option [value]="option.value" [selected]="option.value === value">
         {{ option.label | translate }}
       </option>
     }

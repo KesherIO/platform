@@ -1,4 +1,4 @@
-import { SuggestedTest } from './triage.model';
+import { SuggestedTest } from './triage.model.js';
 
 export type OrderStatus = 'PENDING' | 'SENT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 

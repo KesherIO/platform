@@ -1,0 +1,173 @@
+<div class="min-h-screen bg-white flex flex-col">
+  <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+
+    <!-- Logo -->
+    <div class="mb-8">
+      <div class="w-32 h-32 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl flex items-center justify-center overflow-hidden">
+        <img
+          src="/assets/icons/icon-128x128.png"
+          alt="VetAI"
+          class="w-24 h-24 object-contain"
+        />
+      </div>
+    </div>
+
+    <!-- Title -->
+    <h1 class="text-3xl font-bold text-gray-900 mb-1 text-center">
+      @if (view() === 'login') {
+        {{ 'AUTH.TITLE' | translate }}
+      } @else {
+        {{ 'AUTH.RESET_TITLE' | translate }}
+      }
+    </h1>
+
+    <!-- Powered by -->
+    <p class="text-base font-semibold text-gray-700 mb-4 text-center">
+      {{ 'AUTH.SUBTITLE' | translate }}
+    </p>
+
+    <!-- Body description -->
+    <p class="text-sm text-gray-500 text-center max-w-xs mb-10 leading-relaxed">
+      @if (view() === 'login') {
+        {{ 'AUTH.BODY' | translate }}
+      } @else {
+        {{ 'AUTH.RESET_BODY' | translate }}
+      }
+    </p>
+
+    <!-- Login form -->
+    @if (view() === 'login') {
+      <form [formGroup]="form" (ngSubmit)="submit()" class="w-full max-w-sm space-y-4">
+
+        <!-- Email -->
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+            {{ 'AUTH.EMAIL_LABEL' | translate }}
+          </label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            class="w-full rounded-lg border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent placeholder-gray-400"
+            [placeholder]="'AUTH.EMAIL_PLACEHOLDER' | translate"
+          />
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+            {{ 'AUTH.PASSWORD_LABEL' | translate }}
+          </label>
+          <input
+            id="password"
+            type="password"
+            formControlName="password"
+            autocomplete="current-password"
+            class="w-full rounded-lg border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent placeholder-gray-400"
+            [placeholder]="'AUTH.PASSWORD_PLACEHOLDER' | translate"
+          />
+        </div>
+
+        <!-- Error -->
+        @if (error()) {
+          <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ error() }}</p>
+        }
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          [disabled]="form.invalid || loading()"
+          class="w-full rounded-xl bg-gray-900 px-4 py-3.5 text-sm font-semibold text-cyan shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity mt-2"
+        >
+          @if (loading()) {
+            {{ 'COMMON.LOADING' | translate }}
+          } @else {
+            {{ 'AUTH.BUTTON_LOGIN' | translate }}
+          }
+        </button>
+
+        <!-- Forgot password -->
+        <div class="text-center pt-1">
+          <button
+            type="button"
+            (click)="showReset()"
+            class="text-sm text-gray-500 hover:text-gray-700 underline transition-colors"
+          >
+            {{ 'AUTH.FORGOT_PASSWORD' | translate }}
+          </button>
+        </div>
+
+      </form>
+    }
+
+    <!-- Forgot password form -->
+    @if (view() === 'reset') {
+      <form [formGroup]="resetForm" (ngSubmit)="submitReset()" class="w-full max-w-sm space-y-4">
+
+        <!-- Email -->
+        <div>
+          <label for="reset-email" class="block text-sm font-medium text-gray-700 mb-1">
+            {{ 'AUTH.EMAIL_LABEL' | translate }}
+          </label>
+          <input
+            id="reset-email"
+            type="email"
+            formControlName="email"
+            autocomplete="email"
+            class="w-full rounded-lg border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent placeholder-gray-400"
+            [placeholder]="'AUTH.EMAIL_PLACEHOLDER' | translate"
+          />
+        </div>
+
+        <!-- Error -->
+        @if (error()) {
+          <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ error() }}</p>
+        }
+
+        <!-- Reset sent confirmation -->
+        @if (resetSent()) {
+          <p class="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">
+            {{ 'AUTH.RESET_SENT' | translate }}
+          </p>
+        }
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          [disabled]="resetForm.invalid || loading() || resetSent()"
+          class="w-full rounded-xl bg-gray-900 px-4 py-3.5 text-sm font-semibold text-cyan shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity mt-2"
+        >
+          @if (loading()) {
+            {{ 'COMMON.LOADING' | translate }}
+          } @else {
+            {{ 'AUTH.RESET_BUTTON' | translate }}
+          }
+        </button>
+
+        <!-- Back to login -->
+        <div class="text-center pt-1">
+          <button
+            type="button"
+            (click)="showLogin()"
+            class="text-sm text-gray-500 hover:text-gray-700 underline transition-colors"
+          >
+            {{ 'AUTH.BACK_TO_LOGIN' | translate }}
+          </button>
+        </div>
+
+      </form>
+    }
+
+  </div>
+
+  <!-- Branding footer -->
+  <div class="pb-8 text-center">
+    <p class="text-xs text-gray-400">{{ 'BRANDING.POWERED_BY' | translate }}</p>
+  </div>
+
+  <!-- Home indicator -->
+  <div class="h-8 bg-white flex items-center justify-center">
+    <div class="w-32 h-1 bg-black rounded-full"></div>
+  </div>
+</div>

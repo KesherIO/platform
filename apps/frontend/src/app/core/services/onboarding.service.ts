@@ -1,20 +1,35 @@
-import { Injectable, signal } from '@angular/core';
-import { Observable, of, throwError } from 'rxjs';
-import { delay, map } from 'rxjs/operators';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, throwError } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
 import {
   OnboardingState,
   OnboardingStep,
   ClinicSetupData,
-  AdminProfileData,
+  AdminProfileDraft,
   StaffProfileData,
   MagicLinkInvite,
-} from '../models/onboarding.model';
-import { TenantBranding } from '../models/tenant.model';
+  TenantBranding,
+  VerifyOnboardingTokenResponse,
+  CompleteAdminOnboardingRequest,
+  CompleteAdminOnboardingResponse,
+} from '../models';
+
+/** Default logo shown when the tenant has not uploaded a custom logo. */
+export const DEFAULT_LOGO_URL = '/assets/icons/icon-128x128.png';
+
+/** Resolve a Tenant logoUrl to a displayable URL, falling back to the default app icon. */
+export function resolveLogoUrl(logoUrl: string | null | undefined): string {
+  return logoUrl || DEFAULT_LOGO_URL;
+}
 
 @Injectable({
   providedIn: 'root',
 })
 export class OnboardingService {
+  private readonly http = inject(HttpClient);
+  private readonly apiBase = '/api/onboarding';
+
   private onboardingState = signal<OnboardingState>({
     tenantId: '',
     step: 'welcome',
@@ -25,17 +40,14 @@ export class OnboardingService {
     return this.onboardingState.asReadonly();
   }
 
-  // Initialize onboarding from tenantId in URL
+  // ---------------------------------------------------------------------------
+  // Welcome screen — fetch tenant branding and seed local state.
+  // Used when tenantId is already known (e.g. staff invite flow).
+  // ---------------------------------------------------------------------------
+
   initializeOnboarding(tenantId: string, inviteToken?: string): Observable<TenantBranding> {
-    // TODO: Replace with actual API call
-    return of({
-      tenantId,
-      tenantName: 'LabX',
-      logoUrl: '/assets/icons/icon-128x128.png',
-      primaryColor: '#06D6A0',
-    }).pipe(
-      delay(500),
-      map((branding) => {
+    return this.http.get<TenantBranding>(`${this.apiBase}/${tenantId}/branding`).pipe(
+      tap((branding) => {
         this.onboardingState.update((state) => ({
           ...state,
           tenantId,
@@ -43,108 +55,174 @@ export class OnboardingService {
           isFirstUser: !inviteToken,
           step: inviteToken ? 'staff-profile' : 'welcome',
         }));
-        return branding;
-      })
+        Object.assign(branding, { tenantId });
+      }),
     );
   }
 
-  // Check if clinic is already set up
-  checkClinicSetup(_tenantId: string): Observable<boolean> {
-    // TODO: Replace with actual API call
-    return of(false).pipe(delay(300));
-  }
+  // ---------------------------------------------------------------------------
+  // Clinic setup — token-based flow (no API call, data stored locally)
+  // Everything is sent to the server in one shot via completeAdminOnboarding().
+  // ---------------------------------------------------------------------------
 
-  // Save clinic setup (admin only)
-  saveClinicSetup(clinicData: ClinicSetupData): Observable<{ clinicId: string }> {
-    // TODO: Replace with actual API call
-    return of({ clinicId: 'clinic-123' }).pipe(
-      delay(800),
-      map((response) => {
-        this.onboardingState.update((state) => ({
-          ...state,
-          clinic: clinicData,
-          step: 'admin-profile',
-        }));
-        return response;
-      })
-    );
-  }
-
-  // Save admin profile
-  saveAdminProfile(profileData: AdminProfileData): Observable<{ userId: string }> {
-    // TODO: Replace with actual API call
-    return of({ userId: 'user-123' }).pipe(
-      delay(800),
-      map((response) => {
-        this.onboardingState.update((state) => ({
-          ...state,
-          adminProfile: profileData,
-          step: 'staff-invite',
-        }));
-        return response;
-      })
-    );
-  }
-
-  // Save staff profile
-  saveStaffProfile(_profileData: StaffProfileData): Observable<{ userId: string }> {
-    // TODO: Replace with actual API call
-    return of({ userId: 'user-456' }).pipe(
-      delay(800),
-      map((response) => {
-        this.onboardingState.update((state) => ({
-          ...state,
-          step: 'complete',
-        }));
-        return response;
-      })
-    );
-  }
-
-  // Generate magic link for staff invites
-  generateMagicLink(): Observable<MagicLinkInvite> {
-    const state = this.onboardingState();
-
-    if (!state.tenantId) {
-      return throwError(() => new Error('Tenant ID is required'));
-    }
-
-    // TODO: Replace with actual API call
-    const invite: MagicLinkInvite = {
-      clinicId: 'clinic-123',
-      tenantId: state.tenantId,
-      invitedBy: 'admin-user',
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      token: `invite-${Math.random().toString(36).substring(2, 15)}`,
-    };
-
-    return of(invite).pipe(delay(500));
-  }
-
-  // Send magic link via email
-  sendMagicLinkEmail(_email: string): Observable<boolean> {
-    // TODO: Replace with actual API call
-    return of(true).pipe(delay(1000));
-  }
-
-  // Verify magic link token
-  verifyMagicLink(_token: string): Observable<{ tenantId: string; clinicId: string }> {
-    // TODO: Replace with actual API call
-    return of({
-      tenantId: 'tenant-123',
-      clinicId: 'clinic-123',
-    }).pipe(delay(500));
-  }
-
-  // Update current step
-  updateStep(step: OnboardingStep): void {
+  storeClinicSetup(clinicData: ClinicSetupData): void {
+    // Merge the read-only clinic email from token verify state
+    // (the form doesn't contain an editable email field).
+    const currentEmail = this.onboardingState().prefillClinicEmail ?? '';
     this.onboardingState.update((state) => ({
       ...state,
-      step,
+      clinic: { ...clinicData, email: currentEmail },
+      step: 'admin-profile',
     }));
   }
 
-  // Reset onboarding state
+  /** Save clinic form data without advancing the step — used when navigating back. */
+  storeClinicSetupDraft(clinicData: ClinicSetupData): void {
+    const currentEmail = this.onboardingState().prefillClinicEmail ?? '';
+    this.onboardingState.update((state) => ({
+      ...state,
+      clinic: { ...clinicData, email: currentEmail },
+    }));
+  }
+
+  /** Save admin profile fields (no passwords) without advancing the step — used when navigating back. */
+  storeAdminProfileDraft(draft: AdminProfileDraft): void {
+    this.onboardingState.update((state) => ({
+      ...state,
+      adminProfileDraft: draft,
+    }));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Staff profile (invite acceptance)
+  // ---------------------------------------------------------------------------
+
+  saveStaffProfile(profileData: StaffProfileData): Observable<{ userId: string }> {
+    const { tenantId, inviteToken } = this.onboardingState();
+
+    if (!inviteToken) {
+      return throwError(() => new Error('No invite token in onboarding state'));
+    }
+
+    const body = { ...profileData, token: inviteToken };
+
+    return this.http
+      .post<{ userId: string }>(`${this.apiBase}/staff-profile?tenantId=${tenantId}`, body)
+      .pipe(
+        tap(() => {
+          this.onboardingState.update((state) => ({
+            ...state,
+            step: 'complete',
+          }));
+        }),
+      );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Generate magic link
+  // ---------------------------------------------------------------------------
+
+  generateMagicLink(): Observable<MagicLinkInvite> {
+    const { tenantId } = this.onboardingState();
+
+    if (!tenantId) {
+      return throwError(() => new Error('Tenant ID is required'));
+    }
+
+    const body = { email: '', role: 'vet' };
+
+    return this.http
+      .post<{ token: string; tenantId: string; expiresAt: string }>(
+        `${this.apiBase}/invite?tenantId=${tenantId}`,
+        body,
+      )
+      .pipe(
+        map((response) => ({
+          clinicId: tenantId,
+          tenantId: response.tenantId,
+          invitedBy: '',
+          expiresAt: new Date(response.expiresAt),
+          token: response.token,
+        })),
+      );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Verify magic link token
+  // ---------------------------------------------------------------------------
+
+  verifyMagicLink(token: string): Observable<{ tenantId: string; tenantName: string }> {
+    return this.http.get<{ tenantId: string; tenantName: string }>(
+      `${this.apiBase}/invite/verify/${token}`,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Verify admin onboarding token (new token-based flow)
+  // Public — no JWT required. Called by WelcomeComponent on page load.
+  // ---------------------------------------------------------------------------
+
+  verifyOnboardingToken(token: string): Observable<VerifyOnboardingTokenResponse> {
+    return this.http
+      .get<VerifyOnboardingTokenResponse>(`${this.apiBase}/verify/${token}`)
+      .pipe(
+        tap((response) => {
+          if (response.valid) {
+            this.onboardingState.update((state) => ({
+              ...state,
+              onboardingToken: token,
+              prefillClinicName: response.clinicName,
+              prefillClinicEmail: response.clinicEmail,
+              step: 'clinic-setup',
+            }));
+          }
+        }),
+      );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Complete admin onboarding — POST /onboarding/complete (public, no JWT)
+  // Creates Supabase user + Tenant + ADMIN membership atomically.
+  // If a pendingLogoFile is present, sends multipart/form-data so the logo
+  // is uploaded and linked to the tenant in a single atomic request.
+  // ---------------------------------------------------------------------------
+
+  completeAdminOnboarding(
+    dto: CompleteAdminOnboardingRequest,
+    logoFile?: File,
+  ): Observable<CompleteAdminOnboardingResponse> {
+    let body: FormData | CompleteAdminOnboardingRequest;
+
+    if (logoFile) {
+      const formData = new FormData();
+      // Append all scalar fields individually so NestJS can parse them
+      (Object.keys(dto) as (keyof CompleteAdminOnboardingRequest)[]).forEach((key) => {
+        const val = dto[key];
+        if (val !== undefined) formData.append(key, val);
+      });
+      formData.append('logo', logoFile);
+      body = formData;
+    } else {
+      body = dto;
+    }
+
+    return this.http
+      .post<CompleteAdminOnboardingResponse>(`${this.apiBase}/complete`, body)
+      .pipe(
+        tap(() => {
+          this.onboardingState.update((state) => ({ ...state, step: 'complete' }));
+        }),
+      );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Utility
+  // ---------------------------------------------------------------------------
+
+  updateStep(step: OnboardingStep): void {
+    this.onboardingState.update((state) => ({ ...state, step }));
+  }
+
   resetOnboarding(): void {
     this.onboardingState.set({
       tenantId: '',
@@ -153,18 +231,11 @@ export class OnboardingService {
     });
   }
 
-  // Complete onboarding
   completeOnboarding(): Observable<boolean> {
-    // TODO: Replace with actual API call to mark user/clinic as active
-    return of(true).pipe(
-      delay(500),
-      map(() => {
-        this.onboardingState.update((state) => ({
-          ...state,
-          step: 'complete',
-        }));
-        return true;
-      })
-    );
+    return new Observable<boolean>((observer) => {
+      this.onboardingState.update((state) => ({ ...state, step: 'complete' }));
+      observer.next(true);
+      observer.complete();
+    });
   }
 }

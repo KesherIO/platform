@@ -1,5 +1,5 @@
-import { Patient } from './patient.model';
-import { Owner } from './owner.model';
+import { Patient } from './patient.model.js';
+import { Owner } from './owner.model.js';
 
 export type CaseStatus = 'NEW' | 'TRIAGE' | 'ORDERED' | 'RESULTED' | 'COMPLETED' | 'ARCHIVED';
 

@@ -1,0 +1,19 @@
+<div class="space-y-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">
+      {{ 'DASHBOARD.HOME.GREETING' | translate: { name: greeting() } }}
+    </h1>
+    <p class="mt-1 text-sm text-gray-500">{{ 'DASHBOARD.HOME.SUBTITLE' | translate }}</p>
+  </div>
+
+  <!-- Placeholder cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    @for (card of placeholderCards; track card.labelKey) {
+      <div class="bg-white rounded-xl border border-gray-200 p-5 space-y-2">
+        <p class="text-2xl">{{ card.icon }}</p>
+        <p class="text-sm font-medium text-gray-700">{{ card.labelKey | translate }}</p>
+        <p class="text-xs text-gray-400">{{ 'DASHBOARD.HOME.COMING_SOON' | translate }}</p>
+      </div>
+    }
+  </div>
+</div>

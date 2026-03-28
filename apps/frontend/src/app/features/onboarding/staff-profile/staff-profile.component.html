@@ -61,7 +61,37 @@
         [options]="roleOptions"
         formControlName="role"
       />
+
+      <!-- Password -->
+      <app-input
+        id="password"
+        label="STAFF_PROFILE.PASSWORD_LABEL"
+        type="password"
+        placeholder="STAFF_PROFILE.PASSWORD_PLACEHOLDER"
+        formControlName="password"
+      />
+
+      <!-- Confirm Password -->
+      <app-input
+        id="confirmPassword"
+        label="STAFF_PROFILE.CONFIRM_PASSWORD_LABEL"
+        type="password"
+        placeholder="STAFF_PROFILE.CONFIRM_PASSWORD_PLACEHOLDER"
+        formControlName="confirmPassword"
+      />
+
+      <!-- Password mismatch error -->
+      @if (passwordMismatch) {
+        <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+          {{ 'STAFF_PROFILE.PASSWORD_MISMATCH' | translate }}
+        </p>
+      }
     </div>
+
+    <!-- Generic error -->
+    @if (error()) {
+      <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">{{ error() }}</p>
+    }
 
     <!-- Submit Button -->
     <div class="mb-6">

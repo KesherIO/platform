@@ -1,6 +1,26 @@
 <div class="min-h-screen bg-white flex flex-col">
+
+  <!-- Wizard nav bar: back arrow + step indicator -->
+  <div class="flex items-center px-4 pt-6 pb-2">
+    <button
+      type="button"
+      (click)="onBack()"
+      class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
+      [attr.aria-label]="'COMMON.BACK' | translate"
+    >
+      <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    </button>
+    <span class="flex-1 text-center text-sm text-gray-400 font-medium">
+      {{ 'COMMON.STEP_OF' | translate: { current: 2, total: 3 } }}
+    </span>
+    <!-- Spacer to keep the step text visually centred -->
+    <div class="w-9"></div>
+  </div>
+
   <!-- Header -->
-  <div class="px-6 pt-8 pb-4">
+  <div class="px-6 pt-2 pb-4">
     <h1 class="text-2xl font-bold text-gray-900 mb-2">
       {{ 'CLINIC_SETUP.TITLE' | translate }}
     </h1>
@@ -10,8 +30,18 @@
   </div>
 
   <!-- Form -->
-  <form [formGroup]="clinicForm" (ngSubmit)="onSubmit()" class="flex-1 px-6 py-4">
-    <div class="space-y-8 mb-6">
+  <form [formGroup]="clinicForm" (ngSubmit)="onSubmit()" class="flex-1 px-6 pt-2">
+    <div class="mb-6">
+
+      <!-- Logo Upload -->
+      <div class="input-container flex flex-col items-center">
+        <app-logo-upload
+          [currentLogoUrl]="logoPreviewUrl()"
+          [uploading]="uploading()"
+          (fileSelected)="onLogoSelected($event)"
+        />
+      </div>
+
       <!-- Clinic Name -->
       <app-input
         id="clinicName"
@@ -30,14 +60,33 @@
         formControlName="address"
       />
 
-      <!-- Email -->
+      <!-- City -->
       <app-input
-        id="email"
-        label="CLINIC_SETUP.EMAIL_LABEL"
-        type="email"
-        placeholder="CLINIC_SETUP.EMAIL_PLACEHOLDER"
-        formControlName="email"
+        id="city"
+        label="CLINIC_SETUP.CITY_LABEL"
+        type="text"
+        placeholder="CLINIC_SETUP.CITY_PLACEHOLDER"
+        formControlName="city"
       />
+
+      <!-- Country (ISO 3166-1 alpha-2 dropdown) -->
+      <app-select
+        id="country"
+        label="CLINIC_SETUP.COUNTRY_LABEL"
+        placeholder="CLINIC_SETUP.COUNTRY_PLACEHOLDER"
+        [options]="countryOptions"
+        formControlName="country"
+      />
+
+      <!-- Clinic Email (read-only — comes from Biomet token) -->
+      <div class="input-container">
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          {{ 'CLINIC_SETUP.EMAIL_LABEL' | translate }}
+        </label>
+        <div class="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-500 text-sm">
+          {{ prefillClinicEmail() }}
+        </div>
+      </div>
 
       <!-- Telephone -->
       <app-input
@@ -56,14 +105,21 @@
       />
     </div>
 
-    <!-- Submit Button -->
-    <div class="mb-6">
+    <!-- Button row: Back (secondary) + Save and continue (primary) -->
+    <div class="flex gap-3 mb-6">
+      <app-button
+        type="button"
+        variant="secondary"
+        (click)="onBack()"
+      >
+        {{ 'COMMON.BACK' | translate }}
+      </app-button>
       <app-button
         type="submit"
         variant="primary"
-        [disabled]="clinicForm.invalid || loading()"
+        [disabled]="clinicForm.invalid"
       >
-        {{ loading() ? ('COMMON.SAVING' | translate) : ('COMMON.SAVE_CONTINUE' | translate) }}
+        {{ 'COMMON.SAVE_CONTINUE' | translate }}
       </app-button>
     </div>
   </form>
