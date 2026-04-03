@@ -6,6 +6,9 @@
     "postinstall": "node patch-angular-build.js"
   },
   "private": true,
+  "overrides": {
+    "@noble/hashes": "2.0.1"
+  },
   "devDependencies": {
     "@angular-devkit/core": "~21.2.0",
     "@angular-devkit/schematics": "~21.2.0",
