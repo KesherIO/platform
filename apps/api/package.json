@@ -92,8 +92,8 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/swagger": "^11.2.6",
-    "@prisma/adapter-pg": "^7.5.0",
-    "@prisma/client": "^7.5.0",
+    "@prisma/adapter-pg": "^6.19.3",
+    "@prisma/client": "^6.19.3",
     "@supabase/supabase-js": "^2.99.3",
     "jwks-rsa": "^4.0.1",
     "passport": "^0.7.0",
@@ -110,7 +110,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.18.0",
     "jest": "^30.3.0",
-    "prisma": "^7.5.0",
+    "prisma": "6.19.3",
     "ts-jest": "^29.4.9"
   }
 }
