@@ -15,10 +15,24 @@ const ESM_PACKAGES = [
   '@angular/localize/tools',
 ];
 
-const BASE = '/Users/karina.martinez/WebstormProjects/vet-ai/node_modules/@angular/build/src';
+const BASE = path.join(process.cwd(), 'node_modules', '@angular', 'build', 'src');
 
-const files = execSync(`grep -rl "Promise.resolve().then.*__importStar(require(" ${BASE} --include="*.js"`)
-  .toString().trim().split('\n').filter(Boolean);
+if (!fs.existsSync(BASE)) {
+  console.log(`[patch-angular-build] Skipping: ${BASE} not found`);
+  process.exit(0);
+}
+
+let files = [];
+try {
+  const result = execSync(
+    `grep -rl "Promise.resolve().then.*__importStar(require(" "${BASE}" --include="*.js"`,
+    { encoding: 'utf8' }
+  );
+  files = result.trim().split('\n').filter(Boolean);
+} catch {
+  console.log('[patch-angular-build] No matching files found, skipping');
+  process.exit(0);
+}
 
 let patchedFiles = 0;
 
@@ -30,21 +44,25 @@ for (const file of files) {
     const escaped = pkg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const quoted = `'${pkg}'`;
 
-    // Pattern with await prefix
     content = content.replace(
-      new RegExp(`await Promise\\.resolve\\(\\)\\.then\\(\\(\\) => __importStar\\(require\\('${escaped}'\\)\\)\\)`, 'g'),
+      new RegExp(
+        `await Promise\\.resolve\\(\\)\\.then\\(\\(\\) => __importStar\\(require\\('${escaped}'\\)\\)\\)`,
+        'g'
+      ),
       `await import(${quoted})`
     );
 
-    // Pattern without await (used as a Promise in larger expressions)
     content = content.replace(
-      new RegExp(`Promise\\.resolve\\(\\)\\.then\\(\\(\\) => __importStar\\(require\\('${escaped}'\\)\\)\\)`, 'g'),
+      new RegExp(
+        `Promise\\.resolve\\(\\)\\.then\\(\\(\\) => __importStar\\(require\\('${escaped}'\\)\\)\\)`,
+        'g'
+      ),
       `import(${quoted})`
     );
   }
 
   if (content !== original) {
-    fs.writeFileSync(file, content);
+    fs.writeFileSync(file, content, 'utf8');
     console.log('Patched:', path.relative(BASE, file));
     patchedFiles++;
   }
