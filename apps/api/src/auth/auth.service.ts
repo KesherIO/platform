@@ -52,6 +52,33 @@ export class AuthService {
   }
 
   /**
+   * Deletes a Supabase Auth user by ID using the Admin API.
+   * Called as compensating cleanup when the Prisma transaction fails after
+   * a Supabase user was already created (prevents orphaned auth accounts).
+   * Errors are logged but not re-thrown — the original error is surfaced instead.
+   */
+  async deleteSupabaseUser(userId: string): Promise<void> {
+    const { error } = await this.supabaseAdmin.auth.admin.deleteUser(userId);
+    if (error) {
+      console.error('Supabase admin deleteUser error (cleanup):', error.message);
+    }
+  }
+
+  /**
+   * Invalidates all active sessions for the user via the Supabase Admin API.
+   * Called by POST /auth/sign-out. The client also clears local storage via
+   * supabase.auth.signOut() — both sides need to run for a clean sign-out.
+   */
+  async signOut(userId: string): Promise<void> {
+    const { error } = await this.supabaseAdmin.auth.admin.signOut(userId);
+    if (error) {
+      // Non-fatal — the client-side sign-out already cleared the token.
+      // Log and continue rather than returning a 500 to the user.
+      console.error('Supabase admin signOut error:', error.message);
+    }
+  }
+
+  /**
    * Upserts a local User row from the verified Supabase JWT payload.
    * Called by JwtStrategy.validate on every authenticated request.
    *

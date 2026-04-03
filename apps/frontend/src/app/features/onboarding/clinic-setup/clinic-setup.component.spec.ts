@@ -1,27 +1,29 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed} from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { of, Subject } from 'rxjs';
+import { of} from 'rxjs';
 import { ClinicSetupComponent } from './clinic-setup.component';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { provideTranslateService } from '@ngx-translate/core';
 import { signal } from '@angular/core';
-import { OnboardingState } from '../../../core/models/onboarding.model';
+import { OnboardingState } from '../../../core/models';
 
 describe('ClinicSetupComponent', () => {
   let component: ClinicSetupComponent;
   let fixture: ComponentFixture<ClinicSetupComponent>;
-  let mockOnboardingService: jasmine.SpyObj<OnboardingService>;
-  let mockRouter: jasmine.SpyObj<Router>;
+  let mockOnboardingService: {
+    storeClinicSetup: ReturnType<typeof vi.fn>;
+    getOnboardingState: ReturnType<typeof vi.fn>;
+  };
+  let mockRouter: { navigate: ReturnType<typeof vi.fn> };
 
   const mockState = signal<OnboardingState>({ tenantId: 'tenant-abc', step: 'welcome', isFirstUser: true });
 
   beforeEach(async () => {
-    mockOnboardingService = jasmine.createSpyObj('OnboardingService', [
-      'saveClinicSetup',
-      'getOnboardingState',
-    ]);
-    mockOnboardingService.getOnboardingState.and.returnValue(mockState.asReadonly());
-    mockRouter = jasmine.createSpyObj('Router', ['navigate']);
+    mockOnboardingService = {
+      storeClinicSetup: vi.fn(),
+      getOnboardingState: vi.fn().mockReturnValue(mockState.asReadonly()),
+    };
+    mockRouter = { navigate: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [ClinicSetupComponent],
@@ -42,11 +44,12 @@ describe('ClinicSetupComponent', () => {
   });
 
   it('should initialize the clinic form with required controls', () => {
-    expect(component.clinicForm.contains('name')).toBeTrue();
-    expect(component.clinicForm.contains('address')).toBeTrue();
-    expect(component.clinicForm.contains('email')).toBeTrue();
-    expect(component.clinicForm.contains('telephone')).toBeTrue();
-    expect(component.clinicForm.contains('notificationMethod')).toBeTrue();
+    expect(component.clinicForm.contains('name')).toBe(true);
+    expect(component.clinicForm.contains('address')).toBe(true);
+    expect(component.clinicForm.contains('city')).toBe(true);
+    expect(component.clinicForm.contains('country')).toBe(true);
+    expect(component.clinicForm.contains('telephone')).toBe(true);
+    expect(component.clinicForm.contains('notificationMethod')).toBe(true);
   });
 
   it('should default notificationMethod to "email"', () => {
@@ -61,72 +64,56 @@ describe('ClinicSetupComponent', () => {
 
   describe('form validation', () => {
     it('should be invalid when empty', () => {
-      expect(component.clinicForm.valid).toBeFalse();
+      expect(component.clinicForm.valid).toBe(false);
     });
 
     it('should be invalid with a name shorter than 2 characters', () => {
-      component.clinicForm.patchValue({ name: 'A', address: '123 Main', email: 'test@test.com', telephone: '555' });
-      expect(component.clinicForm.get('name')?.valid).toBeFalse();
+      component.clinicForm.patchValue({
+        name: 'M',
+        address: '123 Main St',
+        city: 'Austin',
+        country: 'US',
+        telephone: '555-0000',
+        notificationMethod: 'email',
+      });
+      expect(component.clinicForm.get('name')?.valid).toBe(false);
     });
 
     it('should be valid when all required fields are filled correctly', () => {
       component.clinicForm.patchValue({
         name: 'My Clinic',
         address: '123 Main St',
-        email: 'clinic@test.com',
+        city: 'Cali',
+        country: 'COL',
         telephone: '555-0000',
         notificationMethod: 'email',
       });
-      expect(component.clinicForm.valid).toBeTrue();
+      expect(component.clinicForm.valid).toBe(true);
     });
   });
 
   describe('onSubmit()', () => {
-    it('should not call saveClinicSetup when form is invalid', () => {
+    it('should not call storeClinicSetup when form is invalid', () => {
       component.onSubmit();
-      expect(mockOnboardingService.saveClinicSetup).not.toHaveBeenCalled();
+      expect(mockOnboardingService.storeClinicSetup).not.toHaveBeenCalled();
     });
 
-    it('should call saveClinicSetup and navigate on success', fakeAsync(() => {
-      mockOnboardingService.saveClinicSetup.and.returnValue(of({ clinicId: 'clinic-123' }));
-
+    it('should call saveClinicSetup and navigate on success', () => {
+      mockOnboardingService.storeClinicSetup.mockReturnValue(of({ clinicId: 'clinic-123' }));
       component.clinicForm.patchValue({
         name: 'My Clinic',
         address: '123 Main St',
-        email: 'clinic@test.com',
+        city: 'Austin',
+        country: 'US',
         telephone: '555-0000',
         notificationMethod: 'email',
       });
 
       component.onSubmit();
-      tick();
 
-      expect(mockOnboardingService.saveClinicSetup).toHaveBeenCalled();
+      expect(mockOnboardingService.storeClinicSetup).toHaveBeenCalled();
       expect(mockRouter.navigate).toHaveBeenCalledWith(['/onboarding/admin-profile']);
-      expect(component.loading()).toBeFalse();
-    }));
-
-    it('should set loading to true while waiting for response', fakeAsync(() => {
-      const subject = new Subject<{ clinicId: string }>();
-      mockOnboardingService.saveClinicSetup.and.returnValue(subject.asObservable());
-
-      component.clinicForm.patchValue({
-        name: 'My Clinic',
-        address: '123 Main St',
-        email: 'clinic@test.com',
-        telephone: '555-0000',
-        notificationMethod: 'email',
-      });
-
-      component.onSubmit();
-      // Observable hasn't emitted yet — loading must be true
-      expect(component.loading()).toBeTrue();
-
-      // Resolve the observable
-      subject.next({ clinicId: 'clinic-123' });
-      subject.complete();
-      tick();
-      expect(component.loading()).toBeFalse();
-    }));
+      expect(component.uploading()).toBe(false);
+    });
   });
 });

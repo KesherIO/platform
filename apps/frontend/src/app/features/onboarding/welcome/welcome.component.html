@@ -31,6 +31,13 @@
   @if (!loading() && !errorReason()) {
     <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
 
+      <!-- Logo -->
+      <img
+        src="assets/icons/icon-128x128.png"
+        alt="VetAI logo"
+        class="w-24 h-24 mb-8 rounded-2xl"
+      />
+
       <!-- Title -->
       <h1 class="text-3xl font-bold text-gray-900 mb-2 text-center">
         {{ 'WELCOME.TITLE' | translate: { name: clinicName() } }}
@@ -48,13 +55,9 @@
 
       <!-- Continue Button -->
       <div class="w-full max-w-sm mb-6">
-        <app-button
-          type="button"
-          variant="primary"
-          (click)="onContinue()"
-        >
+        <app-primary-button type="button" (click)="onContinue()">
           {{ 'COMMON.CONTINUE' | translate }}
-        </app-button>
+        </app-primary-button>
       </div>
 
       <!-- Terms Text -->

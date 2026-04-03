@@ -6,6 +6,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // ── Design system tokens ──────────────────────────────────
+        accent: '#66E0E5',       // primary-accent: text on black buttons / AI / turquoise
+        secondary: '#A65AF4',   // secondary: create / new / important actions
+
+        // ── Legacy palette (kept for backward compatibility) ──────
         primary: {
           50: '#f0f9ff',
           100: '#e0f2fe',
@@ -24,7 +29,7 @@ module.exports = {
           dark: '#059669',
         },
         purple: {
-          DEFAULT: '#9D4EDD',
+          DEFAULT: '#A65AF4',   // updated to new secondary color
           light: '#C77DFF',
           dark: '#7209B7',
         },
@@ -49,4 +54,3 @@ module.exports = {
   },
   plugins: [],
 }
-

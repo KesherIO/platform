@@ -1,0 +1,8 @@
+<button
+  [type]="type()"
+  [disabled]="disabled()"
+  [class.w-full]="fullWidth()"
+  class="h-12 rounded-xl bg-white border border-gray-200 text-gray-800 font-semibold text-sm tracking-wide transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+>
+  <ng-content></ng-content>
+</button>

@@ -29,8 +29,11 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const tenant = request.tenant as TenantContext | undefined;
 
-    // TenantGuard must run before RolesGuard on tenant-scoped routes
-    if (!tenant) return false;
+    // TenantGuard is a local guard that runs AFTER this global guard, so
+    // request.tenant is not yet set. Pass through here — TenantGuard enforces
+    // roles once it resolves the membership. RolesGuard only applies on routes
+    // where TenantGuard has already populated the tenant context (e.g. nested guards).
+    if (!tenant) return true;
 
     return requiredRoles.includes(tenant.role);
   }

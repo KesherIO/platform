@@ -1,6 +1,6 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { StaffProfileComponent } from './staff-profile.component';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -8,132 +8,206 @@ import { provideTranslateService } from '@ngx-translate/core';
 describe('StaffProfileComponent', () => {
   let component: StaffProfileComponent;
   let fixture: ComponentFixture<StaffProfileComponent>;
-  let mockOnboardingService: jasmine.SpyObj<OnboardingService>;
-  let mockRouter: jasmine.SpyObj<Router>;
+  let mockOnboardingService: {
+    verifyMagicLink: ReturnType<typeof vi.fn>;
+    completeStaffOnboarding: ReturnType<typeof vi.fn>;
+  };
+  let mockRouter: { navigate: ReturnType<typeof vi.fn> };
 
-  function createComponent(queryParams: Record<string, string> = {}) {
-    TestBed.overrideProvider(ActivatedRoute, {
-      useValue: {
-        snapshot: {
-          queryParamMap: { get: (key: string) => queryParams[key] ?? null },
-        },
-      },
-    });
-    fixture = TestBed.createComponent(StaffProfileComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+  function makeVerifyResponse(overrides = {}) {
+    return {
+      tenantId: 'tenant-abc',
+      tenantName: 'City Vet',
+      email: 'staff@example.com',
+      role: 'staff' as const,
+      userExists: false,
+      ...overrides,
+    };
   }
 
-  beforeEach(async () => {
-    mockOnboardingService = jasmine.createSpyObj('OnboardingService', [
-      'verifyMagicLink',
-      'initializeOnboarding',
-      'saveStaffProfile',
-      'completeOnboarding',
-    ]);
-    mockRouter = jasmine.createSpyObj('Router', ['navigate']);
+  async function setup(token: string | null = null) {
+    mockOnboardingService = {
+      verifyMagicLink: vi.fn(),
+      completeStaffOnboarding: vi.fn(),
+    };
+    mockRouter = { navigate: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [StaffProfileComponent],
       providers: [
         provideTranslateService({ defaultLanguage: 'en' }),
         { provide: OnboardingService, useValue: mockOnboardingService },
-        { provide: Router, useValue: mockRouter },
+        { provide: Router,            useValue: mockRouter            },
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { queryParamMap: { get: () => null } } },
+          useValue: {
+            snapshot: {
+              queryParamMap: { get: (key: string) => key === 'token' ? token : null },
+            },
+          },
         },
       ],
     }).compileComponents();
-  });
 
-  it('should create', () => {
-    createComponent();
+    fixture = TestBed.createComponent(StaffProfileComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  }
+
+  it('should create', async () => {
+    await setup();
     expect(component).toBeTruthy();
   });
 
-  it('should initialize staff form with required controls', () => {
-    createComponent();
-    expect(component.staffForm.contains('fullName')).toBeTrue();
-    expect(component.staffForm.contains('telephone')).toBeTrue();
-    expect(component.staffForm.contains('email')).toBeTrue();
-    expect(component.staffForm.contains('role')).toBeTrue();
-  });
+  describe('ngOnInit — no token', () => {
+    it('sets view to error when no token is in the URL', async () => {
+      await setup(null);
+      expect(component.view()).toBe('error');
+    });
 
-  it('should have three role options', () => {
-    createComponent();
-    expect(component.roleOptions.length).toBe(3);
-    const values = component.roleOptions.map((o) => o.value);
-    expect(values).toContain('vet');
-    expect(values).toContain('tech');
-    expect(values).toContain('admin');
-  });
-
-  describe('magic link verification', () => {
-    it('should call verifyMagicLink when token and tenantId are in query params', fakeAsync(() => {
-      mockOnboardingService.verifyMagicLink.and.returnValue(
-        of({ tenantId: 'tenant-abc', clinicId: 'clinic-123' })
-      );
-      mockOnboardingService.initializeOnboarding.and.returnValue(
-        of({ tenantId: 'tenant-abc', tenantName: 'LabX', logoUrl: '', primaryColor: '' })
-      );
-
-      createComponent({ token: 'invite-xyz', tenantId: 'tenant-abc' });
-      tick();
-
-      expect(mockOnboardingService.verifyMagicLink).toHaveBeenCalledWith('invite-xyz');
-    }));
-
-    it('should not call verifyMagicLink when no token in query params', () => {
-      createComponent();
+    it('does not call verifyMagicLink when no token', async () => {
+      await setup(null);
       expect(mockOnboardingService.verifyMagicLink).not.toHaveBeenCalled();
     });
   });
 
-  describe('form validation', () => {
-    beforeEach(() => createComponent());
-
-    it('should be invalid when empty', () => {
-      expect(component.staffForm.valid).toBeFalse();
+  describe('ngOnInit — with token', () => {
+    it('sets view to new-user when userExists is false', async () => {
+      mockOnboardingService.verifyMagicLink.mockReturnValue(of(makeVerifyResponse({ userExists: false })));
+      // Need to setup before detectChanges — use TestBed directly
+      mockRouter = { navigate: vi.fn() };
+      await TestBed.configureTestingModule({
+        imports: [StaffProfileComponent],
+        providers: [
+          provideTranslateService({ defaultLanguage: 'en' }),
+          { provide: OnboardingService, useValue: mockOnboardingService },
+          { provide: Router,            useValue: mockRouter            },
+          { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'invite-token' } } } },
+        ],
+      }).compileComponents();
+      const f = TestBed.createComponent(StaffProfileComponent);
+      f.detectChanges();
+      expect(f.componentInstance.view()).toBe('new-user');
     });
 
-    it('should be valid when all fields are filled', () => {
-      component.staffForm.patchValue({
-        fullName: 'Jane Vet',
-        telephone: '555-5678',
-        email: 'staff@test.com',
-        role: 'vet',
-      });
-      expect(component.staffForm.valid).toBeTrue();
+    it('sets view to existing-user when userExists is true', async () => {
+      mockOnboardingService.verifyMagicLink.mockReturnValue(of(makeVerifyResponse({ userExists: true })));
+      mockRouter = { navigate: vi.fn() };
+      await TestBed.configureTestingModule({
+        imports: [StaffProfileComponent],
+        providers: [
+          provideTranslateService({ defaultLanguage: 'en' }),
+          { provide: OnboardingService, useValue: mockOnboardingService },
+          { provide: Router,            useValue: mockRouter            },
+          { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'invite-token' } } } },
+        ],
+      }).compileComponents();
+      const f = TestBed.createComponent(StaffProfileComponent);
+      f.detectChanges();
+      expect(f.componentInstance.view()).toBe('existing-user');
+    });
+
+    it('sets view to error when verifyMagicLink throws', async () => {
+      mockOnboardingService.verifyMagicLink.mockReturnValue(throwError(() => new Error('Invalid token')));
+      mockRouter = { navigate: vi.fn() };
+      await TestBed.configureTestingModule({
+        imports: [StaffProfileComponent],
+        providers: [
+          provideTranslateService({ defaultLanguage: 'en' }),
+          { provide: OnboardingService, useValue: mockOnboardingService },
+          { provide: Router,            useValue: mockRouter            },
+          { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'invite-token' } } } },
+        ],
+      }).compileComponents();
+      const f = TestBed.createComponent(StaffProfileComponent);
+      f.detectChanges();
+      expect(f.componentInstance.view()).toBe('error');
+    });
+
+    it('sets tenantName from the verify response', async () => {
+      mockOnboardingService.verifyMagicLink.mockReturnValue(
+        of(makeVerifyResponse({ tenantName: 'City Vet' }))
+      );
+      mockRouter = { navigate: vi.fn() };
+      await TestBed.configureTestingModule({
+        imports: [StaffProfileComponent],
+        providers: [
+          provideTranslateService({ defaultLanguage: 'en' }),
+          { provide: OnboardingService, useValue: mockOnboardingService },
+          { provide: Router,            useValue: mockRouter            },
+          { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'invite-token' } } } },
+        ],
+      }).compileComponents();
+      const f = TestBed.createComponent(StaffProfileComponent);
+      f.detectChanges();
+      expect(f.componentInstance.tenantName()).toBe('City Vet');
     });
   });
 
-  describe('onSubmit()', () => {
-    beforeEach(() => createComponent());
+  describe('newUserForm', () => {
+    beforeEach(async () => setup(null));
 
-    it('should not call saveStaffProfile when form is invalid', () => {
-      component.onSubmit();
-      expect(mockOnboardingService.saveStaffProfile).not.toHaveBeenCalled();
+    it('has the required form controls', () => {
+      expect(component.newUserForm.contains('firstName')).toBe(true);
+      expect(component.newUserForm.contains('lastName')).toBe(true);
+      expect(component.newUserForm.contains('email')).toBe(true);
+      expect(component.newUserForm.contains('password')).toBe(true);
+      expect(component.newUserForm.contains('confirmPassword')).toBe(true);
     });
 
-    it('should call saveStaffProfile, completeOnboarding, and navigate on success', fakeAsync(() => {
-      mockOnboardingService.saveStaffProfile.and.returnValue(of({ userId: 'user-456' }));
-      mockOnboardingService.completeOnboarding.and.returnValue(of(true));
+    it('is invalid when empty', () => {
+      expect(component.newUserForm.valid).toBe(false);
+    });
 
-      component.staffForm.patchValue({
-        fullName: 'Jane Vet',
-        telephone: '555-5678',
-        email: 'staff@test.com',
-        role: 'vet',
+    it('is valid when all required fields are correctly filled', () => {
+      component.newUserForm.patchValue({
+        firstName: 'Jane',
+        lastName: 'Vet',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+      expect(component.newUserForm.valid).toBe(true);
+    });
+
+    it('detects password mismatch', () => {
+      component.newUserForm.patchValue({
+        firstName: 'Jane',
+        lastName: 'Vet',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'different',
+      });
+      // Mark confirmPassword dirty so the getter returns true
+      component.newUserForm.get('confirmPassword')!.markAsDirty();
+      expect(component.passwordMismatch).toBe(true);
+    });
+  });
+
+  describe('createAccount()', () => {
+    beforeEach(async () => setup(null));
+
+    it('does not call completeStaffOnboarding when form is invalid', () => {
+      component.createAccount();
+      expect(mockOnboardingService.completeStaffOnboarding).not.toHaveBeenCalled();
+    });
+
+    it('calls completeStaffOnboarding and navigates to login on success', async () => {
+      mockOnboardingService.completeStaffOnboarding.mockReturnValue(of({ userId: 'user-123' }));
+
+      component.newUserForm.patchValue({
+        firstName: 'Jane',
+        lastName: 'Vet',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
       });
 
-      component.onSubmit();
-      tick();
+      component.createAccount();
 
-      expect(mockOnboardingService.saveStaffProfile).toHaveBeenCalled();
-      expect(mockOnboardingService.completeOnboarding).toHaveBeenCalled();
-      expect(mockRouter.navigate).toHaveBeenCalledWith(['/cases']);
-      expect(component.loading()).toBeFalse();
-    }));
+      expect(mockOnboardingService.completeStaffOnboarding).toHaveBeenCalled();
+      expect(mockRouter.navigate).toHaveBeenCalledWith(['/auth/login']);
+      expect(component.loading()).toBe(false);
+    });
   });
 });

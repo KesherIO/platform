@@ -5,8 +5,10 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AuthenticatedUser, TenantContext } from '@vet-ai/shared-types';
+import { AuthenticatedUser, TenantContext, TenantRole } from '@vet-ai/shared-types';
+import { ROLES_KEY } from '../decorators/roles.decorator';
 
 /**
  * Resolves the active tenant from the request and verifies the authenticated
@@ -29,7 +31,10 @@ import { AuthenticatedUser, TenantContext } from '@vet-ai/shared-types';
  */
 @Injectable()
 export class TenantGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -56,6 +61,18 @@ export class TenantGuard implements CanActivate {
     // Attach tenant context to request for downstream use via @CurrentTenant()
     const tenantContext: TenantContext = { tenantId, role: membership.role };
     request.tenant = tenantContext;
+
+    // Enforce @Roles() here — RolesGuard is global and runs before local guards,
+    // so it cannot see request.tenant yet. We check roles once tenant is resolved.
+    const requiredRoles = this.reflector.getAllAndOverride<TenantRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (requiredRoles && requiredRoles.length > 0) {
+      if (!requiredRoles.includes(tenantContext.role)) {
+        throw new ForbiddenException('Insufficient role for this action.');
+      }
+    }
 
     return true;
   }

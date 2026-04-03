@@ -3,27 +3,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global styles */
-@layer base {
-  body {
-    @apply text-gray-900 bg-gray-50;
-  }
+/* ─── Design System Tokens ─────────────────────────────────────────── */
+:root {
+  --color-primary-black:  #000000;
+  --color-primary-accent: #66E0E5;   /* text on black buttons / AI / turquoise */
+  --color-secondary:      #A65AF4;   /* purple — create / new / important */
+  --color-secondary-text: #FFFFFF;
+  --color-background:     #F5F6F8;
+  --color-card:           #FFFFFF;
+  --color-border:         #E5E7EB;
+  --color-text:           #1F2937;
+  --color-text-light:     #6B7280;
+
+  /* Semantic status colors */
+  --color-completed:      #22C55E;   /* green  — completed */
+  --color-pending:        #F97316;   /* orange — pending / awaiting */
+  --color-error:          #EF4444;   /* red    — error */
+  --color-ai:             #66E0E5;   /* turquoise — AI / results / highlight */
 }
 
-@layer components {
-  .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
-  }
-
-  .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-lg transition-colors;
-  }
-
-  .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4;
-  }
-
-  .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+/* ─── Global Base ──────────────────────────────────────────────────── */
+@layer base {
+  body {
+    @apply text-gray-900;
+    background-color: var(--color-background);
   }
 }

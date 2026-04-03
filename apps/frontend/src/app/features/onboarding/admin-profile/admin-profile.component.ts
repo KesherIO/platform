@@ -13,7 +13,8 @@ import { OnboardingService } from '../../../core/services/onboarding.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { BrandingFooterComponent } from '../../../shared/components/branding-footer/branding-footer.component';
 import { InputComponent } from '../../../shared/components/input/input.component';
-import { ButtonComponent } from '../../../shared/components/button/button.component';
+import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
+import { OutlineButtonComponent } from '../../../shared/components/outline-button/outline-button.component';
 
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
   const password = group.get('password')?.value;
@@ -31,7 +32,8 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
     TranslatePipe,
     BrandingFooterComponent,
     InputComponent,
-    ButtonComponent,
+    PrimaryButtonComponent,
+    OutlineButtonComponent,
   ],
   templateUrl: './admin-profile.component.html',
 })

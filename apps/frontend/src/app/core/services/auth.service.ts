@@ -2,8 +2,11 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { createClient, SupabaseClient, Session, AuthError } from '@supabase/supabase-js';
-import { Observable, from, of, switchMap, tap, map, shareReplay } from 'rxjs';
+import { Observable, from, of, switchMap, tap, map, shareReplay, catchError } from 'rxjs';
 import { environment } from '../../../environments/environment';
+
+// Captured at module-load time, before the Supabase SDK initialises and clears the hash.
+const initialHash = window.location.hash;
 
 export interface MeResponse {
   user: {
@@ -64,13 +67,25 @@ export class AuthService {
     }),
   ).pipe(shareReplay(1));
 
+  /**
+   * Set to true when Supabase fires PASSWORD_RECOVERY, which can happen
+   * during app initialisation — before CallbackComponent even mounts.
+   * handleAuthCallback() reads and clears this flag so it works regardless
+   * of whether the event fired before or after the component registered its
+   * own onAuthStateChange listener.
+   */
+  private _pendingRecovery = false;
+
   constructor() {
     // Eagerly subscribe so the promise is kicked off immediately.
     this.sessionReady$.subscribe();
 
-    // Keep the signal in sync with Supabase auth state changes.
-    this.supabase.auth.onAuthStateChange((_event, session) => {
+    // Keep the session signal in sync and capture recovery events early.
+    this.supabase.auth.onAuthStateChange((event, session) => {
       this.session.set(session);
+      if (event === 'PASSWORD_RECOVERY') {
+        this._pendingRecovery = true;
+      }
     });
   }
 
@@ -163,29 +178,82 @@ export class AuthService {
 
   /**
    * Exchange the auth code from the URL hash/query after an OTP / magic-link redirect.
+   * Returns 'recovery' when the link is a password-reset (type=recovery in hash),
+   * so the caller can show a set-new-password form instead of navigating away.
    * Call this from the /auth/callback route.
    */
-  handleAuthCallback(): Observable<void> {
-    return from(this.supabase.auth.getSession()).pipe(
-      switchMap(({ data, error }) => {
-        if (error) throw error;
-        if (data.session) {
-          this.session.set(data.session);
-          return this.loadMe().pipe(
-            tap(() => this.navigateAfterAuth()),
-            map(() => undefined as void),
-          );
+  handleAuthCallback(): Observable<'recovery' | 'authenticated'> {
+    // Check for Supabase error in the URL hash (e.g. expired or already-used link).
+    const hashParams = new URLSearchParams(initialHash.slice(1));
+    const hashError = hashParams.get('error_description') ?? hashParams.get('error');
+    if (hashError) {
+      return new Observable(observer => observer.error(new Error(decodeURIComponent(hashError.replace(/\+/g, ' ')))));
+    }
+
+    // PASSWORD_RECOVERY may have fired during app init, before this component mounted.
+    if (this._pendingRecovery) {
+      this._pendingRecovery = false;
+      return of('recovery' as const);
+    }
+
+    // Fallback: hash-based detection for implicit flow (type=recovery in hash fragment).
+    const isRecovery = hashParams.get('type') === 'recovery';
+
+    return new Observable<'recovery' | 'authenticated'>(observer => {
+      let done = false;
+
+      const { data: { subscription } } = this.supabase.auth.onAuthStateChange((event, session) => {
+        if (done) return;
+
+        if (event === 'PASSWORD_RECOVERY') {
+          done = true;
+          this.session.set(session);
+          observer.next('recovery');
+          observer.complete();
+        } else if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+          done = true;
+          this.session.set(session);
+          if (isRecovery) {
+            observer.next('recovery');
+            observer.complete();
+          } else {
+            this.loadMe().pipe(tap(() => this.navigateAfterAuth())).subscribe({
+              next: () => { observer.next('authenticated'); observer.complete(); },
+              error: (err) => observer.error(err),
+            });
+          }
         }
-        return of(undefined as void);
+      });
+
+      return () => subscription.unsubscribe();
+    });
+  }
+
+  /**
+   * Update the authenticated user's password.
+   * Call this after handleAuthCallback() returns 'recovery'.
+   */
+  updatePassword(newPassword: string): Observable<void> {
+    return from(this.supabase.auth.updateUser({ password: newPassword })).pipe(
+      switchMap(({ error }) => {
+        if (error) throw error;
+        return this.loadMe().pipe(
+          tap(() => this.navigateAfterAuth()),
+          map(() => undefined as void),
+        );
       }),
     );
   }
 
   /**
-   * Sign out — clears local session and navigates to /auth/login.
+   * Sign out — invalidates the session server-side, then clears local state.
+   * The backend call is best-effort: if it fails (e.g. token already expired)
+   * we still clear locally and navigate to login.
    */
   signOut(): Observable<void> {
-    return from(this.supabase.auth.signOut()).pipe(
+    return this.http.post('/api/auth/sign-out', {}).pipe(
+      catchError(() => of(null)), // non-fatal — proceed with client-side sign-out
+      switchMap(() => from(this.supabase.auth.signOut())),
       switchMap(({ error }: { error: AuthError | null }) => {
         this.session.set(null);
         this.me.set(null);

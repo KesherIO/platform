@@ -9,3 +9,4 @@ export * from './clinic.model.js';
 export * from './tenant.model.js';
 export * from './onboarding.model.js';
 export * from './auth.model.js';
+export * from './staff.model.js';

@@ -26,8 +26,9 @@ describe('BrandingFooterComponent', () => {
   });
 
   it('should accept a custom logoUrl input', () => {
-    component.logoUrl = '/assets/custom-logo.png';
+    fixture.componentRef.setInput('logoUrl', '/assets/custom-logo.png');
     fixture.detectChanges();
+
     expect(component.logoUrl).toBe('/assets/custom-logo.png');
   });
 

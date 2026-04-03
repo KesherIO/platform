@@ -85,9 +85,9 @@ export class SaveStaffProfileDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ enum: ['vet', 'tech', 'admin'] })
-  @IsEnum(['vet', 'tech', 'admin'])
-  role!: 'vet' | 'tech' | 'admin';
+  @ApiProperty({ enum: ['admin', 'staff'] })
+  @IsEnum(['admin', 'staff'])
+  role!: 'admin' | 'staff';
 
   /** The invite token received in the magic link URL */
   @ApiProperty({ example: 'uuid-token-here' })
@@ -101,13 +101,65 @@ export class SaveStaffProfileDto {
 // ---------------------------------------------------------------------------
 
 export class GenerateInviteDto {
-  @ApiProperty({ example: 'staff@example.com' })
+  /**
+   * Target email for email-specific invites.
+   * Omit to generate a generic magic link (anyone can use it).
+   * When provided, email-based guardrails are enforced:
+   *   - no duplicate pending invite for this email in this clinic
+   *   - user with this email must not already be an active member
+   */
+  @ApiPropertyOptional({ example: 'staff@example.com' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  /** Defaults to 'staff' when omitted. */
+  @ApiPropertyOptional({ enum: ['admin', 'staff'], default: 'staff' })
+  @IsOptional()
+  @IsEnum(['admin', 'staff'])
+  role?: 'admin' | 'staff';
+}
+
+// ---------------------------------------------------------------------------
+// POST /onboarding/complete-staff
+// Public endpoint — token is the only credential.
+// Creates: Supabase user (server-side, email pre-confirmed) → User row → membership.
+// After success the frontend signs in with signInWithPassword().
+// ---------------------------------------------------------------------------
+
+export class CompleteStaffOnboardingDto {
+  /** The invite token from the magic link URL */
+  @ApiProperty({ example: 'uuid-token-here' })
+  @IsString()
+  @IsNotEmpty()
+  token!: string;
+
+  /** Omit when the user already exists (re-invite path). */
+  @ApiPropertyOptional({ example: 'John Smith' })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  fullName?: string;
+
+  @ApiPropertyOptional({ example: '+1 512 555 0102' })
+  @IsOptional()
+  @IsString()
+  telephone?: string;
+
+  @ApiProperty({ example: 'john@clinic.com' })
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ enum: ['vet', 'tech', 'admin'] })
-  @IsEnum(['vet', 'tech', 'admin'])
-  role!: 'vet' | 'tech' | 'admin';
+  /** Omit when the user already exists (re-invite path). */
+  @ApiPropertyOptional({ example: 'supersecret123', minLength: 8 })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
+
+  @ApiProperty({ enum: ['admin', 'staff'] })
+  @IsEnum(['admin', 'staff'])
+  role!: 'admin' | 'staff';
 }
 
 // ---------------------------------------------------------------------------

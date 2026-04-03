@@ -4,6 +4,13 @@
   "private": true,
   "nx": {
     "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node ../../node_modules/.bin/jest --config jest.config.js --no-coverage",
+          "cwd": "apps/api"
+        }
+      },
       "build": {
         "executor": "nx:run-commands",
         "options": {
@@ -98,9 +105,12 @@
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.0",
+    "@types/jest": "^30.0.0",
     "@types/multer": "^2.1.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.18.0",
-    "prisma": "^7.5.0"
+    "jest": "^30.3.0",
+    "prisma": "^7.5.0",
+    "ts-jest": "^29.4.9"
   }
 }

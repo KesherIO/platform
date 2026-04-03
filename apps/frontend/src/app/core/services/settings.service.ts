@@ -1,0 +1,92 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, throwError } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+import { StaffMember } from '@vet-ai/shared-types';
+import { AuthService } from './auth.service';
+
+export type InviteErrorType = 'capacity_exceeded' | 'already_member' | 'unknown';
+export type StaffErrorType = 'last_admin' | 'unknown';
+
+export interface MagicLinkResult {
+  url: string;
+  token: string;
+  alreadyExists: boolean;
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class SettingsService {
+  private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
+
+  private get tenantId(): string {
+    const me = this.auth.me();
+    return me?.activeTenantId ?? me?.tenants[0]?.id ?? '';
+  }
+
+  private get tenantHeaders() {
+    return { headers: { 'x-tenant-id': this.tenantId } };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Staff invitations
+  // ---------------------------------------------------------------------------
+
+  generateMagicLink(): Observable<MagicLinkResult> {
+    const tenantId = this.tenantId;
+    return this.http
+      .post<{ token: string; tenantId: string; expiresAt: string; alreadyExists: boolean }>(
+        `/api/onboarding/invite?tenantId=${tenantId}`,
+        {},
+      )
+      .pipe(
+        map((res) => ({
+          token: res.token,
+          url: `${window.location.origin}/onboarding/staff?token=${res.token}&tenantId=${res.tenantId}`,
+          alreadyExists: res.alreadyExists,
+        })),
+        catchError((err: HttpErrorResponse) => {
+          let type: InviteErrorType;
+          if (err.status === 409) type = 'already_member';
+          else if (err.status === 400) type = 'capacity_exceeded';
+          else type = 'unknown';
+          return throwError(() => ({ type }));
+        }),
+      );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Staff members
+  // ---------------------------------------------------------------------------
+
+  getStaffMembers(): Observable<StaffMember[]> {
+    return this.http.get<StaffMember[]>(
+      `/api/tenants/${this.tenantId}/staff`,
+      this.tenantHeaders,
+    );
+  }
+
+  removeStaff(userId: string): Observable<void> {
+    return this.http
+      .delete<void>(`/api/tenants/${this.tenantId}/staff/${userId}`, this.tenantHeaders)
+      .pipe(catchError((err: HttpErrorResponse) => this.mapStaffError(err)));
+  }
+
+  updateRole(userId: string, role: 'admin' | 'staff'): Observable<void> {
+    return this.http
+      .patch<void>(
+        `/api/tenants/${this.tenantId}/staff/${userId}/role`,
+        { role },
+        this.tenantHeaders,
+      )
+      .pipe(catchError((err: HttpErrorResponse) => this.mapStaffError(err)));
+  }
+
+  private mapStaffError(err: HttpErrorResponse): Observable<never> {
+    const type: StaffErrorType =
+      err.status === 409 && err.error?.message === 'last_admin' ? 'last_admin' : 'unknown';
+    return throwError(() => ({ type }));
+  }
+}

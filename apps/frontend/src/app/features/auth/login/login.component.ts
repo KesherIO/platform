@@ -2,11 +2,12 @@ import { Component, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
+import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, TranslatePipe],
+  imports: [ReactiveFormsModule, TranslatePipe, PrimaryButtonComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })

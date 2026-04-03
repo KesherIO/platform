@@ -15,21 +15,34 @@
     "RESET_BUTTON": "Enviar enlace",
     "BACK_TO_LOGIN": "Volver al inicio de sesión",
     "SIGN_OUT": "Cerrar sesión",
-    "ERROR_GENERIC": "Algo salió mal. Por favor, inténtalo de nuevo."
+    "ERROR_GENERIC": "Algo salió mal. Por favor, inténtalo de nuevo.",
+    "SET_PASSWORD_TITLE": "Establece tu nueva contraseña",
+    "SET_PASSWORD_BODY": "Ingresa tu nueva contraseña para completar el restablecimiento.",
+    "NEW_PASSWORD_LABEL": "Nueva contraseña",
+    "NEW_PASSWORD_PLACEHOLDER": "Mín. 8 caracteres",
+    "CONFIRM_PASSWORD_LABEL": "Confirmar contraseña",
+    "CONFIRM_PASSWORD_PLACEHOLDER": "••••••••",
+    "PASSWORD_MISMATCH": "Las contraseñas no coinciden.",
+    "SET_PASSWORD_BUTTON": "Establecer nueva contraseña"
   },
   "NAV": {
-    "HOME": "Inicio",
-    "PATIENTS": "Pacientes",
-    "APPOINTMENTS": "Citas",
+    "DASHBOARD": "Inicio",
     "CASES": "Casos",
-    "SETTINGS": "Configuración",
-    "TOGGLE_SIDEBAR": "Alternar barra lateral"
+    "ORDERS": "Órdenes",
+    "RESULTS": "Resultados",
+    "SETTINGS": "Configuración"
   },
   "DASHBOARD": {
     "HOME": {
       "GREETING": "Hola, {{name}}",
-      "SUBTITLE": "Aquí está lo que está pasando en tu clínica hoy.",
-      "COMING_SOON": "Próximamente"
+      "SUBTITLE": "Así está tu clínica hoy.",
+      "OPEN_CASES": "Casos Abiertos",
+      "ORDERS_TODAY": "Órdenes Hoy",
+      "RESULTS_PENDING": "Resultados Pendientes",
+      "COMPLETED": "Completados",
+      "NEW_CASE": "Nuevo Caso",
+      "VIEW_RESULTS": "Ver Resultados",
+      "QUICK_ACTIONS": "Acciones rápidas"
     }
   },
   "COMMON": {
@@ -50,7 +63,7 @@
   "WELCOME": {
     "TITLE": "Bienvenido a {{name}} Copilot",
     "SUBTITLE": "Desarrollado por Biomet VetAI",
-    "BODY": "Es la primera vez que tu clínica configura {{name}} Copilot. Comencemos.",
+    "BODY": "Vamos a configurar tu clínica para que puedas empezar a usar Copilot.\nEsto solo tomará unos minutos.",
     "TERMS_PRE": "Al hacer clic en continuar, aceptas nuestros",
     "TERMS_LINK": "Términos de Servicio",
     "TERMS_AND": "y",
@@ -123,31 +136,66 @@
     "LOGO_UPLOAD_FAILED": "Cuenta creada correctamente, pero no se pudo subir el logo. Puedes subir tu logo más tarde desde Configuración."
   },
   "STAFF_PROFILE": {
-    "TITLE": "Bienvenido a LabX Copilot",
-    "SUBTITLE": "Desarrollado por Biomet VetAI",
-    "INVITED": "Has sido invitado a unirte a {{name}} Copilot. Completa tus datos para finalizar la configuración",
-    "NAME_LABEL": "Nombre completo",
-    "NAME_PLACEHOLDER": "Ingresa tu nombre",
-    "PHONE_LABEL": "Teléfono",
-    "PHONE_PLACEHOLDER": "555 555 5555",
+    "TITLE": "Crea tu cuenta",
+    "INVITED": "Has sido invitado a unirte a {{name}}. Completa tus datos para comenzar.",
+    "FIRST_NAME_LABEL": "Nombre",
+    "FIRST_NAME_PLACEHOLDER": "Ana",
+    "LAST_NAME_LABEL": "Apellido",
+    "LAST_NAME_PLACEHOLDER": "García",
     "EMAIL_LABEL": "Correo electrónico",
-    "EMAIL_PLACEHOLDER": "correo@dominio.com",
+    "EMAIL_PLACEHOLDER": "tu@ejemplo.com",
     "PASSWORD_LABEL": "Contraseña",
     "PASSWORD_PLACEHOLDER": "••••••••",
     "CONFIRM_PASSWORD_LABEL": "Confirmar contraseña",
     "CONFIRM_PASSWORD_PLACEHOLDER": "••••••••",
     "PASSWORD_MISMATCH": "Las contraseñas no coinciden.",
-    "ROLE_LABEL": "Rol",
-    "ROLE_PLACEHOLDER": "seleccionar",
-    "ROLE_VET": "Veterinario",
-    "ROLE_TECH": "Técnico",
-    "ROLE_ADMIN": "Administrador"
+    "CREATE_ACCOUNT_BUTTON": "Crear cuenta",
+    "EXISTING_USER_TITLE": "Únete a tu clínica",
+    "EXISTING_USER_BODY": "Tu cuenta ya existe. Toca abajo para unirte a {{name}}.",
+    "JOIN_BUTTON": "Unirse a la clínica",
+    "LINK_EXPIRED_TITLE": "Enlace de invitación expirado",
+    "LINK_EXPIRED_BODY": "Este enlace de invitación ha expirado. Pide al administrador de tu clínica que genere uno nuevo."
   },
   "PWA": {
     "INSTALL_TITLE": "Agrega a tu pantalla de inicio",
     "INSTALL_BODY": "Instala la app para acceder rápidamente desde tu teléfono.",
     "INSTALL_BUTTON": "Instalar",
     "INSTALL_DISMISS": "Ahora no"
+  },
+  "SETTINGS": {
+    "TITLE": "Configuración",
+    "TAB_CLINIC": "Clínica",
+    "TAB_STAFF": "Equipo",
+    "TAB_PROFILE": "Perfil",
+    "COMING_SOON": "Próximamente",
+    "STAFF": {
+      "INVITE_TITLE": "Invitar equipo",
+      "INVITE_BODY": "Invita a tu equipo a unirse a {{name}} Copilot. Heredarán la configuración de tu clínica y solo necesitarán completar sus datos personales.",
+      "CREATE_LINK": "Crear enlace mágico",
+      "GENERATING": "Generando...",
+      "MODAL_TITLE": "Enlace mágico listo",
+      "MODAL_BODY": "Comparte este enlace con tu equipo. Expira en 7 días.",
+      "COPY": "Copiar enlace",
+      "COPIED": "¡Copiado!",
+      "CLOSE": "Cerrar",
+      "MEMBERS_TITLE": "Miembros del equipo",
+      "ROLE_ADMIN": "Admin",
+      "ROLE_STAFF": "Personal",
+      "MAKE_ADMIN": "Hacer Admin",
+      "MAKE_STAFF": "Hacer Personal",
+      "REMOVE": "Eliminar",
+      "LAST_ADMIN_ERROR": "No se puede eliminar o degradar al último admin. Primero promueve a otro miembro a admin.",
+      "STATUS_ACTIVE": "Activo",
+      "STATUS_INVITED": "Invitado",
+      "RESEND": "Reenviar invitación",
+      "DEACTIVATE": "Desactivar",
+      "EMPTY": "Aún no hay miembros del equipo. Invita a tu primer colaborador arriba.",
+      "MODAL_EXISTING_TITLE": "El enlace de invitación ya existe",
+      "MODAL_EXISTING_BODY": "Ya existe una invitación pendiente para este correo. Comparte el enlace existente o reenvía la invitación.",
+      "COPY_EXISTING": "Copiar enlace existente",
+      "ERROR_CAPACITY": "Has alcanzado el máximo de 10 invitaciones pendientes. Espera a que alguna sea aceptada o expire antes de crear una nueva.",
+      "ERROR_MEMBER": "Este usuario ya es miembro de la clínica."
+    }
   },
   "BRANDING": {
     "POWERED_BY": "Desarrollado por Biomet VetAI"

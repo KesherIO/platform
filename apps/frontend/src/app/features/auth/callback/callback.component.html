@@ -1,12 +1,7 @@
-<div class="min-h-screen flex items-center justify-center bg-gray-50">
-  @if (error.message) {
-    <div class="max-w-sm text-center space-y-4">
-      <p class="text-red-600 text-sm">{{ error.message }}</p>
-      <a routerLink="/auth/login" class="text-cyan text-sm underline">
-        {{ 'AUTH.BACK_TO_LOGIN' | translate }}
-      </a>
-    </div>
-  } @else {
+<div class="min-h-screen bg-white flex flex-col items-center justify-center px-6">
+
+  <!-- Loading spinner -->
+  @if (view() === 'loading') {
     <div class="flex flex-col items-center gap-3 text-gray-500">
       <svg class="animate-spin h-8 w-8 text-cyan" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -15,4 +10,82 @@
       <p class="text-sm">{{ 'COMMON.LOADING' | translate }}</p>
     </div>
   }
+
+  <!-- Set new password form -->
+  @if (view() === 'set-password') {
+    <div class="w-full max-w-sm">
+      <h1 class="text-2xl font-bold text-gray-900 mb-1 text-center">
+        {{ 'AUTH.SET_PASSWORD_TITLE' | translate }}
+      </h1>
+      <p class="text-sm text-gray-500 text-center mb-8">
+        {{ 'AUTH.SET_PASSWORD_BODY' | translate }}
+      </p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
+
+        <!-- New password -->
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+            {{ 'AUTH.NEW_PASSWORD_LABEL' | translate }}
+          </label>
+          <input
+            id="password"
+            type="password"
+            formControlName="password"
+            autocomplete="new-password"
+            class="w-full rounded-lg border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent placeholder-gray-400"
+            [placeholder]="'AUTH.NEW_PASSWORD_PLACEHOLDER' | translate"
+          />
+        </div>
+
+        <!-- Confirm password -->
+        <div>
+          <label for="confirm" class="block text-sm font-medium text-gray-700 mb-1">
+            {{ 'AUTH.CONFIRM_PASSWORD_LABEL' | translate }}
+          </label>
+          <input
+            id="confirm"
+            type="password"
+            formControlName="confirm"
+            autocomplete="new-password"
+            class="w-full rounded-lg border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent placeholder-gray-400"
+            [placeholder]="'AUTH.CONFIRM_PASSWORD_PLACEHOLDER' | translate"
+          />
+        </div>
+
+        <!-- Mismatch error -->
+        @if (form.hasError('mismatch') && form.get('confirm')?.dirty) {
+          <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+            {{ 'AUTH.PASSWORD_MISMATCH' | translate }}
+          </p>
+        }
+
+        <!-- API error -->
+        @if (error()) {
+          <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ error() }}</p>
+        }
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          [disabled]="form.invalid || loading()"
+          class="w-full rounded-xl bg-black text-white py-3 text-sm font-semibold disabled:opacity-50 transition-opacity"
+        >
+          {{ loading() ? ('COMMON.LOADING' | translate) : ('AUTH.SET_PASSWORD_BUTTON' | translate) }}
+        </button>
+
+      </form>
+    </div>
+  }
+
+  <!-- Error state -->
+  @if (view() === 'error') {
+    <div class="max-w-sm text-center space-y-4">
+      <p class="text-red-600 text-sm">{{ error() }}</p>
+      <a routerLink="/auth/login" class="text-cyan text-sm underline">
+        {{ 'AUTH.BACK_TO_LOGIN' | translate }}
+      </a>
+    </div>
+  }
+
 </div>

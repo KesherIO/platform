@@ -1,0 +1,57 @@
+<div class="flex flex-col h-full">
+
+  <!-- ─── Page Header ──────────────────────────────────────────────── -->
+  <div class="px-4 pt-6 pb-2">
+    <h1 class="text-xl font-bold text-gray-900">{{ 'SETTINGS.TITLE' | translate }}</h1>
+  </div>
+
+  <!-- ─── Tab Strip ────────────────────────────────────────────────── -->
+  <div class="flex border-b border-gray-200 bg-white px-2">
+    @for (tab of tabs(); track tab.key) {
+      <button
+        type="button"
+        (click)="activeTab.set(tab.key)"
+        class="py-3 px-4 text-sm font-medium border-b-2 transition-colors"
+        [class]="activeTab() === tab.key
+          ? 'border-secondary text-secondary'
+          : 'border-transparent text-gray-400 hover:text-gray-600'"
+      >
+        {{ tab.labelKey | translate }}
+      </button>
+    }
+  </div>
+
+  <!-- ─── Tab Content ──────────────────────────────────────────────── -->
+  <div class="flex-1 overflow-y-auto">
+    @if (activeTab() === 'staff') {
+      <app-staff-settings />
+    } @else if (activeTab() === 'profile') {
+      <div class="flex flex-col gap-4 px-4 py-6">
+
+        <!-- User info card -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-full bg-black flex items-center justify-center text-white text-lg font-bold flex-shrink-0">
+            {{ userDisplayName().charAt(0).toUpperCase() }}
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-gray-900 truncate">{{ userDisplayName() }}</p>
+            <p class="text-xs text-gray-400 truncate">{{ userEmail() }}</p>
+          </div>
+        </div>
+
+        <!-- Sign out -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+          <app-outline-button type="button" (click)="signOut()" [disabled]="signingOut()">
+            {{ signingOut() ? ('COMMON.LOADING' | translate) : ('AUTH.SIGN_OUT' | translate) }}
+          </app-outline-button>
+        </div>
+
+      </div>
+    } @else {
+      <div class="flex items-center justify-center h-40">
+        <p class="text-sm text-gray-400">{{ 'SETTINGS.COMING_SOON' | translate }}</p>
+      </div>
+    }
+  </div>
+
+</div>

@@ -105,22 +105,14 @@
       />
     </div>
 
-    <!-- Button row: Back (secondary) + Save and continue (primary) -->
-    <div class="flex gap-3 mb-6">
-      <app-button
-        type="button"
-        variant="secondary"
-        (click)="onBack()"
-      >
+    <!-- Button stack: Continue (primary) then Back (outline) -->
+    <div class="flex flex-col gap-3 mb-6">
+      <app-primary-button type="submit" [disabled]="clinicForm.invalid">
+        {{ 'COMMON.CONTINUE' | translate }}
+      </app-primary-button>
+      <app-outline-button type="button" (click)="onBack()">
         {{ 'COMMON.BACK' | translate }}
-      </app-button>
-      <app-button
-        type="submit"
-        variant="primary"
-        [disabled]="clinicForm.invalid"
-      >
-        {{ 'COMMON.SAVE_CONTINUE' | translate }}
-      </app-button>
+      </app-outline-button>
     </div>
   </form>
 

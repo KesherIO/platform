@@ -4,7 +4,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { LanguageToggleComponent } from '../../../shared/components/language-toggle/language-toggle.component';
-import { ButtonComponent } from '../../../shared/components/button/button.component';
+import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 
 type TokenErrorReason = 'expired' | 'used' | 'not_found' | 'no_token' | 'network';
 
@@ -14,7 +14,7 @@ type TokenErrorReason = 'expired' | 'used' | 'not_found' | 'no_token' | 'network
   imports: [
     TranslatePipe,
     LanguageToggleComponent,
-    ButtonComponent,
+    PrimaryButtonComponent,
   ],
   templateUrl: './welcome.component.html',
 })

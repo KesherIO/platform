@@ -18,6 +18,13 @@ export const DASHBOARD_ROUTES: Routes = [
         loadComponent: () =>
           import('./home/home.component').then(m => m.HomeComponent),
       },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('../settings/settings-shell/settings-shell.component').then(
+            m => m.SettingsShellComponent,
+          ),
+      },
     ],
   },
 ];

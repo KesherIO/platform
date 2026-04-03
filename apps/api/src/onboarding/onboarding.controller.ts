@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
   HttpCode,
   HttpStatus,
@@ -14,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { OnboardingService } from './onboarding.service';
 import { Public } from '../auth/decorators/public.decorator';
+import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '@vet-ai/shared-types';
 import {
@@ -21,6 +23,7 @@ import {
   GenerateInviteDto,
   CreateAdminLinkDto,
   CompleteAdminOnboardingDto,
+  CompleteStaffOnboardingDto,
 } from './dto/onboarding.dto';
 
 @ApiTags('onboarding')
@@ -82,17 +85,35 @@ export class OnboardingController {
     return this.onboardingService.generateInvite(user.id, tenantId, body);
   }
 
+  /**
+   * Public — completes STAFF onboarding. Invite token is the only credential.
+   * Creates: Supabase Auth user (email pre-confirmed) → local User row → membership.
+   * Marks the invite as accepted. After this returns, the frontend signs in with
+   * signInWithPassword() using the email and password submitted in the form.
+   *
+   * Input:  { token, fullName, telephone?, email, password, role }
+   * Output: { userId }
+   */
+  @Post('complete-staff')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Complete STAFF onboarding via invite token' })
+  completeStaffOnboarding(@Body() body: CompleteStaffOnboardingDto) {
+    return this.onboardingService.completeStaffOnboarding(body);
+  }
+
   // ── New token-based admin onboarding endpoints ────────────────────────────
 
   /**
-   * Public (TODO: protect with internal API key before going to prod) —
-   * called by Biomet to create a secure onboarding link for a new clinic admin.
+   * Internal — requires x-internal-api-key header (INTERNAL_API_KEY env var).
+   * Called by Biomet to create a secure onboarding link for a new clinic admin.
    *
-   * Input:  { clinicName, adminEmail, biometClinicId? }
+   * Input:  { clinicName, clinicEmail, biometClinicId? }
    * Output: { token, onboardingLink: "/onboarding/welcome?token=<hex>" }
    */
   @Post('admin-link')
   @Public()
+  @UseGuards(InternalApiKeyGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create an ADMIN onboarding link (Biomet internal use)' })
   createAdminLink(@Body() body: CreateAdminLinkDto) {

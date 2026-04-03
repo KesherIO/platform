@@ -24,7 +24,7 @@ describe('onboardingGuard', () => {
         OnboardingService,
         {
           provide: Router,
-          useValue: { navigate: jasmine.createSpy('navigate') },
+          useValue: { navigate: vi.fn() },
         },
       ],
     });
@@ -36,19 +36,19 @@ describe('onboardingGuard', () => {
   it('should allow access when tenantId is in query params', () => {
     const route = createRouteSnapshot({ tenantId: 'tenant-abc' });
     const result = TestBed.runInInjectionContext(() => onboardingGuard(route, mockState));
-    expect(result).toBeTrue();
+    expect(result).toBe(true);
   });
 
   it('should allow access when invite token is in query params', () => {
     const route = createRouteSnapshot({ token: 'invite-token-xyz' });
     const result = TestBed.runInInjectionContext(() => onboardingGuard(route, mockState));
-    expect(result).toBeTrue();
+    expect(result).toBe(true);
   });
 
   it('should redirect to / when no tenantId or token', () => {
     const route = createRouteSnapshot();
     const result = TestBed.runInInjectionContext(() => onboardingGuard(route, mockState));
-    expect(result).toBeFalse();
+    expect(result).toBe(false);
     expect(router.navigate).toHaveBeenCalledWith(['/']);
   });
 
@@ -58,7 +58,7 @@ describe('onboardingGuard', () => {
 
     const result = TestBed.runInInjectionContext(() => onboardingGuard(route, mockState));
 
-    expect(result).toBeFalse();
+    expect(result).toBe(false);
     expect(router.navigate).toHaveBeenCalledWith(['/cases']);
   });
 });
@@ -73,7 +73,7 @@ describe('onboardingCompleteGuard', () => {
         OnboardingService,
         {
           provide: Router,
-          useValue: { navigate: jasmine.createSpy('navigate') },
+          useValue: { navigate: vi.fn() },
         },
       ],
     });
@@ -88,13 +88,13 @@ describe('onboardingCompleteGuard', () => {
 
     const result = TestBed.runInInjectionContext(() => onboardingCompleteGuard(route, mockState));
 
-    expect(result).toBeTrue();
+    expect(result).toBe(true);
   });
 
   it('should allow access when there is no tenantId (fresh start)', () => {
     const route = createRouteSnapshot();
     const result = TestBed.runInInjectionContext(() => onboardingCompleteGuard(route, mockState));
-    expect(result).toBeTrue();
+    expect(result).toBe(true);
   });
 
   it('should redirect to /onboarding when onboarding is incomplete with a tenantId', () => {
@@ -107,7 +107,7 @@ describe('onboardingCompleteGuard', () => {
 
     const result = TestBed.runInInjectionContext(() => onboardingCompleteGuard(route, mockState));
 
-    expect(result).toBeFalse();
+    expect(result).toBe(false);
     expect(router.navigate).toHaveBeenCalledWith(['/onboarding']);
   });
 });

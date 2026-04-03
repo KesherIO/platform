@@ -49,7 +49,7 @@ export interface StaffProfileData {
   fullName: string;
   telephone: string;
   email: string;
-  role: 'vet' | 'tech' | 'admin';
+  role: 'admin' | 'staff';
 }
 
 export interface MagicLinkInvite {

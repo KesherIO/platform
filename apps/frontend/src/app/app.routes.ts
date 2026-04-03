@@ -9,19 +9,21 @@ export const routes: Routes = [
     pathMatch: 'full',
   },
 
+  // Auth callback must come BEFORE the 'auth' parent route.
+  // Angular matches routes in order; if 'auth' comes first, its noAuthGuard fires
+  // for /auth/callback (treating the recovery session as a normal login) and
+  // redirects to dashboard before the component can render the set-password form.
+  {
+    path: 'auth/callback',
+    loadComponent: () =>
+      import('./features/auth/callback/callback.component').then(m => m.CallbackComponent),
+  },
+
   // Auth pages — redirect away if already logged in.
   {
     path: 'auth',
     canActivate: [noAuthGuard],
     loadChildren: () => import('./features/auth/auth.routes').then(m => m.AUTH_ROUTES),
-  },
-
-  // Auth callback doesn't go through noAuthGuard — Supabase can redirect here
-  // before the session is fully established.
-  {
-    path: 'auth/callback',
-    loadComponent: () =>
-      import('./features/auth/callback/callback.component').then(m => m.CallbackComponent),
   },
 
   // Onboarding — public. Users arrive here before they have credentials.

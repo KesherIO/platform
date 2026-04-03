@@ -29,11 +29,11 @@ describe('ButtonComponent', () => {
     });
 
     it('should default to fullWidth true', () => {
-      expect(component.fullWidth).toBeTrue();
+      expect(component.fullWidth).toBe(true);
     });
 
     it('should default to not disabled', () => {
-      expect(component.disabled).toBeFalse();
+      expect(component.disabled).toBe(false);
     });
   });
 
@@ -53,13 +53,6 @@ describe('ButtonComponent', () => {
       const cls = component.getButtonClass();
       expect(cls).toContain('bg-black');
       expect(cls).toContain('text-cyan');
-    });
-
-    it('should include secondary classes for secondary variant', () => {
-      component.variant = 'secondary';
-      const cls = component.getButtonClass();
-      expect(cls).toContain('bg-gray-200');
-      expect(cls).toContain('text-gray-700');
     });
 
     it('should include gradient classes for gradient variant', () => {

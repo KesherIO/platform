@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -25,6 +25,17 @@ export class AuthController {
   @ApiOkResponse({ description: 'User profile with tenant memberships' })
   getMe(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getMe(user.id);
+  }
+
+  /**
+   * Invalidates the user's Supabase session server-side.
+   * The client also calls supabase.auth.signOut() to clear local storage.
+   */
+  @Post('sign-out')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Sign out — invalidate session server-side' })
+  async signOut(@CurrentUser() user: AuthenticatedUser) {
+    await this.authService.signOut(user.id);
   }
 
   /**

@@ -8,7 +8,8 @@ import { BrandingFooterComponent } from '../../../shared/components/branding-foo
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { SelectComponent } from '../../../shared/components/select/select.component';
 import { ToggleComponent } from '../../../shared/components/toggle/toggle.component';
-import { ButtonComponent } from '../../../shared/components/button/button.component';
+import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
+import { OutlineButtonComponent } from '../../../shared/components/outline-button/outline-button.component';
 import { LogoUploadComponent } from '../../../shared/components/logo-upload/logo-upload.component';
 import { COUNTRIES } from '../../../core/data/countries';
 
@@ -22,7 +23,8 @@ import { COUNTRIES } from '../../../core/data/countries';
     InputComponent,
     SelectComponent,
     ToggleComponent,
-    ButtonComponent,
+    PrimaryButtonComponent,
+    OutlineButtonComponent,
     LogoUploadComponent,
   ],
   templateUrl: './clinic-setup.component.html',

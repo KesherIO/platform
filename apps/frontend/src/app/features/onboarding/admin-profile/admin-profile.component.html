@@ -25,9 +25,9 @@
       }
 
       <div class="w-full max-w-sm">
-        <app-button type="button" variant="primary" (click)="onGoToSignIn()">
-          {{ 'ADMIN_PROFILE.SUCCESS_BUTTON' | translate }}
-        </app-button>
+        <app-primary-button type="button" (click)="onGoToSignIn()">
+          {{ 'COMMON.ENTER_APP' | translate }}
+        </app-primary-button>
       </div>
     </div>
   }
@@ -134,23 +134,14 @@
         <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">{{ error() }}</p>
       }
 
-      <!-- Button row: Back (secondary) + Create account (primary) -->
-      <div class="flex gap-3 mb-6">
-        <app-button
-          type="button"
-          variant="secondary"
-          [disabled]="loading()"
-          (click)="onBack()"
-        >
-          {{ 'COMMON.BACK' | translate }}
-        </app-button>
-        <app-button
-          type="submit"
-          variant="primary"
-          [disabled]="profileForm.invalid || loading()"
-        >
+      <!-- Button stack: Create account (primary) then Back (outline) -->
+      <div class="flex flex-col gap-3 mb-6">
+        <app-primary-button type="submit" [disabled]="profileForm.invalid || loading()">
           {{ loading() ? ('ADMIN_PROFILE.COMPLETING' | translate) : ('ADMIN_PROFILE.SUBMIT_BUTTON' | translate) }}
-        </app-button>
+        </app-primary-button>
+        <app-outline-button type="button" [disabled]="loading()" (click)="onBack()">
+          {{ 'COMMON.BACK' | translate }}
+        </app-outline-button>
       </div>
     </form>
   }

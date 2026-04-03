@@ -21,7 +21,7 @@ export class ButtonComponent {
     if (this.variant === 'primary') {
       variantClass = 'bg-black text-cyan hover:bg-gray-900';
     } else if (this.variant === 'secondary') {
-      variantClass = 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+      variantClass = 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50';
     } else if (this.variant === 'gradient') {
       variantClass = 'bg-gradient-to-r from-purple-dark to-purple text-white hover:from-purple to-purple-light';
     }

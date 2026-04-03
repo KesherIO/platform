@@ -32,15 +32,15 @@ describe('ToggleComponent', () => {
     });
 
     it('should call onChange with new value', () => {
-      const fn = jasmine.createSpy('onChange');
-      component.registerOnChange(fn);
+      const fn = vi.fn();
+      component.registerOnChange(fn as unknown as (value: string) => void);
       component.selectOption('b');
       expect(fn).toHaveBeenCalledWith('b');
     });
 
     it('should call onTouched when option is selected', () => {
-      const fn = jasmine.createSpy('onTouched');
-      component.registerOnTouched(fn);
+      const fn = vi.fn();
+      component.registerOnTouched(fn as unknown as () => void);
       component.selectOption('a');
       expect(fn).toHaveBeenCalled();
     });
@@ -81,7 +81,7 @@ describe('ToggleComponent', () => {
 
     it('setDisabledState() should update disabled', () => {
       component.setDisabledState(true);
-      expect(component.disabled).toBeTrue();
+      expect(component.disabled).toBe(true);
     });
   });
 });

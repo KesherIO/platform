@@ -1,96 +1,72 @@
-<div class="flex h-screen bg-gray-50 overflow-hidden">
+<div class="flex flex-col h-screen bg-gray-50">
 
-  <!-- ─── Sidebar ─────────────────────────────────────────────────── -->
-  <aside
-    class="flex flex-col bg-white border-r border-gray-200 transition-all duration-200"
-    [class.w-60]="sidebarOpen()"
-    [class.w-16]="!sidebarOpen()"
-  >
-    <!-- Clinic branding -->
-    <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-100 overflow-hidden">
-      <img
-        [src]="logoUrl()"
-        alt="Clinic logo"
-        class="h-8 w-8 rounded-lg object-cover flex-shrink-0"
-      />
-      @if (sidebarOpen()) {
-        <span class="text-sm font-semibold text-gray-800 truncate">{{ clinicName() }}</span>
-      }
-    </div>
+  <!-- ─── Top Header ───────────────────────────────────────────────── -->
+  <header class="relative flex items-center gap-3 bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
+    <img
+      [src]="logoUrl()"
+      alt="Clinic logo"
+      class="h-8 w-8 rounded-lg object-cover flex-shrink-0"
+    />
+    <span class="text-sm font-semibold text-gray-800 flex-1 truncate">{{ clinicName() }}</span>
 
-    <!-- Navigation -->
-    <nav class="flex-1 py-4 space-y-1 overflow-y-auto">
-      @for (item of navItems; track item.path) {
-        <a
-          [routerLink]="item.path"
-          routerLinkActive="bg-cyan/10 text-cyan"
-          class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors rounded-lg mx-2"
-          [title]="item.labelKey | translate"
-        >
-          <span class="text-lg flex-shrink-0">{{ getIcon(item.icon) }}</span>
-          @if (sidebarOpen()) {
-            <span class="truncate">{{ item.labelKey | translate }}</span>
-          }
-        </a>
-      }
-    </nav>
+    <!-- Avatar toggle -->
+    <button
+      type="button"
+      (click)="menuOpen.set(!menuOpen())"
+      class="h-8 w-8 rounded-full avatar-gradient flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+    >
+      {{ userDisplayName().charAt(0).toUpperCase() }}
+    </button>
 
-    <!-- User section -->
-    <div class="border-t border-gray-100 px-4 py-3">
-      @if (sidebarOpen()) {
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-xs text-gray-500 truncate">{{ userDisplayName() }}</span>
-          <button
-            type="button"
-            (click)="signOut()"
-            class="text-xs text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
-            [title]="'AUTH.SIGN_OUT' | translate"
-          >⎋</button>
+    <!-- User menu dropdown -->
+    @if (menuOpen()) {
+      <!-- Backdrop — click outside to close -->
+      <button
+        type="button"
+        aria-label="Close menu"
+        class="fixed inset-0 z-40 cursor-default bg-transparent border-0 p-0 m-0"
+        (click)="menuOpen.set(false)"
+      ></button>
+
+      <!-- Card -->
+      <div class="absolute top-full right-4 mt-2 w-56 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden">
+        <!-- User info -->
+        <div class="px-4 py-3 border-b border-gray-100">
+          <p class="text-sm font-semibold text-gray-900 truncate">{{ userDisplayName() }}</p>
+          <p class="text-xs text-gray-400 truncate mt-0.5">{{ userEmail() }}</p>
         </div>
-      } @else {
+        <!-- Sign out action -->
         <button
           type="button"
           (click)="signOut()"
-          class="text-xs text-gray-400 hover:text-red-500 transition-colors w-full text-center"
-          [title]="'AUTH.SIGN_OUT' | translate"
-        >⎋</button>
-      }
-    </div>
-  </aside>
-
-  <!-- ─── Main content area ───────────────────────────────────────── -->
-  <div class="flex flex-col flex-1 overflow-hidden">
-
-    <!-- Top bar -->
-    <header class="flex items-center gap-4 bg-white border-b border-gray-200 px-6 py-3">
-      <!-- Sidebar toggle -->
-      <button
-        type="button"
-        (click)="toggleSidebar()"
-        class="text-gray-400 hover:text-gray-600 transition-colors"
-        [title]="'NAV.TOGGLE_SIDEBAR' | translate"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-
-      <div class="flex-1"></div>
-
-      <!-- Clinic name in topbar (always visible) -->
-      <span class="text-sm font-medium text-gray-700">{{ clinicName() }}</span>
-
-      <!-- Avatar -->
-      <div class="h-8 w-8 rounded-full bg-cyan flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-        {{ userDisplayName().charAt(0).toUpperCase() }}
+          class="w-full text-left px-4 py-3 text-sm text-red-500 font-medium hover:bg-red-50 transition-colors"
+        >
+          {{ 'AUTH.SIGN_OUT' | translate }}
+        </button>
       </div>
-    </header>
+    }
+  </header>
 
-    <!-- Page content -->
-    <main class="flex-1 overflow-y-auto p-6">
-      <router-outlet></router-outlet>
-    </main>
-  </div>
+  <!-- ─── Page Content ─────────────────────────────────────────────── -->
+  <main class="flex-1 overflow-y-auto">
+    <router-outlet></router-outlet>
+  </main>
+
+  <!-- ─── Bottom Navigation ────────────────────────────────────────── -->
+  <nav class="bottom-nav flex items-center justify-around bg-white border-t border-gray-200 flex-shrink-0">
+    @for (item of navItems; track item.path) {
+      <a
+        [routerLink]="item.path"
+        routerLinkActive="active-nav-item"
+        [routerLinkActiveOptions]="{ exact: item.exact }"
+        class="nav-item flex flex-col items-center gap-0.5 py-2 px-3 text-gray-400 transition-colors"
+        [title]="item.labelKey | translate"
+      >
+        <span class="text-xl leading-none">{{ getIcon(item.icon) }}</span>
+        <span class="text-[10px] font-medium">{{ item.labelKey | translate }}</span>
+      </a>
+    }
+  </nav>
 
   <!-- PWA install prompt — floats over the full layout -->
   <app-pwa-install-banner />

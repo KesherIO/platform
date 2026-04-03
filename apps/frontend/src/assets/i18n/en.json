@@ -15,21 +15,34 @@
     "RESET_BUTTON": "Send reset link",
     "BACK_TO_LOGIN": "Back to sign in",
     "SIGN_OUT": "Sign out",
-    "ERROR_GENERIC": "Something went wrong. Please try again."
+    "ERROR_GENERIC": "Something went wrong. Please try again.",
+    "SET_PASSWORD_TITLE": "Set your new password",
+    "SET_PASSWORD_BODY": "Enter your new password to complete the reset.",
+    "NEW_PASSWORD_LABEL": "New password",
+    "NEW_PASSWORD_PLACEHOLDER": "Min. 8 characters",
+    "CONFIRM_PASSWORD_LABEL": "Confirm password",
+    "CONFIRM_PASSWORD_PLACEHOLDER": "••••••••",
+    "PASSWORD_MISMATCH": "Passwords do not match.",
+    "SET_PASSWORD_BUTTON": "Set new password"
   },
   "NAV": {
-    "HOME": "Home",
-    "PATIENTS": "Patients",
-    "APPOINTMENTS": "Appointments",
+    "DASHBOARD": "Dashboard",
     "CASES": "Cases",
-    "SETTINGS": "Settings",
-    "TOGGLE_SIDEBAR": "Toggle sidebar"
+    "ORDERS": "Orders",
+    "RESULTS": "Results",
+    "SETTINGS": "Settings"
   },
   "DASHBOARD": {
     "HOME": {
       "GREETING": "Hello, {{name}}",
-      "SUBTITLE": "Here's what's happening at your clinic today.",
-      "COMING_SOON": "Coming soon"
+      "SUBTITLE": "Here's your clinic at a glance.",
+      "OPEN_CASES": "Open Cases",
+      "ORDERS_TODAY": "Orders Today",
+      "RESULTS_PENDING": "Results Pending",
+      "COMPLETED": "Completed",
+      "NEW_CASE": "New Case",
+      "VIEW_RESULTS": "View Results",
+      "QUICK_ACTIONS": "Quick actions"
     }
   },
   "COMMON": {
@@ -50,7 +63,7 @@
   "WELCOME": {
     "TITLE": "Welcome to {{name}} Copilot",
     "SUBTITLE": "Powered by Biomet VetAI",
-    "BODY": "This is the first time your clinic is setting up {{name}} Copilot. Let's get started.",
+    "BODY": "Let's set up your clinic so you can start using Copilot.\nThis will only take a few minutes.",
     "TERMS_PRE": "By clicking continue, you agree to our",
     "TERMS_LINK": "Terms of Service",
     "TERMS_AND": "and",
@@ -123,31 +136,66 @@
     "LOGO_UPLOAD_FAILED": "Account created successfully, but logo upload failed. You can upload your logo later from Settings."
   },
   "STAFF_PROFILE": {
-    "TITLE": "Welcome to LabX Copilot",
-    "SUBTITLE": "Powered by Biomet VetAI",
-    "INVITED": "You've been invited to join {{name}} Copilot. Please complete your details to finish setup",
-    "NAME_LABEL": "Full name",
-    "NAME_PLACEHOLDER": "Enter name",
-    "PHONE_LABEL": "Telephone",
-    "PHONE_PLACEHOLDER": "555 555 5555",
+    "TITLE": "Create your account",
+    "INVITED": "You've been invited to join {{name}}. Complete your details to get started.",
+    "FIRST_NAME_LABEL": "First name",
+    "FIRST_NAME_PLACEHOLDER": "Jane",
+    "LAST_NAME_LABEL": "Last name",
+    "LAST_NAME_PLACEHOLDER": "Doe",
     "EMAIL_LABEL": "Email",
-    "EMAIL_PLACEHOLDER": "email@domain.com",
+    "EMAIL_PLACEHOLDER": "you@example.com",
     "PASSWORD_LABEL": "Password",
     "PASSWORD_PLACEHOLDER": "••••••••",
     "CONFIRM_PASSWORD_LABEL": "Confirm password",
     "CONFIRM_PASSWORD_PLACEHOLDER": "••••••••",
     "PASSWORD_MISMATCH": "Passwords do not match.",
-    "ROLE_LABEL": "Role",
-    "ROLE_PLACEHOLDER": "select",
-    "ROLE_VET": "Veterinarian",
-    "ROLE_TECH": "Technician",
-    "ROLE_ADMIN": "Administrator"
+    "CREATE_ACCOUNT_BUTTON": "Create account",
+    "EXISTING_USER_TITLE": "Join your clinic",
+    "EXISTING_USER_BODY": "Your account already exists. Tap below to join {{name}}.",
+    "JOIN_BUTTON": "Join clinic",
+    "LINK_EXPIRED_TITLE": "Invite link expired",
+    "LINK_EXPIRED_BODY": "This invite link has expired. Ask your clinic admin to generate a new one."
   },
   "PWA": {
     "INSTALL_TITLE": "Add to your home screen",
     "INSTALL_BODY": "Install the app for quick access from your phone.",
     "INSTALL_BUTTON": "Install",
     "INSTALL_DISMISS": "Not now"
+  },
+  "SETTINGS": {
+    "TITLE": "Settings",
+    "TAB_CLINIC": "Clinic",
+    "TAB_STAFF": "Staff",
+    "TAB_PROFILE": "Profile",
+    "COMING_SOON": "Coming soon",
+    "STAFF": {
+      "INVITE_TITLE": "Invite staff",
+      "INVITE_BODY": "Invite your staff to join {{name}} Copilot. They will inherit your clinic settings and only need to complete their personal details.",
+      "CREATE_LINK": "Create magic link",
+      "GENERATING": "Generating...",
+      "MODAL_TITLE": "Magic link ready",
+      "MODAL_BODY": "Share this link with your staff. It expires in 7 days.",
+      "COPY": "Copy link",
+      "COPIED": "Copied!",
+      "CLOSE": "Close",
+      "MEMBERS_TITLE": "Staff members",
+      "ROLE_ADMIN": "Admin",
+      "ROLE_STAFF": "Staff",
+      "MAKE_ADMIN": "Make Admin",
+      "MAKE_STAFF": "Make Staff",
+      "REMOVE": "Remove",
+      "LAST_ADMIN_ERROR": "Cannot remove or demote the last admin. Promote another staff member to admin first.",
+      "STATUS_ACTIVE": "Active",
+      "STATUS_INVITED": "Invited",
+      "RESEND": "Resend invite",
+      "DEACTIVATE": "Deactivate",
+      "EMPTY": "No staff members yet. Invite your first team member above.",
+      "MODAL_EXISTING_TITLE": "Invite link already exists",
+      "MODAL_EXISTING_BODY": "A pending invite already exists for this email. Share the existing link or resend the invitation.",
+      "COPY_EXISTING": "Copy existing link",
+      "ERROR_CAPACITY": "You've reached the maximum of 10 pending invites. Wait for one to be accepted or expire before creating a new one.",
+      "ERROR_MEMBER": "This user is already a member of the clinic."
+    }
   },
   "BRANDING": {
     "POWERED_BY": "Powered by Biomet VetAI"

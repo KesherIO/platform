@@ -75,17 +75,9 @@
         }
 
         <!-- Submit -->
-        <button
-          type="submit"
-          [disabled]="form.invalid || loading()"
-          class="w-full rounded-xl bg-gray-900 px-4 py-3.5 text-sm font-semibold text-cyan shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity mt-2"
-        >
-          @if (loading()) {
-            {{ 'COMMON.LOADING' | translate }}
-          } @else {
-            {{ 'AUTH.BUTTON_LOGIN' | translate }}
-          }
-        </button>
+        <app-primary-button type="submit" [disabled]="form.invalid || loading()">
+          {{ loading() ? ('COMMON.LOADING' | translate) : ('AUTH.BUTTON_LOGIN' | translate) }}
+        </app-primary-button>
 
         <!-- Forgot password -->
         <div class="text-center pt-1">
@@ -133,17 +125,9 @@
         }
 
         <!-- Submit -->
-        <button
-          type="submit"
-          [disabled]="resetForm.invalid || loading() || resetSent()"
-          class="w-full rounded-xl bg-gray-900 px-4 py-3.5 text-sm font-semibold text-cyan shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity mt-2"
-        >
-          @if (loading()) {
-            {{ 'COMMON.LOADING' | translate }}
-          } @else {
-            {{ 'AUTH.RESET_BUTTON' | translate }}
-          }
-        </button>
+        <app-primary-button type="submit" [disabled]="resetForm.invalid || loading() || resetSent()">
+          {{ loading() ? ('COMMON.LOADING' | translate) : ('AUTH.RESET_BUTTON' | translate) }}
+        </app-primary-button>
 
         <!-- Back to login -->
         <div class="text-center pt-1">

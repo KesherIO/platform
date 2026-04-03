@@ -35,7 +35,7 @@ describe('SelectComponent', () => {
     });
 
     it('should default disabled to false', () => {
-      expect(component.disabled).toBeFalse();
+      expect(component.disabled).toBe(false);
     });
   });
 
@@ -51,29 +51,29 @@ describe('SelectComponent', () => {
     });
 
     it('registerOnChange() should store the callback', () => {
-      const fn = jasmine.createSpy('onChangeCallback');
-      component.registerOnChange(fn);
+      const fn = vi.fn();
+      component.registerOnChange(fn as unknown as (value: string) => void);
       component.onChangeCallback('selected');
       expect(fn).toHaveBeenCalledWith('selected');
     });
 
     it('registerOnTouched() should store the callback', () => {
-      const fn = jasmine.createSpy('onTouched');
-      component.registerOnTouched(fn);
+      const fn = vi.fn();
+      component.registerOnTouched(fn as unknown as () => void);
       component.onTouched();
       expect(fn).toHaveBeenCalled();
     });
 
     it('setDisabledState() should update disabled property', () => {
       component.setDisabledState(true);
-      expect(component.disabled).toBeTrue();
+      expect(component.disabled).toBe(true);
     });
   });
 
   describe('onChange()', () => {
     it('should update value and call onChangeCallback', () => {
-      const fn = jasmine.createSpy('onChangeCallback');
-      component.registerOnChange(fn);
+      const fn = vi.fn();
+      component.registerOnChange(fn as unknown as (value: string) => void);
 
       const event = { target: { value: 'feline' } } as unknown as Event;
       component.onChange(event);

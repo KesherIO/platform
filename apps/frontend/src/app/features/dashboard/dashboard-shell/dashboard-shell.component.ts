@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, computed, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
@@ -14,8 +14,6 @@ import { PwaInstallBannerComponent } from '../../../shared/components/pwa-instal
 })
 export class DashboardShellComponent {
   private readonly auth = inject(AuthService);
-
-  readonly sidebarOpen = signal(true);
 
   readonly clinicName = computed(() => {
     const me = this.auth.me();
@@ -34,30 +32,30 @@ export class DashboardShellComponent {
     return firstName ? `${firstName} ${lastName ?? ''}`.trim() : me.user.email;
   });
 
+  readonly userEmail = computed(() => this.auth.me()?.user.email ?? '');
+
+  readonly menuOpen = signal(false);
+
   readonly navItems = [
-    { labelKey: 'NAV.HOME',          icon: 'home',     path: '/dashboard/home' },
-    { labelKey: 'NAV.PATIENTS',      icon: 'patients', path: '/patients' },
-    { labelKey: 'NAV.APPOINTMENTS',  icon: 'calendar', path: '/appointments' },
-    { labelKey: 'NAV.CASES',         icon: 'cases',    path: '/cases' },
-    { labelKey: 'NAV.SETTINGS',      icon: 'settings', path: '/settings' },
+    { labelKey: 'NAV.DASHBOARD', icon: 'home',     path: '/dashboard/home', exact: true  },
+    { labelKey: 'NAV.CASES',     icon: 'cases',    path: '/cases',          exact: false },
+    { labelKey: 'NAV.ORDERS',    icon: 'orders',   path: '/orders',         exact: false },
+    { labelKey: 'NAV.RESULTS',   icon: 'results',  path: '/results',        exact: false },
+    { labelKey: 'NAV.SETTINGS',  icon: 'settings', path: '/dashboard/settings', exact: false },
   ];
 
-  toggleSidebar() {
-    this.sidebarOpen.update(v => !v);
-  }
-
   signOut() {
+    this.menuOpen.set(false);
     this.auth.signOut().subscribe();
   }
 
-  /** Returns a simple Unicode icon for nav items. Replace with a proper icon library if needed. */
   getIcon(name: string): string {
     const icons: Record<string, string> = {
-      home:      '🏠',
-      patients:  '🐾',
-      calendar:  '📅',
-      cases:     '🩺',
-      settings:  '⚙️',
+      home:     '🏠',
+      cases:    '🩺',
+      orders:   '📋',
+      results:  '📊',
+      settings: '⚙️',
     };
     return icons[name] ?? '•';
   }

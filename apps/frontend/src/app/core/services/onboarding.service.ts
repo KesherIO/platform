@@ -119,6 +119,21 @@ export class OnboardingService {
   }
 
   // ---------------------------------------------------------------------------
+  // Complete staff onboarding (new flow — backend creates Supabase user)
+  // ---------------------------------------------------------------------------
+
+  completeStaffOnboarding(dto: {
+    token: string;
+    fullName?: string;
+    telephone?: string;
+    email: string;
+    password?: string;
+    role: 'admin' | 'staff';
+  }): Observable<{ userId: string }> {
+    return this.http.post<{ userId: string }>(`${this.apiBase}/complete-staff`, dto);
+  }
+
+  // ---------------------------------------------------------------------------
   // Generate magic link
   // ---------------------------------------------------------------------------
 
@@ -129,7 +144,7 @@ export class OnboardingService {
       return throwError(() => new Error('Tenant ID is required'));
     }
 
-    const body = { email: '', role: 'vet' };
+    const body = { email: '', role: 'staff' };
 
     return this.http
       .post<{ token: string; tenantId: string; expiresAt: string }>(
@@ -151,10 +166,20 @@ export class OnboardingService {
   // Verify magic link token
   // ---------------------------------------------------------------------------
 
-  verifyMagicLink(token: string): Observable<{ tenantId: string; tenantName: string }> {
-    return this.http.get<{ tenantId: string; tenantName: string }>(
-      `${this.apiBase}/invite/verify/${token}`,
-    );
+  verifyMagicLink(token: string): Observable<{
+    tenantId: string;
+    tenantName: string;
+    email: string;
+    role: 'admin' | 'staff';
+    userExists: boolean;
+  }> {
+    return this.http.get<{
+      tenantId: string;
+      tenantName: string;
+      email: string;
+      role: 'admin' | 'staff';
+      userExists: boolean;
+    }>(`${this.apiBase}/invite/verify/${token}`);
   }
 
   // ---------------------------------------------------------------------------
