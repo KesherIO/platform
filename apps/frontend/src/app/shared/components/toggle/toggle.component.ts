@@ -22,7 +22,9 @@ export class ToggleComponent implements ControlValueAccessor {
   @Input() disabled = false;
 
   value = '';
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   onChange: (value: string) => void = () => {};
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   onTouched: () => void = () => {};
 
   selectOption(optionValue: string): void {
@@ -34,11 +36,14 @@ export class ToggleComponent implements ControlValueAccessor {
   }
 
   getButtonClass(optionValue: string): string {
-    const baseClass = 'px-6 py-2 rounded-full font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseClass =
+      'px-6 py-2 rounded-full font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
     const activeClass = 'bg-black text-cyan';
     const inactiveClass = 'bg-gray-200 text-gray-600';
 
-    return `${baseClass} ${this.value === optionValue ? activeClass : inactiveClass}`;
+    return `${baseClass} ${
+      this.value === optionValue ? activeClass : inactiveClass
+    }`;
   }
 
   writeValue(value: string): void {

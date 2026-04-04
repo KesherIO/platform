@@ -7,7 +7,11 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AuthenticatedUser, TenantContext, TenantRole } from '@vet-ai/shared-types';
+import {
+  AuthenticatedUser,
+  TenantContext,
+  TenantRole,
+} from '@vet-ai/shared-types';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
 /**
@@ -33,7 +37,7 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
 export class TenantGuard implements CanActivate {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly reflector: Reflector,
+    private readonly reflector: Reflector
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -43,7 +47,7 @@ export class TenantGuard implements CanActivate {
     const tenantId = this.resolveTenantId(request);
     if (!tenantId) {
       throw new BadRequestException(
-        'Active tenant could not be resolved. Provide an x-tenant-id header.',
+        'Active tenant could not be resolved. Provide an x-tenant-id header.'
       );
     }
 
@@ -54,19 +58,22 @@ export class TenantGuard implements CanActivate {
 
     if (!membership) {
       throw new ForbiddenException(
-        'You are not a member of the requested tenant.',
+        'You are not a member of the requested tenant.'
       );
     }
 
     // Attach tenant context to request for downstream use via @CurrentTenant()
-    const tenantContext: TenantContext = { tenantId, role: membership.role };
+    const tenantContext: TenantContext = {
+      tenantId,
+      role: membership.role as TenantRole,
+    };
     request.tenant = tenantContext;
 
     // Enforce @Roles() here — RolesGuard is global and runs before local guards,
     // so it cannot see request.tenant yet. We check roles once tenant is resolved.
     const requiredRoles = this.reflector.getAllAndOverride<TenantRole[]>(
       ROLES_KEY,
-      [context.getHandler(), context.getClass()],
+      [context.getHandler(), context.getClass()]
     );
     if (requiredRoles && requiredRoles.length > 0) {
       if (!requiredRoles.includes(tenantContext.role)) {

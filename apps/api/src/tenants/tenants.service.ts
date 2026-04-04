@@ -1,17 +1,21 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantRole } from '@prisma/client';
 import { StaffMember, StaffRole } from '@vet-ai/shared-types';
 
 const ROLE_MAP: Record<string, StaffRole> = {
-  OWNER:        'Admin',
-  ADMIN:        'Admin',
-  VET:          'Staff',
-  TECHNICIAN:   'Staff',
+  OWNER: 'Admin',
+  ADMIN: 'Admin',
+  VET: 'Staff',
+  TECHNICIAN: 'Staff',
   RECEPTIONIST: 'Staff',
 };
 
-const ADMIN_ROLES = [TenantRole.OWNER, TenantRole.ADMIN];
+const ADMIN_ROLES: TenantRole[] = [TenantRole.OWNER, TenantRole.ADMIN];
 
 @Injectable()
 export class TenantsService {
@@ -28,7 +32,9 @@ export class TenantsService {
       this.prisma.userTenantMembership.findMany({
         where: { tenantId },
         include: {
-          user: { select: { id: true, firstName: true, lastName: true, email: true } },
+          user: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
         },
         orderBy: { createdAt: 'asc' },
       }),
@@ -41,7 +47,8 @@ export class TenantsService {
     const activeMembers: StaffMember[] = memberships.map((m) => ({
       id: m.userId,
       fullName:
-        [m.user.firstName, m.user.lastName].filter(Boolean).join(' ') || m.user.email,
+        [m.user.firstName, m.user.lastName].filter(Boolean).join(' ') ||
+        m.user.email,
       email: m.user.email,
       role: ROLE_MAP[m.role] ?? 'Staff',
       status: 'Active',
@@ -89,7 +96,11 @@ export class TenantsService {
    * Change a staff member's role between ADMIN and VET (staff).
    * Blocked when trying to demote the last admin/owner in the clinic.
    */
-  async updateStaffRole(tenantId: string, userId: string, role: TenantRole): Promise<void> {
+  async updateStaffRole(
+    tenantId: string,
+    userId: string,
+    role: TenantRole
+  ): Promise<void> {
     const membership = await this.prisma.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId, tenantId } },
     });
@@ -98,7 +109,8 @@ export class TenantsService {
       throw new NotFoundException('Staff member not found.');
     }
 
-    const isDemoting = ADMIN_ROLES.includes(membership.role) && !ADMIN_ROLES.includes(role);
+    const isDemoting =
+      ADMIN_ROLES.includes(membership.role) && !ADMIN_ROLES.includes(role);
     if (isDemoting) {
       await this.assertNotLastAdmin(tenantId);
     }

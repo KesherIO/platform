@@ -19,11 +19,11 @@ const LOGO_BUCKET = 'clinic-logos';
 export class StorageService {
   private readonly supabase: SupabaseClient;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(config: ConfigService) {
     this.supabase = createClient(
       config.getOrThrow<string>('SUPABASE_URL'),
       // Use the service-role key for server-side storage operations (bypasses RLS)
-      config.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY'),
+      config.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY')
     );
   }
 
@@ -39,7 +39,7 @@ export class StorageService {
    */
   async uploadClinicLogo(
     tenantId: string,
-    file: Express.Multer.File,
+    file: Express.Multer.File
   ): Promise<string> {
     this.validateLogoFile(file);
 
@@ -55,13 +55,11 @@ export class StorageService {
 
     if (error) {
       throw new InternalServerErrorException(
-        `Storage upload failed: ${error.message}`,
+        `Storage upload failed: ${error.message}`
       );
     }
 
-    const { data } = this.supabase.storage
-      .from(LOGO_BUCKET)
-      .getPublicUrl(path);
+    const { data } = this.supabase.storage.from(LOGO_BUCKET).getPublicUrl(path);
 
     return data.publicUrl;
   }
@@ -73,13 +71,15 @@ export class StorageService {
   private validateLogoFile(file: Express.Multer.File): void {
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       throw new BadRequestException(
-        `Invalid file type "${file.mimetype}". Allowed types: PNG, JPEG, WebP.`,
+        `Invalid file type "${file.mimetype}". Allowed types: PNG, JPEG, WebP.`
       );
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
       throw new BadRequestException(
-        `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is 2 MB.`,
+        `File too large (${(file.size / 1024 / 1024).toFixed(
+          1
+        )} MB). Maximum allowed size is 2 MB.`
       );
     }
   }

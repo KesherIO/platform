@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "types": ["node", "jest"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "rootDir": "../../"
+  },
+  "include": ["src/**/*.spec.ts", "src/**/*.d.ts"],
+  "exclude": []
+}

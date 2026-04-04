@@ -1,166 +1,205 @@
 <div class="min-h-screen bg-white flex flex-col">
-
   <!-- ─── Loading ──────────────────────────────────────────────────────── -->
   @if (view() === 'loading') {
-    <div class="flex-1 flex items-center justify-center">
-      <p class="text-sm text-gray-400">{{ 'COMMON.LOADING' | translate }}</p>
-    </div>
+  <div class="flex-1 flex items-center justify-center">
+    <p class="text-sm text-gray-400">{{ 'COMMON.LOADING' | translate }}</p>
+  </div>
   }
 
   <!-- ─── Invalid / expired link ───────────────────────────────────────── -->
   @if (view() === 'error') {
-    <div class="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-      <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
-        <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-      <h1 class="text-2xl font-bold text-gray-900 mb-3">
-        {{ 'STAFF_PROFILE.LINK_EXPIRED_TITLE' | translate }}
-      </h1>
-      <p class="text-base text-gray-600 max-w-sm leading-relaxed">
-        {{ 'STAFF_PROFILE.LINK_EXPIRED_BODY' | translate }}
-      </p>
+  <div
+    class="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center"
+  >
+    <div
+      class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6"
+    >
+      <svg
+        class="w-8 h-8 text-red-500"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
     </div>
+    <h1 class="text-2xl font-bold text-gray-900 mb-3">
+      {{ 'STAFF_PROFILE.LINK_EXPIRED_TITLE' | translate }}
+    </h1>
+    <p class="text-base text-gray-600 max-w-sm leading-relaxed">
+      {{ 'STAFF_PROFILE.LINK_EXPIRED_BODY' | translate }}
+    </p>
+  </div>
   }
 
   <!-- ─── New user — create account ────────────────────────────────────── -->
   @if (view() === 'new-user') {
-    <div class="flex justify-center pt-12 mb-8">
-      <div class="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl flex items-center justify-center">
-        <img src="/assets/icons/icon-128x128.png" alt="VetAI" class="w-14 h-14" />
-      </div>
+  <div class="flex justify-center pt-12 mb-8">
+    <div
+      class="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl flex items-center justify-center"
+    >
+      <img src="/assets/icons/icon-128x128.png" alt="VetAI" class="w-14 h-14" />
     </div>
+  </div>
 
-    <div class="px-6 pb-6 text-center">
-      <h1 class="text-2xl font-bold text-gray-900 mb-2">
-        {{ 'STAFF_PROFILE.TITLE' | translate }}
-      </h1>
-      <p class="text-sm text-gray-500 leading-relaxed">
-        {{ 'STAFF_PROFILE.INVITED' | translate: { name: tenantName() } }}
-      </p>
+  <div class="px-6 pb-6 text-center">
+    <h1 class="text-2xl font-bold text-gray-900 mb-2">
+      {{ 'STAFF_PROFILE.TITLE' | translate }}
+    </h1>
+    <p class="text-sm text-gray-500 leading-relaxed">
+      {{ 'STAFF_PROFILE.INVITED' | translate : { name: tenantName() } }}
+    </p>
+  </div>
+
+  <form
+    [formGroup]="newUserForm"
+    (ngSubmit)="createAccount()"
+    class="flex-1 px-6 space-y-5 pb-10"
+  >
+    <app-input
+      id="firstName"
+      label="STAFF_PROFILE.FIRST_NAME_LABEL"
+      type="text"
+      placeholder="STAFF_PROFILE.FIRST_NAME_PLACEHOLDER"
+      formControlName="firstName"
+    />
+
+    <app-input
+      id="lastName"
+      label="STAFF_PROFILE.LAST_NAME_LABEL"
+      type="text"
+      placeholder="STAFF_PROFILE.LAST_NAME_PLACEHOLDER"
+      formControlName="lastName"
+    />
+
+    <!-- Email — editable for generic links, read-only for email-specific invites -->
+    @if (emailEditable()) {
+    <app-input
+      id="email"
+      label="STAFF_PROFILE.EMAIL_LABEL"
+      type="email"
+      placeholder="STAFF_PROFILE.EMAIL_PLACEHOLDER"
+      formControlName="email"
+    />
+    } @else {
+    <div>
+      <label
+        for="invite-email"
+        class="block text-sm font-medium text-gray-700 mb-1"
+      >
+        {{ 'STAFF_PROFILE.EMAIL_LABEL' | translate }}
+      </label>
+      <input
+        id="invite-email"
+        type="email"
+        [value]="inviteEmail()"
+        readonly
+        class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500 cursor-not-allowed"
+      />
     </div>
+    }
 
-    <form [formGroup]="newUserForm" (ngSubmit)="createAccount()" class="flex-1 px-6 space-y-5 pb-10">
+    <app-input
+      id="password"
+      label="STAFF_PROFILE.PASSWORD_LABEL"
+      type="password"
+      placeholder="STAFF_PROFILE.PASSWORD_PLACEHOLDER"
+      formControlName="password"
+    />
 
-      <app-input
-        id="firstName"
-        label="STAFF_PROFILE.FIRST_NAME_LABEL"
-        type="text"
-        placeholder="STAFF_PROFILE.FIRST_NAME_PLACEHOLDER"
-        formControlName="firstName"
-      />
+    <app-input
+      id="confirmPassword"
+      label="STAFF_PROFILE.CONFIRM_PASSWORD_LABEL"
+      type="password"
+      placeholder="STAFF_PROFILE.CONFIRM_PASSWORD_PLACEHOLDER"
+      formControlName="confirmPassword"
+    />
 
-      <app-input
-        id="lastName"
-        label="STAFF_PROFILE.LAST_NAME_LABEL"
-        type="text"
-        placeholder="STAFF_PROFILE.LAST_NAME_PLACEHOLDER"
-        formControlName="lastName"
-      />
+    @if (newUserForm.get('password')?.errors?.['minlength'] &&
+    newUserForm.get('password')?.dirty) {
+    <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+      {{ 'STAFF_PROFILE.PASSWORD_MIN_LENGTH' | translate }}
+    </p>
+    } @if (passwordMismatch) {
+    <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+      {{ 'STAFF_PROFILE.PASSWORD_MISMATCH' | translate }}
+    </p>
+    } @if (error()) {
+    <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+      {{ error() }}
+    </p>
+    }
 
-      <!-- Email — editable for generic links, read-only for email-specific invites -->
-      @if (emailEditable()) {
-        <app-input
-          id="email"
-          label="STAFF_PROFILE.EMAIL_LABEL"
-          type="email"
-          placeholder="STAFF_PROFILE.EMAIL_PLACEHOLDER"
-          formControlName="email"
-        />
-      } @else {
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            {{ 'STAFF_PROFILE.EMAIL_LABEL' | translate }}
-          </label>
-          <input
-            type="email"
-            [value]="inviteEmail()"
-            readonly
-            class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500 cursor-not-allowed"
-          />
-        </div>
-      }
-
-      <app-input
-        id="password"
-        label="STAFF_PROFILE.PASSWORD_LABEL"
-        type="password"
-        placeholder="STAFF_PROFILE.PASSWORD_PLACEHOLDER"
-        formControlName="password"
-      />
-
-      <app-input
-        id="confirmPassword"
-        label="STAFF_PROFILE.CONFIRM_PASSWORD_LABEL"
-        type="password"
-        placeholder="STAFF_PROFILE.CONFIRM_PASSWORD_PLACEHOLDER"
-        formControlName="confirmPassword"
-      />
-
-      @if (newUserForm.get('password')?.errors?.['minlength'] && newUserForm.get('password')?.dirty) {
-        <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
-          {{ 'STAFF_PROFILE.PASSWORD_MIN_LENGTH' | translate }}
-        </p>
-      }
-
-      @if (passwordMismatch) {
-        <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
-          {{ 'STAFF_PROFILE.PASSWORD_MISMATCH' | translate }}
-        </p>
-      }
-
-      @if (error()) {
-        <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ error() }}</p>
-      }
-
-      <app-primary-button type="submit" [disabled]="newUserForm.invalid || loading()">
-        {{ loading() ? ('COMMON.LOADING' | translate) : ('STAFF_PROFILE.CREATE_ACCOUNT_BUTTON' | translate) }}
-      </app-primary-button>
-
-    </form>
+    <app-primary-button
+      type="submit"
+      [disabled]="newUserForm.invalid || loading()"
+    >
+      {{
+        loading()
+          ? ('COMMON.LOADING' | translate)
+          : ('STAFF_PROFILE.CREATE_ACCOUNT_BUTTON' | translate)
+      }}
+    </app-primary-button>
+  </form>
   }
 
   <!-- ─── Existing user — join clinic ──────────────────────────────────── -->
   @if (view() === 'existing-user') {
-    <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
-
-      <div class="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl flex items-center justify-center mb-8">
-        <img src="/assets/icons/icon-128x128.png" alt="VetAI" class="w-14 h-14" />
-      </div>
-
-      <h1 class="text-2xl font-bold text-gray-900 mb-3 text-center">
-        {{ 'STAFF_PROFILE.EXISTING_USER_TITLE' | translate }}
-      </h1>
-
-      <p class="text-sm text-gray-500 text-center leading-relaxed mb-6 max-w-xs">
-        {{ 'STAFF_PROFILE.EXISTING_USER_BODY' | translate: { name: tenantName() } }}
-      </p>
-
-      <!-- Email display -->
-      <div class="w-full max-w-xs bg-gray-50 rounded-xl px-4 py-3 mb-8 text-center">
-        <p class="text-sm text-gray-500">{{ inviteEmail() }}</p>
-      </div>
-
-      @if (error()) {
-        <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4 w-full max-w-xs text-center">
-          {{ error() }}
-        </p>
-      }
-
-      <div class="w-full max-w-xs">
-        <app-primary-button type="button" (click)="joinClinic()" [disabled]="loading()">
-          {{ loading() ? ('COMMON.LOADING' | translate) : ('STAFF_PROFILE.JOIN_BUTTON' | translate) }}
-        </app-primary-button>
-      </div>
-
+  <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+    <div
+      class="w-20 h-20 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl flex items-center justify-center mb-8"
+    >
+      <img src="/assets/icons/icon-128x128.png" alt="VetAI" class="w-14 h-14" />
     </div>
+
+    <h1 class="text-2xl font-bold text-gray-900 mb-3 text-center">
+      {{ 'STAFF_PROFILE.EXISTING_USER_TITLE' | translate }}
+    </h1>
+
+    <p class="text-sm text-gray-500 text-center leading-relaxed mb-6 max-w-xs">
+      {{
+        'STAFF_PROFILE.EXISTING_USER_BODY' | translate : { name: tenantName() }
+      }}
+    </p>
+
+    <!-- Email display -->
+    <div
+      class="w-full max-w-xs bg-gray-50 rounded-xl px-4 py-3 mb-8 text-center"
+    >
+      <p class="text-sm text-gray-500">{{ inviteEmail() }}</p>
+    </div>
+
+    @if (error()) {
+    <p
+      class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4 w-full max-w-xs text-center"
+    >
+      {{ error() }}
+    </p>
+    }
+
+    <div class="w-full max-w-xs">
+      <app-primary-button
+        type="button"
+        (click)="joinClinic()"
+        [disabled]="loading()"
+      >
+        {{
+          loading()
+            ? ('COMMON.LOADING' | translate)
+            : ('STAFF_PROFILE.JOIN_BUTTON' | translate)
+        }}
+      </app-primary-button>
+    </div>
+  </div>
   }
 
   <!-- Home indicator -->
   <div class="h-8 bg-white flex items-center justify-center flex-shrink-0">
     <div class="w-32 h-1 bg-black rounded-full"></div>
   </div>
-
 </div>

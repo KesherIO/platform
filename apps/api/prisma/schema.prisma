@@ -26,6 +26,32 @@ enum OnboardingTokenType {
   ADMIN
 }
 
+enum PatientSpecies {
+  DOG
+  CAT
+  EQUINE
+  BOVINE
+  BIRD
+  REPTILE
+  RABBIT
+  OTHER
+}
+
+enum AgeUnit {
+  DAYS
+  WEEKS
+  MONTHS
+  YEARS
+}
+
+enum CaseStatus {
+  OPEN
+  TRIAGED
+  ORDERED
+  COMPLETED
+  CANCELLED
+}
+
 // ---------------------------------------------------------------------------
 // Auth / Multi-tenancy
 // ---------------------------------------------------------------------------
@@ -49,6 +75,7 @@ model Tenant {
 
   memberships UserTenantMembership[]
   invitations TenantInvitation[]
+  cases       Case[]
 
   @@map("tenants")
 }
@@ -61,8 +88,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships UserTenantMembership[]
+  memberships     UserTenantMembership[]
   sentInvitations TenantInvitation[]
+  createdCases    Case[]
 
   @@map("users")
 }
@@ -119,4 +147,59 @@ model OnboardingToken {
 
   @@index([token])
   @@map("onboarding_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Cases
+// ---------------------------------------------------------------------------
+
+/// A veterinary lab case — the central aggregate of the platform.
+/// Patient and owner data are embedded (no separate Patient table for MVP).
+/// Order data is embedded as JSON (one order per case for MVP).
+/// All case data is scoped to a tenant — cross-tenant access is impossible
+/// because every lookup includes tenantId in the WHERE clause.
+model Case {
+  id        String     @id @default(cuid())
+  tenantId  String
+  status    CaseStatus @default(OPEN)
+
+  // Patient — embedded (no separate Patient table for MVP)
+  patientName    String
+  patientSpecies PatientSpecies
+  patientBreed   String?
+  patientAge     Int?
+  patientAgeUnit AgeUnit?
+  patientWeight  Float?          // kilograms
+
+  // Owner
+  ownerName  String
+  ownerPhone String?
+
+  // Clinical inputs
+  symptoms      String?   // free-text symptom description (textarea)
+  triageResult  Json?     // AI DDx output: [{ diagnosis, confidence, explanation }]
+  suggestedTests Json?    // AI-proposed test list: string[]
+  selectedTests  Json?    // vet-confirmed selection: string[]
+
+  // Order (embedded — one per case for MVP)
+  orderNotes  String?
+  orderSentAt DateTime?
+
+  // Results
+  resultsUrl         String?
+  resultsReceivedAt  DateTime?
+
+  // Audit
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([createdByUserId])
+  @@map("cases")
 }

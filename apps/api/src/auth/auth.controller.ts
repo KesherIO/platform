@@ -8,7 +8,7 @@ import {
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
-import { AuthenticatedUser } from '@vet-ai/shared-types';
+import type { AuthenticatedUser } from '@vet-ai/shared-types';
 
 @ApiTags('auth')
 @ApiBearerAuth()

@@ -1,6 +1,10 @@
 import { Component, Input, forwardRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR, ReactiveFormsModule } from '@angular/forms';
+import {
+  ControlValueAccessor,
+  NG_VALUE_ACCESSOR,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
@@ -25,7 +29,9 @@ export class InputComponent implements ControlValueAccessor {
   @Input() disabled = false;
 
   value = '';
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   onChange: (value: string) => void = () => {};
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   onTouched: () => void = () => {};
 
   onInput(event: Event): void {

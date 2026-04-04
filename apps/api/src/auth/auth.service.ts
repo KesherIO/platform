@@ -8,14 +8,11 @@ import { AuthenticatedUser, JwtPayload } from '@vet-ai/shared-types';
 export class AuthService {
   private readonly supabaseAdmin: SupabaseClient;
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
-  ) {
+  constructor(private readonly prisma: PrismaService, config: ConfigService) {
     this.supabaseAdmin = createClient(
       config.getOrThrow<string>('SUPABASE_URL'),
       // Service-role key required for Admin API (bypasses RLS and email confirmation)
-      config.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY'),
+      config.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY')
     );
   }
 
@@ -30,7 +27,7 @@ export class AuthService {
     email: string,
     password: string,
     firstName: string,
-    lastName: string,
+    lastName: string
   ): Promise<string> {
     const { data, error } = await this.supabaseAdmin.auth.admin.createUser({
       email,
@@ -44,7 +41,7 @@ export class AuthService {
 
     if (error || !data.user) {
       throw new InternalServerErrorException(
-        `Failed to create Supabase user: ${error?.message ?? 'unknown error'}`,
+        `Failed to create Supabase user: ${error?.message ?? 'unknown error'}`
       );
     }
 
@@ -60,7 +57,10 @@ export class AuthService {
   async deleteSupabaseUser(userId: string): Promise<void> {
     const { error } = await this.supabaseAdmin.auth.admin.deleteUser(userId);
     if (error) {
-      console.error('Supabase admin deleteUser error (cleanup):', error.message);
+      console.error(
+        'Supabase admin deleteUser error (cleanup):',
+        error.message
+      );
     }
   }
 
