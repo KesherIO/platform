@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "postinstall": "node patch-angular-build.js && prisma generate --schema=apps/api/prisma/schema.prisma"
+    "postinstall": "node patch-angular-build.js && prisma generate --schema=apps/api/prisma/schema.prisma",
+    "format": "nx format:write",
+    "format:check": "nx format:check"
   },
   "private": true,
   "overrides": {
