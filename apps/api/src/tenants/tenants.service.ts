@@ -11,7 +11,7 @@ const ROLE_MAP: Record<string, StaffRole> = {
   RECEPTIONIST: 'Staff',
 };
 
-const ADMIN_ROLES = [TenantRole.OWNER, TenantRole.ADMIN];
+const ADMIN_ROLES: TenantRole[] = [TenantRole.OWNER, TenantRole.ADMIN];
 
 @Injectable()
 export class TenantsService {

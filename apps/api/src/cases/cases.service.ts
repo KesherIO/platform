@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { CaseStatus, PatientSpecies } from '@prisma/client';
+import { CaseStatus, PatientSpecies, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateCaseDto,
@@ -185,7 +185,7 @@ export class CasesService {
       where: { id },
       data: {
         status: CaseStatus.TRIAGED,
-        triageResult: aiResult.triageResult,
+        triageResult: aiResult.triageResult as Prisma.InputJsonValue,
         suggestedTests: aiResult.suggestedTests,
       },
     });

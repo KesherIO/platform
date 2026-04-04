@@ -19,7 +19,7 @@ const LOGO_BUCKET = 'clinic-logos';
 export class StorageService {
   private readonly supabase: SupabaseClient;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(config: ConfigService) {
     this.supabase = createClient(
       config.getOrThrow<string>('SUPABASE_URL'),
       // Use the service-role key for server-side storage operations (bypasses RLS)

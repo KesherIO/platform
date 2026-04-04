@@ -71,10 +71,11 @@
         />
       } @else {
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label for="invite-email" class="block text-sm font-medium text-gray-700 mb-1">
             {{ 'STAFF_PROFILE.EMAIL_LABEL' | translate }}
           </label>
           <input
+            id="invite-email"
             type="email"
             [value]="inviteEmail()"
             readonly

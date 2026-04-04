@@ -178,11 +178,17 @@
 @if (existingMagicLinkResult()) {
   <div
     class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8"
+    role="dialog"
+    aria-modal="true"
+    tabindex="0"
     (click)="closeExistingModal()"
+    (keydown.escape)="closeExistingModal()"
   >
     <div
       class="w-full max-w-sm bg-white rounded-2xl p-6 shadow-xl"
+      role="document"
       (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
     >
       @if (existingMagicLinkResult()?.alreadyExists) {
         <h3 class="text-base font-bold text-gray-900 mb-1">
@@ -220,11 +226,17 @@
 @if (magicLinkResult()) {
   <div
     class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8"
+    role="dialog"
+    aria-modal="true"
+    tabindex="0"
     (click)="closeModal()"
+    (keydown.escape)="closeModal()"
   >
     <div
       class="w-full max-w-sm bg-white rounded-2xl p-6 shadow-xl"
+      role="document"
       (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
     >
       @if (magicLinkResult()?.alreadyExists) {
         <h3 class="text-base font-bold text-gray-900 mb-1">

@@ -24,7 +24,9 @@ export class SelectComponent implements ControlValueAccessor {
   @Input() disabled = false;
 
   value = '';
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   onChangeCallback: (value: string) => void = () => {};
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
   onTouched: () => void = () => {};
 
   onChange(event: Event): void {

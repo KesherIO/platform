@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { Case } from '../../../core/models';
+import { CaseModel } from '../../../core/models';
 
 @Component({
     selector: 'app-cases-list',
@@ -9,7 +9,7 @@ import { Case } from '../../../core/models';
   templateUrl: './cases-list.component.html',
 })
 export class CasesListComponent {
-  cases: Case[] = [];
+  cases: CaseModel[] = [];
 
   constructor() {
     // TODO: Load cases from service

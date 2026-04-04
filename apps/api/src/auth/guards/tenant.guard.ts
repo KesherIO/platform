@@ -59,7 +59,7 @@ export class TenantGuard implements CanActivate {
     }
 
     // Attach tenant context to request for downstream use via @CurrentTenant()
-    const tenantContext: TenantContext = { tenantId, role: membership.role };
+    const tenantContext: TenantContext = { tenantId, role: membership.role as TenantRole };
     request.tenant = tenantContext;
 
     // Enforce @Roles() here — RolesGuard is global and runs before local guards,

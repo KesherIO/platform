@@ -5,7 +5,8 @@ import { TenantsService } from './tenants.service';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { TenantRole, TenantContext } from '@vet-ai/shared-types';
+import { TenantRole } from '@vet-ai/shared-types';
+import type { TenantContext } from '@vet-ai/shared-types';
 
 class UpdateStaffRoleDto {
   @IsEnum(['admin', 'staff'])

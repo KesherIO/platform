@@ -5,7 +5,11 @@
   "scripts": {
     "postinstall": "node patch-angular-build.js && prisma generate --schema=apps/api/prisma/schema.prisma",
     "format": "nx format:write",
-    "format:check": "nx format:check"
+    "format:check": "nx format:check",
+    "lint": "nx lint",
+    "typecheck": "nx run-many -t typecheck",
+    "build": "nx build",
+    "test": "nx test"
   },
   "private": true,
   "overrides": {

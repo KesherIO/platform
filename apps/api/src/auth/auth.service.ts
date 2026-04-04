@@ -10,7 +10,7 @@ export class AuthService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
+    config: ConfigService,
   ) {
     this.supabaseAdmin = createClient(
       config.getOrThrow<string>('SUPABASE_URL'),

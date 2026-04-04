@@ -3,11 +3,12 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "types": ["vitest/globals"],
-    "lib": ["es2022", "dom", "dom.iterable"],
-    "emitDeclarationOnly": false,
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false
+    "lib": ["es2022", "dom", "dom.iterable"]
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "references": [
+    {
+      "path": "../../libs/shared-types/tsconfig.lib.json"
+    }
+  ]
 }
