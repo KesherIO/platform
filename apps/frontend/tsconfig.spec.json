@@ -3,7 +3,8 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "types": ["vitest/globals"],
-    "lib": ["es2022", "dom", "dom.iterable"]
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "emitDeclarationOnly": false
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "references": [
