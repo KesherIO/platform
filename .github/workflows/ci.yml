@@ -19,8 +19,6 @@ jobs:
           filter: tree:0
           fetch-depth: 0
 
-      - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="build"
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -29,9 +27,6 @@ jobs:
 
       - run: npm ci
 
-      - run: npx nx record -- npx nx format:check --base="origin/main"
+      - run: npx nx format:check --base="origin/main"
 
       - run: npx nx affected -t lint test build typecheck --base=origin/main --head=HEAD
-
-      - run: npx nx fix-ci
-        if: always()
