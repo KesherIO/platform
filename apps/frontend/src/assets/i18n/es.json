@@ -148,6 +148,7 @@
     "PASSWORD_PLACEHOLDER": "••••••••",
     "CONFIRM_PASSWORD_LABEL": "Confirmar contraseña",
     "CONFIRM_PASSWORD_PLACEHOLDER": "••••••••",
+    "PASSWORD_MIN_LENGTH": "La contraseña debe tener al menos 8 caracteres.",
     "PASSWORD_MISMATCH": "Las contraseñas no coinciden.",
     "CREATE_ACCOUNT_BUTTON": "Crear cuenta",
     "EXISTING_USER_TITLE": "Únete a tu clínica",
@@ -194,7 +195,15 @@
       "MODAL_EXISTING_BODY": "Ya existe una invitación pendiente para este correo. Comparte el enlace existente o reenvía la invitación.",
       "COPY_EXISTING": "Copiar enlace existente",
       "ERROR_CAPACITY": "Has alcanzado el máximo de 10 invitaciones pendientes. Espera a que alguna sea aceptada o expire antes de crear una nueva.",
-      "ERROR_MEMBER": "Este usuario ya es miembro de la clínica."
+      "ERROR_MEMBER": "Este usuario ya es miembro de la clínica.",
+      "EXISTING_TOGGLE": "Esta persona ya tiene una cuenta en VetAI →",
+      "EXISTING_TITLE": "Invitar a alguien con cuenta existente",
+      "EXISTING_BODY": "Usa esto si la persona ya tiene una cuenta en VetAI, ya sea de esta clínica u otra. Se unirá sin crear una nueva cuenta.",
+      "EXISTING_EMAIL_PLACEHOLDER": "equipo@ejemplo.com",
+      "EXISTING_SEND": "Enviar invitación",
+      "EXISTING_CANCEL": "Cancelar",
+      "EXISTING_MODAL_TITLE": "Enlace de invitación listo",
+      "EXISTING_MODAL_BODY": "Comparte este enlace con el miembro del equipo. Podrá unirse a la clínica sin crear una nueva cuenta."
     }
   },
   "BRANDING": {

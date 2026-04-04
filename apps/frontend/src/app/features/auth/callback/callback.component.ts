@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -25,6 +26,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
 export class CallbackComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly fb   = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly view    = signal<'loading' | 'set-password' | 'error'>('loading');
   readonly loading = signal(false);
@@ -39,18 +41,20 @@ export class CallbackComponent implements OnInit {
   );
 
   ngOnInit() {
-    this.auth.handleAuthCallback().subscribe({
-      next: (type) => {
-        if (type === 'recovery') {
-          this.view.set('set-password');
-        }
-        // 'authenticated' — navigation already happened inside handleAuthCallback
-      },
-      error: (err: { message?: string }) => {
-        this.view.set('error');
-        this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
-      },
-    });
+    this.auth.handleAuthCallback()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (type) => {
+          if (type === 'recovery') {
+            this.view.set('set-password');
+          }
+          // 'authenticated' — navigation already happened inside handleAuthCallback
+        },
+        error: (err: { message?: string }) => {
+          this.view.set('error');
+          this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
+        },
+      });
   }
 
   submit() {
@@ -61,12 +65,14 @@ export class CallbackComponent implements OnInit {
 
     const { password } = this.form.getRawValue();
 
-    this.auth.updatePassword(password!).subscribe({
-      next: () => this.loading.set(false),
-      error: (err: { message?: string }) => {
-        this.loading.set(false);
-        this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
-      },
-    });
+    this.auth.updatePassword(password!)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.loading.set(false),
+        error: (err: { message?: string }) => {
+          this.loading.set(false);
+          this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
+        },
+      });
   }
 }

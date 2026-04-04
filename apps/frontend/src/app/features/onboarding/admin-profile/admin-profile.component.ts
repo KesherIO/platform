@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import {
   FormBuilder,
@@ -42,6 +43,7 @@ export class AdminProfileComponent implements OnInit {
   private router = inject(Router);
   private onboardingService = inject(OnboardingService);
   private authService = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   profileForm!: FormGroup;
   loading = signal(false);
@@ -120,28 +122,32 @@ export class AdminProfileComponent implements OnInit {
       ...(clinic.country ? { country: clinic.country } : {}),
     };
 
-    this.onboardingService.completeAdminOnboarding(payload, clinic.pendingLogoFile).subscribe({
-      next: (res) => {
-        this.loading.set(false);
-        if (res.logoUploadFailed) {
-          this.logoUploadWarning.set(res.message ?? 'ADMIN_PROFILE.LOGO_UPLOAD_FAILED');
-        }
-        this.completed.set(true);
-      },
-      error: (err: unknown) => {
-        this.loading.set(false);
-        this.error.set((err as { message?: string })?.message ?? 'AUTH.ERROR_GENERIC');
-      },
-    });
+    this.onboardingService.completeAdminOnboarding(payload, clinic.pendingLogoFile)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.loading.set(false);
+          if (res.logoUploadFailed) {
+            this.logoUploadWarning.set(res.message ?? 'ADMIN_PROFILE.LOGO_UPLOAD_FAILED');
+          }
+          this.completed.set(true);
+        },
+        error: (err: unknown) => {
+          this.loading.set(false);
+          this.error.set((err as { message?: string })?.message ?? 'AUTH.ERROR_GENERIC');
+        },
+      });
   }
 
   onGoToSignIn(): void {
     // Sign out any stale Supabase session before going to login,
     // so the noAuthGuard doesn't try to verify an invalid token.
     if (this.authService.isLoggedIn()) {
-      this.authService.signOut().subscribe({
-        complete: () => this.router.navigate(['/auth/login']),
-      });
+      this.authService.signOut()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          complete: () => this.router.navigate(['/auth/login']),
+        });
     } else {
       this.router.navigate(['/auth/login']);
     }

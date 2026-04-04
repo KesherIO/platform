@@ -1,4 +1,5 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
 import { StaffMember } from '@vet-ai/shared-types';
 import { AuthService } from '../../../core/services/auth.service';
@@ -20,10 +21,19 @@ export class StaffSettingsComponent implements OnInit {
   readonly clinicName = computed(() => this.auth.me()?.tenants[0]?.name ?? '');
   readonly currentUserId = computed(() => this.auth.me()?.user.id ?? '');
 
+  private readonly destroyRef = inject(DestroyRef);
+
   readonly generating    = signal(false);
   readonly magicLinkResult = signal<MagicLinkResult | null>(null);
   readonly inviteError   = signal<InviteErrorType | null>(null);
   readonly copied        = signal(false);
+
+  readonly showExistingInvite   = signal(false);
+  readonly existingEmail        = signal('');
+  readonly generatingExisting   = signal(false);
+  readonly existingInviteError  = signal<InviteErrorType | null>(null);
+  readonly existingMagicLinkResult = signal<MagicLinkResult | null>(null);
+  readonly existingCopied       = signal(false);
 
   readonly staffList    = signal<StaffMember[]>([]);
   readonly loadingStaff = signal(true);
@@ -43,16 +53,18 @@ export class StaffSettingsComponent implements OnInit {
     this.generating.set(true);
     this.magicLinkResult.set(null);
     this.inviteError.set(null);
-    this.settingsService.generateMagicLink().subscribe({
-      next: (result) => {
-        this.magicLinkResult.set(result);
-        this.generating.set(false);
-      },
-      error: (err: { type: InviteErrorType }) => {
-        this.inviteError.set(err?.type ?? 'unknown');
-        this.generating.set(false);
-      },
-    });
+    this.settingsService.generateMagicLink()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.magicLinkResult.set(result);
+          this.generating.set(false);
+        },
+        error: (err: { type: InviteErrorType }) => {
+          this.inviteError.set(err?.type ?? 'unknown');
+          this.generating.set(false);
+        },
+      });
   }
 
   copyLink(): void {
@@ -69,41 +81,90 @@ export class StaffSettingsComponent implements OnInit {
     this.copied.set(false);
   }
 
+  toggleExistingInvite(): void {
+    this.showExistingInvite.update(v => !v);
+    this.existingEmail.set('');
+    this.existingInviteError.set(null);
+  }
+
+  onExistingEmailInput(event: Event): void {
+    this.existingEmail.set((event.target as HTMLInputElement).value);
+  }
+
+  createExistingUserLink(): void {
+    const email = this.existingEmail().trim();
+    if (!email) return;
+    this.generatingExisting.set(true);
+    this.existingInviteError.set(null);
+    this.settingsService.generateMagicLink(email)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.existingMagicLinkResult.set(result);
+          this.generatingExisting.set(false);
+        },
+        error: (err: { type: InviteErrorType }) => {
+          this.existingInviteError.set(err?.type ?? 'unknown');
+          this.generatingExisting.set(false);
+        },
+      });
+  }
+
+  copyExistingLink(): void {
+    const url = this.existingMagicLinkResult()?.url;
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
+      this.existingCopied.set(true);
+      setTimeout(() => this.existingCopied.set(false), 2000);
+    });
+  }
+
+  closeExistingModal(): void {
+    this.existingMagicLinkResult.set(null);
+    this.existingCopied.set(false);
+    this.showExistingInvite.set(false);
+    this.existingEmail.set('');
+  }
+
   removeStaff(userId: string): void {
     this.removing.set(userId);
     this.lastAdminError.set(null);
-    this.settingsService.removeStaff(userId).subscribe({
-      next: () => {
-        this.staffList.update((list) => list.filter((m) => m.id !== userId));
-        this.removing.set(null);
-      },
-      error: (err: { type: StaffErrorType }) => {
-        this.removing.set(null);
-        if (err?.type === 'last_admin') this.lastAdminError.set('remove');
-      },
-    });
+    this.settingsService.removeStaff(userId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.staffList.update((list) => list.filter((m) => m.id !== userId));
+          this.removing.set(null);
+        },
+        error: (err: { type: StaffErrorType }) => {
+          this.removing.set(null);
+          if (err?.type === 'last_admin') this.lastAdminError.set('remove');
+        },
+      });
   }
 
   updateRole(userId: string, currentRole: string): void {
     const newRole = currentRole === 'Admin' ? 'staff' : 'admin';
     this.updatingRole.set(userId);
     this.lastAdminError.set(null);
-    this.settingsService.updateRole(userId, newRole).subscribe({
-      next: () => {
-        this.staffList.update((list) =>
-          list.map((m) =>
-            m.id === userId
-              ? { ...m, role: newRole === 'admin' ? 'Admin' : 'Staff' }
-              : m,
-          ),
-        );
-        this.updatingRole.set(null);
-      },
-      error: (err: { type: StaffErrorType }) => {
-        this.updatingRole.set(null);
-        if (err?.type === 'last_admin') this.lastAdminError.set('role');
-      },
-    });
+    this.settingsService.updateRole(userId, newRole)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.staffList.update((list) =>
+            list.map((m) =>
+              m.id === userId
+                ? { ...m, role: newRole === 'admin' ? 'Admin' : 'Staff' }
+                : m,
+            ),
+          );
+          this.updatingRole.set(null);
+        },
+        error: (err: { type: StaffErrorType }) => {
+          this.updatingRole.set(null);
+          if (err?.type === 'last_admin') this.lastAdminError.set('role');
+        },
+      });
   }
 
   /** Returns the i18n key for a member's role badge. */
@@ -129,12 +190,14 @@ export class StaffSettingsComponent implements OnInit {
   }
 
   private loadStaff(): void {
-    this.settingsService.getStaffMembers().subscribe({
-      next: (list) => {
-        this.staffList.set(list);
-        this.loadingStaff.set(false);
-      },
-      error: () => this.loadingStaff.set(false),
-    });
+    this.settingsService.getStaffMembers()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (list) => {
+          this.staffList.set(list);
+          this.loadingStaff.set(false);
+        },
+        error: () => this.loadingStaff.set(false),
+      });
   }
 }

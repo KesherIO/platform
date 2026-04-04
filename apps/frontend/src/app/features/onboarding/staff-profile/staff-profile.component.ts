@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, DestroyRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   FormBuilder,
@@ -11,6 +11,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
   const pw = group.get('password')?.value;
@@ -29,7 +30,7 @@ export class StaffProfileComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly onboardingService = inject(OnboardingService);
-
+  private readonly destroyRef = inject(DestroyRef);
   readonly view = signal<'loading' | 'new-user' | 'existing-user' | 'error'>('loading');
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -71,7 +72,10 @@ export class StaffProfileComponent implements OnInit {
 
     this.inviteToken = token;
 
-    this.onboardingService.verifyMagicLink(token).subscribe({
+    this.onboardingService.verifyMagicLink(token)
+      .pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: (result) => {
         this.tenantName.set(result.tenantName);
         this.inviteEmail.set(result.email);
@@ -79,8 +83,8 @@ export class StaffProfileComponent implements OnInit {
 
         if (result.email) {
           // Email-specific invite: pre-fill and lock the email field.
-          this.newUserForm.get('email')!.setValue(result.email);
-          this.newUserForm.get('email')!.disable();
+          this.newUserForm.get('email')?.setValue(result.email);
+          this.newUserForm.get('email')?.disable();
           this.emailEditable.set(false);
         } else {
           // Generic invite: user must enter their own email.
@@ -110,7 +114,9 @@ export class StaffProfileComponent implements OnInit {
       email: resolvedEmail,
       password: password!,
       role: this.inviteRole,
-    }).subscribe({
+    }) .pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: () => {
         this.loading.set(false);
         this.router.navigate(['/auth/login']);
@@ -131,7 +137,10 @@ export class StaffProfileComponent implements OnInit {
       token: this.inviteToken,
       email: this.inviteEmail(),
       role: this.inviteRole,
-    }).subscribe({
+    })
+      .pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
       next: () => {
         this.loading.set(false);
         this.router.navigate(['/auth/login']);

@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
@@ -14,6 +15,7 @@ import { PrimaryButtonComponent } from '../../../shared/components/primary-butto
 export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly form = this.fb.group({
     email:    ['', [Validators.required, Validators.email]],
@@ -48,13 +50,15 @@ export class LoginComponent {
 
     const { email, password } = this.form.getRawValue();
 
-    this.auth.signInWithPassword(email!, password!).subscribe({
-      next: () => this.loading.set(false),
-      error: (err: { message?: string }) => {
-        this.loading.set(false);
-        this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
-      },
-    });
+    this.auth.signInWithPassword(email!, password!)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.loading.set(false),
+        error: (err: { message?: string }) => {
+          this.loading.set(false);
+          this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
+        },
+      });
   }
 
   submitReset(): void {
@@ -65,15 +69,17 @@ export class LoginComponent {
 
     const { email } = this.resetForm.getRawValue();
 
-    this.auth.resetPassword(email!).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.resetSent.set(true);
-      },
-      error: (err: { message?: string }) => {
-        this.loading.set(false);
-        this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
-      },
-    });
+    this.auth.resetPassword(email!)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.loading.set(false);
+          this.resetSent.set(true);
+        },
+        error: (err: { message?: string }) => {
+          this.loading.set(false);
+          this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
+        },
+      });
   }
 }
