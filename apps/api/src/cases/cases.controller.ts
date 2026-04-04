@@ -41,7 +41,7 @@ export class CasesController {
   createCase(
     @CurrentUser() user: AuthenticatedUser,
     @CurrentTenant() tenant: TenantContext,
-    @Body() body: CreateCaseDto,
+    @Body() body: CreateCaseDto
   ) {
     return this.casesService.createCase(tenant.tenantId, user.id, body);
   }
@@ -55,7 +55,7 @@ export class CasesController {
   @ApiOperation({ summary: 'List all cases for the active tenant' })
   findAll(
     @CurrentUser() user: AuthenticatedUser,
-    @CurrentTenant() tenant: TenantContext,
+    @CurrentTenant() tenant: TenantContext
   ) {
     return this.casesService.findAll(tenant.tenantId, user.id);
   }
@@ -67,10 +67,7 @@ export class CasesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single case by ID' })
-  findOne(
-    @CurrentTenant() tenant: TenantContext,
-    @Param('id') id: string,
-  ) {
+  findOne(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
     return this.casesService.findOne(tenant.tenantId, id);
   }
 
@@ -80,11 +77,13 @@ export class CasesController {
   // ---------------------------------------------------------------------------
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update patient and owner info (OPEN or TRIAGED only)' })
+  @ApiOperation({
+    summary: 'Update patient and owner info (OPEN or TRIAGED only)',
+  })
   updatePatientInfo(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
-    @Body() body: UpdatePatientInfoDto,
+    @Body() body: UpdatePatientInfoDto
   ) {
     return this.casesService.updatePatientInfo(tenant.tenantId, id, body);
   }
@@ -99,7 +98,7 @@ export class CasesController {
   addSymptoms(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
-    @Body() body: AddSymptomsDto,
+    @Body() body: AddSymptomsDto
   ) {
     return this.casesService.addSymptoms(tenant.tenantId, id, body);
   }
@@ -114,7 +113,7 @@ export class CasesController {
   selectTests(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
-    @Body() body: SelectTestsDto,
+    @Body() body: SelectTestsDto
   ) {
     return this.casesService.selectTests(tenant.tenantId, id, body);
   }
@@ -128,10 +127,7 @@ export class CasesController {
   @Post(':id/triage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Run AI triage on stored symptoms (OPEN only)' })
-  runAiTriage(
-    @CurrentTenant() tenant: TenantContext,
-    @Param('id') id: string,
-  ) {
+  runAiTriage(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
     return this.casesService.runAiTriage(tenant.tenantId, id);
   }
 
@@ -142,11 +138,14 @@ export class CasesController {
 
   @Post(':id/order')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Send the lab order (OPEN or TRIAGED only, requires selected tests)' })
+  @ApiOperation({
+    summary:
+      'Send the lab order (OPEN or TRIAGED only, requires selected tests)',
+  })
   sendOrder(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
-    @Body() body: SendOrderDto,
+    @Body() body: SendOrderDto
   ) {
     return this.casesService.sendOrder(tenant.tenantId, id, body);
   }
@@ -162,7 +161,7 @@ export class CasesController {
   uploadResults(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
-    @Body() body: UploadResultsDto,
+    @Body() body: UploadResultsDto
   ) {
     return this.casesService.uploadResults(tenant.tenantId, id, body);
   }
@@ -174,10 +173,12 @@ export class CasesController {
 
   @Post(':id/complete')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Complete the case (ORDERED only, requires results uploaded)' })
+  @ApiOperation({
+    summary: 'Complete the case (ORDERED only, requires results uploaded)',
+  })
   completeCase(
     @CurrentTenant() tenant: TenantContext,
-    @Param('id') id: string,
+    @Param('id') id: string
   ) {
     return this.casesService.completeCase(tenant.tenantId, id);
   }
@@ -190,10 +191,7 @@ export class CasesController {
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cancel the case (OPEN, TRIAGED, or ORDERED only)' })
-  cancelCase(
-    @CurrentTenant() tenant: TenantContext,
-    @Param('id') id: string,
-  ) {
+  cancelCase(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
     return this.casesService.cancelCase(tenant.tenantId, id);
   }
 }

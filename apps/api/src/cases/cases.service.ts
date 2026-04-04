@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { CaseStatus, PatientSpecies } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -18,7 +22,11 @@ import {
 const MUTABLE_STATUSES = [CaseStatus.OPEN, CaseStatus.TRIAGED];
 
 /** Statuses from which a case may be cancelled. */
-const CANCELLABLE_STATUSES = [CaseStatus.OPEN, CaseStatus.TRIAGED, CaseStatus.ORDERED];
+const CANCELLABLE_STATUSES = [
+  CaseStatus.OPEN,
+  CaseStatus.TRIAGED,
+  CaseStatus.ORDERED,
+];
 
 // ---------------------------------------------------------------------------
 
@@ -72,21 +80,39 @@ export class CasesService {
    * Only provided fields are written — undefined keys are skipped entirely.
    * Allowed in: OPEN, TRIAGED.
    */
-  async updatePatientInfo(tenantId: string, id: string, body: UpdatePatientInfoDto) {
+  async updatePatientInfo(
+    tenantId: string,
+    id: string,
+    body: UpdatePatientInfoDto
+  ) {
     const c = await this.fetchCase(tenantId, id);
-    this.assertStatus(c, MUTABLE_STATUSES, 'Patient info can only be updated in OPEN or TRIAGED status.');
+    this.assertStatus(
+      c,
+      MUTABLE_STATUSES,
+      'Patient info can only be updated in OPEN or TRIAGED status.'
+    );
 
     return this.prisma.case.update({
       where: { id },
       data: {
-        ...(body.patientName     !== undefined && { patientName:    body.patientName     }),
-        ...(body.patientSpecies  !== undefined && { patientSpecies: body.patientSpecies  }),
-        ...(body.patientBreed    !== undefined && { patientBreed:   body.patientBreed    }),
-        ...(body.patientAge      !== undefined && { patientAge:     body.patientAge      }),
-        ...(body.patientAgeUnit  !== undefined && { patientAgeUnit: body.patientAgeUnit  }),
-        ...(body.patientWeight   !== undefined && { patientWeight:  body.patientWeight   }),
-        ...(body.ownerName       !== undefined && { ownerName:      body.ownerName       }),
-        ...(body.ownerPhone      !== undefined && { ownerPhone:     body.ownerPhone      }),
+        ...(body.patientName !== undefined && {
+          patientName: body.patientName,
+        }),
+        ...(body.patientSpecies !== undefined && {
+          patientSpecies: body.patientSpecies,
+        }),
+        ...(body.patientBreed !== undefined && {
+          patientBreed: body.patientBreed,
+        }),
+        ...(body.patientAge !== undefined && { patientAge: body.patientAge }),
+        ...(body.patientAgeUnit !== undefined && {
+          patientAgeUnit: body.patientAgeUnit,
+        }),
+        ...(body.patientWeight !== undefined && {
+          patientWeight: body.patientWeight,
+        }),
+        ...(body.ownerName !== undefined && { ownerName: body.ownerName }),
+        ...(body.ownerPhone !== undefined && { ownerPhone: body.ownerPhone }),
       },
     });
   }
@@ -97,7 +123,11 @@ export class CasesService {
    */
   async addSymptoms(tenantId: string, id: string, body: AddSymptomsDto) {
     const c = await this.fetchCase(tenantId, id);
-    this.assertStatus(c, [CaseStatus.OPEN], 'Symptoms can only be saved in OPEN status.');
+    this.assertStatus(
+      c,
+      [CaseStatus.OPEN],
+      'Symptoms can only be saved in OPEN status.'
+    );
 
     return this.prisma.case.update({
       where: { id },
@@ -111,7 +141,11 @@ export class CasesService {
    */
   async selectTests(tenantId: string, id: string, body: SelectTestsDto) {
     const c = await this.fetchCase(tenantId, id);
-    this.assertStatus(c, MUTABLE_STATUSES, 'Tests can only be selected in OPEN or TRIAGED status.');
+    this.assertStatus(
+      c,
+      MUTABLE_STATUSES,
+      'Tests can only be selected in OPEN or TRIAGED status.'
+    );
 
     return this.prisma.case.update({
       where: { id },
@@ -131,10 +165,16 @@ export class CasesService {
    */
   async runAiTriage(tenantId: string, id: string) {
     const c = await this.fetchCase(tenantId, id);
-    this.assertStatus(c, [CaseStatus.OPEN], 'AI triage can only be run in OPEN status.');
+    this.assertStatus(
+      c,
+      [CaseStatus.OPEN],
+      'AI triage can only be run in OPEN status.'
+    );
 
     if (!c.symptoms || c.symptoms.trim() === '') {
-      throw new BadRequestException('Cannot run AI triage without symptoms. Add symptoms first.');
+      throw new BadRequestException(
+        'Cannot run AI triage without symptoms. Add symptoms first.'
+      );
     }
 
     // TODO: Replace stub with real AI triage service (e.g., Anthropic, OpenAI, or internal model).
@@ -160,11 +200,17 @@ export class CasesService {
    */
   async sendOrder(tenantId: string, id: string, body: SendOrderDto) {
     const c = await this.fetchCase(tenantId, id);
-    this.assertStatus(c, MUTABLE_STATUSES, 'Orders can only be sent in OPEN or TRIAGED status.');
+    this.assertStatus(
+      c,
+      MUTABLE_STATUSES,
+      'Orders can only be sent in OPEN or TRIAGED status.'
+    );
 
     const tests = c.selectedTests as unknown as string[] | null;
     if (!tests || tests.length === 0) {
-      throw new BadRequestException('Select at least one test before sending an order.');
+      throw new BadRequestException(
+        'Select at least one test before sending an order.'
+      );
     }
 
     return this.prisma.case.update({
@@ -185,7 +231,11 @@ export class CasesService {
    */
   async uploadResults(tenantId: string, id: string, body: UploadResultsDto) {
     const c = await this.fetchCase(tenantId, id);
-    this.assertStatus(c, [CaseStatus.ORDERED], 'Results can only be uploaded in ORDERED status.');
+    this.assertStatus(
+      c,
+      [CaseStatus.ORDERED],
+      'Results can only be uploaded in ORDERED status.'
+    );
 
     return this.prisma.case.update({
       where: { id },
@@ -204,10 +254,16 @@ export class CasesService {
    */
   async completeCase(tenantId: string, id: string) {
     const c = await this.fetchCase(tenantId, id);
-    this.assertStatus(c, [CaseStatus.ORDERED], 'A case can only be completed from ORDERED status.');
+    this.assertStatus(
+      c,
+      [CaseStatus.ORDERED],
+      'A case can only be completed from ORDERED status.'
+    );
 
     if (!c.resultsUrl) {
-      throw new BadRequestException('Upload results before completing the case.');
+      throw new BadRequestException(
+        'Upload results before completing the case.'
+      );
     }
 
     return this.prisma.case.update({
@@ -227,7 +283,7 @@ export class CasesService {
     this.assertStatus(
       c,
       CANCELLABLE_STATUSES,
-      'A completed or already cancelled case cannot be cancelled.',
+      'A completed or already cancelled case cannot be cancelled.'
     );
 
     return this.prisma.case.update({
@@ -260,7 +316,7 @@ export class CasesService {
   private assertStatus(
     c: { status: CaseStatus; id: string },
     allowed: CaseStatus[],
-    message: string,
+    message: string
   ): void {
     if (!allowed.includes(c.status)) {
       throw new BadRequestException(message);
@@ -276,8 +332,11 @@ export class CasesService {
    */
   private async callAiTriage(
     _symptoms: string,
-    _species: PatientSpecies,
-  ): Promise<{ triageResult: Record<string, unknown>; suggestedTests: string[] }> {
+    _species: PatientSpecies
+  ): Promise<{
+    triageResult: Record<string, unknown>;
+    suggestedTests: string[];
+  }> {
     // TODO: integrate real AI model — Anthropic, OpenAI, or internal triage engine
     return {
       triageResult: {},

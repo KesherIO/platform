@@ -3,7 +3,11 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CasesService } from './cases.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CaseStatus, PatientSpecies } from '@vet-ai/shared-types';
-import type { CreateCaseDto, SendOrderDto, UploadResultsDto } from './dto/cases.dto';
+import type {
+  CreateCaseDto,
+  SendOrderDto,
+  UploadResultsDto,
+} from './dto/cases.dto';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -52,10 +56,10 @@ const RESULTS_URL = 'https://storage.example.com/results/case-1.pdf';
 function makePrismaMock() {
   return {
     case: {
-      create:   jest.fn(),
+      create: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
-      update:   jest.fn(),
+      update: jest.fn(),
     },
   };
 }
@@ -72,10 +76,7 @@ describe('CasesService', () => {
     prisma = makePrismaMock();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        CasesService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [CasesService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get(CasesService);
@@ -92,7 +93,10 @@ describe('CasesService', () => {
 
       expect(result).toEqual(cases);
       expect(prisma.case.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { tenantId: 'tenant-1' }, orderBy: { createdAt: 'desc' } }),
+        expect.objectContaining({
+          where: { tenantId: 'tenant-1' },
+          orderBy: { createdAt: 'desc' },
+        })
       );
     });
 
@@ -110,7 +114,9 @@ describe('CasesService', () => {
       await service.findAll('tenant-99', 'user-1');
 
       expect(prisma.case.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ tenantId: 'tenant-99' }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ tenantId: 'tenant-99' }),
+        })
       );
     });
   });
@@ -133,14 +139,18 @@ describe('CasesService', () => {
     it('throws NotFoundException when the case does not exist', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('tenant-1', 'nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('tenant-1', 'nonexistent')).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('throws NotFoundException when the case belongs to a different tenant', async () => {
       // findFirst with tenantId scoping returns null — indistinguishable from not found
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('tenant-2', 'case-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('tenant-2', 'case-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -157,7 +167,7 @@ describe('CasesService', () => {
       expect(prisma.case.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: CaseStatus.OPEN }),
-        }),
+        })
       );
     });
 
@@ -167,7 +177,9 @@ describe('CasesService', () => {
       await service.createCase('tenant-1', 'user-1', CREATE_DTO);
 
       expect(prisma.case.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ tenantId: 'tenant-1' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ tenantId: 'tenant-1' }),
+        })
       );
     });
 
@@ -177,7 +189,9 @@ describe('CasesService', () => {
       await service.createCase('tenant-1', 'user-42', CREATE_DTO);
 
       expect(prisma.case.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ createdByUserId: 'user-42' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ createdByUserId: 'user-42' }),
+        })
       );
     });
 
@@ -202,7 +216,7 @@ describe('CasesService', () => {
             patientWeight: 28.5,
             ownerPhone: '+1 512 555 0100',
           }),
-        }),
+        })
       );
     });
   });
@@ -211,11 +225,15 @@ describe('CasesService', () => {
 
   describe('updatePatientInfo', () => {
     it('updates provided fields and returns the updated case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.OPEN }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
       const updated = makeCase({ patientName: 'Max' });
       prisma.case.update.mockResolvedValue(updated);
 
-      const result = await service.updatePatientInfo('tenant-1', 'case-1', { patientName: 'Max' });
+      const result = await service.updatePatientInfo('tenant-1', 'case-1', {
+        patientName: 'Max',
+      });
 
       expect(result).toEqual(updated);
       expect(prisma.case.update).toHaveBeenCalledWith({
@@ -225,10 +243,14 @@ describe('CasesService', () => {
     });
 
     it('does not write fields absent from the body (true partial patch)', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.OPEN }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
       prisma.case.update.mockResolvedValue(makeCase());
 
-      await service.updatePatientInfo('tenant-1', 'case-1', { patientName: 'Max' });
+      await service.updatePatientInfo('tenant-1', 'case-1', {
+        patientName: 'Max',
+      });
 
       const updateData = prisma.case.update.mock.calls[0][0].data;
       expect(updateData).toHaveProperty('patientName', 'Max');
@@ -238,40 +260,56 @@ describe('CasesService', () => {
     });
 
     it('allows update in TRIAGED status', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
 
       await expect(
-        service.updatePatientInfo('tenant-1', 'case-1', { ownerPhone: '+1 512 555 9999' }),
+        service.updatePatientInfo('tenant-1', 'case-1', {
+          ownerPhone: '+1 512 555 9999',
+        })
       ).resolves.not.toThrow();
     });
 
     it('throws BadRequestException when status is ORDERED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
-      await expect(service.updatePatientInfo('tenant-1', 'case-1', { patientName: 'Max' }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.updatePatientInfo('tenant-1', 'case-1', { patientName: 'Max' })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when status is COMPLETED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.COMPLETED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.COMPLETED })
+      );
 
-      await expect(service.updatePatientInfo('tenant-1', 'case-1', { patientName: 'Max' }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.updatePatientInfo('tenant-1', 'case-1', { patientName: 'Max' })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when status is CANCELLED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
-      await expect(service.updatePatientInfo('tenant-1', 'case-1', { patientName: 'Max' }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.updatePatientInfo('tenant-1', 'case-1', { patientName: 'Max' })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws NotFoundException when case belongs to a different tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.updatePatientInfo('tenant-2', 'case-1', { patientName: 'Max' }))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.updatePatientInfo('tenant-2', 'case-1', { patientName: 'Max' })
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -279,13 +317,17 @@ describe('CasesService', () => {
 
   describe('addSymptoms', () => {
     it('saves symptom text and returns the updated case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.OPEN }));
-      const updated = makeCase({ symptoms: 'Vomiting for 2 days, loss of appetite' });
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
+      const updated = makeCase({
+        symptoms: 'Vomiting for 2 days, loss of appetite',
+      });
       prisma.case.update.mockResolvedValue(updated);
 
-      const result = await service.addSymptoms(
-        'tenant-1', 'case-1', { symptoms: 'Vomiting for 2 days, loss of appetite' },
-      );
+      const result = await service.addSymptoms('tenant-1', 'case-1', {
+        symptoms: 'Vomiting for 2 days, loss of appetite',
+      });
 
       expect(result).toEqual(updated);
       expect(prisma.case.update).toHaveBeenCalledWith({
@@ -295,31 +337,41 @@ describe('CasesService', () => {
     });
 
     it('throws BadRequestException when status is TRIAGED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
 
-      await expect(service.addSymptoms('tenant-1', 'case-1', { symptoms: 'Vomiting' }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.addSymptoms('tenant-1', 'case-1', { symptoms: 'Vomiting' })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when status is ORDERED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
-      await expect(service.addSymptoms('tenant-1', 'case-1', { symptoms: 'Vomiting' }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.addSymptoms('tenant-1', 'case-1', { symptoms: 'Vomiting' })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when status is COMPLETED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.COMPLETED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.COMPLETED })
+      );
 
-      await expect(service.addSymptoms('tenant-1', 'case-1', { symptoms: 'Vomiting' }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.addSymptoms('tenant-1', 'case-1', { symptoms: 'Vomiting' })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws NotFoundException when the case does not exist', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.addSymptoms('tenant-1', 'case-1', { symptoms: 'Vomiting' }))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.addSymptoms('tenant-1', 'case-1', { symptoms: 'Vomiting' })
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -327,13 +379,15 @@ describe('CasesService', () => {
 
   describe('selectTests', () => {
     it('saves selectedTests on an OPEN case and returns the updated case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.OPEN }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
       const updated = makeCase({ selectedTests: ['hemograma', 'alt'] });
       prisma.case.update.mockResolvedValue(updated);
 
-      const result = await service.selectTests(
-        'tenant-1', 'case-1', { selectedTests: ['hemograma', 'alt'] },
-      );
+      const result = await service.selectTests('tenant-1', 'case-1', {
+        selectedTests: ['hemograma', 'alt'],
+      });
 
       expect(result).toEqual(updated);
       expect(prisma.case.update).toHaveBeenCalledWith({
@@ -344,11 +398,15 @@ describe('CasesService', () => {
 
     it('replaces the existing selection on a TRIAGED case', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.TRIAGED, selectedTests: ['old-test'] }),
+        makeCase({ status: CaseStatus.TRIAGED, selectedTests: ['old-test'] })
       );
-      prisma.case.update.mockResolvedValue(makeCase({ selectedTests: ['hemograma'] }));
+      prisma.case.update.mockResolvedValue(
+        makeCase({ selectedTests: ['hemograma'] })
+      );
 
-      await service.selectTests('tenant-1', 'case-1', { selectedTests: ['hemograma'] });
+      await service.selectTests('tenant-1', 'case-1', {
+        selectedTests: ['hemograma'],
+      });
 
       expect(prisma.case.update).toHaveBeenCalledWith({
         where: { id: 'case-1' },
@@ -357,24 +415,37 @@ describe('CasesService', () => {
     });
 
     it('throws BadRequestException when status is ORDERED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
-      await expect(service.selectTests('tenant-1', 'case-1', { selectedTests: ['hemograma'] }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.selectTests('tenant-1', 'case-1', {
+          selectedTests: ['hemograma'],
+        })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when status is COMPLETED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.COMPLETED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.COMPLETED })
+      );
 
-      await expect(service.selectTests('tenant-1', 'case-1', { selectedTests: ['hemograma'] }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.selectTests('tenant-1', 'case-1', {
+          selectedTests: ['hemograma'],
+        })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws NotFoundException when the case does not exist', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.selectTests('tenant-1', 'case-1', { selectedTests: ['hemograma'] }))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.selectTests('tenant-1', 'case-1', {
+          selectedTests: ['hemograma'],
+        })
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -382,7 +453,9 @@ describe('CasesService', () => {
 
   describe('runAiTriage', () => {
     it('transitions OPEN → TRIAGED and returns the updated case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ symptoms: 'Vomiting for 2 days' }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ symptoms: 'Vomiting for 2 days' })
+      );
       const updated = makeCase({ status: CaseStatus.TRIAGED });
       prisma.case.update.mockResolvedValue(updated);
 
@@ -392,13 +465,17 @@ describe('CasesService', () => {
       expect(prisma.case.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: CaseStatus.TRIAGED }),
-        }),
+        })
       );
     });
 
     it('stores triageResult and suggestedTests from the AI response', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ symptoms: 'Vomiting for 2 days' }));
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ symptoms: 'Vomiting for 2 days' })
+      );
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
 
       await service.runAiTriage('tenant-1', 'case-1');
 
@@ -410,49 +487,59 @@ describe('CasesService', () => {
     it('throws BadRequestException when symptoms is null', async () => {
       prisma.case.findFirst.mockResolvedValue(makeCase({ symptoms: null }));
 
-      await expect(service.runAiTriage('tenant-1', 'case-1'))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws BadRequestException when symptoms is an empty string', async () => {
       prisma.case.findFirst.mockResolvedValue(makeCase({ symptoms: '' }));
 
-      await expect(service.runAiTriage('tenant-1', 'case-1'))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws BadRequestException when symptoms is only whitespace', async () => {
       prisma.case.findFirst.mockResolvedValue(makeCase({ symptoms: '   ' }));
 
-      await expect(service.runAiTriage('tenant-1', 'case-1'))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws BadRequestException when status is not OPEN', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ symptoms: 'Vomiting', status: CaseStatus.TRIAGED }),
+        makeCase({ symptoms: 'Vomiting', status: CaseStatus.TRIAGED })
       );
 
-      await expect(service.runAiTriage('tenant-1', 'case-1'))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws NotFoundException when the case does not exist', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.runAiTriage('tenant-1', 'case-1'))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
   // ── sendOrder ──────────────────────────────────────────────────────────────
 
   describe('sendOrder', () => {
-    const ORDER_DTO: SendOrderDto = { orderNotes: 'Rush the parvovirus panel.' };
+    const ORDER_DTO: SendOrderDto = {
+      orderNotes: 'Rush the parvovirus panel.',
+    };
 
     it('transitions OPEN → ORDERED and returns the updated case', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma', 'alt'], status: CaseStatus.OPEN }),
+        makeCase({
+          selectedTests: ['hemograma', 'alt'],
+          status: CaseStatus.OPEN,
+        })
       );
       const updated = makeCase({ status: CaseStatus.ORDERED });
       prisma.case.update.mockResolvedValue(updated);
@@ -463,30 +550,34 @@ describe('CasesService', () => {
       expect(prisma.case.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: CaseStatus.ORDERED }),
-        }),
+        })
       );
     });
 
     it('transitions TRIAGED → ORDERED', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.TRIAGED }),
+        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.TRIAGED })
       );
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
       await service.sendOrder('tenant-1', 'case-1', ORDER_DTO);
 
       expect(prisma.case.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: CaseStatus.ORDERED }),
-        }),
+        })
       );
     });
 
     it('sets orderSentAt to the current timestamp (server-controlled)', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.OPEN }),
+        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.OPEN })
       );
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
       const before = new Date();
       await service.sendOrder('tenant-1', 'case-1', ORDER_DTO);
@@ -499,54 +590,67 @@ describe('CasesService', () => {
 
     it('stores orderNotes from the body', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.OPEN }),
+        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.OPEN })
       );
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
-      await service.sendOrder('tenant-1', 'case-1', { orderNotes: 'Priority: parvovirus.' });
+      await service.sendOrder('tenant-1', 'case-1', {
+        orderNotes: 'Priority: parvovirus.',
+      });
 
       expect(prisma.case.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ orderNotes: 'Priority: parvovirus.' }),
-        }),
+          data: expect.objectContaining({
+            orderNotes: 'Priority: parvovirus.',
+          }),
+        })
       );
     });
 
     it('throws BadRequestException when selectedTests is null', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ selectedTests: null }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ selectedTests: null })
+      );
 
-      await expect(service.sendOrder('tenant-1', 'case-1', ORDER_DTO))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.sendOrder('tenant-1', 'case-1', ORDER_DTO)
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when selectedTests is an empty array', async () => {
       prisma.case.findFirst.mockResolvedValue(makeCase({ selectedTests: [] }));
 
-      await expect(service.sendOrder('tenant-1', 'case-1', ORDER_DTO))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.sendOrder('tenant-1', 'case-1', ORDER_DTO)
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when status is not OPEN or TRIAGED', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.ORDERED }),
+        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.ORDERED })
       );
 
-      await expect(service.sendOrder('tenant-1', 'case-1', ORDER_DTO))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.sendOrder('tenant-1', 'case-1', ORDER_DTO)
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws NotFoundException when the case does not exist', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.sendOrder('tenant-1', 'case-1', ORDER_DTO))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.sendOrder('tenant-1', 'case-1', ORDER_DTO)
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws NotFoundException when case belongs to a different tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.sendOrder('tenant-2', 'case-1', {}))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.sendOrder('tenant-2', 'case-1', {})).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -556,66 +660,93 @@ describe('CasesService', () => {
     const RESULTS_DTO: UploadResultsDto = { resultsUrl: RESULTS_URL };
 
     it('saves resultsUrl and returns the updated case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
-      const updated = makeCase({ status: CaseStatus.ORDERED, resultsUrl: RESULTS_URL });
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
+      const updated = makeCase({
+        status: CaseStatus.ORDERED,
+        resultsUrl: RESULTS_URL,
+      });
       prisma.case.update.mockResolvedValue(updated);
 
-      const result = await service.uploadResults('tenant-1', 'case-1', RESULTS_DTO);
+      const result = await service.uploadResults(
+        'tenant-1',
+        'case-1',
+        RESULTS_DTO
+      );
 
       expect(result).toEqual(updated);
       expect(prisma.case.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ resultsUrl: RESULTS_URL }),
-        }),
+        })
       );
     });
 
     it('sets resultsReceivedAt to the current timestamp (server-controlled)', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
       const before = new Date();
       await service.uploadResults('tenant-1', 'case-1', RESULTS_DTO);
       const after = new Date();
 
-      const receivedAt: Date = prisma.case.update.mock.calls[0][0].data.resultsReceivedAt;
+      const receivedAt: Date =
+        prisma.case.update.mock.calls[0][0].data.resultsReceivedAt;
       expect(receivedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
       expect(receivedAt.getTime()).toBeLessThanOrEqual(after.getTime());
     });
 
     it('throws BadRequestException when status is OPEN', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.OPEN }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
 
-      await expect(service.uploadResults('tenant-1', 'case-1', RESULTS_DTO))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when status is TRIAGED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
 
-      await expect(service.uploadResults('tenant-1', 'case-1', RESULTS_DTO))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when status is COMPLETED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.COMPLETED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.COMPLETED })
+      );
 
-      await expect(service.uploadResults('tenant-1', 'case-1', RESULTS_DTO))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException when status is CANCELLED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
-      await expect(service.uploadResults('tenant-1', 'case-1', RESULTS_DTO))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('throws NotFoundException when the case does not exist', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.uploadResults('tenant-1', 'case-1', RESULTS_DTO))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -624,7 +755,7 @@ describe('CasesService', () => {
   describe('completeCase', () => {
     it('transitions ORDERED → COMPLETED and returns the updated case', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.ORDERED, resultsUrl: RESULTS_URL }),
+        makeCase({ status: CaseStatus.ORDERED, resultsUrl: RESULTS_URL })
       );
       const updated = makeCase({ status: CaseStatus.COMPLETED });
       prisma.case.update.mockResolvedValue(updated);
@@ -635,47 +766,54 @@ describe('CasesService', () => {
       expect(prisma.case.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: CaseStatus.COMPLETED }),
-        }),
+        })
       );
     });
 
     it('throws BadRequestException when resultsUrl is null', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.ORDERED, resultsUrl: null }),
+        makeCase({ status: CaseStatus.ORDERED, resultsUrl: null })
       );
 
-      await expect(service.completeCase('tenant-1', 'case-1'))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws BadRequestException when status is not ORDERED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
 
-      await expect(service.completeCase('tenant-1', 'case-1'))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws BadRequestException when already COMPLETED', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.COMPLETED, resultsUrl: RESULTS_URL }),
+        makeCase({ status: CaseStatus.COMPLETED, resultsUrl: RESULTS_URL })
       );
 
-      await expect(service.completeCase('tenant-1', 'case-1'))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws NotFoundException when the case does not exist', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.completeCase('tenant-1', 'case-1'))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('throws NotFoundException when case belongs to a different tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.completeCase('tenant-2', 'case-1'))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.completeCase('tenant-2', 'case-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -683,7 +821,9 @@ describe('CasesService', () => {
 
   describe('cancelCase', () => {
     it('cancels from OPEN and returns the updated case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.OPEN }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
       const updated = makeCase({ status: CaseStatus.CANCELLED });
       prisma.case.update.mockResolvedValue(updated);
 
@@ -693,51 +833,70 @@ describe('CasesService', () => {
       expect(prisma.case.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: CaseStatus.CANCELLED }),
-        }),
+        })
       );
     });
 
     it('cancels from TRIAGED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
       await service.cancelCase('tenant-1', 'case-1');
 
       expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: CaseStatus.CANCELLED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: CaseStatus.CANCELLED }),
+        })
       );
     });
 
     it('cancels from ORDERED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
       await service.cancelCase('tenant-1', 'case-1');
 
       expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: CaseStatus.CANCELLED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: CaseStatus.CANCELLED }),
+        })
       );
     });
 
     it('throws BadRequestException when already COMPLETED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.COMPLETED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.COMPLETED })
+      );
 
-      await expect(service.cancelCase('tenant-1', 'case-1'))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.cancelCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws BadRequestException when already CANCELLED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
-      await expect(service.cancelCase('tenant-1', 'case-1'))
-        .rejects.toThrow(BadRequestException);
+      await expect(service.cancelCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws NotFoundException when the case does not exist', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.cancelCase('tenant-1', 'case-1'))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.cancelCase('tenant-1', 'case-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -751,59 +910,75 @@ describe('CasesService', () => {
     it('findOne returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('tenant-2', 'case-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('tenant-2', 'case-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('updatePatientInfo returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.updatePatientInfo('tenant-2', 'case-1', { patientName: 'Max' }))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.updatePatientInfo('tenant-2', 'case-1', { patientName: 'Max' })
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('addSymptoms returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.addSymptoms('tenant-2', 'case-1', { symptoms: 'Vomiting' }))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.addSymptoms('tenant-2', 'case-1', { symptoms: 'Vomiting' })
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('selectTests returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.selectTests('tenant-2', 'case-1', { selectedTests: ['hemograma'] }))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.selectTests('tenant-2', 'case-1', {
+          selectedTests: ['hemograma'],
+        })
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('runAiTriage returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.runAiTriage('tenant-2', 'case-1')).rejects.toThrow(NotFoundException);
+      await expect(service.runAiTriage('tenant-2', 'case-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('sendOrder returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.sendOrder('tenant-2', 'case-1', {})).rejects.toThrow(NotFoundException);
+      await expect(service.sendOrder('tenant-2', 'case-1', {})).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('uploadResults returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.uploadResults('tenant-2', 'case-1', { resultsUrl: RESULTS_URL }))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.uploadResults('tenant-2', 'case-1', { resultsUrl: RESULTS_URL })
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('completeCase returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.completeCase('tenant-2', 'case-1')).rejects.toThrow(NotFoundException);
+      await expect(service.completeCase('tenant-2', 'case-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('cancelCase returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
-      await expect(service.cancelCase('tenant-2', 'case-1')).rejects.toThrow(NotFoundException);
+      await expect(service.cancelCase('tenant-2', 'case-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('findAll scopes the query to the provided tenantId', async () => {
@@ -812,7 +987,9 @@ describe('CasesService', () => {
       await service.findAll('tenant-1', 'user-1');
 
       expect(prisma.case.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ tenantId: 'tenant-1' }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ tenantId: 'tenant-1' }),
+        })
       );
     });
   });
@@ -821,85 +998,121 @@ describe('CasesService', () => {
 
   describe('valid status transitions', () => {
     it('OPEN → TRIAGED via runAiTriage', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ symptoms: 'Vomiting', status: CaseStatus.OPEN }));
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ symptoms: 'Vomiting', status: CaseStatus.OPEN })
+      );
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
 
       await service.runAiTriage('tenant-1', 'case-1');
 
       expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: CaseStatus.TRIAGED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: CaseStatus.TRIAGED }),
+        })
       );
     });
 
     it('OPEN → ORDERED via sendOrder (without AI)', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.OPEN }),
+        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.OPEN })
       );
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
       await service.sendOrder('tenant-1', 'case-1', {});
 
       expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: CaseStatus.ORDERED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: CaseStatus.ORDERED }),
+        })
       );
     });
 
     it('TRIAGED → ORDERED via sendOrder', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.TRIAGED }),
+        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.TRIAGED })
       );
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
       await service.sendOrder('tenant-1', 'case-1', {});
 
       expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: CaseStatus.ORDERED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: CaseStatus.ORDERED }),
+        })
       );
     });
 
     it('ORDERED → COMPLETED via completeCase', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.ORDERED, resultsUrl: RESULTS_URL }),
+        makeCase({ status: CaseStatus.ORDERED, resultsUrl: RESULTS_URL })
       );
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.COMPLETED }));
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.COMPLETED })
+      );
 
       await service.completeCase('tenant-1', 'case-1');
 
       expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: CaseStatus.COMPLETED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: CaseStatus.COMPLETED }),
+        })
       );
     });
 
     it('OPEN → CANCELLED via cancelCase', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.OPEN }));
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
       await service.cancelCase('tenant-1', 'case-1');
 
       expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: CaseStatus.CANCELLED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: CaseStatus.CANCELLED }),
+        })
       );
     });
 
     it('TRIAGED → CANCELLED via cancelCase', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
       await service.cancelCase('tenant-1', 'case-1');
 
       expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: CaseStatus.CANCELLED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: CaseStatus.CANCELLED }),
+        })
       );
     });
 
     it('ORDERED → CANCELLED via cancelCase', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
-      prisma.case.update.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
+      prisma.case.update.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
       await service.cancelCase('tenant-1', 'case-1');
 
       expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: CaseStatus.CANCELLED }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ status: CaseStatus.CANCELLED }),
+        })
       );
     });
   });
@@ -908,87 +1121,123 @@ describe('CasesService', () => {
 
   describe('invalid status transitions', () => {
     it('cannot run AI triage on a TRIAGED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ symptoms: 'Vomiting', status: CaseStatus.TRIAGED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ symptoms: 'Vomiting', status: CaseStatus.TRIAGED })
+      );
 
-      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(BadRequestException);
+      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('cannot run AI triage on an ORDERED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ symptoms: 'Vomiting', status: CaseStatus.ORDERED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ symptoms: 'Vomiting', status: CaseStatus.ORDERED })
+      );
 
-      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(BadRequestException);
+      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('cannot run AI triage on a COMPLETED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ symptoms: 'Vomiting', status: CaseStatus.COMPLETED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ symptoms: 'Vomiting', status: CaseStatus.COMPLETED })
+      );
 
-      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(BadRequestException);
+      await expect(service.runAiTriage('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('cannot send order when status is ORDERED', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.ORDERED }),
+        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.ORDERED })
       );
 
-      await expect(service.sendOrder('tenant-1', 'case-1', {})).rejects.toThrow(BadRequestException);
+      await expect(service.sendOrder('tenant-1', 'case-1', {})).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('cannot send order when status is COMPLETED', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.COMPLETED }),
+        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.COMPLETED })
       );
 
-      await expect(service.sendOrder('tenant-1', 'case-1', {})).rejects.toThrow(BadRequestException);
+      await expect(service.sendOrder('tenant-1', 'case-1', {})).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('cannot send order when status is CANCELLED', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.CANCELLED }),
+        makeCase({ selectedTests: ['hemograma'], status: CaseStatus.CANCELLED })
       );
 
-      await expect(service.sendOrder('tenant-1', 'case-1', {})).rejects.toThrow(BadRequestException);
+      await expect(service.sendOrder('tenant-1', 'case-1', {})).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('cannot complete a TRIAGED case (order step is missing)', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.TRIAGED, resultsUrl: RESULTS_URL }),
+        makeCase({ status: CaseStatus.TRIAGED, resultsUrl: RESULTS_URL })
       );
 
-      await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(BadRequestException);
+      await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('cannot complete a CANCELLED case', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.CANCELLED, resultsUrl: RESULTS_URL }),
+        makeCase({ status: CaseStatus.CANCELLED, resultsUrl: RESULTS_URL })
       );
 
-      await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(BadRequestException);
+      await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('cannot upload results before ORDERED', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.OPEN }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
 
-      await expect(service.uploadResults('tenant-1', 'case-1', { resultsUrl: RESULTS_URL }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.uploadResults('tenant-1', 'case-1', { resultsUrl: RESULTS_URL })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('cannot upload results on a CANCELLED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
-      await expect(service.uploadResults('tenant-1', 'case-1', { resultsUrl: RESULTS_URL }))
-        .rejects.toThrow(BadRequestException);
+      await expect(
+        service.uploadResults('tenant-1', 'case-1', { resultsUrl: RESULTS_URL })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('cannot cancel an already COMPLETED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.COMPLETED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.COMPLETED })
+      );
 
-      await expect(service.cancelCase('tenant-1', 'case-1')).rejects.toThrow(BadRequestException);
+      await expect(service.cancelCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('cannot cancel an already CANCELLED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
 
-      await expect(service.cancelCase('tenant-1', 'case-1')).rejects.toThrow(BadRequestException);
+      await expect(service.cancelCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 });

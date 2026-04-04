@@ -148,7 +148,8 @@ export class AddSymptomsDto {
 export class SelectTestsDto {
   @ApiProperty({
     example: ['hemograma', 'alt', 'ast', 'bun'],
-    description: 'Array of test identifiers selected by the vet. Replaces any previous selection.',
+    description:
+      'Array of test identifiers selected by the vet. Replaces any previous selection.',
     type: [String],
   })
   @IsArray()
