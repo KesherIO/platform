@@ -99,6 +99,12 @@
         formControlName="confirmPassword"
       />
 
+      @if (newUserForm.get('password')?.errors?.['minlength'] && newUserForm.get('password')?.dirty) {
+        <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+          {{ 'STAFF_PROFILE.PASSWORD_MIN_LENGTH' | translate }}
+        </p>
+      }
+
       @if (passwordMismatch) {
         <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
           {{ 'STAFF_PROFILE.PASSWORD_MISMATCH' | translate }}

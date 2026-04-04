@@ -1,4 +1,5 @@
-import { Component, inject, computed, signal } from '@angular/core';
+import { Component, inject, computed, signal, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
@@ -14,6 +15,7 @@ import { PwaInstallBannerComponent } from '../../../shared/components/pwa-instal
 })
 export class DashboardShellComponent {
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly clinicName = computed(() => {
     const me = this.auth.me();
@@ -46,7 +48,9 @@ export class DashboardShellComponent {
 
   signOut() {
     this.menuOpen.set(false);
-    this.auth.signOut().subscribe();
+    this.auth.signOut()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe();
   }
 
   getIcon(name: string): string {

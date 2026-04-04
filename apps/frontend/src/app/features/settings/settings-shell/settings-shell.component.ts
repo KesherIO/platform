@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
 import { StaffSettingsComponent } from '../staff/staff-settings.component';
 import { AuthService } from '../../../core/services/auth.service';
@@ -15,6 +16,7 @@ type SettingsTab = 'clinic' | 'staff' | 'profile';
 })
 export class SettingsShellComponent {
   private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly isAdmin = computed(() => {
     const me = this.auth.me();
@@ -46,8 +48,10 @@ export class SettingsShellComponent {
 
   signOut(): void {
     this.signingOut.set(true);
-    this.auth.signOut().subscribe({
-      error: () => this.signingOut.set(false),
-    });
+    this.auth.signOut()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        error: () => this.signingOut.set(false),
+      });
   }
 }

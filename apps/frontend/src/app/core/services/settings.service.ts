@@ -34,12 +34,13 @@ export class SettingsService {
   // Staff invitations
   // ---------------------------------------------------------------------------
 
-  generateMagicLink(): Observable<MagicLinkResult> {
+  generateMagicLink(email?: string): Observable<MagicLinkResult> {
     const tenantId = this.tenantId;
+    const body = email ? { email, role: 'staff' } : {};
     return this.http
       .post<{ token: string; tenantId: string; expiresAt: string; alreadyExists: boolean }>(
         `/api/onboarding/invite?tenantId=${tenantId}`,
-        {},
+        body,
       )
       .pipe(
         map((res) => ({

@@ -1,4 +1,5 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingService } from '../../../core/services/onboarding.service';
@@ -22,6 +23,7 @@ export class WelcomeComponent implements OnInit {
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   private onboardingService = inject(OnboardingService);
+  private readonly destroyRef = inject(DestroyRef);
   languageService = inject(LanguageService);
 
   /** true while the verify API call is in flight */
@@ -52,22 +54,24 @@ export class WelcomeComponent implements OnInit {
       return;
     }
 
-    this.onboardingService.verifyOnboardingToken(token).subscribe({
-      next: (response) => {
-        this.loading.set(false);
-        if (response.valid) {
-          this.clinicName.set(response.clinicName);
-          // State (onboardingToken, prefillClinicName, prefillAdminEmail) already
-          // stored in OnboardingService via the tap() inside verifyOnboardingToken().
-        } else {
-          this.errorReason.set(response.reason);
-        }
-      },
-      error: () => {
-        this.loading.set(false);
-        this.errorReason.set('network');
-      },
-    });
+    this.onboardingService.verifyOnboardingToken(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.loading.set(false);
+          if (response.valid) {
+            this.clinicName.set(response.clinicName);
+            // State (onboardingToken, prefillClinicName, prefillAdminEmail) already
+            // stored in OnboardingService via the tap() inside verifyOnboardingToken().
+          } else {
+            this.errorReason.set(response.reason);
+          }
+        },
+        error: () => {
+          this.loading.set(false);
+          this.errorReason.set('network');
+        },
+      });
   }
 
   onContinue(): void {

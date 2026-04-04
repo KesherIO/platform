@@ -22,6 +22,59 @@
         {{ 'SETTINGS.STAFF.ERROR_MEMBER' | translate }}
       </p>
     }
+
+    <!-- ─── Existing-account invite ────────────────────────────────── -->
+    <div class="mt-4 pt-4 border-t border-gray-100">
+      @if (!showExistingInvite()) {
+        <button
+          type="button"
+          (click)="toggleExistingInvite()"
+          class="text-sm text-cyan font-medium"
+        >
+          {{ 'SETTINGS.STAFF.EXISTING_TOGGLE' | translate }}
+        </button>
+      } @else {
+        <p class="text-xs font-semibold text-gray-700 mb-1">
+          {{ 'SETTINGS.STAFF.EXISTING_TITLE' | translate }}
+        </p>
+        <p class="text-sm text-gray-500 leading-relaxed mb-3">
+          {{ 'SETTINGS.STAFF.EXISTING_BODY' | translate }}
+        </p>
+        <input
+          type="email"
+          [value]="existingEmail()"
+          (input)="onExistingEmailInput($event)"
+          [placeholder]="'SETTINGS.STAFF.EXISTING_EMAIL_PLACEHOLDER' | translate"
+          class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent mb-3"
+        />
+        <app-secondary-button
+          type="button"
+          (click)="createExistingUserLink()"
+          [disabled]="!existingEmail().trim() || generatingExisting()"
+        >
+          {{ generatingExisting() ? ('COMMON.LOADING' | translate) : ('SETTINGS.STAFF.EXISTING_SEND' | translate) }}
+        </app-secondary-button>
+
+        @if (existingInviteError() === 'already_member') {
+          <p class="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mt-3">
+            {{ 'SETTINGS.STAFF.ERROR_MEMBER' | translate }}
+          </p>
+        }
+        @if (existingInviteError() === 'capacity_exceeded') {
+          <p class="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mt-3 leading-relaxed">
+            {{ 'SETTINGS.STAFF.ERROR_CAPACITY' | translate }}
+          </p>
+        }
+
+        <button
+          type="button"
+          (click)="toggleExistingInvite()"
+          class="text-xs text-gray-400 mt-3 block"
+        >
+          {{ 'SETTINGS.STAFF.EXISTING_CANCEL' | translate }}
+        </button>
+      }
+    </div>
   </section>
 
   <!-- ─── Last-admin error banner ──────────────────────────────────── -->
@@ -120,6 +173,48 @@
   </section>
 
 </div>
+
+<!-- ─── Existing-account invite modal ────────────────────────────────── -->
+@if (existingMagicLinkResult()) {
+  <div
+    class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8"
+    (click)="closeExistingModal()"
+  >
+    <div
+      class="w-full max-w-sm bg-white rounded-2xl p-6 shadow-xl"
+      (click)="$event.stopPropagation()"
+    >
+      @if (existingMagicLinkResult()?.alreadyExists) {
+        <h3 class="text-base font-bold text-gray-900 mb-1">
+          {{ 'SETTINGS.STAFF.MODAL_EXISTING_TITLE' | translate }}
+        </h3>
+        <p class="text-sm text-gray-500 mb-4">
+          {{ 'SETTINGS.STAFF.MODAL_EXISTING_BODY' | translate }}
+        </p>
+      } @else {
+        <h3 class="text-base font-bold text-gray-900 mb-1">
+          {{ 'SETTINGS.STAFF.EXISTING_MODAL_TITLE' | translate }}
+        </h3>
+        <p class="text-sm text-gray-500 mb-4">
+          {{ 'SETTINGS.STAFF.EXISTING_MODAL_BODY' | translate }}
+        </p>
+      }
+
+      <div class="bg-gray-50 rounded-xl px-3 py-3 mb-4 break-all">
+        <p class="text-xs text-gray-600 font-mono leading-relaxed">{{ existingMagicLinkResult()?.url }}</p>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <app-secondary-button type="button" (click)="copyExistingLink()">
+          {{ existingCopied() ? ('SETTINGS.STAFF.COPIED' | translate) : ('SETTINGS.STAFF.COPY' | translate) }}
+        </app-secondary-button>
+        <app-outline-button type="button" (click)="closeExistingModal()">
+          {{ 'SETTINGS.STAFF.CLOSE' | translate }}
+        </app-outline-button>
+      </div>
+    </div>
+  </div>
+}
 
 <!-- ─── Magic Link Modal ──────────────────────────────────────────────── -->
 @if (magicLinkResult()) {

@@ -12,12 +12,12 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiHeader } from '@nestjs/swagger';
 import { OnboardingService } from './onboarding.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { AuthenticatedUser } from '@vet-ai/shared-types';
+import type { AuthenticatedUser } from '@vet-ai/shared-types';
 import {
   SaveStaffProfileDto,
   GenerateInviteDto,
@@ -30,9 +30,7 @@ import {
 @ApiBearerAuth()
 @Controller('onboarding')
 export class OnboardingController {
-  constructor(
-    private readonly onboardingService: OnboardingService,
-  ) {}
+  constructor(private readonly onboardingService: OnboardingService) {}
 
   /**
    * Public — fetched before the user has a tenant membership.
@@ -66,9 +64,14 @@ export class OnboardingController {
   saveStaffProfile(
     @Body() body: SaveStaffProfileDto,
     @Query('tenantId') tenantId: string,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedUser
   ) {
-    return this.onboardingService.saveStaffProfile(user.id, tenantId, body.token, body);
+    return this.onboardingService.saveStaffProfile(
+      user.id,
+      tenantId,
+      body.token,
+      body
+    );
   }
 
   /**
@@ -80,7 +83,7 @@ export class OnboardingController {
   generateInvite(
     @Body() body: GenerateInviteDto,
     @Query('tenantId') tenantId: string,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedUser
   ) {
     return this.onboardingService.generateInvite(user.id, tenantId, body);
   }
@@ -108,14 +111,21 @@ export class OnboardingController {
    * Internal — requires x-internal-api-key header (INTERNAL_API_KEY env var).
    * Called by Biomet to create a secure onboarding link for a new clinic admin.
    *
-   * Input:  { clinicName, clinicEmail, biometClinicId? }
+   * Input: { clinicName, clinicEmail, biometClinicId? }
    * Output: { token, onboardingLink: "/onboarding/welcome?token=<hex>" }
    */
   @Post('admin-link')
   @Public()
   @UseGuards(InternalApiKeyGuard)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create an ADMIN onboarding link (Biomet internal use)' })
+  @ApiOperation({
+    summary: 'Create an ADMIN onboarding link (Biomet internal use)',
+  })
+  @ApiHeader({
+    name: 'x-internal-api-key',
+    description: 'Internal API key for Biomet-only endpoints',
+    required: true,
+  })
   createAdminLink(@Body() body: CreateAdminLinkDto) {
     return this.onboardingService.createAdminLink(body);
   }
@@ -150,11 +160,13 @@ export class OnboardingController {
   @Public()
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('logo'))
-  @ApiOperation({ summary: 'Complete ADMIN onboarding and create clinic account' })
+  @ApiOperation({
+    summary: 'Complete ADMIN onboarding and create clinic account',
+  })
   @ApiConsumes('multipart/form-data', 'application/json')
   completeAdminOnboarding(
     @Body() body: CompleteAdminOnboardingDto,
-    @UploadedFile() logo?: Express.Multer.File,
+    @UploadedFile() logo?: Express.Multer.File
   ) {
     return this.onboardingService.completeAdminOnboarding(body, logo);
   }

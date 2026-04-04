@@ -148,6 +148,7 @@
     "PASSWORD_PLACEHOLDER": "••••••••",
     "CONFIRM_PASSWORD_LABEL": "Confirm password",
     "CONFIRM_PASSWORD_PLACEHOLDER": "••••••••",
+    "PASSWORD_MIN_LENGTH": "Password must be at least 8 characters.",
     "PASSWORD_MISMATCH": "Passwords do not match.",
     "CREATE_ACCOUNT_BUTTON": "Create account",
     "EXISTING_USER_TITLE": "Join your clinic",
@@ -194,7 +195,15 @@
       "MODAL_EXISTING_BODY": "A pending invite already exists for this email. Share the existing link or resend the invitation.",
       "COPY_EXISTING": "Copy existing link",
       "ERROR_CAPACITY": "You've reached the maximum of 10 pending invites. Wait for one to be accepted or expire before creating a new one.",
-      "ERROR_MEMBER": "This user is already a member of the clinic."
+      "ERROR_MEMBER": "This user is already a member of the clinic.",
+      "EXISTING_TOGGLE": "This person already has a VetAI account →",
+      "EXISTING_TITLE": "Invite someone with an existing account",
+      "EXISTING_BODY": "Use this if the person already has a VetAI account — from this clinic or another. They'll join without creating a new account.",
+      "EXISTING_EMAIL_PLACEHOLDER": "staff@example.com",
+      "EXISTING_SEND": "Send invite",
+      "EXISTING_CANCEL": "Cancel",
+      "EXISTING_MODAL_TITLE": "Invite link ready",
+      "EXISTING_MODAL_BODY": "Share this link with the staff member. They'll be able to join the clinic without creating a new account."
     }
   },
   "BRANDING": {
