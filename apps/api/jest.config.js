@@ -17,7 +17,10 @@ module.exports = {
     }],
   },
   moduleNameMapper: {
-    '^@vet-ai/shared-types$': '<rootDir>/../../libs/shared-types/src/index.ts',
+    '^@vet-ai/shared-types$': '<rootDir>/../../../libs/shared-types/src/lib/index.ts',
+    // shared-types uses ESM-style .js extensions on internal imports; strip them so
+    // ts-jest resolves the matching .ts source files instead.
+    '^(\\.{1,2}/.+)\\.js$': '$1',
   },
   testEnvironment: 'node',
 };
