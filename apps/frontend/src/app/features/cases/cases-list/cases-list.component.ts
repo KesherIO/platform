@@ -4,8 +4,8 @@ import { RouterModule } from '@angular/router';
 import { CaseModel } from '../../../core/models';
 
 @Component({
-    selector: 'app-cases-list',
-    imports: [CommonModule, RouterModule],
+  selector: 'app-cases-list',
+  imports: [CommonModule, RouterModule],
   templateUrl: './cases-list.component.html',
 })
 export class CasesListComponent {
