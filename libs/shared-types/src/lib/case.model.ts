@@ -1,3 +1,7 @@
+import { TriageResultModel } from './triage-result.model.js';
+import { TestModel } from './test.model.js';
+import { TestPackageModel } from './test-package.model.js';
+
 export enum PatientSpecies {
   DOG = 'DOG',
   CAT = 'CAT',
@@ -16,6 +20,12 @@ export enum AgeUnit {
   YEARS = 'YEARS',
 }
 
+export enum PatientSex {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+  UNKNOWN = 'UNKNOWN',
+}
+
 export enum CaseStatus {
   OPEN = 'OPEN',
   TRIAGED = 'TRIAGED',
@@ -32,7 +42,9 @@ export interface CaseModel {
   // Patient
   patientName: string;
   patientSpecies: PatientSpecies;
+  patientSex?: PatientSex;
   patientBreed?: string;
+  patientDateOfBirth?: string; // ISO date string YYYY-MM-DD, optional
   patientAge?: number;
   patientAgeUnit?: AgeUnit;
   patientWeight?: number; // kg
@@ -43,13 +55,20 @@ export interface CaseModel {
 
   // Clinical
   symptoms?: string;
-  triageResult?: unknown;
-  suggestedTests?: unknown;
-  selectedTests?: unknown;
+  triageResult?: TriageResultModel;
+  selectedTests?: {
+    tests: TestModel[];
+    packages: TestPackageModel[];
+  };
 
   // Order
-  orderNotes?: string;
-  orderSentAt?: Date;
+  order?: {
+    orderId: string;
+    requisitionUrl: string;
+    qrCodeUrl?: string;
+    whatsAppLink: string;
+    sentAt?: Date;
+  };
 
   // Results
   resultsUrl?: string;

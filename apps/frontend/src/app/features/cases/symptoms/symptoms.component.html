@@ -1,0 +1,51 @@
+<app-case-wizard-layout
+  titleKey="CASES.SYMPTOMS.TITLE"
+  [patientName]="case()?.patientName"
+  [patientSpecies]="case()?.patientSpecies"
+  [patientBreed]="case()?.patientBreed"
+  [patientAge]="case()?.patientAge"
+  [patientAgeUnit]="case()?.patientAgeUnit"
+  [ownerName]="case()?.ownerName"
+>
+  @if (loading()) {
+  <div class="flex items-center justify-center py-20 text-gray-400 text-sm">
+    {{ 'COMMON.LOADING' | translate }}
+  </div>
+  } @else if (!case()) {
+  <div class="py-10 text-center text-red-500 text-sm">
+    {{ 'AUTH.ERROR_GENERIC' | translate }}
+  </div>
+  } @else {
+  <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-6">
+    <!-- Instruction -->
+    <p class="text-sm text-gray-500">{{ 'CASES.SYMPTOMS.HINT' | translate }}</p>
+
+    <!-- Symptoms textarea -->
+    <div class="flex flex-col gap-1.5">
+      <label for="symptoms" class="text-sm font-medium text-gray-700">
+        {{ 'CASES.SYMPTOMS.LABEL' | translate }}
+      </label>
+      <textarea
+        id="symptoms"
+        formControlName="symptoms"
+        rows="6"
+        [placeholder]="'CASES.SYMPTOMS.PLACEHOLDER' | translate"
+        class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent placeholder:text-gray-300 text-sm text-gray-900 resize-none"
+      ></textarea>
+    </div>
+
+    <!-- Submit -->
+    <app-button
+      type="submit"
+      variant="primary"
+      [disabled]="form.invalid || saving()"
+    >
+      @if (saving()) {
+      {{ 'COMMON.SAVING' | translate }}
+      } @else {
+      {{ 'CASES.SYMPTOMS.SUBMIT' | translate }}
+      }
+    </app-button>
+  </form>
+  }
+</app-case-wizard-layout>

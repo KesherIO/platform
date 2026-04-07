@@ -1,0 +1,66 @@
+<div class="min-h-screen bg-gray-50 flex flex-col">
+  <header class="bg-white shadow-sm shrink-0">
+    <div
+      class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4"
+    >
+      <a
+        [routerLink]="backRoute()"
+        class="text-gray-500 hover:text-gray-800 text-sm font-medium"
+      >
+        ← {{ backLabelKey() | translate }}
+      </a>
+      @if (titleKey()) {
+      <h1 class="text-xl font-semibold text-gray-900">
+        {{ titleKey() | translate }}
+      </h1>
+      }
+    </div>
+
+    <!-- Patient info strip -->
+    @if (patientName()) {
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+      <div class="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3">
+        <!-- Species avatar -->
+        <div
+          class="w-11 h-11 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center shrink-0 overflow-hidden"
+        >
+          @if (patientSpecies()) {
+          <div class="scale-75">
+            <app-species-icon [species]="patientSpecies()!" />
+          </div>
+          }
+        </div>
+
+        <!-- Patient details -->
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-900 truncate">
+            {{ patientName() }}
+          </p>
+          <p class="text-xs text-gray-400 truncate mt-0.5">
+            @if (patientBreed()) { {{ patientBreed() }} } @if (patientBreed() &&
+            patientAge() !== null) { · } @if (patientAge() !== null) {
+            {{ formatAge(patientAge(), patientAgeUnit()) }} }
+          </p>
+        </div>
+
+        <!-- Owner chip -->
+        @if (ownerName()) {
+        <span
+          class="shrink-0 text-xs text-gray-500 bg-white border border-gray-200 rounded-full px-3 py-1 truncate max-w-[120px]"
+        >
+          {{ ownerName() }}
+        </span>
+        }
+      </div>
+    </div>
+    }
+  </header>
+
+  <main class="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <ng-content />
+  </main>
+
+  <footer class="shrink-0 py-4 text-center text-xs text-gray-400">
+    {{ 'BRANDING.POWERED_BY' | translate }}
+  </footer>
+</div>

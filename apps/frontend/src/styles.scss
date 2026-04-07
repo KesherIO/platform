@@ -5,24 +5,38 @@
 
 /* ─── Design System Tokens ─────────────────────────────────────────── */
 :root {
-  --color-primary-black:  #000000;
-  --color-primary-accent: #66E0E5;   /* text on black buttons / AI / turquoise */
-  --color-secondary:      #A65AF4;   /* purple — create / new / important */
-  --color-secondary-text: #FFFFFF;
-  --color-background:     #F5F6F8;
-  --color-card:           #FFFFFF;
-  --color-border:         #E5E7EB;
-  --color-text:           #1F2937;
-  --color-text-light:     #6B7280;
+  --color-primary-black: #000000;
+  --color-primary-accent: #66e0e5; /* text on black buttons / AI / turquoise */
+  --color-secondary: #a65af4; /* purple — create / new / important */
+  --color-secondary-text: #ffffff;
+  --color-background: #f5f6f8;
+  --color-card: #ffffff;
+  --color-border: #e5e7eb;
+  --color-text: #1f2937;
+  --color-text-light: #6b7280;
 
   /* Semantic status colors */
-  --color-completed:      #22C55E;   /* green  — completed */
-  --color-pending:        #F97316;   /* orange — pending / awaiting */
-  --color-error:          #EF4444;   /* red    — error */
-  --color-ai:             #66E0E5;   /* turquoise — AI / results / highlight */
+  --color-completed: #22c55e; /* green  — completed */
+  --color-pending: #f97316; /* orange — pending / awaiting */
+  --color-error: #ef4444; /* red    — error */
+  --color-ai: #66e0e5; /* turquoise — AI / results / highlight */
 }
 
-/* ─── Global Base ──────────────────────────────────────────────────── */
+/* ─── Shared menu item style ───────────────────────────────────────── */
+.menu-item {
+  @apply w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors block;
+}
+
+/* ─── Case card row hover ──────────────────────────────────────────── */
+.case-row:hover {
+  background-color: #f9fafb !important;
+  border-left: 4px solid #29b8be !important;
+}
+
+.case-row {
+  border-left: 4px solid transparent;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
 @layer base {
   body {
     @apply text-gray-900;

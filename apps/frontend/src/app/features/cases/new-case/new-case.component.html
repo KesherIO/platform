@@ -1,0 +1,205 @@
+<div class="min-h-screen bg-white flex flex-col">
+  <!-- Header -->
+  <header
+    class="bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3 shrink-0"
+  >
+    <a routerLink="/cases" class="p-1 -ml-1 text-gray-500">
+      <svg
+        class="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M15 19l-7-7 7-7"
+        />
+      </svg>
+    </a>
+    <h1 class="text-base font-semibold text-gray-900 flex-1">
+      @if (selectedCase()) {
+      {{ 'CASES.NEW.RETRIEVE_TITLE' | translate : { id: selectedCase()!.id } }}
+      } @else if (editCaseId()) {
+      {{ 'CASES.NEW.EDIT_TITLE' | translate }}
+      } @else {
+      {{ 'CASES.NEW.TITLE' | translate }}
+      }
+    </h1>
+    @if (selectedCase()) {
+    <button
+      type="button"
+      (click)="clearSelection()"
+      class="text-xs text-gray-400 hover:text-gray-600"
+    >
+      {{ 'CASES.NEW.CANCEL' | translate }}
+    </button>
+    }
+  </header>
+
+  <!-- Form -->
+  <form [formGroup]="form" (ngSubmit)="submit()" class="flex-1 flex flex-col">
+    <div class="flex-1 px-4 py-5 flex flex-col gap-4 overflow-y-auto">
+      <!-- Patient name + search results -->
+      <div class="relative">
+        <app-input
+          id="patientName"
+          formControlName="patientName"
+          placeholder="CASES.NEW.PATIENT_NAME_PLACEHOLDER"
+          label="CASES.NEW.PATIENT_NAME"
+        />
+
+        <!-- Retrieve suggestions dropdown -->
+        @if (showResults()) {
+        <div
+          class="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-gray-200 shadow-lg z-20 overflow-hidden"
+        >
+          <p
+            class="px-4 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide"
+          >
+            {{ 'CASES.NEW.RETRIEVE_HINT' | translate }}
+          </p>
+          @for (c of searchResults(); track c.id) {
+          <button
+            type="button"
+            (click)="selectExistingCase(c)"
+            class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+          >
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 truncate">
+                {{ c.patientName }}
+              </p>
+              <p class="text-xs text-gray-400 truncate">
+                {{ c.ownerName }} · {{ c.patientSpecies | lowercase }}
+              </p>
+            </div>
+            <span class="text-xs text-gray-300">#{{ c.id }}</span>
+          </button>
+          }
+        </div>
+        }
+      </div>
+
+      <!-- Species + Sex -->
+      <div class="grid grid-cols-2 gap-3">
+        <app-select
+          id="patientSpecies"
+          formControlName="patientSpecies"
+          label="CASES.NEW.SPECIES"
+          placeholder="CASES.NEW.SPECIES_PLACEHOLDER"
+          [options]="speciesOptions"
+        />
+        <app-select
+          id="patientSex"
+          formControlName="patientSex"
+          label="CASES.NEW.SEX"
+          placeholder="CASES.NEW.SEX_PLACEHOLDER"
+          [options]="sexOptions"
+        />
+      </div>
+
+      <!-- Breed -->
+      <app-input
+        id="patientBreed"
+        formControlName="patientBreed"
+        placeholder="CASES.NEW.BREED_PLACEHOLDER"
+        label="CASES.NEW.BREED"
+      />
+
+      <!-- Date of birth -->
+      <div class="flex flex-col gap-1">
+        <label
+          for="patientDateOfBirth"
+          class="text-sm font-medium text-gray-700"
+          >{{ 'CASES.NEW.DOB' | translate }}</label
+        >
+        <input
+          id="patientDateOfBirth"
+          type="date"
+          formControlName="patientDateOfBirth"
+          class="px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan focus:border-transparent placeholder:text-gray-400 disabled:bg-gray-100"
+        />
+        <p class="text-xs text-gray-400">
+          {{ 'CASES.NEW.DOB_HINT' | translate }}
+        </p>
+      </div>
+
+      <!-- Age + Unit -->
+      <div class="grid grid-cols-2 gap-3">
+        <app-input
+          id="patientAge"
+          formControlName="patientAge"
+          type="number"
+          placeholder="CASES.NEW.AGE_PLACEHOLDER"
+          label="CASES.NEW.AGE"
+        />
+        <app-select
+          id="patientAgeUnit"
+          formControlName="patientAgeUnit"
+          label="CASES.NEW.AGE_UNIT"
+          placeholder="CASES.NEW.AGE_UNIT"
+          [options]="ageUnitOptions"
+        />
+      </div>
+
+      <!-- Owner name -->
+      <app-input
+        id="ownerName"
+        formControlName="ownerName"
+        placeholder="CASES.NEW.OWNER_NAME_PLACEHOLDER"
+        label="CASES.NEW.OWNER_NAME"
+      />
+
+      <!-- Retrieve: actions section -->
+      @if (selectedCase()) {
+      <div class="mt-2 pt-4 border-t border-gray-100 flex flex-col gap-3">
+        <p class="text-sm font-semibold text-gray-700">
+          {{ 'CASES.NEW.ACTIONS' | translate }}
+        </p>
+        <button
+          type="button"
+          (click)="viewResults()"
+          class="w-full py-3 rounded-full border border-cyan text-cyan text-sm font-medium hover:bg-cyan hover:text-black transition-colors"
+        >
+          {{ 'CASES.NEW.VIEW_RESULTS' | translate }}
+        </button>
+        <app-button
+          type="button"
+          variant="primary"
+          (click)="newCaseForPatient()"
+        >
+          {{ 'CASES.NEW.NEW_CASE_FOR_PATIENT' | translate }}
+        </app-button>
+        <app-button type="button" variant="primary" (click)="continueCase()">
+          {{ 'CASES.NEW.CONTINUE_CASE' | translate }}
+        </app-button>
+      </div>
+      }
+    </div>
+
+    <!-- Save and continue (only shown when not in retrieve mode) -->
+    @if (!selectedCase()) {
+    <div class="shrink-0 px-4 py-4 border-t border-gray-100">
+      <app-button
+        type="submit"
+        variant="primary"
+        [disabled]="form.invalid || saving()"
+      >
+        @if (saving()) {
+        {{ 'COMMON.SAVING' | translate }}
+        } @else {
+        {{ 'CASES.NEW.SUBMIT' | translate }}
+        }
+      </app-button>
+    </div>
+    }
+  </form>
+
+  <!-- Footer -->
+  <footer class="shrink-0 py-4 text-center border-t border-gray-100">
+    <span class="text-xs font-bold text-gray-900 underline">{{
+      'BRANDING.POWERED_BY' | translate
+    }}</span>
+  </footer>
+</div>

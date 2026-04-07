@@ -1,0 +1,8 @@
+<span
+  class="status-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap border transition-all duration-150 hover:text-white"
+  [style.borderColor]="color"
+  [style.color]="color"
+  [style.--badge-color]="color"
+>
+  {{ status() | caseStatusLabel | translate }}
+</span>

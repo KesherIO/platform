@@ -16,14 +16,17 @@ export const routes: Routes = [
   {
     path: 'auth/callback',
     loadComponent: () =>
-      import('./features/auth/callback/callback.component').then(m => m.CallbackComponent),
+      import('./features/auth/callback/callback.component').then(
+        (m) => m.CallbackComponent
+      ),
   },
 
   // Auth pages — redirect away if already logged in.
   {
     path: 'auth',
     canActivate: [noAuthGuard],
-    loadChildren: () => import('./features/auth/auth.routes').then(m => m.AUTH_ROUTES),
+    loadChildren: () =>
+      import('./features/auth/auth.routes').then((m) => m.AUTH_ROUTES),
   },
 
   // Onboarding — public. Users arrive here before they have credentials.
@@ -31,7 +34,9 @@ export const routes: Routes = [
   {
     path: 'onboarding',
     loadChildren: () =>
-      import('./features/onboarding/onboarding.routes').then(m => m.ONBOARDING_ROUTES),
+      import('./features/onboarding/onboarding.routes').then(
+        (m) => m.ONBOARDING_ROUTES
+      ),
   },
 
   // Dashboard and app pages — requires authentication + onboarding complete.
@@ -39,13 +44,25 @@ export const routes: Routes = [
     path: 'dashboard',
     canActivate: [authGuard],
     loadChildren: () =>
-      import('./features/dashboard/dashboard.routes').then(m => m.DASHBOARD_ROUTES),
+      import('./features/dashboard/dashboard.routes').then(
+        (m) => m.DASHBOARD_ROUTES
+      ),
   },
 
   {
     path: 'cases',
     canActivate: [authGuard],
-    loadChildren: () => import('./features/cases/cases.routes').then(m => m.CASES_ROUTES),
+    loadChildren: () =>
+      import('./features/cases/cases.routes').then((m) => m.CASES_ROUTES),
+  },
+
+  {
+    path: 'settings',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import(
+        './features/settings/settings-shell/settings-shell.component'
+      ).then((m) => m.SettingsShellComponent),
   },
 
   // Catch-all.
