@@ -10,3 +10,8 @@ export * from './tenant.model.js';
 export * from './onboarding.model.js';
 export * from './auth.model.js';
 export * from './staff.model.js';
+export * from './diagnosis.model.js';
+export * from './test.model.js';
+export * from './test-package.model.js';
+export * from './test-catalog.model.js';
+export * from './triage-result.model.js';

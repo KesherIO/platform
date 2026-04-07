@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal, DestroyRef } from '@angular/core';
+import { Location } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
 import { StaffSettingsComponent } from '../staff/staff-settings.component';
@@ -16,6 +17,7 @@ type SettingsTab = 'clinic' | 'staff' | 'profile';
 })
 export class SettingsShellComponent {
   private readonly auth = inject(AuthService);
+  private readonly location = inject(Location);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly isAdmin = computed(() => {
@@ -23,7 +25,9 @@ export class SettingsShellComponent {
     if (!me) return false;
     const activeTenantId = me.activeTenantId ?? me.tenants[0]?.id;
     return me.memberships.some(
-      (m) => m.tenant.id === activeTenantId && (m.role === 'ADMIN' || m.role === 'OWNER'),
+      (m) =>
+        m.tenant.id === activeTenantId &&
+        (m.role === 'ADMIN' || m.role === 'OWNER')
     );
   });
 
@@ -40,15 +44,24 @@ export class SettingsShellComponent {
 
   readonly activeTab = signal<SettingsTab>('clinic');
 
-  readonly tabs = computed<Array<{ key: SettingsTab; labelKey: string }>>(() => [
-    { key: 'clinic',  labelKey: 'SETTINGS.TAB_CLINIC'  },
-    ...(this.isAdmin() ? [{ key: 'staff' as const, labelKey: 'SETTINGS.TAB_STAFF' }] : []),
-    { key: 'profile', labelKey: 'SETTINGS.TAB_PROFILE' },
-  ]);
+  readonly tabs = computed<Array<{ key: SettingsTab; labelKey: string }>>(
+    () => [
+      { key: 'clinic', labelKey: 'SETTINGS.TAB_CLINIC' },
+      ...(this.isAdmin()
+        ? [{ key: 'staff' as const, labelKey: 'SETTINGS.TAB_STAFF' }]
+        : []),
+      { key: 'profile', labelKey: 'SETTINGS.TAB_PROFILE' },
+    ]
+  );
+
+  goBack(): void {
+    this.location.back();
+  }
 
   signOut(): void {
     this.signingOut.set(true);
-    this.auth.signOut()
+    this.auth
+      .signOut()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         error: () => this.signingOut.set(false),

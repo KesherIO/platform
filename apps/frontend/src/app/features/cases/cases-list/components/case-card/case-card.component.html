@@ -1,0 +1,103 @@
+<div class="case-row relative flex items-center gap-3.5 px-4 py-3.5">
+  <!-- Clickable row area -->
+  <a [routerLink]="route()" class="absolute inset-0" [attr.aria-label]="'CASES.OPEN' | translate : { name: case().patientName }"></a>
+
+  <!-- Species icon -->
+  <app-species-icon [species]="case().patientSpecies" />
+
+  <!-- Info -->
+  <div class="flex-1 min-w-0 relative pointer-events-none">
+    <div class="flex items-baseline gap-1.5">
+      <span class="font-semibold text-gray-900 text-sm truncate">{{
+        case().patientName
+      }}</span>
+      <span class="text-xs text-gray-400 shrink-0">{{
+        formatDate(case().createdAt)
+      }}</span>
+    </div>
+    <div class="text-xs text-gray-400 mt-0.5 truncate">
+      @if (case().patientAge !== null) {
+      {{ formatAge(case().patientAge, case().patientAgeUnit) }}
+      } @if (case().ownerName) { @if (case().patientAge !== null) { · }{{
+        case().ownerName
+      }}
+      }
+    </div>
+  </div>
+
+  <!-- Status badge -->
+  <div class="shrink-0 relative pointer-events-none">
+    <app-case-status-badge [status]="case().status" />
+  </div>
+
+  <!-- 3-dot menu button -->
+  <div class="relative shrink-0 z-10">
+    <button
+      type="button"
+      (click)="toggleMenu($event)"
+      class="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+      aria-label="Case actions"
+    >
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+        <circle cx="10" cy="4" r="1.5" />
+        <circle cx="10" cy="10" r="1.5" />
+        <circle cx="10" cy="16" r="1.5" />
+      </svg>
+    </button>
+
+    <!-- Dropdown menu -->
+    @if (menuOpen()) {
+    <div
+      class="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl border border-gray-100 shadow-lg z-30 overflow-hidden py-1"
+    >
+      <!-- Primary action based on status -->
+      @switch (case().status) { @case (CaseStatus.OPEN) {
+      <button
+        type="button"
+        (click)="navigate(['/cases', case().id, 'symptoms'])"
+        class="menu-item"
+      >
+        {{ 'CASES.MENU.CONTINUE_EDITING' | translate }}
+      </button>
+      } @case (CaseStatus.TRIAGED) {
+      <button
+        type="button"
+        (click)="navigate(['/cases', case().id, 'ai-results'])"
+        class="menu-item"
+      >
+        {{ 'CASES.MENU.CONTINUE' | translate }}
+      </button>
+      } @case (CaseStatus.ORDERED) {
+      <button
+        type="button"
+        (click)="navigate(['/cases', case().id, 'order'])"
+        class="menu-item"
+      >
+        {{ 'CASES.MENU.VIEW_ORDER' | translate }}
+      </button>
+      } @case (CaseStatus.COMPLETED) {
+      <button
+        type="button"
+        (click)="navigate(['/cases', case().id, 'order'])"
+        class="menu-item"
+      >
+        {{ 'CASES.MENU.VIEW_RESULTS' | translate }}
+      </button>
+      } }
+
+      <!-- New case for this patient (all non-open statuses, but available for all) -->
+      @if (case().status !== CaseStatus.OPEN) {
+      <div class="border-t border-gray-100 mt-1 pt-1">
+        <button
+          type="button"
+          (click)="navigateNewCaseForPatient()"
+          class="menu-item"
+        >
+          {{ 'CASES.MENU.NEW_CASE_FOR_PATIENT' | translate }}
+        </button>
+      </div>
+      }
+    </div>
+    }
+  </div>
+</div>

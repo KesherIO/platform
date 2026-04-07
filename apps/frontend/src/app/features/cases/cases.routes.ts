@@ -3,32 +3,45 @@ import { Routes } from '@angular/router';
 export const CASES_ROUTES: Routes = [
   {
     path: '',
-    loadComponent: () => import('./cases-list/cases-list.component').then(m => m.CasesListComponent)
+    loadComponent: () =>
+      import('./cases-list/cases-list.component').then(
+        (m) => m.CasesListComponent
+      ),
   },
   {
     path: 'new',
-    loadComponent: () => import('./case-form/case-form.component').then(m => m.CaseFormComponent)
+    loadComponent: () =>
+      import('./new-case/new-case.component').then((m) => m.NewCaseComponent),
   },
   {
-    path: ':id',
-    loadComponent: () => import('./case-detail/case-detail.component').then(m => m.CaseDetailComponent),
-    children: [
-      {
-        path: 'symptoms',
-        loadComponent: () => import('../../features/symptoms/symptoms.component').then(m => m.SymptomsComponent)
-      },
-      {
-        path: 'orders',
-        loadComponent: () => import('../../features/orders/orders.component').then(m => m.OrdersComponent)
-      },
-      {
-        path: 'results',
-        loadComponent: () => import('../../features/results/results.component').then(m => m.ResultsComponent)
-      },
-      {
-        path: 'reports',
-        loadComponent: () => import('../../features/reports/reports.component').then(m => m.ReportsComponent)
-      }
-    ]
-  }
+    path: ':id/symptoms',
+    loadComponent: () =>
+      import('./symptoms/symptoms.component').then((m) => m.SymptomsComponent),
+  },
+  {
+    path: ':id/ai-results',
+    loadComponent: () =>
+      import('./ai-results/ai-results.component').then(
+        (m) => m.AiResultsComponent
+      ),
+  },
+  {
+    path: ':id/test-selection',
+    loadComponent: () =>
+      import('./test-selection/test-selection.component').then(
+        (m) => m.TestSelectionComponent
+      ),
+  },
+  {
+    path: ':id/order',
+    loadComponent: () =>
+      import('./order/order.component').then((m) => m.OrderComponent),
+  },
+  {
+    path: ':id/order/success',
+    loadComponent: () =>
+      import('./order-success/order-success.component').then(
+        (m) => m.OrderSuccessComponent
+      ),
+  },
 ];

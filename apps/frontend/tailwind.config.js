@@ -1,14 +1,12 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    "./apps/frontend/src/**/*.{html,ts}",
-  ],
+  content: ['./apps/frontend/src/**/*.{html,ts}'],
   theme: {
     extend: {
       colors: {
         // ── Design system tokens ──────────────────────────────────
-        accent: '#66E0E5',       // primary-accent: text on black buttons / AI / turquoise
-        secondary: '#A65AF4',   // secondary: create / new / important actions
+        accent: '#66E0E5', // primary-accent: text on black buttons / AI / turquoise
+        secondary: '#A65AF4', // secondary: create / new / important actions
 
         // ── Legacy palette (kept for backward compatibility) ──────
         primary: {
@@ -24,12 +22,12 @@ module.exports = {
           900: '#0c4a6e',
         },
         cyan: {
-          DEFAULT: '#06D6A0',
-          light: '#4FFFB0',
-          dark: '#059669',
+          DEFAULT: '#66E0E5',
+          light: '#99ECEF',
+          dark: '#29B8BE',
         },
         purple: {
-          DEFAULT: '#A65AF4',   // updated to new secondary color
+          DEFAULT: '#A65AF4', // updated to new secondary color
           light: '#C77DFF',
           dark: '#7209B7',
         },
@@ -53,4 +51,4 @@ module.exports = {
     },
   },
   plugins: [],
-}
+};

@@ -1,0 +1,200 @@
+<!-- Search -->
+<div class="px-4 pt-3 pb-2">
+  <div class="relative">
+    <span
+      class="absolute inset-y-0 left-3 flex items-center text-gray-400 pointer-events-none"
+    >
+      <svg
+        class="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
+        />
+      </svg>
+    </span>
+    <input
+      type="search"
+      [value]="search()"
+      (input)="onSearch($event)"
+      [placeholder]="'CASES.SEARCH_PLACEHOLDER' | translate"
+      class="w-full pl-9 pr-4 py-2.5 rounded-full border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+    />
+  </div>
+</div>
+
+<!-- Filter / Sort row -->
+<div class="relative px-4 pb-3">
+  <div class="flex items-center gap-2">
+    <!-- Filter chip -->
+    <div class="relative">
+      <button
+        (click)="toggleFilter()"
+        class="filter-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors"
+        [class]="
+          hasActiveFilter()
+            ? 'border-gray-900 bg-gray-900 text-white'
+            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:text-gray-800'
+        "
+      >
+        {{ 'CASES.FILTER_STATUS' | translate }}
+        @if (hasActiveFilter()) {
+        <span
+          class="ml-0.5 w-1.5 h-1.5 rounded-full bg-white inline-block"
+        ></span>
+        }
+        <svg
+          class="w-3 h-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+
+      @if (filterOpen()) {
+      <div
+        class="filter-dropdown absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-gray-100 z-20 p-3"
+      >
+        <div class="mb-3">
+          <p
+            class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+          >
+            {{ 'CASES.FILTER_STATUS' | translate }}
+          </p>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              (click)="selectStatus(null)"
+              class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+              [class]="
+                statusFilter() === null
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+              "
+            >
+              {{ 'CASES.FILTER_ALL' | translate }}
+            </button>
+            @for (s of statuses; track s.value) {
+            <button
+              (click)="selectStatus(s.value)"
+              class="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
+              [style.borderColor]="statusColors[s.value]"
+              [style.color]="
+                statusFilter() === s.value ? 'white' : statusColors[s.value]
+              "
+              [style.backgroundColor]="
+                statusFilter() === s.value ? statusColors[s.value] : 'white'
+              "
+            >
+              {{ s.labelKey | translate }}
+            </button>
+            }
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <p
+            class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+          >
+            {{ 'CASES.FILTER_SPECIES' | translate }}
+          </p>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              (click)="selectSpecies(null)"
+              class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+              [class]="
+                speciesFilter() === null
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+              "
+            >
+              {{ 'CASES.FILTER_ALL' | translate }}
+            </button>
+            @for (sp of species; track sp.value) {
+            <button
+              (click)="selectSpecies(sp.value)"
+              class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+              [class]="
+                speciesFilter() === sp.value
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+              "
+            >
+              {{ sp.labelKey | translate }}
+            </button>
+            }
+          </div>
+        </div>
+
+        @if (hasActiveFilter()) {
+        <button
+          (click)="clearFilters()"
+          class="w-full text-xs text-red-500 hover:text-red-700 font-medium mt-1"
+        >
+          Clear filters
+        </button>
+        }
+      </div>
+      }
+    </div>
+
+    <!-- Sort chip -->
+    <div class="relative">
+      <button
+        (click)="toggleSort()"
+        class="sort-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-600 text-sm font-medium hover:border-gray-400 hover:text-gray-800 transition-colors"
+      >
+        {{ 'CASES.SORT_LABEL' | translate }}
+        <svg
+          class="w-3 h-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+
+      @if (sortOpen()) {
+      <div
+        class="sort-dropdown absolute top-full left-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-20 overflow-hidden"
+      >
+        @for (opt of sortOptions; track opt.value) {
+        <button
+          (click)="selectSort(opt.value)"
+          class="w-full text-left px-4 py-2.5 text-sm transition-colors"
+          [class]="
+            sort() === opt.value
+              ? 'bg-gray-100 font-semibold text-gray-900'
+              : 'text-gray-700 hover:bg-gray-50'
+          "
+        >
+          {{ opt.labelKey | translate }}
+        </button>
+        }
+      </div>
+      }
+    </div>
+
+    <!-- Result count -->
+    <span class="ml-auto text-xs text-gray-400"
+      >{{ resultCount() }} {{ 'CASES.RESULTS' | translate }}</span
+    >
+  </div>
+</div>
