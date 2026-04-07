@@ -1,6 +1,10 @@
 <div class="case-row relative flex items-center gap-3.5 px-4 py-3.5">
   <!-- Clickable row area -->
-  <a [routerLink]="route()" class="absolute inset-0" [attr.aria-label]="'CASES.OPEN' | translate : { name: case().patientName }"></a>
+  <a
+    [routerLink]="route()"
+    class="absolute inset-0"
+    [attr.aria-label]="'CASES.OPEN' | translate : { name: case().patientName }"
+  ></a>
 
   <!-- Species icon -->
   <app-species-icon [species]="case().patientSpecies" />

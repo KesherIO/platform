@@ -672,9 +672,7 @@ export class CasesService {
     ).pipe(delay(MOCK_DELAY));
   }
 
-  createOrder(
-    id: string
-  ): Observable<{
+  createOrder(id: string): Observable<{
     orderId: string;
     requisitionUrl: string;
     qrCodeUrl?: string;
