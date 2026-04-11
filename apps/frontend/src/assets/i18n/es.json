@@ -168,7 +168,14 @@
     "TAB_CLINIC": "Clínica",
     "TAB_STAFF": "Equipo",
     "TAB_PROFILE": "Perfil",
+    "TAB_CONTACT_LAB": "Laboratorio",
     "COMING_SOON": "Próximamente",
+    "CONTACT_LAB": {
+      "TITLE": "Biomet Lab",
+      "SUBTITLE": "Tu laboratorio de referencia",
+      "WHATSAPP_BTN": "Chatear por WhatsApp",
+      "LOCATION_TITLE": "Ubicación"
+    },
     "CLINIC": {
       "EDIT": "Editar",
       "EDITING": "Editando clínica",
@@ -206,8 +213,8 @@
       "MEMBERS_TITLE": "Miembros del equipo",
       "ROLE_ADMIN": "Admin",
       "ROLE_STAFF": "Personal",
-      "MAKE_ADMIN": "Hacer Admin",
-      "MAKE_STAFF": "Hacer Personal",
+      "MAKE_ADMIN": "Cambiar rol a administrador",
+      "MAKE_STAFF": "Cambiar rol a personal",
       "REMOVE": "Eliminar",
       "LAST_ADMIN_ERROR": "No se puede eliminar o degradar al último admin. Primero promueve a otro miembro a admin.",
       "STATUS_ACTIVE": "Activo",
