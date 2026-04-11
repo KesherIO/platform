@@ -1,0 +1,162 @@
+<div class="flex flex-col gap-4 px-4 py-6">
+  <!-- Profile card -->
+  <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+    @if (!editing()) {
+    <!-- View mode -->
+    <div class="flex items-start gap-4">
+      <div
+        class="w-12 h-12 rounded-full avatar-gradient flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
+      >
+        {{ userDisplayName().charAt(0).toUpperCase() }}
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-gray-900">
+          {{ userDisplayName() }}
+        </p>
+        <p class="text-xs text-gray-400 mt-0.5 truncate">{{ userEmail() }}</p>
+        @if (userPhone()) {
+        <p class="text-xs text-gray-500 mt-1">{{ userPhone() }}</p>
+        }
+      </div>
+      <button
+        type="button"
+        (click)="startEditing()"
+        class="text-xs font-semibold text-purple hover:underline shrink-0 mt-0.5"
+      >
+        {{ 'SETTINGS.PROFILE.EDIT' | translate }}
+      </button>
+    </div>
+    } @else {
+    <!-- Edit mode -->
+    <div class="flex items-center gap-3 mb-5">
+      <div
+        class="w-12 h-12 rounded-full avatar-gradient flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
+      >
+        {{ (editFirstName() || userDisplayName()).charAt(0).toUpperCase() }}
+      </div>
+      <p class="text-sm font-medium text-gray-500">
+        {{ 'SETTINGS.PROFILE.EDITING' | translate }}
+      </p>
+    </div>
+
+    <!-- First name -->
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+        {{ 'SETTINGS.PROFILE.FIRST_NAME' | translate }}
+      </label>
+      <input
+        type="text"
+        [value]="editFirstName()"
+        (input)="editFirstName.set($any($event.target).value)"
+        class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors"
+      />
+    </div>
+
+    <!-- Last name -->
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+        {{ 'SETTINGS.PROFILE.LAST_NAME' | translate }}
+      </label>
+      <input
+        type="text"
+        [value]="editLastName()"
+        (input)="editLastName.set($any($event.target).value)"
+        class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors"
+      />
+    </div>
+
+    <!-- Phone -->
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+        {{ 'SETTINGS.PROFILE.PHONE' | translate }}
+      </label>
+      <input
+        type="tel"
+        [value]="editPhone()"
+        (input)="editPhone.set($any($event.target).value)"
+        class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors"
+      />
+    </div>
+
+    <!-- Email (locked) -->
+    <div class="mb-5">
+      <label class="block text-xs font-medium text-gray-400 mb-1.5">
+        {{ 'SETTINGS.PROFILE.EMAIL' | translate }}
+      </label>
+      <div
+        class="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5"
+      >
+        <span class="flex-1 text-sm text-gray-400 truncate">{{
+          userEmail()
+        }}</span>
+        <svg
+          class="w-3.5 h-3.5 text-gray-400 shrink-0"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </div>
+      <p class="text-xs text-gray-400 mt-1">
+        {{ 'SETTINGS.PROFILE.EMAIL_LOCKED' | translate }}
+      </p>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-2">
+      <app-outline-button
+        class="flex-1"
+        type="button"
+        (click)="cancelEditing()"
+        [disabled]="saving()"
+      >
+        {{ 'SETTINGS.PROFILE.CANCEL' | translate }}
+      </app-outline-button>
+      <app-button
+        class="flex-1"
+        type="button"
+        (click)="save()"
+        [disabled]="saving()"
+      >
+        {{
+          saving()
+            ? ('COMMON.SAVING' | translate)
+            : ('SETTINGS.PROFILE.SAVE' | translate)
+        }}
+      </app-button>
+    </div>
+    }
+  </div>
+
+  <!-- Language -->
+  <div
+    class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col gap-3"
+  >
+    <p class="text-sm font-medium text-gray-700">
+      {{ 'SETTINGS.PROFILE.LANGUAGE' | translate }}
+    </p>
+    <app-language-toggle
+      [selected]="currentLang()"
+      (languageChange)="setLanguage($event)"
+    />
+  </div>
+
+  <!-- Sign out -->
+  <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+    <app-outline-button
+      type="button"
+      (click)="signOut()"
+      [disabled]="signingOut()"
+    >
+      {{
+        signingOut()
+          ? ('COMMON.LOADING' | translate)
+          : ('AUTH.SIGN_OUT' | translate)
+      }}
+    </app-outline-button>
+  </div>
+</div>

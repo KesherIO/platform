@@ -14,16 +14,19 @@ export class ButtonComponent {
   @Input() fullWidth = true;
 
   getButtonClass(): string {
-    const baseClass = 'px-6 py-3 rounded-full font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseClass =
+      'px-6 py-3 rounded-full font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed';
     const widthClass = this.fullWidth ? 'w-full' : '';
 
     let variantClass = '';
     if (this.variant === 'primary') {
       variantClass = 'bg-black text-cyan hover:bg-gray-900';
     } else if (this.variant === 'secondary') {
-      variantClass = 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50';
+      variantClass =
+        'bg-white text-gray-700 border border-cyan hover:bg-gray-50';
     } else if (this.variant === 'gradient') {
-      variantClass = 'bg-gradient-to-r from-purple-dark to-purple text-white hover:from-purple to-purple-light';
+      variantClass =
+        'bg-gradient-to-r from-purple-dark to-purple text-white hover:from-purple to-purple-light';
     }
 
     return `${baseClass} ${widthClass} ${variantClass}`;

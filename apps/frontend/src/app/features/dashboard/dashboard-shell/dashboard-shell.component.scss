@@ -1,26 +1,5 @@
-// iOS safe area — ensures bottom nav doesn't sit behind the home indicator
-.bottom-nav {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-}
-
-// Avatar gradient animation cycling through brand colors
+// Avatar gradient cycling through brand colors
 .avatar-gradient {
-  background: linear-gradient(135deg, #06D6A0, #a65af4, #000000, #66e0e5);
+  background: linear-gradient(135deg, #06d6a0, #a65af4, #000000, #66e0e5);
   background-size: 300% 300%;
-  //animation: avatar-shift 4s ease infinite;
-}
-
-@keyframes avatar-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-// Active state for bottom nav items (applied by routerLinkActive)
-:host ::ng-deep .active-nav-item {
-  color: #06D6A0; // cyan
-
-  span {
-    color: #06D6A0;
-  }
 }

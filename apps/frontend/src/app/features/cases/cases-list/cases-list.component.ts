@@ -14,6 +14,7 @@ import { take } from 'rxjs';
 import { CaseModel, CaseStatus, PatientSpecies } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { BottomNavComponent } from '../../../shared/components/bottom-nav/bottom-nav.component';
 import { CaseCardComponent } from './components/case-card/case-card.component';
 import {
   CasesFilterBarComponent,
@@ -26,6 +27,7 @@ import {
   imports: [
     RouterLink,
     TranslatePipe,
+    BottomNavComponent,
     CaseCardComponent,
     CasesFilterBarComponent,
   ],
@@ -139,6 +141,15 @@ export class CasesListComponent implements OnInit {
       default:
         return ['/cases', c.id, 'order'];
     }
+  }
+
+  onCaseDeleted(id: string): void {
+    this.casesService
+      .deleteCase(id)
+      .pipe(take(1))
+      .subscribe(() => {
+        this.allCases.update((cases) => cases.filter((c) => c.id !== id));
+      });
   }
 
   signOut(): void {

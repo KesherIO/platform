@@ -3,13 +3,14 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { CaseStatus, PatientSpecies, Prisma } from '@prisma/client';
+import { CaseStatus, PatientSpecies, PatientSex, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CatalogItemModel } from '@vet-ai/shared-types';
 import {
   CreateCaseDto,
   UpdatePatientInfoDto,
   AddSymptomsDto,
-  SelectTestsDto,
+  SelectCatalogItemsDto,
   SendOrderDto,
   UploadResultsDto,
 } from './dto/cases.dto';
@@ -29,6 +30,23 @@ const CANCELLABLE_STATUSES = [
 ];
 
 // ---------------------------------------------------------------------------
+// Include shape — reused for findOne and selectCatalogItems
+// ---------------------------------------------------------------------------
+
+const CASE_INCLUDE = {
+  selectedCatalogItems: {
+    include: {
+      catalogItem: {
+        include: {
+          components: { include: { component: true } },
+        },
+      },
+    },
+  },
+  order: { select: { requisitionNumber: true, status: true } },
+} satisfies Prisma.CaseInclude;
+
+// ---------------------------------------------------------------------------
 
 @Injectable()
 export class CasesService {
@@ -46,7 +64,12 @@ export class CasesService {
   }
 
   async findOne(tenantId: string, id: string) {
-    return this.fetchCase(tenantId, id);
+    const raw = await this.prisma.case.findFirst({
+      where: { id, tenantId },
+      include: CASE_INCLUDE,
+    });
+    if (!raw) throw new NotFoundException('Case not found.');
+    return this.formatCase(raw);
   }
 
   // ---------------------------------------------------------------------------
@@ -61,7 +84,11 @@ export class CasesService {
         status: CaseStatus.OPEN,
         patientName: body.patientName,
         patientSpecies: body.patientSpecies,
+        patientSex: body.patientSex ?? null,
         patientBreed: body.patientBreed ?? null,
+        patientDateOfBirth: body.patientDateOfBirth
+          ? new Date(body.patientDateOfBirth)
+          : null,
         patientAge: body.patientAge ?? null,
         patientAgeUnit: body.patientAgeUnit ?? null,
         patientWeight: body.patientWeight ?? null,
@@ -72,7 +99,7 @@ export class CasesService {
   }
 
   // ---------------------------------------------------------------------------
-  // Mutations — patient info & test selection (status-gated, no transition)
+  // Mutations — patient info & catalog selection (status-gated, no transition)
   // ---------------------------------------------------------------------------
 
   /**
@@ -101,8 +128,16 @@ export class CasesService {
         ...(body.patientSpecies !== undefined && {
           patientSpecies: body.patientSpecies,
         }),
+        ...(body.patientSex !== undefined && {
+          patientSex: body.patientSex as PatientSex,
+        }),
         ...(body.patientBreed !== undefined && {
           patientBreed: body.patientBreed,
+        }),
+        ...(body.patientDateOfBirth !== undefined && {
+          patientDateOfBirth: body.patientDateOfBirth
+            ? new Date(body.patientDateOfBirth)
+            : null,
         }),
         ...(body.patientAge !== undefined && { patientAge: body.patientAge }),
         ...(body.patientAgeUnit !== undefined && {
@@ -136,21 +171,52 @@ export class CasesService {
   }
 
   /**
-   * Replace the entire selected test list.
-   * Allowed in: OPEN, TRIAGED (both the AI path and the manual path).
+   * Replace the entire selected catalog item list.
+   * Validates all IDs belong to this tenant and are active.
+   * Allowed in: OPEN, TRIAGED.
    */
-  async selectTests(tenantId: string, id: string, body: SelectTestsDto) {
+  async selectCatalogItems(
+    tenantId: string,
+    id: string,
+    body: SelectCatalogItemsDto
+  ) {
     const c = await this.fetchCase(tenantId, id);
     this.assertStatus(
       c,
       MUTABLE_STATUSES,
-      'Tests can only be selected in OPEN or TRIAGED status.'
+      'Catalog items can only be selected in OPEN or TRIAGED status.'
     );
 
-    return this.prisma.case.update({
-      where: { id },
-      data: { selectedTests: body.selectedTests },
+    // Validate all IDs exist in the global catalog and are active
+    const validItems = await this.prisma.catalogItem.findMany({
+      where: {
+        id: { in: body.selectedCatalogItemIds },
+        active: true,
+      },
+      select: { id: true },
     });
+
+    if (validItems.length !== body.selectedCatalogItemIds.length) {
+      throw new BadRequestException(
+        'One or more catalog item IDs are invalid or inactive.'
+      );
+    }
+
+    const raw = await this.prisma.$transaction(async (tx) => {
+      await tx.caseCatalogItem.deleteMany({ where: { caseId: id } });
+      await tx.caseCatalogItem.createMany({
+        data: body.selectedCatalogItemIds.map((catalogItemId) => ({
+          caseId: id,
+          catalogItemId,
+        })),
+      });
+      return tx.case.findFirstOrThrow({
+        where: { id },
+        include: CASE_INCLUDE,
+      });
+    });
+
+    return this.formatCase(raw);
   }
 
   // ---------------------------------------------------------------------------
@@ -186,14 +252,14 @@ export class CasesService {
       data: {
         status: CaseStatus.TRIAGED,
         triageResult: aiResult.triageResult as Prisma.InputJsonValue,
-        suggestedTests: aiResult.suggestedTests,
+        suggestedCatalogItemIds: aiResult.suggestedCatalogItemIds,
       },
     });
   }
 
   /**
    * Submit the lab order.
-   * Requires: selectedTests is non-empty.
+   * Requires: at least one CaseCatalogItem record for this case.
    * Allowed in: OPEN (skip-AI path), TRIAGED (post-AI path).
    * Transition: OPEN | TRIAGED → ORDERED.
    * orderSentAt is always set by the server — never accepted from the client.
@@ -206,8 +272,10 @@ export class CasesService {
       'Orders can only be sent in OPEN or TRIAGED status.'
     );
 
-    const tests = c.selectedTests as unknown as string[] | null;
-    if (!tests || tests.length === 0) {
+    const selectionCount = await this.prisma.caseCatalogItem.count({
+      where: { caseId: id },
+    });
+    if (selectionCount === 0) {
       throw new BadRequestException(
         'Select at least one test before sending an order.'
       );
@@ -297,16 +365,95 @@ export class CasesService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Fetch a case by id scoped to the tenant.
-   * Using findFirst with { id, tenantId } in a single query enforces tenant
-   * isolation: a case that exists but belongs to a different tenant returns
-   * null, and is indistinguishable from a case that does not exist at all.
-   * This prevents tenants from probing each other's case IDs.
+   * Fetch a case by id scoped to the tenant (no relations — for status checks).
    */
   private async fetchCase(tenantId: string, id: string) {
     const c = await this.prisma.case.findFirst({ where: { id, tenantId } });
     if (!c) throw new NotFoundException('Case not found.');
     return c;
+  }
+
+  /**
+   * Map Prisma case with selectedCatalogItems join table to API shape.
+   * Flattens join rows to CatalogItemModel[], expanding package components.
+   */
+  private formatCase(
+    raw: Awaited<ReturnType<typeof this.prisma.case.findFirstOrThrow>> & {
+      selectedCatalogItems?: Array<{
+        catalogItem: {
+          id: string;
+          kind: string;
+          code: string | null;
+          name: string;
+          description: string | null;
+          category: string | null;
+          turnaroundHours: number | null;
+          active: boolean;
+          resultType: string | null;
+          unit: string | null;
+          components: Array<{
+            component: {
+              id: string;
+              kind: string;
+              code: string | null;
+              name: string;
+              description: string | null;
+              category: string | null;
+              turnaroundHours: number | null;
+              active: boolean;
+              resultType: string | null;
+              unit: string | null;
+            };
+          }>;
+        };
+      }>;
+    }
+  ) {
+    const selectedCatalogItems: CatalogItemModel[] | undefined =
+      raw.selectedCatalogItems?.map(({ catalogItem: ci }) => ({
+        id: ci.id,
+        kind: ci.kind as CatalogItemModel['kind'],
+        code: ci.code ?? undefined,
+        name: ci.name,
+        description: ci.description ?? undefined,
+        category: ci.category ?? undefined,
+        turnaroundHours: ci.turnaroundHours ?? undefined,
+        resultType: (ci.resultType ??
+          undefined) as CatalogItemModel['resultType'],
+        unit: ci.unit ?? undefined,
+        active: ci.active,
+        components: ci.components.map(({ component: comp }) => ({
+          id: comp.id,
+          kind: comp.kind as CatalogItemModel['kind'],
+          code: comp.code ?? undefined,
+          name: comp.name,
+          description: comp.description ?? undefined,
+          category: comp.category ?? undefined,
+          turnaroundHours: comp.turnaroundHours ?? undefined,
+          resultType: (comp.resultType ??
+            undefined) as CatalogItemModel['resultType'],
+          unit: comp.unit ?? undefined,
+          active: comp.active,
+        })),
+      }));
+
+    const order = (
+      raw as typeof raw & {
+        order?: { requisitionNumber: string; status: string } | null;
+      }
+    ).order;
+    const {
+      selectedCatalogItems: _sc,
+      order: _o,
+      ...rest
+    } = raw as typeof raw & { selectedCatalogItems?: unknown; order?: unknown };
+    return {
+      ...rest,
+      selectedCatalogItems,
+      order: order
+        ? { orderId: order.requisitionNumber, status: order.status }
+        : undefined,
+    };
   }
 
   /**
@@ -326,21 +473,18 @@ export class CasesService {
   /**
    * Stub for the AI triage integration.
    * Replace with a real service call when the AI layer is built.
-   * Expected output shape:
-   *   triageResult — DDx list: [{ diagnosis: string, confidence: number, explanation?: string }]
-   *   suggestedTests — ordered test panel: string[]
    */
   private async callAiTriage(
     _symptoms: string,
     _species: PatientSpecies
   ): Promise<{
     triageResult: Record<string, unknown>;
-    suggestedTests: string[];
+    suggestedCatalogItemIds: string[];
   }> {
     // TODO: integrate real AI model — Anthropic, OpenAI, or internal triage engine
     return {
       triageResult: {},
-      suggestedTests: [],
+      suggestedCatalogItemIds: [],
     };
   }
 }

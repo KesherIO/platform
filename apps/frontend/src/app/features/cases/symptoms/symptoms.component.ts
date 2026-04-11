@@ -1,6 +1,6 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import { CaseModel } from '@vet-ai/shared-types';
@@ -28,11 +28,20 @@ export class SymptomsComponent implements OnInit {
 
   loading = signal(true);
   saving = signal(false);
+  runningAi = signal(false);
   case = signal<CaseModel | null>(null);
 
   form = this.fb.group({
-    symptoms: ['', Validators.required],
+    symptoms: [''],
   });
+
+  get isBusy(): boolean {
+    return this.saving() || this.runningAi();
+  }
+
+  get hasSymptoms(): boolean {
+    return !!this.form.value.symptoms?.trim();
+  }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
@@ -51,16 +60,42 @@ export class SymptomsComponent implements OnInit {
       });
   }
 
-  submit(): void {
-    if (this.form.invalid || this.saving()) return;
-    const c = this.case();
-    if (!c) return;
+  private get caseId(): string {
+    return this.route.snapshot.paramMap.get('id')!;
+  }
+
+  runAi(): void {
+    if (!this.hasSymptoms || this.isBusy) return;
+    const id = this.caseId;
     this.saving.set(true);
     this.casesService
-      .updateSymptoms(c.id, this.form.value.symptoms!)
+      .updateSymptoms(id, this.form.value.symptoms!)
       .pipe(take(1))
       .subscribe({
-        next: () => this.router.navigate(['/cases', c.id, 'ai-results']),
+        next: () => {
+          this.saving.set(false);
+          this.runningAi.set(true);
+          this.casesService
+            .triggerTriage(id)
+            .pipe(take(1))
+            .subscribe({
+              next: () => this.router.navigate(['/cases', id, 'ai-results']),
+              error: () => this.runningAi.set(false),
+            });
+        },
+        error: () => this.saving.set(false),
+      });
+  }
+
+  skipAi(): void {
+    if (this.isBusy) return;
+    const id = this.caseId;
+    this.saving.set(true);
+    this.casesService
+      .updateSymptoms(id, this.form.value.symptoms!)
+      .pipe(take(1))
+      .subscribe({
+        next: () => this.router.navigate(['/cases', id, 'test-selection']),
         error: () => this.saving.set(false),
       });
   }

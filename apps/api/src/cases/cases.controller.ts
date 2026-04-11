@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CasesService } from './cases.service';
+import { OrdersService } from '../orders/orders.service';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
@@ -19,17 +20,20 @@ import {
   CreateCaseDto,
   UpdatePatientInfoDto,
   AddSymptomsDto,
-  SelectTestsDto,
-  SendOrderDto,
+  SelectCatalogItemsDto,
   UploadResultsDto,
 } from './dto/cases.dto';
+import { CreateOrderDto } from '../orders/dto/create-order.dto';
 
 @ApiTags('cases')
 @ApiBearerAuth()
 @UseGuards(TenantGuard)
 @Controller('cases')
 export class CasesController {
-  constructor(private readonly casesService: CasesService) {}
+  constructor(
+    private readonly casesService: CasesService,
+    private readonly ordersService: OrdersService
+  ) {}
 
   // ---------------------------------------------------------------------------
   // POST /cases
@@ -104,18 +108,20 @@ export class CasesController {
   }
 
   // ---------------------------------------------------------------------------
-  // PATCH /cases/:id/tests
-  // Replace the selected test list. Allowed in: OPEN, TRIAGED.
+  // PATCH /cases/:id/catalog-selection
+  // Replace the selected catalog item list. Allowed in: OPEN, TRIAGED.
   // ---------------------------------------------------------------------------
 
-  @Patch(':id/tests')
-  @ApiOperation({ summary: 'Set the selected tests (OPEN or TRIAGED only)' })
-  selectTests(
+  @Patch(':id/catalog-selection')
+  @ApiOperation({
+    summary: 'Set selected catalog items (OPEN or TRIAGED only)',
+  })
+  selectCatalogItems(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
-    @Body() body: SelectTestsDto
+    @Body() body: SelectCatalogItemsDto
   ) {
-    return this.casesService.selectTests(tenant.tenantId, id, body);
+    return this.casesService.selectCatalogItems(tenant.tenantId, id, body);
   }
 
   // ---------------------------------------------------------------------------
@@ -133,21 +139,21 @@ export class CasesController {
 
   // ---------------------------------------------------------------------------
   // POST /cases/:id/order
-  // Submit the lab order. Requires selectedTests to be set. Allowed in: OPEN, TRIAGED.
+  // Submit the lab order. Requires selectedCatalogItems to be set. Allowed in: OPEN, TRIAGED.
   // ---------------------------------------------------------------------------
 
   @Post(':id/order')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
-      'Send the lab order (OPEN or TRIAGED only, requires selected tests)',
+      'Create a lab order for this case (OPEN or TRIAGED only, requires selected tests)',
   })
-  sendOrder(
+  createOrder(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
-    @Body() body: SendOrderDto
+    @Body() body: CreateOrderDto
   ) {
-    return this.casesService.sendOrder(tenant.tenantId, id, body);
+    return this.ordersService.createOrderForCase(tenant.tenantId, id, body);
   }
 
   // ---------------------------------------------------------------------------

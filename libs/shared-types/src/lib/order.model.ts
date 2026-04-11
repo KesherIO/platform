@@ -1,25 +1,41 @@
-import { SuggestedTest } from './triage.model.js';
+export type OrderStatus =
+  | 'PENDING'
+  | 'READY_FOR_PICKUP'
+  | 'COLLECTED'
+  | 'RECEIVED_BY_LAB'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'CANCELLED';
 
-export type OrderStatus = 'PENDING' | 'SENT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type OrderPriority = 'ROUTINE' | 'URGENT' | 'STAT';
 
-export interface Sample {
-  sampleId: string;
-  type: string;
-  volumeMl?: number;
-  temperature?: string;
-  collectedAt?: Date;
+export interface OrderedItem {
+  catalogItemId: string;
+  code: string | null;
+  name: string;
+  kind: 'TEST' | 'PACKAGE';
+  category: string | null;
+  turnaroundHours: number | null;
 }
 
-export interface Order {
-  id?: string;
-  orderId: string; // e.g., ORD-9F4Q7
+export interface OrderModel {
+  id: string;
+  requisitionNumber: string; // REQ-2026-000001 — written on tubes
   caseId: string;
-  tests: SuggestedTest[];
-  samples: Sample[];
+  tenantId: string;
   status: OrderStatus;
-  requisitionPdfUrl?: string;
-  sentVia?: 'WHATSAPP' | 'SMS' | 'EMAIL';
-  labContact?: string;
-  createdAt?: Date;
-  sentAt?: Date;
+  priority: OrderPriority;
+  orderedItems: OrderedItem[];
+  clinicNotes?: string;
+  labNotes?: string;
+  sampleType?: string;
+  sampleNotes?: string;
+  requisitionUrl: string; // URL to the requisition document
+  createdAt: Date;
+  updatedAt: Date;
+  collectedAt?: Date;
+  receivedByLabAt?: Date;
+  processingStartedAt?: Date;
+  completedAt?: Date;
+  cancelledAt?: Date;
 }

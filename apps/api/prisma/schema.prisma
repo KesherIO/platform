@@ -52,6 +52,44 @@ enum CaseStatus {
   CANCELLED
 }
 
+enum PatientSex {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum CatalogItemKind {
+  TEST
+  PACKAGE
+}
+
+/// How the lab result value for this test should be interpreted.
+/// Nullable — not all tests have structured results yet.
+/// NUMERIC: a quantity with a unit (referenceMin/Max live on ReferenceRange, keyed by species).
+/// TEXT: a free-text or narrative result (e.g. culture sensitivity report).
+/// POSITIVE_NEGATIVE: a qualitative yes/no result (e.g. heartworm antigen).
+enum ResultType {
+  NUMERIC
+  TEXT
+  POSITIVE_NEGATIVE
+}
+
+enum OrderStatus {
+  PENDING          // order placed, waiting for sample
+  READY_FOR_PICKUP // clinic flagged sample as ready — courier path only
+  COLLECTED        // sample drawn/picked up
+  RECEIVED_BY_LAB  // sample physically arrived at lab
+  PROCESSING       // analysis underway
+  COMPLETED        // results available
+  CANCELLED
+}
+
+enum OrderPriority {
+  ROUTINE
+  URGENT
+  STAT
+}
+
 // ---------------------------------------------------------------------------
 // Auth / Multi-tenancy
 // ---------------------------------------------------------------------------
@@ -73,9 +111,10 @@ model Tenant {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  memberships UserTenantMembership[]
-  invitations TenantInvitation[]
-  cases       Case[]
+  memberships   UserTenantMembership[]
+  invitations   TenantInvitation[]
+  cases         Case[]
+  orders        Order[]
 
   @@map("tenants")
 }
@@ -85,6 +124,7 @@ model User {
   email     String   @unique
   firstName String?
   lastName  String?
+  phone     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -164,22 +204,23 @@ model Case {
   status    CaseStatus @default(OPEN)
 
   // Patient — embedded (no separate Patient table for MVP)
-  patientName    String
-  patientSpecies PatientSpecies
-  patientBreed   String?
-  patientAge     Int?
-  patientAgeUnit AgeUnit?
-  patientWeight  Float?          // kilograms
+  patientName        String
+  patientSpecies     PatientSpecies
+  patientSex         PatientSex?
+  patientBreed       String?
+  patientDateOfBirth DateTime?    // used when exact DOB is known; age/ageUnit are the fallback
+  patientAge         Int?
+  patientAgeUnit     AgeUnit?
+  patientWeight      Float?       // kilograms
 
   // Owner
   ownerName  String
   ownerPhone String?
 
   // Clinical inputs
-  symptoms      String?   // free-text symptom description (textarea)
-  triageResult  Json?     // AI DDx output: [{ diagnosis, confidence, explanation }]
-  suggestedTests Json?    // AI-proposed test list: string[]
-  selectedTests  Json?    // vet-confirmed selection: string[]
+  symptoms                String?   // free-text symptom description (textarea)
+  triageResult            Json?     // AI DDx output: { diagnoses: [...], suggestedCatalogItemIds: [...] }
+  suggestedCatalogItemIds String[]  // AI-proposed catalog item IDs (TEST or PACKAGE) — no FK, AI output
 
   // Order (embedded — one per case for MVP)
   orderNotes  String?
@@ -194,12 +235,121 @@ model Case {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy User   @relation(fields: [createdByUserId], references: [id])
+  tenant               Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy            User                @relation(fields: [createdByUserId], references: [id])
+  selectedCatalogItems CaseCatalogItem[]
+  order                Order?
 
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([createdByUserId])
   @@map("cases")
+}
+
+// ---------------------------------------------------------------------------
+// Catalog
+// ---------------------------------------------------------------------------
+
+/// Single table for tests and packages, distinguished by kind.
+/// Global — owned by the lab, shared across all tenants (clinics).
+/// Tests: code, category, turnaroundHours.
+/// Packages: description + component tests via CatalogItemComposition.
+model CatalogItem {
+  id              String          @id @default(cuid())
+  kind            CatalogItemKind
+  code            String?         @unique // TEST only — lab code (e.g. "CBC"); globally unique
+  name            String
+  description     String?         // PACKAGE only
+  category        String?         // TEST only
+  turnaroundHours Int?            // TEST only
+  resultType      ResultType?     // TEST only — how to interpret the result value; null = unstructured
+  unit            String?         // TEST only — unit of measurement (e.g. "mg/dL", "K/µL"); null = unitless or not applicable
+  active          Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  components      CatalogItemComposition[] @relation("PackageComponents")
+  packages        CatalogItemComposition[] @relation("ComponentPackages")
+  caseCatalogItems CaseCatalogItem[]
+
+  @@index([kind])
+  @@map("catalog_items")
+}
+
+/// Package → constituent TEST items (explicit many-to-many).
+model CatalogItemComposition {
+  packageId   String
+  componentId String
+
+  package   CatalogItem @relation("PackageComponents", fields: [packageId], references: [id], onDelete: Cascade)
+  component CatalogItem @relation("ComponentPackages", fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@id([packageId, componentId])
+  @@map("catalog_item_compositions")
+}
+
+/// Join table: vet-confirmed catalog item selection per case.
+/// Using a proper relation (not String[]) for referential integrity and future analytics.
+model CaseCatalogItem {
+  caseId        String
+  catalogItemId String
+
+  case        Case        @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+
+  @@id([caseId, catalogItemId])
+  @@index([caseId])
+  @@map("case_catalog_items")
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+/// Monotonic counter used to generate human-readable requisition numbers.
+/// Incremented atomically inside the same transaction that creates an Order.
+model Counter {
+  name  String @id
+  value Int    @default(0)
+
+  @@map("counters")
+}
+
+/// A lab requisition created when a clinic sends an order.
+/// orderedItems is a denormalized JSON snapshot of the catalog items at order
+/// time — intentionally not a FK so history stays accurate if catalog changes.
+model Order {
+  id                  String        @id @default(cuid())
+  requisitionNumber   String        @unique  // REQ-2026-000001
+  caseId              String        @unique  // one active order per case (MVP)
+  tenantId            String
+  status              OrderStatus   @default(PENDING)
+  priority            OrderPriority @default(ROUTINE)
+
+  /// JSON snapshot: Array<{ catalogItemId, code, name, kind, category?, turnaroundHours? }>
+  orderedItems        Json
+
+  clinicNotes         String?   // vet → lab
+  labNotes            String?   // internal lab use, not shown to clinic
+
+  // Sample info — filled by lab/clinic staff
+  sampleType          String?   // BLOOD | URINE | FECES | SWAB | TISSUE | OTHER
+  sampleNotes         String?
+
+  // Timestamps
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  collectedAt         DateTime?
+  receivedByLabAt     DateTime?
+  processingStartedAt DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("orders")
 }

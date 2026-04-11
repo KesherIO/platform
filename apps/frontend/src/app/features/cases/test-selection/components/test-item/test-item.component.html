@@ -1,0 +1,22 @@
+<button
+  type="button"
+  (click)="toggled.emit()"
+  class="w-full flex items-center gap-3 py-2.5 px-1 text-left"
+>
+  <!-- Color indicator square -->
+  <span
+    class="flex-shrink-0 w-5 h-5 rounded-sm transition-colors"
+    [class.bg-cyan]="selected()"
+    [class.bg-gray-300]="!selected()"
+  ></span>
+
+  <!-- Test name -->
+  <span
+    class="text-sm transition-colors"
+    [class.font-semibold]="selected() || suggested()"
+    [class.text-gray-900]="selected() || suggested()"
+    [class.text-gray-500]="!selected() && !suggested()"
+  >
+    {{ item().name }}
+  </span>
+</button>

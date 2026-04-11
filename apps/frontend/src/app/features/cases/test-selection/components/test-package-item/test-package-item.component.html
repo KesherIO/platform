@@ -1,0 +1,64 @@
+<div class="py-1">
+  <div class="flex items-center gap-3 px-1">
+    <!-- Selection toggle -->
+    <button
+      type="button"
+      (click)="toggled.emit()"
+      class="flex items-center gap-3 flex-1 text-left py-1.5"
+    >
+      <!-- Color indicator square -->
+      <span
+        class="flex-shrink-0 w-5 h-5 rounded-sm transition-colors"
+        [class.bg-cyan]="selected()"
+        [class.bg-gray-300]="!selected()"
+      ></span>
+
+      <!-- Package name -->
+      <span
+        class="text-sm transition-colors"
+        [class.font-semibold]="selected()"
+        [class.text-gray-900]="selected()"
+        [class.text-gray-500]="!selected()"
+      >
+        {{ item().name }}
+      </span>
+    </button>
+
+    <!-- Expand toggle -->
+    @if (hasComponents()) {
+    <button
+      type="button"
+      (click)="toggleExpand($event)"
+      class="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+      [attr.aria-expanded]="expanded()"
+    >
+      <svg
+        class="w-4 h-4 transition-transform duration-200"
+        [class.rotate-180]="expanded()"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M19 9l-7 7-7-7"
+        />
+      </svg>
+    </button>
+    }
+  </div>
+
+  <!-- Component list -->
+  @if (expanded() && hasComponents()) {
+  <ul class="mt-1 ml-8 space-y-0.5">
+    @for (component of item().components; track component.id) {
+    <li class="flex items-center gap-2 text-xs text-gray-400 py-0.5">
+      <span class="w-1 h-1 rounded-full bg-gray-300 flex-shrink-0"></span>
+      {{ component.name }}
+    </li>
+    }
+  </ul>
+  }
+</div>

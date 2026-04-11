@@ -4,6 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { TenantRole } from '@prisma/client';
 import { StaffMember, StaffRole } from '@vet-ai/shared-types';
 
@@ -19,10 +20,49 @@ const ADMIN_ROLES: TenantRole[] = [TenantRole.OWNER, TenantRole.ADMIN];
 
 @Injectable()
 export class TenantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService
+  ) {}
 
   findOne(_id: string): unknown {
     return null;
+  }
+
+  async updateClinic(
+    tenantId: string,
+    data: { name?: string; phone?: string; address?: string },
+    logoFile?: Express.Multer.File
+  ): Promise<{
+    id: string;
+    name: string;
+    phone: string | null;
+    address: string | null;
+    logoUrl: string | null;
+  }> {
+    let logoUrl: string | undefined;
+    if (logoFile) {
+      logoUrl = await this.storage.uploadClinicLogo(tenantId, logoFile);
+    }
+
+    const updated = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.phone !== undefined && { phone: data.phone }),
+        ...(data.address !== undefined && { address: data.address }),
+        ...(logoUrl !== undefined && { logoUrl }),
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        address: true,
+        logoUrl: true,
+      },
+    });
+
+    return updated;
   }
 
   async getStaff(tenantId: string): Promise<StaffMember[]> {

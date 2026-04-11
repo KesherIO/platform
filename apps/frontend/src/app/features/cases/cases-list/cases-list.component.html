@@ -1,4 +1,4 @@
-<div class="min-h-screen bg-white flex flex-col relative">
+<div class="h-screen bg-white flex flex-col">
   <!-- App bar -->
   <header
     class="relative bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3 shrink-0"
@@ -35,20 +35,6 @@
         </p>
         <p class="text-xs text-gray-400 truncate mt-0.5">{{ userEmail() }}</p>
       </div>
-      <a
-        routerLink="/dashboard"
-        (click)="menuOpen.set(false)"
-        class="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        {{ 'NAV.DASHBOARD' | translate }}
-      </a>
-      <a
-        routerLink="/settings"
-        (click)="menuOpen.set(false)"
-        class="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        {{ 'NAV.SETTINGS' | translate }}
-      </a>
       <button
         type="button"
         (click)="signOut()"
@@ -60,18 +46,11 @@
     }
   </header>
 
-  <!-- Page title row + New Case -->
-  <div class="px-4 pt-4 pb-2 flex items-center justify-between shrink-0">
+  <!-- Page title -->
+  <div class="px-4 pt-4 pb-2 shrink-0">
     <h1 class="text-2xl font-bold text-gray-900">
       {{ 'CASES.TITLE' | translate }}
     </h1>
-    <a
-      routerLink="/cases/new"
-      class="flex items-center gap-1.5 bg-black text-cyan text-sm font-medium px-4 py-2.5 rounded-full hover:bg-gray-900 active:bg-gray-800 transition-colors"
-    >
-      <span class="text-base leading-none font-bold">+</span>
-      <span>{{ 'CASES.NEW_CASE' | translate }}</span>
-    </a>
   </div>
 
   <!-- Filter bar -->
@@ -119,16 +98,12 @@
         [route]="routeForCase(c)"
         [menuOpenId]="openMenuId()"
         (menuToggled)="openMenuId.set($event)"
+        (deleted)="onCaseDeleted($event)"
       />
       }
     </div>
     }
   </main>
 
-  <!-- Footer -->
-  <footer class="shrink-0 py-4 text-center border-t border-gray-100">
-    <span class="text-xs font-bold text-gray-900 underline">{{
-      'BRANDING.POWERED_BY' | translate
-    }}</span>
-  </footer>
+  <app-bottom-nav />
 </div>

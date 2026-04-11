@@ -120,6 +120,21 @@ export class AuthService {
    *   AND that tenant has a name set (clinic-setup was completed).
    * activeTenantId: the first tenant the user belongs to, or null if none yet.
    */
+  async updateMe(
+    userId: string,
+    data: { firstName?: string; lastName?: string; phone?: string }
+  ) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.firstName !== undefined && { firstName: data.firstName }),
+        ...(data.lastName !== undefined && { lastName: data.lastName }),
+        ...(data.phone !== undefined && { phone: data.phone || null }),
+      },
+    });
+    return this.getMe(userId);
+  }
+
   async getMe(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -128,6 +143,7 @@ export class AuthService {
         email: true,
         firstName: true,
         lastName: true,
+        phone: true,
         createdAt: true,
         memberships: {
           select: {
@@ -138,6 +154,9 @@ export class AuthService {
                 id: true,
                 name: true,
                 slug: true,
+                email: true,
+                phone: true,
+                address: true,
                 logoUrl: true,
                 primaryColor: true,
               },
@@ -166,6 +185,7 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone,
         createdAt: user.createdAt,
       },
       memberships: user.memberships,

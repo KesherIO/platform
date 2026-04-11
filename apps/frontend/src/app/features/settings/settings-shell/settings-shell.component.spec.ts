@@ -3,13 +3,20 @@ import { SettingsShellComponent } from './settings-shell.component';
 import { TranslateModule } from '@ngx-translate/core';
 import { Location } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
-import { of, throwError } from 'rxjs';
 import { signal } from '@angular/core';
 import { Component } from '@angular/core';
 
-// Stub out StaffSettingsComponent to avoid pulling in its dependencies
+@Component({ selector: 'app-clinic-settings', standalone: true, template: '' })
+class ClinicSettingsStub {}
+
 @Component({ selector: 'app-staff-settings', standalone: true, template: '' })
 class StaffSettingsStub {}
+
+@Component({ selector: 'app-profile-settings', standalone: true, template: '' })
+class ProfileSettingsStub {}
+
+@Component({ selector: 'app-bottom-nav', standalone: true, template: '' })
+class BottomNavStub {}
 
 const MOCK_ME_ADMIN = {
   user: { firstName: 'Karina', lastName: 'Martinez', email: 'k@test.com' },
@@ -28,17 +35,11 @@ const MOCK_ME_STAFF = {
 describe('SettingsShellComponent', () => {
   let fixture: ComponentFixture<SettingsShellComponent>;
   let component: SettingsShellComponent;
-  let authService: {
-    me: ReturnType<typeof signal>;
-    signOut: ReturnType<typeof vi.fn>;
-  };
+  let authService: { me: ReturnType<typeof signal> };
   let locationSpy: { back: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    authService = {
-      me: signal(MOCK_ME_ADMIN),
-      signOut: vi.fn().mockReturnValue(of(null)),
-    };
+    authService = { me: signal(MOCK_ME_ADMIN) };
     locationSpy = { back: vi.fn() };
 
     await TestBed.configureTestingModule({
@@ -49,7 +50,15 @@ describe('SettingsShellComponent', () => {
       ],
     })
       .overrideComponent(SettingsShellComponent, {
-        remove: { imports: [StaffSettingsStub] },
+        set: {
+          imports: [
+            TranslateModule,
+            ClinicSettingsStub,
+            StaffSettingsStub,
+            ProfileSettingsStub,
+            BottomNavStub,
+          ],
+        },
       })
       .compileComponents();
 
@@ -58,13 +67,9 @@ describe('SettingsShellComponent', () => {
     fixture.detectChanges();
   });
 
-  // ── Creation ──────────────────────────────────────────────────────────────
-
   it('should create', () => {
     expect(component).toBeTruthy();
   });
-
-  // ── isAdmin ───────────────────────────────────────────────────────────────
 
   it('isAdmin is true for ADMIN role', () => {
     expect(component.isAdmin()).toBe(true);
@@ -88,22 +93,13 @@ describe('SettingsShellComponent', () => {
     expect(component.isAdmin()).toBe(false);
   });
 
-  it('isAdmin falls back to first tenant when activeTenantId is null', () => {
-    authService.me.set({ ...MOCK_ME_ADMIN, activeTenantId: null });
-    expect(component.isAdmin()).toBe(true);
-  });
-
-  // ── tabs ──────────────────────────────────────────────────────────────────
-
   it('tabs includes staff tab for admin', () => {
-    const keys = component.tabs().map((t) => t.key);
-    expect(keys).toContain('staff');
+    expect(component.tabs().map((t) => t.key)).toContain('staff');
   });
 
   it('tabs does not include staff tab for non-admin', () => {
     authService.me.set(MOCK_ME_STAFF);
-    const keys = component.tabs().map((t) => t.key);
-    expect(keys).not.toContain('staff');
+    expect(component.tabs().map((t) => t.key)).not.toContain('staff');
   });
 
   it('tabs always includes clinic and profile', () => {
@@ -111,8 +107,6 @@ describe('SettingsShellComponent', () => {
     expect(keys).toContain('clinic');
     expect(keys).toContain('profile');
   });
-
-  // ── activeTab ─────────────────────────────────────────────────────────────
 
   it('activeTab defaults to clinic', () => {
     expect(component.activeTab()).toBe('clinic');
@@ -123,57 +117,8 @@ describe('SettingsShellComponent', () => {
     expect(component.activeTab()).toBe('profile');
   });
 
-  // ── userDisplayName ───────────────────────────────────────────────────────
-
-  it('userDisplayName returns full name', () => {
-    expect(component.userDisplayName()).toBe('Karina Martinez');
-  });
-
-  it('userDisplayName returns email when no first name', () => {
-    authService.me.set({ ...MOCK_ME_ADMIN, user: { email: 'k@test.com' } });
-    expect(component.userDisplayName()).toBe('k@test.com');
-  });
-
-  it('userDisplayName returns empty string when not logged in', () => {
-    authService.me.set(null);
-    expect(component.userDisplayName()).toBe('');
-  });
-
-  // ── userEmail ─────────────────────────────────────────────────────────────
-
-  it('userEmail returns the logged-in user email', () => {
-    expect(component.userEmail()).toBe('k@test.com');
-  });
-
-  it('userEmail returns empty string when not logged in', () => {
-    authService.me.set(null);
-    expect(component.userEmail()).toBe('');
-  });
-
-  // ── goBack ────────────────────────────────────────────────────────────────
-
   it('goBack calls location.back()', () => {
     component.goBack();
     expect(locationSpy.back).toHaveBeenCalledOnce();
-  });
-
-  // ── signOut ───────────────────────────────────────────────────────────────
-
-  it('signOut calls auth.signOut', () => {
-    component.signOut();
-    expect(authService.signOut).toHaveBeenCalledOnce();
-  });
-
-  it('signOut sets signingOut to true while in progress', () => {
-    authService.signOut.mockReturnValue(of(null));
-    component.signOut();
-    // signingOut starts true; after observable completes it stays true (no reset on success)
-    expect(component.signingOut()).toBe(true);
-  });
-
-  it('signOut resets signingOut on error', () => {
-    authService.signOut.mockReturnValue(throwError(() => new Error('fail')));
-    component.signOut();
-    expect(component.signingOut()).toBe(false);
   });
 });

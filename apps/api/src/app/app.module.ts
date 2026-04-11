@@ -9,6 +9,8 @@ import { CasesModule } from '../cases/cases.module';
 import { OnboardingModule } from '../onboarding/onboarding.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { StorageModule } from '../storage/storage.module';
+import { CatalogModule } from '../catalog/catalog.module';
+import { OrdersModule } from '../orders/orders.module';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -24,6 +26,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     CasesModule,
     OnboardingModule,
     TenantsModule,
+    CatalogModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,4 +1,4 @@
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-screen">
   <!-- ─── Page Header ──────────────────────────────────────────────── -->
   <div class="px-4 pt-6 pb-2 flex items-center gap-3">
     <button type="button" (click)="goBack()" class="p-1 -ml-1 text-gray-500">
@@ -41,48 +41,14 @@
 
   <!-- ─── Tab Content ──────────────────────────────────────────────── -->
   <div class="flex-1 overflow-y-auto">
-    @if (activeTab() === 'staff') {
+    @if (activeTab() === 'clinic') {
+    <app-clinic-settings />
+    } @else if (activeTab() === 'staff') {
     <app-staff-settings />
     } @else if (activeTab() === 'profile') {
-    <div class="flex flex-col gap-4 px-4 py-6">
-      <!-- User info card -->
-      <div
-        class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex items-center gap-4"
-      >
-        <div
-          class="w-12 h-12 rounded-full bg-black flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
-        >
-          {{ userDisplayName().charAt(0).toUpperCase() }}
-        </div>
-        <div class="min-w-0">
-          <p class="text-sm font-semibold text-gray-900 truncate">
-            {{ userDisplayName() }}
-          </p>
-          <p class="text-xs text-gray-400 truncate">{{ userEmail() }}</p>
-        </div>
-      </div>
-
-      <!-- Sign out -->
-      <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <app-outline-button
-          type="button"
-          (click)="signOut()"
-          [disabled]="signingOut()"
-        >
-          {{
-            signingOut()
-              ? ('COMMON.LOADING' | translate)
-              : ('AUTH.SIGN_OUT' | translate)
-          }}
-        </app-outline-button>
-      </div>
-    </div>
-    } @else {
-    <div class="flex items-center justify-center h-40">
-      <p class="text-sm text-gray-400">
-        {{ 'SETTINGS.COMING_SOON' | translate }}
-      </p>
-    </div>
+    <app-profile-settings />
     }
   </div>
+
+  <app-bottom-nav />
 </div>

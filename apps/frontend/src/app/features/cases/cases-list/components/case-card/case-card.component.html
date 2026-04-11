@@ -101,6 +101,20 @@
         </button>
       </div>
       }
+
+      <!-- Delete (OPEN, TRIAGED, CANCELLED only) -->
+      @if (case().status === CaseStatus.OPEN || case().status ===
+      CaseStatus.TRIAGED || case().status === CaseStatus.CANCELLED) {
+      <div class="border-t border-gray-100 mt-1 pt-1">
+        <button
+          type="button"
+          (click)="deleteCase()"
+          class="menu-item text-red-500 hover:bg-red-50"
+        >
+          {{ 'CASES.MENU.DELETE' | translate }}
+        </button>
+      </div>
+      }
     </div>
     }
   </div>

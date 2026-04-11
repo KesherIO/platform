@@ -1,13 +1,16 @@
 <div class="flex flex-col h-screen bg-gray-50">
-
   <!-- ─── Top Header ───────────────────────────────────────────────── -->
-  <header class="relative flex items-center gap-3 bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
+  <header
+    class="relative flex items-center gap-3 bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0"
+  >
     <img
       [src]="logoUrl()"
       alt="Clinic logo"
       class="h-8 w-8 rounded-lg object-cover flex-shrink-0"
     />
-    <span class="text-sm font-semibold text-gray-800 flex-1 truncate">{{ clinicName() }}</span>
+    <span class="text-sm font-semibold text-gray-800 flex-1 truncate">{{
+      clinicName()
+    }}</span>
 
     <!-- Avatar toggle -->
     <button
@@ -20,30 +23,34 @@
 
     <!-- User menu dropdown -->
     @if (menuOpen()) {
-      <!-- Backdrop — click outside to close -->
+    <!-- Backdrop — click outside to close -->
+    <button
+      type="button"
+      aria-label="Close menu"
+      class="fixed inset-0 z-40 cursor-default bg-transparent border-0 p-0 m-0"
+      (click)="menuOpen.set(false)"
+    ></button>
+
+    <!-- Card -->
+    <div
+      class="absolute top-full right-4 mt-2 w-56 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden"
+    >
+      <!-- User info -->
+      <div class="px-4 py-3 border-b border-gray-100">
+        <p class="text-sm font-semibold text-gray-900 truncate">
+          {{ userDisplayName() }}
+        </p>
+        <p class="text-xs text-gray-400 truncate mt-0.5">{{ userEmail() }}</p>
+      </div>
+      <!-- Sign out action -->
       <button
         type="button"
-        aria-label="Close menu"
-        class="fixed inset-0 z-40 cursor-default bg-transparent border-0 p-0 m-0"
-        (click)="menuOpen.set(false)"
-      ></button>
-
-      <!-- Card -->
-      <div class="absolute top-full right-4 mt-2 w-56 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden">
-        <!-- User info -->
-        <div class="px-4 py-3 border-b border-gray-100">
-          <p class="text-sm font-semibold text-gray-900 truncate">{{ userDisplayName() }}</p>
-          <p class="text-xs text-gray-400 truncate mt-0.5">{{ userEmail() }}</p>
-        </div>
-        <!-- Sign out action -->
-        <button
-          type="button"
-          (click)="signOut()"
-          class="w-full text-left px-4 py-3 text-sm text-red-500 font-medium hover:bg-red-50 transition-colors"
-        >
-          {{ 'AUTH.SIGN_OUT' | translate }}
-        </button>
-      </div>
+        (click)="signOut()"
+        class="w-full text-left px-4 py-3 text-sm text-red-500 font-medium hover:bg-red-50 transition-colors"
+      >
+        {{ 'AUTH.SIGN_OUT' | translate }}
+      </button>
+    </div>
     }
   </header>
 
@@ -53,20 +60,7 @@
   </main>
 
   <!-- ─── Bottom Navigation ────────────────────────────────────────── -->
-  <nav class="bottom-nav flex items-center justify-around bg-white border-t border-gray-200 flex-shrink-0">
-    @for (item of navItems; track item.path) {
-      <a
-        [routerLink]="item.path"
-        routerLinkActive="active-nav-item"
-        [routerLinkActiveOptions]="{ exact: item.exact }"
-        class="nav-item flex flex-col items-center gap-0.5 py-2 px-3 text-gray-400 transition-colors"
-        [title]="item.labelKey | translate"
-      >
-        <span class="text-xl leading-none">{{ getIcon(item.icon) }}</span>
-        <span class="text-[10px] font-medium">{{ item.labelKey | translate }}</span>
-      </a>
-    }
-  </nav>
+  <app-bottom-nav />
 
   <!-- PWA install prompt — floats over the full layout -->
   <app-pwa-install-banner />

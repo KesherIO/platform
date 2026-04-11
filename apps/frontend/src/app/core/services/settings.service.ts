@@ -5,7 +5,10 @@ import { catchError, map } from 'rxjs/operators';
 import { StaffMember } from '@vet-ai/shared-types';
 import { AuthService } from './auth.service';
 
-export type InviteErrorType = 'capacity_exceeded' | 'already_member' | 'unknown';
+export type InviteErrorType =
+  | 'capacity_exceeded'
+  | 'already_member'
+  | 'unknown';
 export type StaffErrorType = 'last_admin' | 'unknown';
 
 export interface MagicLinkResult {
@@ -38,10 +41,12 @@ export class SettingsService {
     const tenantId = this.tenantId;
     const body = email ? { email, role: 'staff' } : {};
     return this.http
-      .post<{ token: string; tenantId: string; expiresAt: string; alreadyExists: boolean }>(
-        `/api/onboarding/invite?tenantId=${tenantId}`,
-        body,
-      )
+      .post<{
+        token: string;
+        tenantId: string;
+        expiresAt: string;
+        alreadyExists: boolean;
+      }>(`/api/onboarding/invite?tenantId=${tenantId}`, body)
       .pipe(
         map((res) => ({
           token: res.token,
@@ -54,7 +59,7 @@ export class SettingsService {
           else if (err.status === 400) type = 'capacity_exceeded';
           else type = 'unknown';
           return throwError(() => ({ type }));
-        }),
+        })
       );
   }
 
@@ -65,13 +70,16 @@ export class SettingsService {
   getStaffMembers(): Observable<StaffMember[]> {
     return this.http.get<StaffMember[]>(
       `/api/tenants/${this.tenantId}/staff`,
-      this.tenantHeaders,
+      this.tenantHeaders
     );
   }
 
   removeStaff(userId: string): Observable<void> {
     return this.http
-      .delete<void>(`/api/tenants/${this.tenantId}/staff/${userId}`, this.tenantHeaders)
+      .delete<void>(
+        `/api/tenants/${this.tenantId}/staff/${userId}`,
+        this.tenantHeaders
+      )
       .pipe(catchError((err: HttpErrorResponse) => this.mapStaffError(err)));
   }
 
@@ -80,14 +88,45 @@ export class SettingsService {
       .patch<void>(
         `/api/tenants/${this.tenantId}/staff/${userId}/role`,
         { role },
-        this.tenantHeaders,
+        this.tenantHeaders
       )
       .pipe(catchError((err: HttpErrorResponse) => this.mapStaffError(err)));
   }
 
+  // ---------------------------------------------------------------------------
+  // Clinic
+  // ---------------------------------------------------------------------------
+
+  updateClinic(
+    data: { name?: string; phone?: string; address?: string },
+    logoFile?: File
+  ): Observable<void> {
+    const tenantId = this.tenantId;
+    let body: FormData | { name?: string; phone?: string };
+
+    if (logoFile) {
+      const fd = new FormData();
+      if (data.name !== undefined) fd.append('name', data.name);
+      if (data.phone !== undefined) fd.append('phone', data.phone);
+      if (data.address !== undefined) fd.append('address', data.address);
+      fd.append('logo', logoFile);
+      body = fd;
+    } else {
+      body = data;
+    }
+
+    return this.http.patch<void>(
+      `/api/tenants/${tenantId}`,
+      body,
+      this.tenantHeaders
+    );
+  }
+
   private mapStaffError(err: HttpErrorResponse): Observable<never> {
     const type: StaffErrorType =
-      err.status === 409 && err.error?.message === 'last_admin' ? 'last_admin' : 'unknown';
+      err.status === 409 && err.error?.message === 'last_admin'
+        ? 'last_admin'
+        : 'unknown';
     return throwError(() => ({ type }));
   }
 }

@@ -1,0 +1,8 @@
+:host {
+  display: contents;
+}
+
+// iOS safe area padding so nav clears the home indicator
+.bottom-nav-safe {
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+}

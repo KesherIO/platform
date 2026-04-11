@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsDateString,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -11,10 +12,9 @@ import {
   Min,
   MinLength,
   ArrayMinSize,
-  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AgeUnit, PatientSpecies } from '@vet-ai/shared-types';
+import { AgeUnit, PatientSpecies, PatientSex } from '@vet-ai/shared-types';
 
 // ---------------------------------------------------------------------------
 // POST /cases
@@ -30,23 +30,36 @@ export class CreateCaseDto {
   @IsEnum(PatientSpecies)
   patientSpecies!: PatientSpecies;
 
+  @ApiPropertyOptional({ enum: PatientSex })
+  @IsOptional()
+  @IsEnum(PatientSex)
+  patientSex?: PatientSex;
+
   @ApiPropertyOptional({ example: 'Labrador Retriever' })
   @IsOptional()
   @IsString()
   patientBreed?: string;
+
+  @ApiPropertyOptional({
+    example: '2022-03-15',
+    description: 'ISO date — use when exact DOB is known',
+  })
+  @IsOptional()
+  @IsDateString()
+  patientDateOfBirth?: string;
 
   /**
    * Must be provided together with patientAgeUnit.
    * Both must be set or both must be absent.
    */
   @ApiPropertyOptional({ example: 3 })
-  @ValidateIf((o) => o.patientAgeUnit !== undefined)
+  @IsOptional()
   @IsInt()
   @Min(0)
   patientAge?: number;
 
   @ApiPropertyOptional({ enum: AgeUnit })
-  @ValidateIf((o) => o.patientAge !== undefined)
+  @IsOptional()
   @IsEnum(AgeUnit)
   patientAgeUnit?: AgeUnit;
 
@@ -86,23 +99,36 @@ export class UpdatePatientInfoDto {
   @IsEnum(PatientSpecies)
   patientSpecies?: PatientSpecies;
 
+  @ApiPropertyOptional({ enum: PatientSex })
+  @IsOptional()
+  @IsEnum(PatientSex)
+  patientSex?: PatientSex;
+
   @ApiPropertyOptional({ example: 'Labrador Retriever' })
   @IsOptional()
   @IsString()
   patientBreed?: string;
+
+  @ApiPropertyOptional({
+    example: '2022-03-15',
+    description: 'ISO date — use when exact DOB is known',
+  })
+  @IsOptional()
+  @IsDateString()
+  patientDateOfBirth?: string;
 
   /**
    * If patientAge is provided, patientAgeUnit must also be provided, and vice versa.
    * To clear the age, send both as null — not supported in MVP (omit instead).
    */
   @ApiPropertyOptional({ example: 3 })
-  @ValidateIf((o) => o.patientAgeUnit !== undefined)
+  @IsOptional()
   @IsInt()
   @Min(0)
   patientAge?: number;
 
   @ApiPropertyOptional({ enum: AgeUnit })
-  @ValidateIf((o) => o.patientAge !== undefined)
+  @IsOptional()
   @IsEnum(AgeUnit)
   patientAgeUnit?: AgeUnit;
 
@@ -140,28 +166,28 @@ export class AddSymptomsDto {
 }
 
 // ---------------------------------------------------------------------------
-// PATCH /cases/:id/tests
+// PATCH /cases/:id/catalog-selection
 // Allowed in: OPEN, TRIAGED
-// Replaces the entire selectedTests list.
+// Replaces the entire selected catalog item list.
 // ---------------------------------------------------------------------------
 
-export class SelectTestsDto {
+export class SelectCatalogItemsDto {
   @ApiProperty({
-    example: ['hemograma', 'alt', 'ast', 'bun'],
+    example: ['clItemId1', 'clItemId2'],
     description:
-      'Array of test identifiers selected by the vet. Replaces any previous selection.',
+      'Array of catalog item IDs selected by the vet. Replaces any previous selection.',
     type: [String],
   })
   @IsArray()
   @ArrayMinSize(1)
   @IsString({ each: true })
-  selectedTests!: string[];
+  selectedCatalogItemIds!: string[];
 }
 
 // ---------------------------------------------------------------------------
 // POST /cases/:id/order
 // Allowed in: OPEN, TRIAGED
-// Requires: selectedTests already set (enforced in service, not DTO)
+// Requires: selectedCatalogItems already set (enforced in service, not DTO)
 // orderSentAt is set by the server — not accepted from the client.
 // ---------------------------------------------------------------------------
 

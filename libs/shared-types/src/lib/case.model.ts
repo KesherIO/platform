@@ -1,6 +1,5 @@
 import { TriageResultModel } from './triage-result.model.js';
-import { TestModel } from './test.model.js';
-import { TestPackageModel } from './test-package.model.js';
+import { CatalogItemModel } from './catalog-item.model.js';
 
 export enum PatientSpecies {
   DOG = 'DOG',
@@ -56,19 +55,13 @@ export interface CaseModel {
   // Clinical
   symptoms?: string;
   triageResult?: TriageResultModel;
-  selectedTests?: {
-    tests: TestModel[];
-    packages: TestPackageModel[];
-  };
+  suggestedCatalogItemIds?: string[]; // AI suggestions (from triage)
+  selectedCatalogItems?: CatalogItemModel[]; // vet-confirmed selection (resolved by API)
 
-  // Order
-  order?: {
-    orderId: string;
-    requisitionUrl: string;
-    qrCodeUrl?: string;
-    whatsAppLink: string;
-    sentAt?: Date;
-  };
+  // Order (set when a lab order is generated)
+  orderNotes?: string;
+  orderSentAt?: Date | string;
+  order?: { orderId: string; status: string };
 
   // Results
   resultsUrl?: string;

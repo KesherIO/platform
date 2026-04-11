@@ -3,6 +3,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { TenantRole } from '@prisma/client';
 import { TenantsService } from './tenants.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -69,6 +70,10 @@ describe('TenantsService', () => {
       providers: [
         TenantsService,
         { provide: PrismaService, useValue: prisma },
+        {
+          provide: StorageService,
+          useValue: { uploadFile: jest.fn(), getSignedUrl: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -81,20 +86,44 @@ describe('TenantsService', () => {
     it('returns active members with correct shape and role mapping', async () => {
       prisma.userTenantMembership.findMany.mockResolvedValue([
         makeMembership({ role: TenantRole.ADMIN }),
-        makeMembership({ userId: 'user-2', user: { id: 'user-2', firstName: 'Ana', lastName: 'Lopez', email: 'ana@example.com' }, role: TenantRole.VET }),
+        makeMembership({
+          userId: 'user-2',
+          user: {
+            id: 'user-2',
+            firstName: 'Ana',
+            lastName: 'Lopez',
+            email: 'ana@example.com',
+          },
+          role: TenantRole.VET,
+        }),
       ]);
       prisma.tenantInvitation.findMany.mockResolvedValue([]);
 
       const result = await service.getStaff('tenant-1');
 
       expect(result).toHaveLength(2);
-      expect(result[0]).toMatchObject({ id: 'user-1', role: 'Admin', status: 'Active' });
-      expect(result[1]).toMatchObject({ id: 'user-2', role: 'Staff', status: 'Active' });
+      expect(result[0]).toMatchObject({
+        id: 'user-1',
+        role: 'Admin',
+        status: 'Active',
+      });
+      expect(result[1]).toMatchObject({
+        id: 'user-2',
+        role: 'Staff',
+        status: 'Active',
+      });
     });
 
     it('uses email as fullName when firstName and lastName are missing', async () => {
       prisma.userTenantMembership.findMany.mockResolvedValue([
-        makeMembership({ user: { id: 'user-1', firstName: null, lastName: null, email: 'noname@example.com' } }),
+        makeMembership({
+          user: {
+            id: 'user-1',
+            firstName: null,
+            lastName: null,
+            email: 'noname@example.com',
+          },
+        }),
       ]);
       prisma.tenantInvitation.findMany.mockResolvedValue([]);
 
@@ -122,7 +151,7 @@ describe('TenantsService', () => {
     it('excludes generic magic links (empty email) from the invite list', async () => {
       prisma.userTenantMembership.findMany.mockResolvedValue([]);
       prisma.tenantInvitation.findMany.mockResolvedValue([
-        makeInvite({ email: '' }),             // generic link — should be excluded
+        makeInvite({ email: '' }), // generic link — should be excluded
         makeInvite({ id: 'invite-2', email: 'real@example.com' }),
       ]);
 
@@ -133,7 +162,9 @@ describe('TenantsService', () => {
     });
 
     it('returns active members before invited members', async () => {
-      prisma.userTenantMembership.findMany.mockResolvedValue([makeMembership()]);
+      prisma.userTenantMembership.findMany.mockResolvedValue([
+        makeMembership(),
+      ]);
       prisma.tenantInvitation.findMany.mockResolvedValue([makeInvite()]);
 
       const result = await service.getStaff('tenant-1');
@@ -149,28 +180,32 @@ describe('TenantsService', () => {
     it('throws NotFoundException when membership does not exist', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(null);
 
-      await expect(service.removeStaff('tenant-1', 'user-1'))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.removeStaff('tenant-1', 'user-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('throws ConflictException with last_admin when removing the only admin', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(
-        makeMembership({ role: TenantRole.ADMIN }),
+        makeMembership({ role: TenantRole.ADMIN })
       );
       prisma.userTenantMembership.count.mockResolvedValue(1); // only 1 admin
 
-      await expect(service.removeStaff('tenant-1', 'user-1'))
-        .rejects.toThrow(new ConflictException('last_admin'));
+      await expect(service.removeStaff('tenant-1', 'user-1')).rejects.toThrow(
+        new ConflictException('last_admin')
+      );
     });
 
     it('removes an admin when at least 2 admins exist', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(
-        makeMembership({ role: TenantRole.ADMIN }),
+        makeMembership({ role: TenantRole.ADMIN })
       );
       prisma.userTenantMembership.count.mockResolvedValue(2);
       prisma.userTenantMembership.delete.mockResolvedValue({});
 
-      await expect(service.removeStaff('tenant-1', 'user-1')).resolves.toBeUndefined();
+      await expect(
+        service.removeStaff('tenant-1', 'user-1')
+      ).resolves.toBeUndefined();
       expect(prisma.userTenantMembership.delete).toHaveBeenCalledWith({
         where: { userId_tenantId: { userId: 'user-1', tenantId: 'tenant-1' } },
       });
@@ -178,7 +213,7 @@ describe('TenantsService', () => {
 
     it('removes a staff member without checking admin count', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(
-        makeMembership({ role: TenantRole.VET }),
+        makeMembership({ role: TenantRole.VET })
       );
       prisma.userTenantMembership.delete.mockResolvedValue({});
 
@@ -196,29 +231,32 @@ describe('TenantsService', () => {
     it('throws NotFoundException when membership does not exist', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(null);
 
-      await expect(service.updateStaffRole('tenant-1', 'user-1', TenantRole.VET))
-        .rejects.toThrow(NotFoundException);
+      await expect(
+        service.updateStaffRole('tenant-1', 'user-1', TenantRole.VET)
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('throws ConflictException with last_admin when demoting the only admin', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(
-        makeMembership({ role: TenantRole.ADMIN }),
+        makeMembership({ role: TenantRole.ADMIN })
       );
       prisma.userTenantMembership.count.mockResolvedValue(1);
 
-      await expect(service.updateStaffRole('tenant-1', 'user-1', TenantRole.VET))
-        .rejects.toThrow(new ConflictException('last_admin'));
+      await expect(
+        service.updateStaffRole('tenant-1', 'user-1', TenantRole.VET)
+      ).rejects.toThrow(new ConflictException('last_admin'));
     });
 
     it('allows demotion when 2 or more admins exist', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(
-        makeMembership({ role: TenantRole.ADMIN }),
+        makeMembership({ role: TenantRole.ADMIN })
       );
       prisma.userTenantMembership.count.mockResolvedValue(2);
       prisma.userTenantMembership.update.mockResolvedValue({});
 
-      await expect(service.updateStaffRole('tenant-1', 'user-1', TenantRole.VET))
-        .resolves.toBeUndefined();
+      await expect(
+        service.updateStaffRole('tenant-1', 'user-1', TenantRole.VET)
+      ).resolves.toBeUndefined();
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
         where: { userId_tenantId: { userId: 'user-1', tenantId: 'tenant-1' } },
         data: { role: TenantRole.VET },
@@ -227,7 +265,7 @@ describe('TenantsService', () => {
 
     it('promotes a staff member to admin without checking admin count', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(
-        makeMembership({ role: TenantRole.VET }),
+        makeMembership({ role: TenantRole.VET })
       );
       prisma.userTenantMembership.update.mockResolvedValue({});
 
@@ -242,7 +280,7 @@ describe('TenantsService', () => {
 
     it('does not trigger last_admin check when changing between non-admin roles', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(
-        makeMembership({ role: TenantRole.VET }),
+        makeMembership({ role: TenantRole.VET })
       );
       prisma.userTenantMembership.update.mockResolvedValue({});
 

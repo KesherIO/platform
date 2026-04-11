@@ -1,1 +1,8 @@
-// host-level styles only if needed
+.patient-card {
+  background: linear-gradient(
+    135deg,
+    rgba(6, 214, 160, 0.12),
+    rgba(166, 90, 244, 0.2)
+  );
+  background-color: #ffffff;
+}

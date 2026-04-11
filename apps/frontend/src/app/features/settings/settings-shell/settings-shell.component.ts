@@ -1,24 +1,30 @@
-import { Component, computed, inject, signal, DestroyRef } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
-import { StaffSettingsComponent } from '../staff/staff-settings.component';
 import { AuthService } from '../../../core/services/auth.service';
-import { OutlineButtonComponent } from '../../../shared/components/outline-button/outline-button.component';
+import { BottomNavComponent } from '../../../shared/components/bottom-nav/bottom-nav.component';
+import { ClinicSettingsComponent } from '../clinic/clinic-settings.component';
+import { StaffSettingsComponent } from '../staff/staff-settings.component';
+import { ProfileSettingsComponent } from '../profile/profile-settings.component';
 
 type SettingsTab = 'clinic' | 'staff' | 'profile';
 
 @Component({
   selector: 'app-settings-shell',
   standalone: true,
-  imports: [TranslatePipe, StaffSettingsComponent, OutlineButtonComponent],
+  imports: [
+    TranslatePipe,
+    BottomNavComponent,
+    ClinicSettingsComponent,
+    StaffSettingsComponent,
+    ProfileSettingsComponent,
+  ],
   templateUrl: './settings-shell.component.html',
   styleUrl: './settings-shell.component.scss',
 })
 export class SettingsShellComponent {
   private readonly auth = inject(AuthService);
   private readonly location = inject(Location);
-  private readonly destroyRef = inject(DestroyRef);
 
   readonly isAdmin = computed(() => {
     const me = this.auth.me();
@@ -30,17 +36,6 @@ export class SettingsShellComponent {
         (m.role === 'ADMIN' || m.role === 'OWNER')
     );
   });
-
-  readonly userDisplayName = computed(() => {
-    const me = this.auth.me();
-    if (!me) return '';
-    const { firstName, lastName } = me.user;
-    return firstName ? `${firstName} ${lastName ?? ''}`.trim() : me.user.email;
-  });
-
-  readonly userEmail = computed(() => this.auth.me()?.user.email ?? '');
-
-  readonly signingOut = signal(false);
 
   readonly activeTab = signal<SettingsTab>('clinic');
 
@@ -56,15 +51,5 @@ export class SettingsShellComponent {
 
   goBack(): void {
     this.location.back();
-  }
-
-  signOut(): void {
-    this.signingOut.set(true);
-    this.auth
-      .signOut()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        error: () => this.signingOut.set(false),
-      });
   }
 }

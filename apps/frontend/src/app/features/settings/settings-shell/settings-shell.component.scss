@@ -3,3 +3,8 @@
   flex-direction: column;
   height: 100%;
 }
+
+.avatar-gradient {
+  background: linear-gradient(135deg, #06d6a0, #a65af4, #000000, #66e0e5);
+  background-size: 300% 300%;
+}

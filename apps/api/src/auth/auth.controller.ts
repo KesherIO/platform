@@ -1,4 +1,12 @@
-import { Controller, Get, Post, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -25,6 +33,15 @@ export class AuthController {
   @ApiOkResponse({ description: 'User profile with tenant memberships' })
   getMe(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getMe(user.id);
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update current user profile (name, phone)' })
+  updateMe(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { firstName?: string; lastName?: string; phone?: string }
+  ) {
+    return this.authService.updateMe(user.id, body);
   }
 
   /**

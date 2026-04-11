@@ -1,8 +1,22 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { createClient, SupabaseClient, Session, AuthError } from '@supabase/supabase-js';
-import { Observable, from, of, switchMap, tap, map, shareReplay, catchError } from 'rxjs';
+import {
+  createClient,
+  SupabaseClient,
+  Session,
+  AuthError,
+} from '@supabase/supabase-js';
+import {
+  Observable,
+  from,
+  of,
+  switchMap,
+  tap,
+  map,
+  shareReplay,
+  catchError,
+} from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 // Captured at module-load time, before the Supabase SDK initialises and clears the hash.
@@ -14,6 +28,7 @@ export interface MeResponse {
     email: string;
     firstName: string | null;
     lastName: string | null;
+    phone?: string | null;
     createdAt: string;
   };
   memberships: Array<{
@@ -23,6 +38,9 @@ export interface MeResponse {
       id: string;
       name: string;
       slug: string;
+      email?: string | null;
+      phone?: string | null;
+      address?: string | null;
       logoUrl: string | null;
       primaryColor: string | null;
     };
@@ -31,6 +49,9 @@ export interface MeResponse {
     id: string;
     name: string;
     slug: string;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
     logoUrl: string | null;
     primaryColor: string | null;
   }>;
@@ -47,7 +68,7 @@ export class AuthService {
 
   private readonly supabase: SupabaseClient = createClient(
     environment.supabaseUrl,
-    environment.supabaseAnonKey,
+    environment.supabaseAnonKey
   );
 
   /** Current Supabase session — null when logged out. */
@@ -64,7 +85,7 @@ export class AuthService {
   readonly sessionReady$: Observable<void> = from(
     this.supabase.auth.getSession().then(({ data }) => {
       this.session.set(data.session);
-    }),
+    })
   ).pipe(shareReplay(1));
 
   /**
@@ -111,13 +132,15 @@ export class AuthService {
    * After login, fetches /api/auth/me and routes to onboarding or dashboard.
    */
   signInWithPassword(email: string, password: string): Observable<void> {
-    return from(this.supabase.auth.signInWithPassword({ email, password })).pipe(
+    return from(
+      this.supabase.auth.signInWithPassword({ email, password })
+    ).pipe(
       switchMap(({ error }) => {
         if (error) throw error;
         return this.loadMe();
       }),
       tap(() => this.navigateAfterAuth()),
-      map(() => undefined as void),
+      map(() => undefined as void)
     );
   }
 
@@ -125,7 +148,10 @@ export class AuthService {
    * Sign up with email + password.
    * Supabase may require email confirmation depending on project settings.
    */
-  signUp(email: string, password: string): Observable<{ needsConfirmation: boolean }> {
+  signUp(
+    email: string,
+    password: string
+  ): Observable<{ needsConfirmation: boolean }> {
     return from(this.supabase.auth.signUp({ email, password })).pipe(
       switchMap(({ data, error }) => {
         if (error) throw error;
@@ -134,12 +160,12 @@ export class AuthService {
           this.session.set(data.session);
           return this.loadMe().pipe(
             tap(() => this.navigateAfterAuth()),
-            map(() => ({ needsConfirmation: false as const })),
+            map(() => ({ needsConfirmation: false as const }))
           );
         }
         // Email confirmation required — user needs to check their inbox.
         return of({ needsConfirmation: true as const });
-      }),
+      })
     );
   }
 
@@ -150,12 +176,12 @@ export class AuthService {
     return from(
       this.supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/callback`,
-      }),
+      })
     ).pipe(
       switchMap(({ error }) => {
         if (error) throw error;
         return of(undefined as void);
-      }),
+      })
     );
   }
 
@@ -167,12 +193,12 @@ export class AuthService {
       this.supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-      }),
+      })
     ).pipe(
       switchMap(({ error }) => {
         if (error) throw error;
         return of(undefined as void);
-      }),
+      })
     );
   }
 
@@ -185,9 +211,14 @@ export class AuthService {
   handleAuthCallback(): Observable<'recovery' | 'authenticated'> {
     // Check for Supabase error in the URL hash (e.g. expired or already-used link).
     const hashParams = new URLSearchParams(initialHash.slice(1));
-    const hashError = hashParams.get('error_description') ?? hashParams.get('error');
+    const hashError =
+      hashParams.get('error_description') ?? hashParams.get('error');
     if (hashError) {
-      return new Observable(observer => observer.error(new Error(decodeURIComponent(hashError.replace(/\+/g, ' ')))));
+      return new Observable((observer) =>
+        observer.error(
+          new Error(decodeURIComponent(hashError.replace(/\+/g, ' ')))
+        )
+      );
     }
 
     // PASSWORD_RECOVERY may have fired during app init, before this component mounted.
@@ -199,10 +230,12 @@ export class AuthService {
     // Fallback: hash-based detection for implicit flow (type=recovery in hash fragment).
     const isRecovery = hashParams.get('type') === 'recovery';
 
-    return new Observable<'recovery' | 'authenticated'>(observer => {
+    return new Observable<'recovery' | 'authenticated'>((observer) => {
       let done = false;
 
-      const { data: { subscription } } = this.supabase.auth.onAuthStateChange((event, session) => {
+      const {
+        data: { subscription },
+      } = this.supabase.auth.onAuthStateChange((event, session) => {
         if (done) return;
 
         if (event === 'PASSWORD_RECOVERY') {
@@ -210,23 +243,46 @@ export class AuthService {
           this.session.set(session);
           observer.next('recovery');
           observer.complete();
-        } else if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+        } else if (
+          (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') &&
+          session
+        ) {
           done = true;
           this.session.set(session);
           if (isRecovery) {
             observer.next('recovery');
             observer.complete();
           } else {
-            this.loadMe().pipe(tap(() => this.navigateAfterAuth())).subscribe({
-              next: () => { observer.next('authenticated'); observer.complete(); },
-              error: (err) => observer.error(err),
-            });
+            this.loadMe()
+              .pipe(tap(() => this.navigateAfterAuth()))
+              .subscribe({
+                next: () => {
+                  observer.next('authenticated');
+                  observer.complete();
+                },
+                error: (err) => observer.error(err),
+              });
           }
         }
       });
 
       return () => subscription.unsubscribe();
     });
+  }
+
+  /**
+   * Update the current user's profile fields (name, phone).
+   * Email is identity and cannot be changed here.
+   */
+  updateProfile(data: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+  }): Observable<void> {
+    return this.http.patch<MeResponse>('/api/auth/me', data).pipe(
+      tap((me) => this.me.set(me)),
+      map(() => undefined as void)
+    );
   }
 
   /**
@@ -239,9 +295,9 @@ export class AuthService {
         if (error) throw error;
         return this.loadMe().pipe(
           tap(() => this.navigateAfterAuth()),
-          map(() => undefined as void),
+          map(() => undefined as void)
         );
-      }),
+      })
     );
   }
 
@@ -260,7 +316,7 @@ export class AuthService {
         this.router.navigate(['/auth/login']);
         if (error) throw error;
         return of(undefined as void);
-      }),
+      })
     );
   }
 
@@ -273,9 +329,9 @@ export class AuthService {
    * The AuthInterceptor will attach the Bearer token automatically.
    */
   loadMe(): Observable<MeResponse> {
-    return this.http.get<MeResponse>('/api/auth/me').pipe(
-      tap((me) => this.me.set(me)),
-    );
+    return this.http
+      .get<MeResponse>('/api/auth/me')
+      .pipe(tap((me) => this.me.set(me)));
   }
 
   // ---------------------------------------------------------------------------

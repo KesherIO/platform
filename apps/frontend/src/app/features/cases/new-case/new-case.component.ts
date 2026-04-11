@@ -99,6 +99,9 @@ export class NewCaseComponent implements OnInit {
         patientSpecies: prefill.patientSpecies ?? '',
         patientSex: prefill.patientSex ?? '',
         patientBreed: prefill.patientBreed ?? '',
+        patientDateOfBirth: prefill.patientDateOfBirth
+          ? new Date(prefill.patientDateOfBirth).toISOString().split('T')[0]
+          : '',
         patientAge: prefill.patientAge ?? null,
         patientAgeUnit: prefill.patientAgeUnit ?? AgeUnit.YEARS,
         ownerName: prefill.ownerName ?? '',
@@ -189,14 +192,20 @@ export class NewCaseComponent implements OnInit {
     this.saving.set(true);
     const v = this.form.value;
     const editId = this.editCaseId();
+    const rawAge = v.patientAge;
+    const patientAge =
+      rawAge !== null && rawAge !== undefined && rawAge !== ('' as unknown)
+        ? Number(rawAge)
+        : undefined;
     const data = {
       patientName: v.patientName!,
       patientSpecies: v.patientSpecies as PatientSpecies,
       patientSex: v.patientSex ? (v.patientSex as PatientSex) : undefined,
       patientBreed: v.patientBreed || undefined,
       patientDateOfBirth: v.patientDateOfBirth || undefined,
-      patientAge: v.patientAge ?? undefined,
-      patientAgeUnit: (v.patientAgeUnit as AgeUnit) ?? undefined,
+      patientAge,
+      patientAgeUnit:
+        patientAge !== undefined ? (v.patientAgeUnit as AgeUnit) : undefined,
       ownerName: v.ownerName!,
       ownerPhone: v.ownerPhone || undefined,
     };

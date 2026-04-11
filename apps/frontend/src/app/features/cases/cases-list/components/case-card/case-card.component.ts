@@ -22,6 +22,7 @@ export class CaseCardComponent {
   route = input.required<string[]>();
   menuOpenId = input<string | null>(null);
   menuToggled = output<string | null>();
+  deleted = output<string>();
 
   menuOpen = computed(() => this.menuOpenId() === this.case().id);
 
@@ -45,6 +46,11 @@ export class CaseCardComponent {
     this.router.navigate(path);
   }
 
+  deleteCase(): void {
+    this.menuToggled.emit(null);
+    this.deleted.emit(this.case().id);
+  }
+
   navigateNewCaseForPatient(): void {
     this.menuToggled.emit(null);
     this.router.navigate(['/cases/new'], {
@@ -58,6 +64,7 @@ export class CaseCardComponent {
       patientSpecies: c.patientSpecies,
       patientSex: c.patientSex,
       patientBreed: c.patientBreed,
+      patientDateOfBirth: c.patientDateOfBirth,
       patientAge: c.patientAge,
       patientAgeUnit: c.patientAgeUnit,
       ownerName: c.ownerName,

@@ -4,12 +4,18 @@ import { RouterModule } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { resolveLogoUrl } from '../../../core/services/onboarding.service';
+import { BottomNavComponent } from '../../../shared/components/bottom-nav/bottom-nav.component';
 import { PwaInstallBannerComponent } from '../../../shared/components/pwa-install-banner/pwa-install-banner.component';
 
 @Component({
   selector: 'app-dashboard-shell',
   standalone: true,
-  imports: [RouterModule, TranslatePipe, PwaInstallBannerComponent],
+  imports: [
+    RouterModule,
+    TranslatePipe,
+    BottomNavComponent,
+    PwaInstallBannerComponent,
+  ],
   templateUrl: './dashboard-shell.component.html',
   styleUrl: './dashboard-shell.component.scss',
 })
@@ -38,29 +44,8 @@ export class DashboardShellComponent {
 
   readonly menuOpen = signal(false);
 
-  readonly navItems = [
-    { labelKey: 'NAV.DASHBOARD', icon: 'home',     path: '/dashboard/home', exact: true  },
-    { labelKey: 'NAV.CASES',     icon: 'cases',    path: '/cases',          exact: false },
-    { labelKey: 'NAV.ORDERS',    icon: 'orders',   path: '/orders',         exact: false },
-    { labelKey: 'NAV.RESULTS',   icon: 'results',  path: '/results',        exact: false },
-    { labelKey: 'NAV.SETTINGS',  icon: 'settings', path: '/dashboard/settings', exact: false },
-  ];
-
   signOut() {
     this.menuOpen.set(false);
-    this.auth.signOut()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe();
-  }
-
-  getIcon(name: string): string {
-    const icons: Record<string, string> = {
-      home:     '🏠',
-      cases:    '🩺',
-      orders:   '📋',
-      results:  '📊',
-      settings: '⚙️',
-    };
-    return icons[name] ?? '•';
+    this.auth.signOut().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
   }
 }

@@ -38,8 +38,8 @@
         class="filter-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors"
         [class]="
           hasActiveFilter()
-            ? 'border-gray-900 bg-gray-900 text-white'
-            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:text-gray-800'
+            ? 'border-[#A65AF4] bg-[#A65AF4] text-white'
+            : 'border-gray-200 bg-white text-gray-600 hover:border-[#A65AF4] hover:text-[#A65AF4]'
         "
       >
         {{ 'CASES.FILTER_STATUS' | translate }}
@@ -142,7 +142,7 @@
           (click)="clearFilters()"
           class="w-full text-xs text-red-500 hover:text-red-700 font-medium mt-1"
         >
-          Clear filters
+          {{ 'CASES.CLEAR_FILTERS' | translate }}
         </button>
         }
       </div>
@@ -153,7 +153,12 @@
     <div class="relative">
       <button
         (click)="toggleSort()"
-        class="sort-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-600 text-sm font-medium hover:border-gray-400 hover:text-gray-800 transition-colors"
+        class="sort-btn flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-colors"
+        [class]="
+          sort() !== 'date-desc'
+            ? 'border-[#A65AF4] text-[#A65AF4] bg-white'
+            : 'border-gray-200 bg-white text-gray-600 hover:border-[#A65AF4] hover:text-[#A65AF4]'
+        "
       >
         {{ 'CASES.SORT_LABEL' | translate }}
         <svg
@@ -181,7 +186,7 @@
           class="w-full text-left px-4 py-2.5 text-sm transition-colors"
           [class]="
             sort() === opt.value
-              ? 'bg-gray-100 font-semibold text-gray-900'
+              ? 'bg-purple-50 font-semibold text-[#A65AF4]'
               : 'text-gray-700 hover:bg-gray-50'
           "
         >
@@ -193,8 +198,9 @@
     </div>
 
     <!-- Result count -->
-    <span class="ml-auto text-xs text-gray-400"
-      >{{ resultCount() }} {{ 'CASES.RESULTS' | translate }}</span
-    >
+    <span class="ml-auto text-xs">
+      <span class="font-semibold text-gray-700">{{ resultCount() }}</span>
+      <span class="text-gray-400"> {{ 'CASES.RESULTS' | translate }}</span>
+    </span>
   </div>
 </div>

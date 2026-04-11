@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
-import { Observable, of, delay, tap } from 'rxjs';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, of, delay, tap, map } from 'rxjs';
 import {
   CaseModel,
   CaseStatus,
@@ -7,70 +8,11 @@ import {
   PatientSex,
   AgeUnit,
   TriageResultModel,
-  TestModel,
-  TestPackageModel,
 } from '@vet-ai/shared-types';
+import { AuthService } from '../../../../core/services/auth.service';
+import { MOCK_CATALOG_ITEMS } from '../../../../core/services/catalog.service';
 
 const MOCK_DELAY = 600;
-
-const MOCK_TESTS: TestModel[] = [
-  {
-    id: 't1',
-    code: 'CBC',
-    name: 'Complete Blood Count',
-    category: 'Hematology',
-    turnaroundHours: 4,
-  },
-  {
-    id: 't2',
-    code: 'BMP',
-    name: 'Basic Metabolic Panel',
-    category: 'Chemistry',
-    turnaroundHours: 6,
-  },
-  {
-    id: 't3',
-    code: 'UA',
-    name: 'Urinalysis',
-    category: 'Urinalysis',
-    turnaroundHours: 4,
-  },
-  {
-    id: 't4',
-    code: 'LFT',
-    name: 'Liver Function Tests',
-    category: 'Chemistry',
-    turnaroundHours: 8,
-  },
-  {
-    id: 't5',
-    code: 'TSH',
-    name: 'Thyroid Stimulating Hormone',
-    category: 'Endocrinology',
-    turnaroundHours: 24,
-  },
-];
-
-const MOCK_PACKAGES: TestPackageModel[] = [
-  {
-    id: 'p1',
-    name: 'Wellness Panel',
-    description: 'Comprehensive annual wellness screening',
-    tests: [MOCK_TESTS[0], MOCK_TESTS[1], MOCK_TESTS[2]],
-  },
-  {
-    id: 'p2',
-    name: 'Senior Panel',
-    description: 'Extended panel for senior patients (7+ years)',
-    tests: [
-      MOCK_TESTS[0],
-      MOCK_TESTS[1],
-      MOCK_TESTS[2],
-      MOCK_TESTS[3],
-      MOCK_TESTS[4],
-    ],
-  },
-];
 
 const MOCK_TRIAGE: TriageResultModel = {
   diagnoses: [
@@ -91,8 +33,7 @@ const MOCK_TRIAGE: TriageResultModel = {
       explanation: 'Lethargy and anorexia can be signs of liver involvement.',
     },
   ],
-  suggestedTestIds: ['t1', 't2', 't3'],
-  suggestedPackageIds: ['p1'],
+  suggestedCatalogItemIds: ['t1', 't2', 't3', 'p1'],
 };
 
 let mockCases: CaseModel[] = [
@@ -127,6 +68,7 @@ let mockCases: CaseModel[] = [
     ownerPhone: '+52 555 0002',
     symptoms: 'Limping and decreased appetite',
     triageResult: MOCK_TRIAGE,
+    suggestedCatalogItemIds: MOCK_TRIAGE.suggestedCatalogItemIds,
     createdByUserId: 'u1',
     createdAt: new Date('2026-04-06'),
     updatedAt: new Date('2026-04-06'),
@@ -144,13 +86,11 @@ let mockCases: CaseModel[] = [
     ownerName: 'Martina Flores',
     ownerPhone: '+52 555 0003',
     symptoms: 'Skin irritation and scratching',
-    selectedTests: { tests: [MOCK_TESTS[0], MOCK_TESTS[1]], packages: [] },
-    order: {
-      orderId: 'ORD-0001',
-      requisitionUrl: 'https://example.com/req/ORD-0001',
-      whatsAppLink: 'https://wa.me/525550000?text=ORD-0001',
-      sentAt: new Date('2026-04-05'),
-    },
+    selectedCatalogItems: MOCK_CATALOG_ITEMS.filter((i) =>
+      ['t1', 't2'].includes(i.id)
+    ),
+    orderSentAt: new Date('2026-04-05'),
+    order: { orderId: 'ORD-0001', status: 'ORDERED' },
     createdByUserId: 'u1',
     createdAt: new Date('2026-04-05'),
     updatedAt: new Date('2026-04-05'),
@@ -168,13 +108,11 @@ let mockCases: CaseModel[] = [
     ownerName: 'Roberto Gutiérrez',
     ownerPhone: '+52 555 0004',
     symptoms: 'Ear infection and head shaking',
-    selectedTests: { tests: [MOCK_TESTS[0]], packages: [MOCK_PACKAGES[0]] },
-    order: {
-      orderId: 'ORD-0002',
-      requisitionUrl: 'https://example.com/req/ORD-0002',
-      whatsAppLink: 'https://wa.me/525550000?text=ORD-0002',
-      sentAt: new Date('2026-03-28'),
-    },
+    selectedCatalogItems: MOCK_CATALOG_ITEMS.filter((i) =>
+      ['t1', 'p1'].includes(i.id)
+    ),
+    orderSentAt: new Date('2026-03-28'),
+    order: { orderId: 'ORD-0002', status: 'COMPLETED' },
     createdByUserId: 'u1',
     createdAt: new Date('2026-03-27'),
     updatedAt: new Date('2026-03-29'),
@@ -241,13 +179,11 @@ let mockCases: CaseModel[] = [
     ownerName: 'Patricia Álvarez',
     ownerPhone: '+52 555 0008',
     symptoms: 'Trembling and low energy',
-    selectedTests: { tests: [MOCK_TESTS[1], MOCK_TESTS[2]], packages: [] },
-    order: {
-      orderId: 'ORD-0003',
-      requisitionUrl: 'https://example.com/req/ORD-0003',
-      whatsAppLink: 'https://wa.me/525550000?text=ORD-0003',
-      sentAt: new Date('2026-04-04'),
-    },
+    selectedCatalogItems: MOCK_CATALOG_ITEMS.filter((i) =>
+      ['t2', 't3'].includes(i.id)
+    ),
+    orderSentAt: new Date('2026-04-04'),
+    order: { orderId: 'ORD-0003', status: 'ORDERED' },
     createdByUserId: 'u1',
     createdAt: new Date('2026-04-03'),
     updatedAt: new Date('2026-04-04'),
@@ -266,6 +202,7 @@ let mockCases: CaseModel[] = [
     ownerPhone: '+52 555 0009',
     symptoms: 'Back pain and reluctance to move',
     triageResult: MOCK_TRIAGE,
+    suggestedCatalogItemIds: MOCK_TRIAGE.suggestedCatalogItemIds,
     createdByUserId: 'u1',
     createdAt: new Date('2026-04-05'),
     updatedAt: new Date('2026-04-05'),
@@ -283,13 +220,11 @@ let mockCases: CaseModel[] = [
     ownerName: 'Camila Vargas',
     ownerPhone: '+52 555 0010',
     symptoms: 'Eye discharge and redness',
-    selectedTests: { tests: [MOCK_TESTS[0], MOCK_TESTS[3]], packages: [] },
-    order: {
-      orderId: 'ORD-0004',
-      requisitionUrl: 'https://example.com/req/ORD-0004',
-      whatsAppLink: 'https://wa.me/525550000?text=ORD-0004',
-      sentAt: new Date('2026-03-15'),
-    },
+    selectedCatalogItems: MOCK_CATALOG_ITEMS.filter((i) =>
+      ['t1', 't4'].includes(i.id)
+    ),
+    orderSentAt: new Date('2026-03-15'),
+    order: { orderId: 'ORD-0004', status: 'COMPLETED' },
     createdByUserId: 'u1',
     createdAt: new Date('2026-03-14'),
     updatedAt: new Date('2026-03-16'),
@@ -309,6 +244,7 @@ let mockCases: CaseModel[] = [
     ownerPhone: '+52 555 0011',
     symptoms: 'Vomiting and lethargy for 2 days',
     triageResult: MOCK_TRIAGE,
+    suggestedCatalogItemIds: MOCK_TRIAGE.suggestedCatalogItemIds,
     createdByUserId: 'u1',
     createdAt: new Date('2026-04-06'),
     updatedAt: new Date('2026-04-06'),
@@ -342,13 +278,11 @@ let mockCases: CaseModel[] = [
     ownerName: 'Eduardo Romero',
     ownerPhone: '+52 555 0013',
     symptoms: 'Urinary issues and frequent licking',
-    selectedTests: { tests: [MOCK_TESTS[2], MOCK_TESTS[3]], packages: [] },
-    order: {
-      orderId: 'ORD-0005',
-      requisitionUrl: 'https://example.com/req/ORD-0005',
-      whatsAppLink: 'https://wa.me/525550000?text=ORD-0005',
-      sentAt: new Date('2026-04-03'),
-    },
+    selectedCatalogItems: MOCK_CATALOG_ITEMS.filter((i) =>
+      ['t3', 't4'].includes(i.id)
+    ),
+    orderSentAt: new Date('2026-04-03'),
+    order: { orderId: 'ORD-0005', status: 'ORDERED' },
     createdByUserId: 'u1',
     createdAt: new Date('2026-04-02'),
     updatedAt: new Date('2026-04-03'),
@@ -366,13 +300,11 @@ let mockCases: CaseModel[] = [
     ownerName: 'Lucía Peña',
     ownerPhone: '+52 555 0014',
     symptoms: 'Weight loss and increased thirst',
-    selectedTests: { tests: [MOCK_TESTS[1], MOCK_TESTS[4]], packages: [] },
-    order: {
-      orderId: 'ORD-0006',
-      requisitionUrl: 'https://example.com/req/ORD-0006',
-      whatsAppLink: 'https://wa.me/525550000?text=ORD-0006',
-      sentAt: new Date('2026-03-10'),
-    },
+    selectedCatalogItems: MOCK_CATALOG_ITEMS.filter((i) =>
+      ['t2', 't5'].includes(i.id)
+    ),
+    orderSentAt: new Date('2026-03-10'),
+    order: { orderId: 'ORD-0006', status: 'COMPLETED' },
     createdByUserId: 'u1',
     createdAt: new Date('2022-03-09'),
     updatedAt: new Date('2022-03-11'),
@@ -407,6 +339,7 @@ let mockCases: CaseModel[] = [
     ownerPhone: '+52 555 0016',
     symptoms: 'Sneezing and nasal discharge',
     triageResult: MOCK_TRIAGE,
+    suggestedCatalogItemIds: MOCK_TRIAGE.suggestedCatalogItemIds,
     createdByUserId: 'u1',
     createdAt: new Date('2026-04-04'),
     updatedAt: new Date('2026-04-04'),
@@ -441,13 +374,11 @@ let mockCases: CaseModel[] = [
     ownerName: 'Sofía Herrera',
     ownerPhone: '+52 555 0018',
     symptoms: 'Lameness in left foreleg',
-    selectedTests: { tests: [MOCK_TESTS[0], MOCK_TESTS[3]], packages: [] },
-    order: {
-      orderId: 'ORD-0007',
-      requisitionUrl: 'https://example.com/req/ORD-0007',
-      whatsAppLink: 'https://wa.me/525550000?text=ORD-0007',
-      sentAt: new Date('2026-03-20'),
-    },
+    selectedCatalogItems: MOCK_CATALOG_ITEMS.filter((i) =>
+      ['t1', 't4'].includes(i.id)
+    ),
+    orderSentAt: new Date('2026-03-20'),
+    order: { orderId: 'ORD-0007', status: 'COMPLETED' },
     createdByUserId: 'u1',
     createdAt: new Date('2026-03-19'),
     updatedAt: new Date('2026-03-21'),
@@ -482,6 +413,7 @@ let mockCases: CaseModel[] = [
     ownerPhone: '+52 555 0020',
     symptoms: 'Feather plucking and reduced appetite',
     triageResult: MOCK_TRIAGE,
+    suggestedCatalogItemIds: MOCK_TRIAGE.suggestedCatalogItemIds,
     createdByUserId: 'u1',
     createdAt: new Date('2026-04-06'),
     updatedAt: new Date('2026-04-06'),
@@ -537,10 +469,17 @@ let mockCases: CaseModel[] = [
   },
 ];
 
-let nextId = 24;
-
 @Injectable({ providedIn: 'root' })
 export class CasesService {
+  private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
+
+  private get tenantHeaders() {
+    const me = this.auth.me();
+    const tenantId = me?.activeTenantId ?? me?.tenants[0]?.id ?? '';
+    return { headers: { 'x-tenant-id': tenantId } };
+  }
+
   activeCase = signal<CaseModel | null>(null);
 
   listCases(params?: {
@@ -548,47 +487,48 @@ export class CasesService {
     status?: CaseStatus;
     species?: PatientSpecies;
   }): Observable<CaseModel[]> {
-    let result = [...mockCases];
-    if (params?.search) {
-      const q = params.search.toLowerCase();
-      result = result.filter(
-        (c) =>
-          c.patientName.toLowerCase().includes(q) ||
-          c.ownerName.toLowerCase().includes(q)
-      );
-    }
-    if (params?.status) {
-      result = result.filter((c) => c.status === params.status);
-    }
-    if (params?.species) {
-      result = result.filter((c) => c.patientSpecies === params.species);
-    }
-    // TODO: Replace with actual API call GET /cases
-    return of(result).pipe(delay(MOCK_DELAY));
+    return this.http.get<CaseModel[]>('/api/cases', this.tenantHeaders).pipe(
+      map((cases) => {
+        let result = cases;
+        if (params?.search) {
+          const q = params.search.toLowerCase();
+          result = result.filter(
+            (c) =>
+              c.patientName.toLowerCase().includes(q) ||
+              c.ownerName.toLowerCase().includes(q)
+          );
+        }
+        if (params?.status) {
+          result = result.filter((c) => c.status === params.status);
+        }
+        if (params?.species) {
+          result = result.filter((c) => c.patientSpecies === params.species);
+        }
+        return result;
+      })
+    );
   }
 
   getCase(id: string): Observable<CaseModel> {
-    const found = mockCases.find((c) => c.id === id);
-    if (!found) throw new Error(`Case ${id} not found`);
-    // TODO: Replace with actual API call GET /cases/:id
-    return of({ ...found }).pipe(
-      delay(MOCK_DELAY),
-      tap((c) => this.activeCase.set(c))
-    );
+    return this.http
+      .get<CaseModel>(`/api/cases/${id}`, this.tenantHeaders)
+      .pipe(tap((c) => this.activeCase.set(c)));
   }
 
   searchCases(query: string): Observable<CaseModel[]> {
     if (!query.trim()) return of([]);
-    const q = query.toLowerCase();
-    const results = mockCases
-      .filter(
-        (c) =>
-          c.patientName.toLowerCase().includes(q) ||
-          c.ownerName.toLowerCase().includes(q)
-      )
-      .slice(0, 5);
-    // TODO: Replace with actual API call GET /cases?search=query
-    return of(results).pipe(delay(300));
+    return this.http.get<CaseModel[]>('/api/cases', this.tenantHeaders).pipe(
+      map((cases) => {
+        const q = query.toLowerCase();
+        return cases
+          .filter(
+            (c) =>
+              c.patientName.toLowerCase().includes(q) ||
+              c.ownerName.toLowerCase().includes(q)
+          )
+          .slice(0, 5);
+      })
+    );
   }
 
   createCase(data: {
@@ -603,23 +543,9 @@ export class CasesService {
     ownerName: string;
     ownerPhone?: string;
   }): Observable<CaseModel> {
-    const newCase: CaseModel = {
-      id: `c${nextId++}`,
-      tenantId: 'tenant1',
-      status: CaseStatus.OPEN,
-      createdByUserId: 'u1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      ...data,
-    };
-    // TODO: Replace with actual API call POST /cases
-    return of(newCase).pipe(
-      delay(MOCK_DELAY),
-      tap((c) => {
-        mockCases = [c, ...mockCases];
-        this.activeCase.set(c);
-      })
-    );
+    return this.http
+      .post<CaseModel>('/api/cases', data, this.tenantHeaders)
+      .pipe(tap((c) => this.activeCase.set(c)));
   }
 
   updateCase(
@@ -640,13 +566,19 @@ export class CasesService {
       >
     >
   ): Observable<CaseModel> {
-    // TODO: Replace with actual API call PATCH /cases/:id
-    return of(this._applyUpdate(id, data)).pipe(delay(MOCK_DELAY));
+    return this.http
+      .patch<CaseModel>(`/api/cases/${id}`, data, this.tenantHeaders)
+      .pipe(tap((c) => this.activeCase.set(c)));
   }
 
   updateSymptoms(id: string, symptoms: string): Observable<CaseModel> {
-    // TODO: Replace with actual API call PATCH /cases/:id/symptoms
-    return of(this._applyUpdate(id, { symptoms })).pipe(delay(MOCK_DELAY));
+    return this.http
+      .patch<CaseModel>(
+        `/api/cases/${id}/symptoms`,
+        { symptoms },
+        this.tenantHeaders
+      )
+      .pipe(tap((c) => this.activeCase.set(c)));
   }
 
   triggerTriage(id: string): Observable<CaseModel> {
@@ -655,57 +587,52 @@ export class CasesService {
       this._applyUpdate(id, {
         status: CaseStatus.TRIAGED,
         triageResult: MOCK_TRIAGE,
+        suggestedCatalogItemIds: MOCK_TRIAGE.suggestedCatalogItemIds,
       })
     ).pipe(delay(2000));
   }
 
-  updateTests(
+  updateCatalogSelection(
     id: string,
-    testIds: string[],
-    packageIds: string[]
+    catalogItemIds: string[]
   ): Observable<CaseModel> {
-    const tests = MOCK_TESTS.filter((t) => testIds.includes(t.id));
-    const packages = MOCK_PACKAGES.filter((p) => packageIds.includes(p.id));
-    // TODO: Replace with actual API call PATCH /cases/:id/tests
-    return of(
-      this._applyUpdate(id, { selectedTests: { tests, packages } })
-    ).pipe(delay(MOCK_DELAY));
+    return this.http
+      .patch<CaseModel>(
+        `/api/cases/${id}/catalog-selection`,
+        { selectedCatalogItemIds: catalogItemIds },
+        this.tenantHeaders
+      )
+      .pipe(tap((c) => this.activeCase.set(c)));
   }
 
-  createOrder(id: string): Observable<{
-    orderId: string;
-    requisitionUrl: string;
-    qrCodeUrl?: string;
-    whatsAppLink: string;
-    whatsAppMessageText: string;
-  }> {
-    const orderId = `ORD-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-    const orderResult = {
-      orderId,
-      requisitionUrl: `https://example.com/requisition/${orderId}`,
-      qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${orderId}`,
-      whatsAppLink: `https://wa.me/525550000?text=Lab+order+${orderId}`,
-      whatsAppMessageText: `Lab order ${orderId} has been sent. Please process when received.`,
-    };
-    this._applyUpdate(id, {
-      status: CaseStatus.ORDERED,
-      order: {
-        orderId: orderResult.orderId,
-        requisitionUrl: orderResult.requisitionUrl,
-        qrCodeUrl: orderResult.qrCodeUrl,
-        whatsAppLink: orderResult.whatsAppLink,
-        sentAt: new Date(),
-      },
-    });
-    // TODO: Replace with actual API call POST /cases/:id/order
-    return of(orderResult).pipe(delay(MOCK_DELAY));
+  createOrder(
+    id: string
+  ): Observable<{ orderId: string; requisitionUrl: string }> {
+    return this.http
+      .post<{ id: string; requisitionNumber: string; requisitionUrl: string }>(
+        `/api/cases/${id}/order`,
+        {},
+        this.tenantHeaders
+      )
+      .pipe(
+        map((order) => ({
+          orderId: order.requisitionNumber,
+          requisitionUrl: order.requisitionUrl,
+        }))
+      );
   }
 
   cancelCase(id: string): Observable<CaseModel> {
-    // TODO: Replace with actual API call POST /cases/:id/cancel
-    return of(this._applyUpdate(id, { status: CaseStatus.CANCELLED })).pipe(
-      delay(MOCK_DELAY)
-    );
+    return this.http
+      .post<CaseModel>(`/api/cases/${id}/cancel`, {}, this.tenantHeaders)
+      .pipe(tap((c) => this.activeCase.set(c)));
+  }
+
+  deleteCase(id: string): Observable<void> {
+    mockCases = mockCases.filter((c) => c.id !== id);
+    if (this.activeCase()?.id === id) this.activeCase.set(null);
+    // TODO: Replace with actual API call DELETE /cases/:id
+    return of(undefined).pipe(delay(MOCK_DELAY));
   }
 
   private _applyUpdate(id: string, patch: Partial<CaseModel>): CaseModel {
