@@ -83,9 +83,9 @@
     <!-- Email (locked) -->
     @if (clinicEmail()) {
     <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-400 mb-1.5">
+      <p class="block text-xs font-medium text-gray-400 mb-1.5">
         {{ 'SETTINGS.CLINIC.EMAIL' | translate }}
-      </label>
+      </p>
       <div
         class="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5"
       >
@@ -112,10 +112,14 @@
 
     <!-- Name -->
     <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+      <label
+        for="clinic-name"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
         {{ 'SETTINGS.CLINIC.NAME' | translate }}
       </label>
       <input
+        id="clinic-name"
         type="text"
         [value]="editName()"
         (input)="editName.set($any($event.target).value)"
@@ -125,10 +129,14 @@
 
     <!-- Phone -->
     <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+      <label
+        for="clinic-phone"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
         {{ 'SETTINGS.CLINIC.PHONE' | translate }}
       </label>
       <input
+        id="clinic-phone"
         type="tel"
         [value]="editPhone()"
         (input)="editPhone.set($any($event.target).value)"
@@ -138,10 +146,14 @@
 
     <!-- Address -->
     <div class="mb-5">
-      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+      <label
+        for="clinic-address"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
         {{ 'SETTINGS.CLINIC.ADDRESS' | translate }}
       </label>
       <input
+        id="clinic-address"
         type="text"
         [value]="editAddress()"
         (input)="editAddress.set($any($event.target).value)"

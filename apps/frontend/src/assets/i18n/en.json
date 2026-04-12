@@ -168,7 +168,14 @@
     "TAB_CLINIC": "Clinic",
     "TAB_STAFF": "Staff",
     "TAB_PROFILE": "Profile",
+    "TAB_CONTACT_LAB": "Lab",
     "COMING_SOON": "Coming soon",
+    "CONTACT_LAB": {
+      "TITLE": "Biomet Lab",
+      "SUBTITLE": "Your reference laboratory",
+      "WHATSAPP_BTN": "Chat on WhatsApp",
+      "LOCATION_TITLE": "Location"
+    },
     "CLINIC": {
       "EDIT": "Edit",
       "EDITING": "Editing clinic",
