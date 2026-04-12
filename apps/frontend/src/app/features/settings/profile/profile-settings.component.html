@@ -41,10 +41,14 @@
 
     <!-- First name -->
     <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+      <label
+        for="profile-first-name"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
         {{ 'SETTINGS.PROFILE.FIRST_NAME' | translate }}
       </label>
       <input
+        id="profile-first-name"
         type="text"
         [value]="editFirstName()"
         (input)="editFirstName.set($any($event.target).value)"
@@ -54,10 +58,14 @@
 
     <!-- Last name -->
     <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+      <label
+        for="profile-last-name"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
         {{ 'SETTINGS.PROFILE.LAST_NAME' | translate }}
       </label>
       <input
+        id="profile-last-name"
         type="text"
         [value]="editLastName()"
         (input)="editLastName.set($any($event.target).value)"
@@ -67,10 +75,14 @@
 
     <!-- Phone -->
     <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-600 mb-1.5">
+      <label
+        for="profile-phone"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
         {{ 'SETTINGS.PROFILE.PHONE' | translate }}
       </label>
       <input
+        id="profile-phone"
         type="tel"
         [value]="editPhone()"
         (input)="editPhone.set($any($event.target).value)"
@@ -80,9 +92,9 @@
 
     <!-- Email (locked) -->
     <div class="mb-5">
-      <label class="block text-xs font-medium text-gray-400 mb-1.5">
+      <p class="block text-xs font-medium text-gray-400 mb-1.5">
         {{ 'SETTINGS.PROFILE.EMAIL' | translate }}
-      </label>
+      </p>
       <div
         class="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5"
       >

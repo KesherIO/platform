@@ -76,7 +76,11 @@ export class TestSelectionComponent implements OnInit {
   toggleItem(id: string): void {
     this.selectedItemIds.update((set) => {
       const next = new Set(set);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }
