@@ -37,7 +37,7 @@
       <button
         type="button"
         (click)="toggleExistingInvite()"
-        class="text-sm text-cyan font-medium"
+        class="text-sm text-cyan-500 font-medium"
       >
         {{ 'SETTINGS.STAFF.EXISTING_TOGGLE' | translate }}
       </button>
@@ -124,7 +124,8 @@
         <!-- Member info row -->
         <div class="flex items-start gap-3">
           <div
-            class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500 flex-shrink-0"
+            class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+            [ngClass]="avatarClass(member.id)"
           >
             {{ member.fullName.charAt(0).toUpperCase() }}
           </div>
@@ -159,7 +160,7 @@
             type="button"
             (click)="updateRole(member.id, member.role)"
             [disabled]="updatingRole() === member.id"
-            class="text-xs font-medium text-cyan hover:underline disabled:opacity-50"
+            class="text-xs font-medium text-cyan-500 hover:underline disabled:opacity-50"
           >
             {{
               updatingRole() === member.id

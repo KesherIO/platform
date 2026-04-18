@@ -95,10 +95,7 @@ export class AiResultsComponent implements OnInit {
 
   rerunTriage(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
-    this.casesService
-      .triggerTriage(id)
-      .pipe(take(1))
-      .subscribe({ next: (c) => this.case.set(c) });
+    this.router.navigate(['/cases', id, 'symptoms']);
   }
 
   proceed(): void {

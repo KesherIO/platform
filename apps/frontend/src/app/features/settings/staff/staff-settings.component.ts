@@ -1,4 +1,5 @@
 import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
+import { NgClass } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
 import { StaffMember } from '@vet-ai/shared-types';
@@ -10,7 +11,7 @@ import { OutlineButtonComponent } from '../../../shared/components/outline-butto
 @Component({
   selector: 'app-staff-settings',
   standalone: true,
-  imports: [TranslatePipe, SecondaryButtonComponent, OutlineButtonComponent],
+  imports: [NgClass, TranslatePipe, SecondaryButtonComponent, OutlineButtonComponent],
   templateUrl: './staff-settings.component.html',
   styleUrl: './staff-settings.component.scss',
 })
@@ -187,6 +188,22 @@ export class StaffSettingsComponent implements OnInit {
     return status === 'Active'
       ? 'bg-green-100 text-green-700'
       : 'bg-orange-100 text-orange-700';
+  }
+
+  private static readonly AVATAR_COLORS = [
+    'bg-violet-500 text-white',
+    'bg-blue-500 text-white',
+    'bg-emerald-500 text-white',
+    'bg-rose-500 text-white',
+    'bg-amber-500 text-white',
+    'bg-indigo-500 text-white',
+    'bg-teal-500 text-white',
+    'bg-pink-500 text-white',
+  ];
+
+  avatarClass(id: string): string {
+    const hash = id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    return StaffSettingsComponent.AVATAR_COLORS[hash % StaffSettingsComponent.AVATAR_COLORS.length];
   }
 
   private loadStaff(): void {

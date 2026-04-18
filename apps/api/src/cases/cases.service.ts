@@ -3,9 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { CaseStatus, PatientSpecies, PatientSex, Prisma } from '@prisma/client';
+import { CaseStatus, PatientSex, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CatalogItemModel } from '@vet-ai/shared-types';
+import { TriageService } from '../triage/triage.service';
 import {
   CreateCaseDto,
   UpdatePatientInfoDto,
@@ -50,7 +51,10 @@ const CASE_INCLUDE = {
 
 @Injectable()
 export class CasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly triageService: TriageService
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Queries
@@ -160,8 +164,8 @@ export class CasesService {
     const c = await this.fetchCase(tenantId, id);
     this.assertStatus(
       c,
-      [CaseStatus.OPEN],
-      'Symptoms can only be saved in OPEN status.'
+      [CaseStatus.OPEN, CaseStatus.TRIAGED],
+      'Symptoms can only be saved in OPEN or TRIAGED status.'
     );
 
     return this.prisma.case.update({
@@ -233,8 +237,8 @@ export class CasesService {
     const c = await this.fetchCase(tenantId, id);
     this.assertStatus(
       c,
-      [CaseStatus.OPEN],
-      'AI triage can only be run in OPEN status.'
+      [CaseStatus.OPEN, CaseStatus.TRIAGED],
+      'AI triage can only be run in OPEN or TRIAGED status.'
     );
 
     if (!c.symptoms || c.symptoms.trim() === '') {
@@ -243,15 +247,22 @@ export class CasesService {
       );
     }
 
-    // TODO: Replace stub with real AI triage service (e.g., Anthropic, OpenAI, or internal model).
-    // Expected output: DDx list with confidence scores + recommended test panel.
-    const aiResult = await this.callAiTriage(c.symptoms, c.patientSpecies);
+    const aiResult = await this.triageService.analyze(
+      {
+        species: c.patientSpecies,
+        breed: c.patientBreed,
+        age: c.patientAge,
+        ageUnit: c.patientAgeUnit,
+        weight: c.patientWeight,
+      },
+      c.symptoms
+    );
 
     return this.prisma.case.update({
       where: { id },
       data: {
         status: CaseStatus.TRIAGED,
-        triageResult: aiResult.triageResult as Prisma.InputJsonValue,
+        triageResult: aiResult as unknown as Prisma.InputJsonValue,
         suggestedCatalogItemIds: aiResult.suggestedCatalogItemIds,
       },
     });
@@ -468,23 +479,5 @@ export class CasesService {
     if (!allowed.includes(c.status)) {
       throw new BadRequestException(message);
     }
-  }
-
-  /**
-   * Stub for the AI triage integration.
-   * Replace with a real service call when the AI layer is built.
-   */
-  private async callAiTriage(
-    _symptoms: string,
-    _species: PatientSpecies
-  ): Promise<{
-    triageResult: Record<string, unknown>;
-    suggestedCatalogItemIds: string[];
-  }> {
-    // TODO: integrate real AI model — Anthropic, OpenAI, or internal triage engine
-    return {
-      triageResult: {},
-      suggestedCatalogItemIds: [],
-    };
   }
 }
