@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CasesService } from './cases.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TriageService } from '../triage/triage.service';
 import { CaseStatus, PatientSpecies } from '@vet-ai/shared-types';
 import type {
   CreateCaseDto,
@@ -93,7 +94,19 @@ describe('CasesService', () => {
     prisma = makePrismaMock();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CasesService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        CasesService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: TriageService,
+          useValue: {
+            analyze: jest.fn().mockResolvedValue({
+              diagnoses: [],
+              suggestedCatalogItemIds: [],
+            }),
+          },
+        },
+      ],
     }).compile();
 
     service = module.get(CasesService);

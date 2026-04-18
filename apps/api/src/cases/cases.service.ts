@@ -164,8 +164,8 @@ export class CasesService {
     const c = await this.fetchCase(tenantId, id);
     this.assertStatus(
       c,
-      [CaseStatus.OPEN, CaseStatus.TRIAGED],
-      'Symptoms can only be saved in OPEN or TRIAGED status.'
+      [CaseStatus.OPEN],
+      'Symptoms can only be saved in OPEN status.'
     );
 
     return this.prisma.case.update({
@@ -237,8 +237,8 @@ export class CasesService {
     const c = await this.fetchCase(tenantId, id);
     this.assertStatus(
       c,
-      [CaseStatus.OPEN, CaseStatus.TRIAGED],
-      'AI triage can only be run in OPEN or TRIAGED status.'
+      [CaseStatus.OPEN],
+      'AI triage can only be run in OPEN status.'
     );
 
     if (!c.symptoms || c.symptoms.trim() === '') {

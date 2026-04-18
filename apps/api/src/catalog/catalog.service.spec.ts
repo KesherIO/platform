@@ -145,9 +145,9 @@ describe('CatalogService', () => {
     prisma.catalogItem.findUnique.mockResolvedValue(null);
     prisma.catalogItem.create.mockResolvedValueOnce({ id: 'pkg1' });
     // Pass 2: resolve component IDs
-    prisma.catalogItem.findMany
-      .mockResolvedValueOnce([MOCK_ITEM]) // initial findAll call won't run here
-      .mockResolvedValueOnce([{ id: 'comp1', code: 'CBC' }]);
+    prisma.catalogItem.findMany.mockResolvedValueOnce([
+      { id: 'comp1', code: 'CBC' },
+    ]);
 
     await service.import({
       items: [

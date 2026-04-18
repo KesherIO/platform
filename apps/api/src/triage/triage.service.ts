@@ -62,7 +62,7 @@ export class TriageService {
     patient: PatientContext,
     symptoms: string
   ): Promise<TriageResultModel> {
-    const catalogItems = await this.catalogService.findAll(true);
+    const catalogItems = await this.catalogService.findAll(false);
     const catalogJson = JSON.stringify(
       catalogItems.map((i) => ({
         id: i.id,
