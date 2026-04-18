@@ -63,7 +63,10 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: {
-            getOrThrow: jest.fn().mockReturnValue('fake-key'),
+            getOrThrow: jest.fn().mockImplementation((key: string) => {
+              if (key === 'SUPABASE_URL') return 'https://fake.supabase.co';
+              return 'fake-key';
+            }),
           },
         },
       ],

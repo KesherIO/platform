@@ -1,16 +1,34 @@
-import { Component, OnInit, inject, signal, computed, DestroyRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  inject,
+  signal,
+  computed,
+  DestroyRef,
+} from '@angular/core';
+import { NgClass } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
 import { StaffMember } from '@vet-ai/shared-types';
 import { AuthService } from '../../../core/services/auth.service';
-import { SettingsService, InviteErrorType, StaffErrorType, MagicLinkResult } from '../../../core/services/settings.service';
+import {
+  SettingsService,
+  InviteErrorType,
+  StaffErrorType,
+  MagicLinkResult,
+} from '../../../core/services/settings.service';
 import { SecondaryButtonComponent } from '../../../shared/components/secondary-button/secondary-button.component';
 import { OutlineButtonComponent } from '../../../shared/components/outline-button/outline-button.component';
 
 @Component({
   selector: 'app-staff-settings',
   standalone: true,
-  imports: [TranslatePipe, SecondaryButtonComponent, OutlineButtonComponent],
+  imports: [
+    NgClass,
+    TranslatePipe,
+    SecondaryButtonComponent,
+    OutlineButtonComponent,
+  ],
   templateUrl: './staff-settings.component.html',
   styleUrl: './staff-settings.component.scss',
 })
@@ -23,19 +41,19 @@ export class StaffSettingsComponent implements OnInit {
 
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly generating    = signal(false);
+  readonly generating = signal(false);
   readonly magicLinkResult = signal<MagicLinkResult | null>(null);
-  readonly inviteError   = signal<InviteErrorType | null>(null);
-  readonly copied        = signal(false);
+  readonly inviteError = signal<InviteErrorType | null>(null);
+  readonly copied = signal(false);
 
-  readonly showExistingInvite   = signal(false);
-  readonly existingEmail        = signal('');
-  readonly generatingExisting   = signal(false);
-  readonly existingInviteError  = signal<InviteErrorType | null>(null);
+  readonly showExistingInvite = signal(false);
+  readonly existingEmail = signal('');
+  readonly generatingExisting = signal(false);
+  readonly existingInviteError = signal<InviteErrorType | null>(null);
   readonly existingMagicLinkResult = signal<MagicLinkResult | null>(null);
-  readonly existingCopied       = signal(false);
+  readonly existingCopied = signal(false);
 
-  readonly staffList    = signal<StaffMember[]>([]);
+  readonly staffList = signal<StaffMember[]>([]);
   readonly loadingStaff = signal(true);
 
   /** userId currently being removed (shows spinner / disables button) */
@@ -53,7 +71,8 @@ export class StaffSettingsComponent implements OnInit {
     this.generating.set(true);
     this.magicLinkResult.set(null);
     this.inviteError.set(null);
-    this.settingsService.generateMagicLink()
+    this.settingsService
+      .generateMagicLink()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
@@ -82,7 +101,7 @@ export class StaffSettingsComponent implements OnInit {
   }
 
   toggleExistingInvite(): void {
-    this.showExistingInvite.update(v => !v);
+    this.showExistingInvite.update((v) => !v);
     this.existingEmail.set('');
     this.existingInviteError.set(null);
   }
@@ -96,7 +115,8 @@ export class StaffSettingsComponent implements OnInit {
     if (!email) return;
     this.generatingExisting.set(true);
     this.existingInviteError.set(null);
-    this.settingsService.generateMagicLink(email)
+    this.settingsService
+      .generateMagicLink(email)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
@@ -129,7 +149,8 @@ export class StaffSettingsComponent implements OnInit {
   removeStaff(userId: string): void {
     this.removing.set(userId);
     this.lastAdminError.set(null);
-    this.settingsService.removeStaff(userId)
+    this.settingsService
+      .removeStaff(userId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
@@ -147,7 +168,8 @@ export class StaffSettingsComponent implements OnInit {
     const newRole = currentRole === 'Admin' ? 'staff' : 'admin';
     this.updatingRole.set(userId);
     this.lastAdminError.set(null);
-    this.settingsService.updateRole(userId, newRole)
+    this.settingsService
+      .updateRole(userId, newRole)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
@@ -155,8 +177,8 @@ export class StaffSettingsComponent implements OnInit {
             list.map((m) =>
               m.id === userId
                 ? { ...m, role: newRole === 'admin' ? 'Admin' : 'Staff' }
-                : m,
-            ),
+                : m
+            )
           );
           this.updatingRole.set(null);
         },
@@ -174,7 +196,9 @@ export class StaffSettingsComponent implements OnInit {
 
   /** Returns the i18n key for the role-toggle button label. */
   roleToggleKey(role: string): string {
-    return role === 'Admin' ? 'SETTINGS.STAFF.MAKE_STAFF' : 'SETTINGS.STAFF.MAKE_ADMIN';
+    return role === 'Admin'
+      ? 'SETTINGS.STAFF.MAKE_STAFF'
+      : 'SETTINGS.STAFF.MAKE_ADMIN';
   }
 
   /** Returns the i18n key for a member's status. */
@@ -189,8 +213,27 @@ export class StaffSettingsComponent implements OnInit {
       : 'bg-orange-100 text-orange-700';
   }
 
+  private static readonly AVATAR_COLORS = [
+    'bg-violet-500 text-white',
+    'bg-blue-500 text-white',
+    'bg-emerald-500 text-white',
+    'bg-rose-500 text-white',
+    'bg-amber-500 text-white',
+    'bg-indigo-500 text-white',
+    'bg-teal-500 text-white',
+    'bg-pink-500 text-white',
+  ];
+
+  avatarClass(id: string): string {
+    const hash = id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    return StaffSettingsComponent.AVATAR_COLORS[
+      hash % StaffSettingsComponent.AVATAR_COLORS.length
+    ];
+  }
+
   private loadStaff(): void {
-    this.settingsService.getStaffMembers()
+    this.settingsService
+      .getStaffMembers()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (list) => {

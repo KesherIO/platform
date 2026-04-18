@@ -318,7 +318,7 @@
       "HINT": "Describe the patient's symptoms clearly so the AI can suggest the most relevant tests.",
       "LABEL": "Symptoms",
       "PLACEHOLDER": "e.g. Vomiting and lethargy for 2 days, decreased appetite...",
-      "SUBMIT": "Analyse with AI",
+      "SUBMIT": "Analyze with AI",
       "RUN_AI": "Run AI Triage",
       "SKIP_AI": "Continue without AI",
       "RUNNING_AI": "Running AI triage...",

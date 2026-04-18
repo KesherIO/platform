@@ -582,14 +582,9 @@ export class CasesService {
   }
 
   triggerTriage(id: string): Observable<CaseModel> {
-    // TODO: Replace with actual API call POST /cases/:id/triage
-    return of(
-      this._applyUpdate(id, {
-        status: CaseStatus.TRIAGED,
-        triageResult: MOCK_TRIAGE,
-        suggestedCatalogItemIds: MOCK_TRIAGE.suggestedCatalogItemIds,
-      })
-    ).pipe(delay(2000));
+    return this.http
+      .post<CaseModel>(`/api/cases/${id}/triage`, {}, this.tenantHeaders)
+      .pipe(tap((c) => this.activeCase.set(c)));
   }
 
   updateCatalogSelection(
@@ -633,14 +628,5 @@ export class CasesService {
     if (this.activeCase()?.id === id) this.activeCase.set(null);
     // TODO: Replace with actual API call DELETE /cases/:id
     return of(undefined).pipe(delay(MOCK_DELAY));
-  }
-
-  private _applyUpdate(id: string, patch: Partial<CaseModel>): CaseModel {
-    const idx = mockCases.findIndex((c) => c.id === id);
-    if (idx === -1) throw new Error(`Case ${id} not found`);
-    const updated = { ...mockCases[idx], ...patch, updatedAt: new Date() };
-    mockCases = mockCases.map((c) => (c.id === id ? updated : c));
-    this.activeCase.set(updated);
-    return updated;
   }
 }
