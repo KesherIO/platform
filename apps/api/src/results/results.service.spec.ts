@@ -171,6 +171,7 @@ function makePrismaMock() {
     },
     order: { findUnique: jest.fn(), findFirst: jest.fn() },
     case: { update: jest.fn() },
+    catalogItemComposition: { findMany: jest.fn() },
     $transaction: jest
       .fn()
       .mockImplementation((cb: (tx: typeof mock) => Promise<unknown>) =>
@@ -297,6 +298,7 @@ describe('ResultsService', () => {
     it('creates a report with analytes from the matching template', async () => {
       prisma.resultReport.findUnique.mockResolvedValue(null);
       prisma.order.findUnique.mockResolvedValue(ORDER);
+      prisma.catalogItemComposition.findMany.mockResolvedValue([]);
       prisma.resultTemplate.findMany.mockResolvedValue([TEMPLATE]);
       prisma.resultReport.create.mockResolvedValue({ id: 'report-1' });
       prisma.resultReportAnalyte.createMany.mockResolvedValue({});
@@ -341,6 +343,7 @@ describe('ResultsService', () => {
     it('throws NotFoundException when no matching template is found', async () => {
       prisma.resultReport.findUnique.mockResolvedValue(null);
       prisma.order.findUnique.mockResolvedValue(ORDER);
+      prisma.catalogItemComposition.findMany.mockResolvedValue([]);
       prisma.resultTemplate.findMany.mockResolvedValue([]);
 
       await expect(service.createReport(dto)).rejects.toThrow(
