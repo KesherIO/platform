@@ -8,7 +8,6 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsUrl,
   Min,
   MinLength,
   ArrayMinSize,

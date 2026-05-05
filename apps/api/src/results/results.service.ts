@@ -144,7 +144,7 @@ export class ResultsService {
               isHeader: analyteDto.isHeader ?? false,
               formula: analyteDto.formula ?? null,
               referenceRange:
-                (analyteDto.referenceRange as Prisma.InputJsonValue) ??
+                (analyteDto.referenceRange as unknown as Prisma.InputJsonValue) ??
                 Prisma.JsonNull,
             },
           });
@@ -214,7 +214,7 @@ export class ResultsService {
     if (!order) throw new NotFoundException('Order not found.');
 
     const species = order.case.patientSpecies;
-    const rawItemIds = (order.orderedItems as OrderedItem[]).map(
+    const rawItemIds = (order.orderedItems as unknown as OrderedItem[]).map(
       (i) => i.catalogItemId
     );
 
@@ -240,19 +240,14 @@ export class ResultsService {
     }
     const catalogItemIds = Array.from(expandedIds);
 
-    const templateInclude = {
-      sections: { orderBy: { sortOrder: 'asc' as const } },
-      analytes: { orderBy: { sortOrder: 'asc' as const } },
-    };
-
     const templateRows = await this.prisma.resultTemplate.findMany({
       where: {
         catalogItemId: { in: catalogItemIds },
         species: { in: [species, PatientSpecies.ANY] },
         isActive: true,
       },
-      include: templateInclude,
-      orderBy: { createdAt: 'asc' },
+      include: TEMPLATE_INCLUDE,
+      orderBy: [{ species: 'asc' }, { title: 'asc' }],
     });
 
     // Per catalog item: pick the best template.
@@ -451,7 +446,7 @@ export class ResultsService {
               data: {
                 flag,
                 referenceSnapshot:
-                  (ref as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+                  (ref as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
               },
             });
           })
@@ -531,59 +526,9 @@ export class ResultsService {
     return 'N';
   }
 
-  private formatTemplate(
-    raw: Awaited<
-      ReturnType<typeof this.prisma.resultTemplate.findUniqueOrThrow>
-    > & {
-      sections: Array<{
-        id: string;
-        name: string;
-        sortOrder: number;
-        analytes: Array<{
-          id: string;
-          templateId: string;
-          sectionId: string | null;
-          code: string;
-          name: string;
-          technique: string | null;
-          valueType: AnalyteValueType;
-          unit: string | null;
-          options: string[];
-          sortOrder: number;
-          isHeader: boolean;
-          referenceRange: Prisma.JsonValue;
-        }>;
-      }>;
-      analytes: Array<{
-        id: string;
-        templateId: string;
-        sectionId: string | null;
-        code: string;
-        name: string;
-        technique: string | null;
-        valueType: AnalyteValueType;
-        unit: string | null;
-        options: string[];
-        sortOrder: number;
-        isHeader: boolean;
-        referenceRange: Prisma.JsonValue;
-      }>;
-    }
-  ): ResultTemplateModel {
-    const mapAnalyte = (a: {
-      id: string;
-      templateId: string;
-      sectionId: string | null;
-      code: string;
-      name: string;
-      technique: string | null;
-      valueType: AnalyteValueType;
-      unit: string | null;
-      options: string[];
-      sortOrder: number;
-      isHeader: boolean;
-      referenceRange: Prisma.JsonValue;
-    }): ResultTemplateAnalyteModel => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private formatTemplate(raw: any): ResultTemplateModel {
+    const mapAnalyte = (a: any): ResultTemplateAnalyteModel => ({
       id: a.id,
       templateId: a.templateId,
       sectionId: a.sectionId ?? undefined,
@@ -596,16 +541,19 @@ export class ResultsService {
       sortOrder: a.sortOrder,
       isHeader: a.isHeader,
       formula: a.formula ?? undefined,
-      referenceRange: (a.referenceRange as ReferenceRangeSnapshot) ?? undefined,
+      referenceRange:
+        (a.referenceRange as unknown as ReferenceRangeSnapshot) ?? undefined,
     });
 
-    const sections: ResultTemplateSectionModel[] = raw.sections.map((s) => ({
-      id: s.id,
-      templateId: raw.id,
-      name: s.name,
-      sortOrder: s.sortOrder,
-      analytes: s.analytes.map(mapAnalyte),
-    }));
+    const sections: ResultTemplateSectionModel[] = (raw.sections ?? []).map(
+      (s: any) => ({
+        id: s.id,
+        templateId: raw.id,
+        name: s.name,
+        sortOrder: s.sortOrder,
+        analytes: (s.analytes ?? []).map(mapAnalyte),
+      })
+    );
 
     return {
       id: raw.id,
@@ -618,35 +566,12 @@ export class ResultsService {
       isActive: raw.isActive,
       defaultObservations: raw.defaultObservations ?? undefined,
       sections,
-      analytes: raw.analytes.map(mapAnalyte),
+      analytes: (raw.analytes ?? []).map(mapAnalyte),
     };
   }
 
-  private formatReport(
-    raw: Awaited<
-      ReturnType<typeof this.prisma.resultReport.findUniqueOrThrow>
-    > & {
-      analytes: Array<{
-        id: string;
-        reportId: string;
-        templateAnalyteId: string | null;
-        code: string;
-        name: string;
-        technique: string | null;
-        unit: string | null;
-        valueType: AnalyteValueType;
-        sectionName: string | null;
-        sortOrder: number;
-        isHeader: boolean;
-        numericValue: number | null;
-        textValue: string | null;
-        booleanValue: boolean | null;
-        selectValue: string | null;
-        flag: string | null;
-        referenceSnapshot: Prisma.JsonValue;
-      }>;
-    }
-  ): ResultReportModel {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private formatReport(raw: any): ResultReportModel {
     return {
       id: raw.id,
       orderId: raw.orderId,
@@ -667,8 +592,8 @@ export class ResultsService {
       releasedByUserId: raw.releasedByUserId ?? undefined,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
-      analytes: raw.analytes.map(
-        (a): ResultReportAnalyteModel => ({
+      analytes: (raw.analytes ?? []).map(
+        (a: any): ResultReportAnalyteModel => ({
           id: a.id,
           reportId: a.reportId,
           templateAnalyteId: a.templateAnalyteId ?? undefined,
@@ -687,7 +612,8 @@ export class ResultsService {
           selectValue: a.selectValue ?? undefined,
           flag: (a.flag as ResultReportAnalyteModel['flag']) ?? undefined,
           referenceSnapshot:
-            (a.referenceSnapshot as ReferenceRangeSnapshot) ?? undefined,
+            (a.referenceSnapshot as unknown as ReferenceRangeSnapshot) ??
+            undefined,
         })
       ),
     };
