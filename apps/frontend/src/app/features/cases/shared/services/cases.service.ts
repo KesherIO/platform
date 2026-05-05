@@ -388,7 +388,7 @@ const MOCK_REPORT: ResultReportModel = {
   ],
 };
 
-let mockCases: CaseModel[] = [
+const mockCases: CaseModel[] = [
   // --- DOGS ---
   {
     id: 'c1',
