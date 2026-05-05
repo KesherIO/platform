@@ -1,0 +1,28 @@
+{
+  "catalogItemCode": "UA",
+  "species": "DOG",
+  "title": "Ácido Úrico Canino",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "UA",
+          "name": "Ácido Úrico",
+          "technique": "Espectrofotometría",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 0.3,
+            "max": 1.1,
+            "displayText": "0.3 – 1.1"
+          }
+        }
+      ]
+    }
+  ]
+}

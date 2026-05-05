@@ -8,7 +8,6 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsUrl,
   Min,
   MinLength,
   ArrayMinSize,
@@ -202,24 +201,9 @@ export class SendOrderDto {
 }
 
 // ---------------------------------------------------------------------------
-// PATCH /cases/:id/results
-// Allowed in: ORDERED
-// resultsReceivedAt is set by the server — not accepted from the client.
-// ---------------------------------------------------------------------------
-
-export class UploadResultsDto {
-  @ApiProperty({
-    example: 'https://storage.example.com/results/case-abc123.pdf',
-    description: 'Public URL of the uploaded results document',
-  })
-  @IsUrl()
-  resultsUrl!: string;
-}
-
-// ---------------------------------------------------------------------------
 // POST /cases/:id/complete
 // Allowed in: ORDERED
-// Requires: resultsUrl already set (enforced in service, not DTO)
+// Results are entered via the ResultReport flow — no resultsUrl check here.
 // No client payload — status transition only.
 // ---------------------------------------------------------------------------
 

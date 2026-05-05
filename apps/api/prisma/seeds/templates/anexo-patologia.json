@@ -1,0 +1,72 @@
+{
+  "catalogItemCode": "ANEXO_PATOLOGIA",
+  "species": "ANY",
+  "title": "Anexo Patología — Clasificación Sarcomas",
+  "defaultObservations": "Tipo de muestra: general.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "SARC_HEADER",
+          "name": "Clasificación sarcomas",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "SARC_DIFF",
+          "name": "Grado de diferenciación",
+          "technique": "Evaluación histopatológica",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": {
+            "displayText": "Puntuación 1: se parece al tejido mesenquimal normal. | Puntuación 2: tipo histológico específico. | Puntuación 3: indiferenciado."
+          }
+        },
+        {
+          "code": "SARC_MITOSIS",
+          "name": "Índice mitótico (No. mitosis)",
+          "technique": "Evaluación histopatológica",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": {
+            "displayText": "Puntuación 1: 0 – 9. | Puntuación 2: 10 – 19. | Puntuación 3: > 20."
+          }
+        },
+        {
+          "code": "SARC_NECROSIS",
+          "name": "Necrosis tumoral",
+          "technique": "Evaluación histopatológica",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": {
+            "displayText": "Puntuación 1: ninguno. | Puntuación 2: < 50% del tejido está necrótico. | Puntuación 3: > 50% del tejido está necrótico."
+          }
+        },
+        {
+          "code": "SARC_GRADE",
+          "name": "Grado histológico (puntuación)",
+          "technique": "Evaluación histopatológica",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": {
+            "displayText": "Grado 1: ≤ 4 | Grado 2: 5 – 6 | Grado 3: ≥ 7."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "catalogItemCode": "IHQ_IGG",
+  "species": "ANY",
+  "title": "IHQ IgG",
+  "defaultObservations": "Tipo de muestra: general.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "IHQIGG_IGG",
+          "name": "IHQ IgG",
+          "technique": "Inmunohistoquímica",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "IHQIGG_SEP",
+          "name": "-",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "IHQIGG_DX",
+          "name": "Diagnóstico final",
+          "technique": "Inmunohistoquímica",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

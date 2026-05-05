@@ -1,0 +1,27 @@
+{
+  "catalogItemCode": "AG",
+  "species": "CAT",
+  "title": "Brecha Aniónica",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "AG",
+          "name": "Brecha Aniónica",
+          "technique": "Parámetro calculado",
+          "formula": "([NA]+[K])-([CL]+[CO2])",
+          "valueType": "NUMERIC",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 8.0,
+            "max": 18.0,
+            "displayText": "8.0 – 18.0"
+          }
+        }
+      ]
+    }
+  ]
+}

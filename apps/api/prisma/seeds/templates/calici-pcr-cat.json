@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "CALICI_PCR",
+  "species": "CAT",
+  "title": "Calicivirus Felino Cualitativo (qPCR)",
+  "defaultObservations": "Tipo de muestra: general / sangre entera.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "CALICI_PCR",
+          "name": "Calicivirus felino",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

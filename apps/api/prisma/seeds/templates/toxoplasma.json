@@ -1,0 +1,40 @@
+{
+  "catalogItemCode": "TOXOPLASMA",
+  "species": "ANY",
+  "title": "Toxoplasma gondii Anticuerpos",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "TOXO_IGG",
+          "name": "Toxoplasma gondii IgG",
+          "technique": "Quimioluminiscencia enzimática",
+          "valueType": "NUMERIC",
+          "unit": "IU/mL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "max": 6.4,
+            "displayText": "Negativo: < 6.4 | Dudoso: 6.4 – 9.9 | Positivo: > 9.9"
+          }
+        },
+        {
+          "code": "TOXO_IGM",
+          "name": "Toxoplasma gondii IgM",
+          "technique": "Quimioluminiscencia enzimática",
+          "valueType": "NUMERIC",
+          "unit": "IU/mL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": {
+            "max": 0.5,
+            "displayText": "Negativo: < 0.5 | Dudoso: 0.5 – 0.6 | Positivo: > 0.6"
+          }
+        }
+      ]
+    }
+  ]
+}

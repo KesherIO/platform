@@ -1,0 +1,28 @@
+{
+  "catalogItemCode": "CA",
+  "species": "CAT",
+  "title": "Calcio",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "CA",
+          "name": "Calcio",
+          "technique": "Colorimétrico arsenazo III",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 7.4,
+            "max": 11.1,
+            "displayText": "7.4 – 11.1"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "catalogItemCode": "TRICHOGRAM",
+  "species": "ANY",
+  "title": "Tricograma",
+  "defaultObservations": "Tipo de muestra: general (pelos arrancados con folículo).",
+  "sections": [
+    {
+      "name": "Zona del Pelo",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "TRICH_PUNTA",
+          "name": "Extremidad o Punta del Pelo",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "TRICH_TRONCO",
+          "name": "Tronco del Pelo",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "TRICH_RAIZ",
+          "name": "Raíz o Bulbo",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

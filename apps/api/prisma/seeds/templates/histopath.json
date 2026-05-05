@@ -1,0 +1,64 @@
+{
+  "catalogItemCode": "HISTOPATH",
+  "species": "ANY",
+  "title": "Histopatología / Biopsia",
+  "defaultObservations": "Tipo de muestra: general.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "HISTOPATH_MACRO",
+          "name": "Descripción Macroscópica",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "HISTOPATH_SEP1",
+          "name": "-",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "HISTOPATH_MICRO",
+          "name": "Descripción Microscópica",
+          "technique": "Tinción hematoxilina - eosina",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "HISTOPATH_SEP2",
+          "name": "-",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "HISTOPATH_DX",
+          "name": "Diagnóstico",
+          "technique": "Tinción hematoxilina - eosina",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

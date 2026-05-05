@@ -1,0 +1,34 @@
+{
+  "catalogItemCode": "BILE_ACIDS",
+  "species": "DOG",
+  "title": "Ácidos Biliares Totales Canino",
+  "defaultObservations": "Tipo de muestra: suero. Ayuno de 12 h para muestra preprandial; muestra posprandial 2 h después de alimentar.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "BILE_PRE",
+          "name": "Ácidos Biliares Totales (Preprandial)",
+          "technique": "Enzimática",
+          "valueType": "NUMERIC",
+          "unit": "µmol/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "max": 14.9, "displayText": "< 14.9" }
+        },
+        {
+          "code": "BILE_POST",
+          "name": "Ácidos Biliares Totales (Posprandial)",
+          "technique": "Enzimática",
+          "valueType": "NUMERIC",
+          "unit": "µmol/L",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": { "max": 29.9, "displayText": "< 29.9" }
+        }
+      ]
+    }
+  ]
+}

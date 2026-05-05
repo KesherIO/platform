@@ -1,0 +1,44 @@
+{
+  "catalogItemCode": "RICKETTSIALES_PCR",
+  "species": "CAT",
+  "title": "Rickettsiales Felino (qPCR)",
+  "defaultObservations": "Tipo de muestra: plasma EDTA.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "RICK_ANAPLASMA",
+          "name": "Anaplasma sp.",
+          "technique": "qPCR (tiempo real)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "RICK_EHRLICHIA",
+          "name": "Ehrlichia sp.",
+          "technique": "qPCR (tiempo real)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "RICK_RICKETTSIA",
+          "name": "Rickettsia sp.",
+          "technique": "qPCR (tiempo real)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

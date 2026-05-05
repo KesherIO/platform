@@ -44,4 +44,9 @@ export const CASES_ROUTES: Routes = [
         (m) => m.OrderSuccessComponent
       ),
   },
+  {
+    path: ':id/report',
+    loadComponent: () =>
+      import('./report/report.component').then((m) => m.ReportComponent),
+  },
 ];

@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "FECOV_MUT_PCR",
+  "species": "CAT",
+  "title": "Coronavirus Felino Mutante Cualitativo (qPCR)",
+  "defaultObservations": "Tipo de muestra: materia fecal.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "FECOV_MUT_PCR",
+          "name": "Coronavirus felino mutante",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

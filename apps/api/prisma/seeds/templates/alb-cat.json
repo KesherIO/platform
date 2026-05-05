@@ -1,0 +1,28 @@
+{
+  "catalogItemCode": "ALB",
+  "species": "CAT",
+  "title": "Albúmina",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "ALB",
+          "name": "Albúmina",
+          "technique": "Colorimétrico verde de bromocresol",
+          "valueType": "NUMERIC",
+          "unit": "g/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 2.3,
+            "max": 3.6,
+            "displayText": "2.3 – 3.6"
+          }
+        }
+      ]
+    }
+  ]
+}

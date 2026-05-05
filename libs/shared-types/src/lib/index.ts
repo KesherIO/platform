@@ -3,6 +3,7 @@ export * from './owner.model.js';
 export * from './case.model.js';
 export * from './triage.model.js';
 export * from './order.model.js';
+export * from './result-template.model.js';
 export * from './result.model.js';
 export * from './user.model.js';
 export * from './clinic.model.js';

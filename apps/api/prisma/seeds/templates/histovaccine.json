@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "HISTOVACCINE",
+  "species": "ANY",
+  "title": "Histovacuna",
+  "defaultObservations": "Tipo de muestra: tejido remitido en fresco.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "HISTOVACCINE",
+          "name": "Histovacuna",
+          "technique": "Macerado del tejido remitido",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

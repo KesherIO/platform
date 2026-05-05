@@ -1,0 +1,34 @@
+{
+  "catalogItemCode": "FIV_FELV_PCR",
+  "species": "CAT",
+  "title": "FIV + FeLV (qPCR)",
+  "defaultObservations": "Tipo de muestra: plasma EDTA.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "FIV_PCR",
+          "name": "Sida Felina (FIV)",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "FELV_PCR",
+          "name": "Leucemia Felina (FeLV)",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "catalogItemCode": "PLATELET_COUNT",
+  "species": "DOG",
+  "title": "Recuento de Plaquetas Canino",
+  "defaultObservations": "Tipo de muestra: sangre entera.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "PLT",
+          "name": "Recuento Total de Plaquetas",
+          "technique": "Recuento manual de plaquetas",
+          "valueType": "NUMERIC",
+          "unit": "10³/µL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 200,
+            "max": 500,
+            "displayText": "200 – 500"
+          }
+        }
+      ]
+    }
+  ]
+}

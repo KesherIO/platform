@@ -1,0 +1,86 @@
+{
+  "catalogItemCode": "RETICULOCYTES",
+  "species": "CAT",
+  "title": "Recuento de Reticulocitos Felino",
+  "defaultObservations": "Tipo de muestra: sangre entera. HTO y RBC tomados del hemograma del mismo paciente.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "PR",
+          "name": "Porcentaje de Reticulocitos",
+          "technique": "Tinción azul de cresil brillante",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "max": 1.0,
+            "displayText": "No regenerativa: < 1% | Leve: 1 – 4% | Moderada: 4 – 15% | Marcada: > 15%"
+          }
+        },
+        {
+          "code": "RBC",
+          "name": "Recuento Total de Eritrocitos",
+          "technique": "Impedancia eléctrica",
+          "valueType": "NUMERIC",
+          "unit": "10⁶/µL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "HTO",
+          "name": "Hematocrito",
+          "technique": "Parámetro calculado",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "RBC2",
+          "name": "Ajuste RBC",
+          "technique": "Parámetro calculado",
+          "valueType": "NUMERIC",
+          "unit": "µL",
+          "sortOrder": 3,
+          "isHeader": false,
+          "formula": "[RBC]*1000000",
+          "referenceRange": null
+        },
+        {
+          "code": "PRC",
+          "name": "Porcentaje Reticulocitario Corregido",
+          "technique": "Parámetro calculado",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 4,
+          "isHeader": false,
+          "formula": "[PR]*([HTO]/33.5)",
+          "referenceRange": {
+            "max": 1.0,
+            "displayText": "No regenerativa: < 1% | Leve: 1 – 4% | Moderada: 4 – 15% | Marcada: > 15%"
+          }
+        },
+        {
+          "code": "VA",
+          "name": "Valor Absoluto",
+          "technique": "Parámetro calculado",
+          "valueType": "NUMERIC",
+          "unit": "Reticulocitos/µL",
+          "sortOrder": 5,
+          "isHeader": false,
+          "formula": "([RBC2]*[PR])/100",
+          "referenceRange": {
+            "max": 60000,
+            "displayText": "No regenerativa: < 60,000 | Leve: 60,000 – 150,000 | Moderada: 150,000 – 300,000 | Marcada: > 300,000"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "catalogItemCode": "AMY",
+  "species": "DOG",
+  "title": "Amilasa",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "AMY",
+          "name": "Amilasa",
+          "technique": "Fase sólida",
+          "valueType": "NUMERIC",
+          "unit": "UI/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 371.0,
+            "max": 1503.0,
+            "displayText": "371.0 – 1503.0"
+          }
+        }
+      ]
+    }
+  ]
+}

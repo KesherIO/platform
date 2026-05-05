@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "BABESIA_PCR",
+  "species": "ANY",
+  "title": "Babesia spp. (qPCR)",
+  "defaultObservations": "Tipo de muestra: plasma EDTA o general.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "BABESIA_PCR",
+          "name": "Babesia spp.",
+          "technique": "qPCR (tiempo real)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

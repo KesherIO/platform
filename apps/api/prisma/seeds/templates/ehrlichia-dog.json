@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "EHRLICHIA",
+  "species": "DOG",
+  "title": "Ehrlichia canis (Prueba Rápida)",
+  "defaultObservations": "Tipo de muestra: suero o plasma EDTA.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "EHRLICHIA",
+          "name": "Ehrlichia canis",
+          "technique": "Inmunoensayo cromatográfico",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

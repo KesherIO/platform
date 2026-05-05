@@ -1,0 +1,54 @@
+{
+  "catalogItemCode": "HEMO_PCR",
+  "species": "DOG",
+  "title": "Hemoparásitos Canino Cualitativo (qPCR)",
+  "defaultObservations": "Tipo de muestra: sangre entera o general.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "HEMO_PCR_EHRLICHIA",
+          "name": "Ehrlichia sp.",
+          "technique": "PCR Tiempo Real Cualitativo",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "HEMO_PCR_ANAPLASMA",
+          "name": "Anaplasma sp.",
+          "technique": "PCR Tiempo Real Cualitativo",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "HEMO_PCR_HEPATOZOON",
+          "name": "Hepatozoon sp.",
+          "technique": "PCR Tiempo Real Cualitativo",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "HEMO_PCR_BABESIA",
+          "name": "Babesia sp.",
+          "technique": "PCR Tiempo Real Cualitativo",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

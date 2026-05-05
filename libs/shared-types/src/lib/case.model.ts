@@ -10,6 +10,7 @@ export enum PatientSpecies {
   REPTILE = 'REPTILE',
   RABBIT = 'RABBIT',
   OTHER = 'OTHER',
+  ANY = 'ANY', // species-agnostic template — applies to all species
 }
 
 export enum AgeUnit {
@@ -62,10 +63,6 @@ export interface CaseModel {
   orderNotes?: string;
   orderSentAt?: Date | string;
   order?: { orderId: string; status: string };
-
-  // Results
-  resultsUrl?: string;
-  resultsReceivedAt?: Date;
 
   // Audit
   createdByUserId: string;

@@ -394,6 +394,39 @@
   "BRANDING": {
     "POWERED_BY": "Desarrollado por Biomet VetAI"
   },
+  "RESULTS_INBOX": {
+    "TITLE": "Resultados",
+    "SUBTITLE": "Resultados de laboratorio de casos completados",
+    "EMPTY_TITLE": "Aún no hay resultados",
+    "EMPTY_BODY": "Los resultados aparecerán aquí una vez que el laboratorio los libere.",
+    "VIEW_REPORT": "Ver informe"
+  },
+  "REPORT": {
+    "TITLE": "Informe de Resultados",
+    "ORDER_NO": "Orden",
+    "RELEASED": "Liberado",
+    "PATIENT_DATA": "Paciente",
+    "CLINIC_DATA": "Clínica",
+    "FIELD_NAME": "Nombre",
+    "FIELD_SPECIES": "Especie",
+    "FIELD_BREED": "Raza",
+    "FIELD_AGE": "Edad",
+    "FIELD_OWNER": "Propietario",
+    "FIELD_CLINIC": "Clínica",
+    "FIELD_SAMPLE_DATE": "Fecha muestra",
+    "FIELD_ADDRESS": "Dirección",
+    "FIELD_PHONE": "Teléfono",
+    "COL_ANALYTE": "Análisis",
+    "COL_TECHNIQUE": "Técnica",
+    "COL_RESULT": "Resultado",
+    "COL_UNIT": "Unidades",
+    "COL_REF": "Valores de Referencia",
+    "OBSERVATIONS": "Observaciones",
+    "PROCESSED_BY": "Analizó",
+    "APPROVED_BY": "Revisó y autorizó",
+    "ERROR_NO_ORDER": "Este caso no tiene una orden asociada.",
+    "ERROR_NOT_FOUND": "Los resultados del laboratorio aún no están disponibles."
+  },
   "COUNTRIES": {
     "AR": "Argentina",
     "AU": "Australia",

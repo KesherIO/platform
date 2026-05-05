@@ -1,0 +1,60 @@
+{
+  "catalogItemCode": "KOH_CYTO",
+  "species": "ANY",
+  "title": "KOH + Citología",
+  "defaultObservations": "Tipo de muestra: raspado de piel.",
+  "sections": [
+    {
+      "name": "KOH",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "KOHC_ECTO",
+          "name": "Ectoparásitos",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "KOHC_FUNGI",
+          "name": "Hongos",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Citología",
+      "sortOrder": 1,
+      "analytes": [
+        {
+          "code": "KOHC_CYTO",
+          "name": "Citología",
+          "technique": "Coloración de Wright",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "KOHC_IMPRESION",
+          "name": "Impresión Diagnóstica",
+          "technique": "Coloración de Wright",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

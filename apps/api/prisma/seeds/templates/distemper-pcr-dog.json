@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "DISTEMPER_PCR",
+  "species": "DOG",
+  "title": "Distemper CDV (qPCR)",
+  "defaultObservations": "Tipo de muestra: fase aguda, digestiva, nerviosa o respiratoria.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "DISTEMPER_PCR",
+          "name": "Distemper (CDV)",
+          "technique": "qPCR (tiempo real)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

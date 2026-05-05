@@ -1,0 +1,42 @@
+{
+  "catalogItemCode": "COAGULATION",
+  "species": "CAT",
+  "title": "Perfil de Coagulación Felino",
+  "defaultObservations": "Tipo de muestra: plasma citratado. NOTA: Rangos de referencia basados en literatura (Merck Veterinary Manual) — verificar con el analizador del laboratorio antes de publicar.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "PT",
+          "name": "PT (Tiempo de Protrombina)",
+          "technique": "Tiempo de formación del coágulo",
+          "valueType": "NUMERIC",
+          "unit": "s",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 8.0,
+            "max": 13.0,
+            "displayText": "8.0 – 13.0"
+          }
+        },
+        {
+          "code": "PTT",
+          "name": "PTT (Tiempo de Tromboplastina Parcial)",
+          "technique": "Tiempo de formación del coágulo",
+          "valueType": "NUMERIC",
+          "unit": "s",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 15.0,
+            "max": 25.0,
+            "displayText": "15.0 – 25.0"
+          }
+        }
+      ]
+    }
+  ]
+}
