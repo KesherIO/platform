@@ -13,7 +13,6 @@ import {
   AddSymptomsDto,
   SelectCatalogItemsDto,
   SendOrderDto,
-  UploadResultsDto,
 } from './dto/cases.dto';
 
 // ---------------------------------------------------------------------------
@@ -164,8 +163,8 @@ export class CasesService {
     const c = await this.fetchCase(tenantId, id);
     this.assertStatus(
       c,
-      [CaseStatus.OPEN],
-      'Symptoms can only be saved in OPEN status.'
+      MUTABLE_STATUSES,
+      'Symptoms can only be saved in OPEN or TRIAGED status.'
     );
 
     return this.prisma.case.update({
@@ -237,8 +236,8 @@ export class CasesService {
     const c = await this.fetchCase(tenantId, id);
     this.assertStatus(
       c,
-      [CaseStatus.OPEN],
-      'AI triage can only be run in OPEN status.'
+      MUTABLE_STATUSES,
+      'AI triage can only be run in OPEN or TRIAGED status.'
     );
 
     if (!c.symptoms || c.symptoms.trim() === '') {
@@ -303,33 +302,11 @@ export class CasesService {
   }
 
   /**
-   * Attach the lab results URL once the lab delivers results.
-   * Allowed in: ORDERED.
-   * Does not advance status — the vet must explicitly call completeCase.
-   * resultsReceivedAt is always set by the server — never accepted from the client.
-   */
-  async uploadResults(tenantId: string, id: string, body: UploadResultsDto) {
-    const c = await this.fetchCase(tenantId, id);
-    this.assertStatus(
-      c,
-      [CaseStatus.ORDERED],
-      'Results can only be uploaded in ORDERED status.'
-    );
-
-    return this.prisma.case.update({
-      where: { id },
-      data: {
-        resultsUrl: body.resultsUrl,
-        resultsReceivedAt: new Date(),
-      },
-    });
-  }
-
-  /**
    * Mark the case as completed.
-   * Requires: resultsUrl is already set (results must be uploaded first).
    * Allowed in: ORDERED.
    * Transition: ORDERED → COMPLETED (terminal).
+   * Results are entered via the ResultReport flow — this is a pure status transition.
+   * Called by ResultsService.releaseReport() after the lab releases the structured result.
    */
   async completeCase(tenantId: string, id: string) {
     const c = await this.fetchCase(tenantId, id);
@@ -338,12 +315,6 @@ export class CasesService {
       [CaseStatus.ORDERED],
       'A case can only be completed from ORDERED status.'
     );
-
-    if (!c.resultsUrl) {
-      throw new BadRequestException(
-        'Upload results before completing the case.'
-      );
-    }
 
     return this.prisma.case.update({
       where: { id },

@@ -1,0 +1,23 @@
+{
+  "catalogItemCode": "AG",
+  "species": "DOG",
+  "title": "Brecha Aniónica",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "AG",
+          "name": "Brecha Aniónica",
+          "technique": "Parámetro calculado",
+          "formula": "([NA]+[K])-([CL]+[CO2])",
+          "valueType": "NUMERIC",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 2.0, "max": 22.0, "displayText": "2.0 – 22.0" }
+        }
+      ]
+    }
+  ]
+}

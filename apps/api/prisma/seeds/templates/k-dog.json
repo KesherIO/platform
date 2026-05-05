@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "K",
+  "species": "DOG",
+  "title": "Potasio",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "K",
+          "name": "Potasio",
+          "technique": "Enzimático UV",
+          "valueType": "NUMERIC",
+          "unit": "mEq/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 3.9, "max": 5.5, "displayText": "3.9 – 5.5" }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "catalogItemCode": "CULTURE",
+  "species": "ANY",
+  "title": "Cultivo y Antibiograma",
+  "defaultObservations": "Tipo de muestra: general.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "CULT_GRAM",
+          "name": "Gram",
+          "technique": "Tinción de Gram",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "CULT_SEP1",
+          "name": "-",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "CULT_CULTIVO",
+          "name": "Cultivo",
+          "technique": "Cultivo en placa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "CULT_SEP2",
+          "name": "-",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "CULT_ABX_HDR",
+          "name": "ANTIBIOGRAMA",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 4,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "CULT_SEP3",
+          "name": "-",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 5,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "CULT_SENSIBLE",
+          "name": "Sensible",
+          "technique": "Antibiograma de disco",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 6,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "CULT_SEP4",
+          "name": "-",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 7,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "CULT_RESISTENTE",
+          "name": "Resistente",
+          "technique": "Antibiograma de disco",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 8,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

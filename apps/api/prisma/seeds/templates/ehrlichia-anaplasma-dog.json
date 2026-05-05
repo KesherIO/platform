@@ -1,0 +1,34 @@
+{
+  "catalogItemCode": "EHRLICHIA_ANAPLASMA",
+  "species": "DOG",
+  "title": "Ehrlichia + Anaplasma (Prueba Rápida)",
+  "defaultObservations": "Tipo de muestra: sangre entera, suero o plasma EDTA.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "EA_EHRLICHIA",
+          "name": "Ehrlichia canis (Ab)",
+          "technique": "Inmunoensayo cromatográfico",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "EA_ANAPLASMA",
+          "name": "Anaplasma phagocytophilum (Ab)",
+          "technique": "Inmunoensayo cromatográfico",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

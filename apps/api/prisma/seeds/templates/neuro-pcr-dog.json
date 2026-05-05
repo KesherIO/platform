@@ -1,0 +1,94 @@
+{
+  "catalogItemCode": "NEURO_PCR_DOG",
+  "species": "DOG",
+  "title": "Perfil Neurológico Canino Cualitativo (qPCR)",
+  "defaultObservations": "Tipo de muestra: general / sangre entera / orina.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "NEURO_EHRLICHIA",
+          "name": "Ehrlichia sp.",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "NEURO_ANAPLASMA",
+          "name": "Anaplasma sp.",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "NEURO_HEPATOZOON",
+          "name": "Hepatozoon sp.",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "NEURO_BABESIA",
+          "name": "Babesia sp.",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "NEURO_DISTEMPER",
+          "name": "Distemper canino",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "NEURO_BORRELIA",
+          "name": "Borrelia sp.",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 5,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "NEURO_TOXOPLASMA",
+          "name": "Toxoplasma gondii",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 6,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "NEURO_NEOSPORA",
+          "name": "Neospora caninum",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 7,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "catalogItemCode": "PROG",
+  "species": "DOG",
+  "title": "Progesterona Canina",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "PROG",
+          "name": "Progesterona",
+          "technique": "Quimioluminiscencia enzimática",
+          "valueType": "NUMERIC",
+          "unit": "ng/mL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 0.5,
+            "max": 1.0,
+            "displayText": "Anestro: 0.5 – 1.0 | Dudoso: 1.1 – 4.9 | Monta (33 a 57 horas): 5.0 – 5.9 | Monta (24 horas): 6.0 – 12.0 | Monta en el día: > 12.0"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "catalogItemCode": "FeLV_FIV",
+  "species": "CAT",
+  "title": "FIV + FeLV (Prueba Combinada)",
+  "defaultObservations": "Tipo de muestra: suero o plasma EDTA.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "FIV",
+          "name": "Inmunodeficiencia Felina (Ab)",
+          "technique": "Inmunoensayo cromatográfico",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "FeLV",
+          "name": "Leucemia Viral Felina (Ag)",
+          "technique": "Inmunoensayo cromatográfico",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

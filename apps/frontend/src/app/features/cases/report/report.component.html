@@ -1,0 +1,272 @@
+<div class="min-h-screen bg-gray-50 flex flex-col">
+
+  <!-- Back bar -->
+  <header class="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 shrink-0">
+    <button
+      type="button"
+      (click)="goBack()"
+      class="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+      </svg>
+      {{ 'COMMON.BACK' | translate }}
+    </button>
+    <span class="flex-1 text-sm font-semibold text-gray-800 text-center">
+      {{ 'REPORT.TITLE' | translate }}
+    </span>
+    <div class="w-16"></div>
+  </header>
+
+  <!-- Loading -->
+  @if (loading()) {
+  <div class="flex-1 flex items-center justify-center text-gray-400 text-sm py-20">
+    {{ 'COMMON.LOADING' | translate }}
+  </div>
+  }
+
+  <!-- Error -->
+  @else if (error()) {
+  <div class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center py-20">
+    <span class="text-4xl">⚠️</span>
+    <p class="text-sm text-gray-500">{{ error()! | translate }}</p>
+    <button
+      type="button"
+      (click)="goBack()"
+      class="text-sm font-medium text-cyan-600 hover:underline"
+    >
+      {{ 'COMMON.BACK' | translate }}
+    </button>
+  </div>
+  }
+
+  <!-- Report -->
+  @else if (report() && case()) {
+  <main class="flex-1 overflow-y-auto px-4 py-4 pb-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+
+      <!-- Header: logo + title + doc info -->
+      <div class="px-5 pt-5 pb-4 border-b border-gray-100">
+        <div class="flex items-start gap-4">
+          <!-- Clinic logo -->
+          <div class="shrink-0">
+            @if (clinicLogoUrl()) {
+            <img
+              [src]="clinicLogoUrl()!"
+              [alt]="clinicName()"
+              class="h-14 w-14 rounded-xl object-cover border border-gray-100"
+            />
+            } @else {
+            <div class="h-14 w-14 rounded-xl bg-gray-100 flex items-center justify-center text-xl font-bold text-gray-400">
+              {{ clinicName().charAt(0) }}
+            </div>
+            }
+          </div>
+          <!-- Title block -->
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-gray-400 uppercase tracking-wide font-medium">{{ clinicName() }}</p>
+            <h1 class="text-base font-bold text-gray-900 mt-0.5">
+              {{ 'REPORT.TITLE' | translate }}
+            </h1>
+            <p class="text-xs text-gray-500 mt-0.5">
+              {{ 'REPORT.ORDER_NO' | translate }}: <span class="font-medium text-gray-700">{{ report()!.orderId }}</span>
+            </p>
+          </div>
+          <!-- Date + status pill -->
+          <div class="shrink-0 text-right">
+            <span class="inline-block bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+              {{ 'REPORT.RELEASED' | translate }}
+            </span>
+            @if (releasedDate()) {
+            <p class="text-xs text-gray-400 mt-1.5">{{ releasedDate() }}</p>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Patient + Clinic info grid -->
+      <div class="grid grid-cols-2 gap-px bg-gray-100 border-b border-gray-100">
+        <!-- Patient -->
+        <div class="bg-white px-5 py-3">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            {{ 'REPORT.PATIENT_DATA' | translate }}
+          </p>
+          <dl class="space-y-1">
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-16 shrink-0">{{ 'REPORT.FIELD_NAME' | translate }}</dt>
+              <dd class="text-xs font-medium text-gray-800 truncate">{{ case()!.patientName }}</dd>
+            </div>
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-16 shrink-0">{{ 'REPORT.FIELD_SPECIES' | translate }}</dt>
+              <dd class="text-xs text-gray-700">{{ case()!.patientSpecies }}</dd>
+            </div>
+            @if (case()!.patientBreed) {
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-16 shrink-0">{{ 'REPORT.FIELD_BREED' | translate }}</dt>
+              <dd class="text-xs text-gray-700 truncate">{{ case()!.patientBreed }}</dd>
+            </div>
+            }
+            @if (case()!.patientAge != null) {
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-16 shrink-0">{{ 'REPORT.FIELD_AGE' | translate }}</dt>
+              <dd class="text-xs text-gray-700">{{ case()!.patientAge }} {{ case()!.patientAgeUnit }}</dd>
+            </div>
+            }
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-16 shrink-0">{{ 'REPORT.FIELD_OWNER' | translate }}</dt>
+              <dd class="text-xs text-gray-700 truncate">{{ case()!.ownerName }}</dd>
+            </div>
+          </dl>
+        </div>
+        <!-- Clinic / Sample -->
+        <div class="bg-white px-5 py-3">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            {{ 'REPORT.CLINIC_DATA' | translate }}
+          </p>
+          <dl class="space-y-1">
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-20 shrink-0">{{ 'REPORT.FIELD_CLINIC' | translate }}</dt>
+              <dd class="text-xs text-gray-700 truncate">{{ clinicName() }}</dd>
+            </div>
+            @if (sampleDate()) {
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-20 shrink-0">{{ 'REPORT.FIELD_SAMPLE_DATE' | translate }}</dt>
+              <dd class="text-xs text-gray-700">{{ sampleDate() }}</dd>
+            </div>
+            }
+            @if (clinicAddress()) {
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-20 shrink-0">{{ 'REPORT.FIELD_ADDRESS' | translate }}</dt>
+              <dd class="text-xs text-gray-700 truncate">{{ clinicAddress() }}</dd>
+            </div>
+            }
+            @if (clinicPhone()) {
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-20 shrink-0">{{ 'REPORT.FIELD_PHONE' | translate }}</dt>
+              <dd class="text-xs text-gray-700">{{ clinicPhone() }}</dd>
+            </div>
+            }
+          </dl>
+        </div>
+      </div>
+
+      <!-- Analytes table by section -->
+      <div class="px-5 py-4">
+        @for (section of sections(); track section.name) {
+        <div class="mb-5">
+          <!-- Section header -->
+          @if (section.name) {
+          <div class="bg-gray-800 text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg mb-2">
+            {{ section.name }}
+          </div>
+          }
+
+          <!-- Column headers -->
+          <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-2 px-2 mb-1">
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">{{ 'REPORT.COL_ANALYTE' | translate }}</span>
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide w-24 text-center hidden sm:block">{{ 'REPORT.COL_TECHNIQUE' | translate }}</span>
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide w-16 text-right">{{ 'REPORT.COL_RESULT' | translate }}</span>
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide w-16 text-center">{{ 'REPORT.COL_UNIT' | translate }}</span>
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide w-24 text-right">{{ 'REPORT.COL_REF' | translate }}</span>
+          </div>
+
+          <!-- Rows -->
+          @for (analyte of section.rows; track analyte.id) {
+            @if (analyte.isHeader) {
+            <!-- Sub-section header row -->
+            <div class="px-2 py-1 mt-2">
+              <span class="text-xs font-bold text-gray-700">{{ analyte.name }}</span>
+            </div>
+            } @else {
+            <div
+              class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-2 items-center px-2 py-1.5 rounded-lg"
+              [class.bg-red-50]="analyte.flag === 'H'"
+              [class.bg-blue-50]="analyte.flag === 'L'"
+            >
+              <!-- Name -->
+              <span class="text-xs text-gray-700 leading-snug">{{ analyte.name }}</span>
+              <!-- Technique -->
+              <span class="text-xs text-gray-400 w-24 text-center hidden sm:block truncate">{{ analyte.technique ?? '' }}</span>
+              <!-- Value + flag -->
+              <div class="flex items-center justify-end gap-1 w-16">
+                <span
+                  class="text-xs font-semibold"
+                  [class.text-red-600]="analyte.flag === 'H'"
+                  [class.text-blue-600]="analyte.flag === 'L'"
+                  [class.text-gray-800]="analyte.flag === 'N' || !analyte.flag"
+                >{{ formatValue(analyte) }}</span>
+                @if (analyte.flag && analyte.flag !== 'N') {
+                <span
+                  class="text-xs font-bold w-3.5 text-center"
+                  [class.text-red-500]="analyte.flag === 'H'"
+                  [class.text-blue-500]="analyte.flag === 'L'"
+                >{{ analyte.flag }}</span>
+                }
+              </div>
+              <!-- Unit -->
+              <span class="text-xs text-gray-400 w-16 text-center">{{ analyte.unit ?? '' }}</span>
+              <!-- Reference range -->
+              <span class="text-xs text-gray-400 w-24 text-right">
+                {{ analyte.referenceSnapshot?.displayText ?? '' }}
+              </span>
+            </div>
+            }
+          }
+        </div>
+        }
+      </div>
+
+      <!-- Observations -->
+      @if (report()!.observations) {
+      <div class="border-t border-gray-100 px-5 py-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+          {{ 'REPORT.OBSERVATIONS' | translate }}
+        </p>
+        <p class="text-xs text-gray-600 leading-relaxed">{{ report()!.observations }}</p>
+      </div>
+      }
+
+      <!-- Professional footer -->
+      @if (report()!.processedByName || report()!.approvedByName) {
+      <div class="border-t border-gray-100 px-5 py-4 grid grid-cols-2 gap-4">
+        @if (report()!.processedByName) {
+        <div>
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+            {{ 'REPORT.PROCESSED_BY' | translate }}
+          </p>
+          <p class="text-xs font-medium text-gray-800">{{ report()!.processedByName }}</p>
+          @if (report()!.processedByRole) {
+          <p class="text-xs text-gray-500">{{ report()!.processedByRole }}</p>
+          }
+          @if (report()!.processedByCredentials) {
+          <p class="text-xs text-gray-400 mt-0.5 leading-snug">{{ report()!.processedByCredentials }}</p>
+          }
+        </div>
+        }
+        @if (report()!.approvedByName) {
+        <div>
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+            {{ 'REPORT.APPROVED_BY' | translate }}
+          </p>
+          <p class="text-xs font-medium text-gray-800">{{ report()!.approvedByName }}</p>
+          @if (report()!.approvedByRole) {
+          <p class="text-xs text-gray-500">{{ report()!.approvedByRole }}</p>
+          }
+          @if (report()!.approvedByCredentials) {
+          <p class="text-xs text-gray-400 mt-0.5 leading-snug">{{ report()!.approvedByCredentials }}</p>
+          }
+        </div>
+        }
+      </div>
+      }
+
+      <!-- Biomet footer -->
+      <div class="border-t border-gray-100 px-5 py-3 bg-gray-50 text-center">
+        <p class="text-xs text-gray-400">{{ 'BRANDING.POWERED_BY' | translate }}</p>
+      </div>
+
+    </div>
+  </main>
+  }
+
+</div>

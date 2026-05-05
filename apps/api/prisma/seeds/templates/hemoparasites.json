@@ -1,0 +1,34 @@
+{
+  "catalogItemCode": "HEMOPARASITES",
+  "species": "ANY",
+  "title": "Hemoparásitos",
+  "defaultObservations": "Tipo de muestra: sangre capilar o sangre central.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "HEMO_GOTA",
+          "name": "Gota Gruesa",
+          "technique": "Tinción Giemsa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "HEMO_EXTENDIDO",
+          "name": "Extendido de Sangre Periférica",
+          "technique": "Tinción de Wright",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

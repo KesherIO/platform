@@ -90,9 +90,17 @@ export class SymptomsComponent implements OnInit {
   skipAi(): void {
     if (this.isBusy) return;
     const id = this.caseId;
+    const symptoms = this.form.value.symptoms ?? '';
+    const unchanged = symptoms === (this.case()?.symptoms ?? '');
+
+    if (unchanged) {
+      this.router.navigate(['/cases', id, 'test-selection']);
+      return;
+    }
+
     this.saving.set(true);
     this.casesService
-      .updateSymptoms(id, this.form.value.symptoms!)
+      .updateSymptoms(id, symptoms)
       .pipe(take(1))
       .subscribe({
         next: () => this.router.navigate(['/cases', id, 'test-selection']),

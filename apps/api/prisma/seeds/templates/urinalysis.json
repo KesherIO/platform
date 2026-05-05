@@ -1,0 +1,256 @@
+{
+  "catalogItemCode": "URINALYSIS",
+  "species": "ANY",
+  "title": "Urianálisis Completo",
+  "defaultObservations": "Tipo de muestra: orina.",
+  "sections": [
+    {
+      "name": "Examen Macroscópico",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "UA_ASPECTO",
+          "name": "Aspecto",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_COLOR",
+          "name": "Color",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Química de la Orina",
+      "sortOrder": 1,
+      "analytes": [
+        {
+          "code": "UA_PH",
+          "name": "pH",
+          "technique": "Método cromatográfico / Q",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_DENSIDAD",
+          "name": "Densidad específica",
+          "technique": "Refractometría",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_PROT",
+          "name": "Proteínas",
+          "technique": "Método cromatográfico / Q",
+          "valueType": "TEXT",
+          "unit": "g/L",
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_GLU",
+          "name": "Glucosa",
+          "technique": "Método cromatográfico / Q",
+          "valueType": "TEXT",
+          "unit": "mmol/L",
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_KETONES",
+          "name": "Cuerpos Cetónicos",
+          "technique": "Método cromatográfico / Q",
+          "valueType": "TEXT",
+          "unit": "mmol/L",
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_BLOOD",
+          "name": "Sangre",
+          "technique": "Método cromatográfico / Q",
+          "valueType": "TEXT",
+          "unit": "RBC/µL",
+          "sortOrder": 5,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_BILI",
+          "name": "Bilirrubina",
+          "technique": "Método cromatográfico / Q",
+          "valueType": "TEXT",
+          "unit": "µmol/L",
+          "sortOrder": 6,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_UBILI",
+          "name": "Urobilinógeno",
+          "technique": "Método cromatográfico / Q",
+          "valueType": "TEXT",
+          "unit": "µmol/L",
+          "sortOrder": 7,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_WBC_DIP",
+          "name": "Leucocitos",
+          "technique": "Método cromatográfico / Q",
+          "valueType": "TEXT",
+          "unit": "WBC/µL",
+          "sortOrder": 8,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_NITRITOS",
+          "name": "Nitritos",
+          "technique": "Método cromatográfico / Q",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 9,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Examen Microscópico",
+      "sortOrder": 2,
+      "analytes": [
+        {
+          "code": "UA_RBC_MICRO",
+          "name": "Eritrocitos",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_WBC_MICRO",
+          "name": "Leucocitos",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_BACTERIA",
+          "name": "Bacterias",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_EPI_BAJA",
+          "name": "Células Epiteliales Bajas",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_EPI_TRANS",
+          "name": "Células Epiteliales de Transición",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_EPI_ALTA",
+          "name": "Células Epiteliales Altas",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 5,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_CRISTALES",
+          "name": "Cristales",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 6,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_MOCO",
+          "name": "Moco",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 7,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_SPERM",
+          "name": "Espermatozoides",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 8,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_CILINDROS",
+          "name": "Cilindros",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 9,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UA_FUNGI",
+          "name": "Hongos",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 10,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

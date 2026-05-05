@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "PLATELET_COUNT",
+  "species": "CAT",
+  "title": "Recuento de Plaquetas Felino",
+  "defaultObservations": "Tipo de muestra: sangre entera.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "PLT",
+          "name": "Recuento Total de Plaquetas",
+          "technique": "Recuento manual de plaquetas",
+          "valueType": "NUMERIC",
+          "unit": "10³/µL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 300, "max": 700, "displayText": "300 – 700" }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "catalogItemCode": "LEISHMANIA_PCR",
+  "species": "ANY",
+  "title": "Leishmania spp. Cualitativo (qPCR)",
+  "defaultObservations": "Tipo de muestra: general / sangre entera.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "LEISH_SPP_1",
+          "name": "Leishmania spp.",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "LEISH_SPP_2",
+          "name": "Leishmania spp.",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "LEISH_INFANTUM",
+          "name": "Leishmania infantum",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

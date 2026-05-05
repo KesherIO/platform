@@ -1,0 +1,48 @@
+{
+  "catalogItemCode": "UPC",
+  "species": "ANY",
+  "title": "Relación Proteína/Creatinina Urinaria (UPC)",
+  "defaultObservations": "Tipo de muestra: orina.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "UPC_CRE",
+          "name": "Creatinina",
+          "technique": "Colorimétrico / Cinético Jaffé",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UPC_PRO",
+          "name": "Proteinuria",
+          "technique": "Química líquida",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UPC_RATIO",
+          "name": "Relación Proteína / Creatinina",
+          "technique": "Parámetro calculado",
+          "valueType": "NUMERIC",
+          "unit": "-",
+          "sortOrder": 2,
+          "isHeader": false,
+          "formula": "[UPC_PRO]/[UPC_CRE]",
+          "referenceRange": {
+            "max": 0.5,
+            "displayText": "Normal: < 0.5 | Dudoso: 0.5 – 1.0 | Proteinuria: > 1.0"
+          }
+        }
+      ]
+    }
+  ]
+}

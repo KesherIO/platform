@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "ALT",
+  "species": "DOG",
+  "title": "ALT / GPT",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "ALT",
+          "name": "ALT / GPT",
+          "technique": "Enzimático / Cinético",
+          "valueType": "NUMERIC",
+          "unit": "UI/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 10.0, "max": 94.0, "displayText": "10.0 – 94.0" }
+        }
+      ]
+    }
+  ]
+}

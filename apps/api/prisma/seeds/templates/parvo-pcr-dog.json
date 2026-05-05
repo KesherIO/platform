@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "PARVO_PCR",
+  "species": "DOG",
+  "title": "Parvovirus Canino (qPCR)",
+  "defaultObservations": "Tipo de muestra: general, sangre entera o materia fecal.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "PARVO_PCR",
+          "name": "Parvovirus Canino",
+          "technique": "PCR Tiempo Real Cualitativo (Sonda)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

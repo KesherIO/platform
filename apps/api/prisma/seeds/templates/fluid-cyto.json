@@ -1,0 +1,152 @@
+{
+  "catalogItemCode": "FLUID_CYTO",
+  "species": "ANY",
+  "title": "Citoquímico de Líquidos",
+  "defaultObservations": "Tipo de muestra: general (líquido pleural, peritoneal, LCR u otro).",
+  "sections": [
+    {
+      "name": "Examen Físico",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "FL_COLOR",
+          "name": "Color",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FL_ASPECTO",
+          "name": "Aspecto",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FL_PH",
+          "name": "pH",
+          "technique": "Tira reactiva",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FL_DENSIDAD",
+          "name": "Densidad",
+          "technique": "Tira reactiva",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Recuento Celular",
+      "sortOrder": 1,
+      "analytes": [
+        {
+          "code": "FL_WBC",
+          "name": "Leucocitos",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "10³/mm³",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FL_RBC",
+          "name": "Hematíes Frescos",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "10⁶/mm³",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Recuento Diferencial",
+      "sortOrder": 2,
+      "analytes": [
+        {
+          "code": "FL_NEUTRO",
+          "name": "Neutrófilos",
+          "technique": "Tinción de Wright",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FL_LINFO",
+          "name": "Linfocitos",
+          "technique": "Tinción de Wright",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Examen Químico",
+      "sortOrder": 3,
+      "analytes": [
+        {
+          "code": "FL_GLU",
+          "name": "Glucosa",
+          "technique": "Química seca",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FL_PROT",
+          "name": "Proteínas",
+          "technique": "Química seca",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FL_LDH",
+          "name": "LDH",
+          "technique": "Química seca",
+          "valueType": "NUMERIC",
+          "unit": "U/L",
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FL_GRAM",
+          "name": "Coloración de Gram",
+          "technique": "Tinción de Gram",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

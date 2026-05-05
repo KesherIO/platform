@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "HEPATOZOON_PCR",
+  "species": "ANY",
+  "title": "Hepatozoon spp. (qPCR)",
+  "defaultObservations": "Tipo de muestra: plasma EDTA.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "HEPATOZOON_PCR",
+          "name": "Hepatozoon spp.",
+          "technique": "qPCR (tiempo real)",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

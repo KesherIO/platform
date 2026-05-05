@@ -1,36 +1,62 @@
-export type AnalyteFlag = 'H' | 'L' | 'A' | 'N'; // High, Low, Abnormal, Normal
+import { AnalyteValueType, ReferenceRangeSnapshot } from './result-template.model.js';
 
-export interface ReferenceRange {
-  min?: number;
-  max?: number;
-  unit: string;
-  species: string;
-  ageMonths?: number;
-}
+export type AnalyteFlag = 'H' | 'L' | 'N';
 
-export interface Analyte {
+export type ResultReportStatus = 'DRAFT' | 'RELEASED';
+
+export interface ResultReportAnalyteModel {
+  id: string;
+  reportId: string;
+  templateAnalyteId?: string;
+
+  // Snapshot fields — stable even after template edits
   code: string;
   name: string;
-  value: number | string;
-  unit: string;
-  flag: AnalyteFlag;
-  referenceRange?: ReferenceRange;
+  technique?: string;
+  unit?: string;
+  valueType: AnalyteValueType;
+  sectionName?: string;
+  sortOrder: number;
+  isHeader: boolean;
+  formula?: string;
+
+  // Typed value — only one populated per non-header row
+  numericValue?: number;
+  textValue?: string;
+  booleanValue?: boolean;
+  selectValue?: string;
+
+  // Semantic fields — frozen on release
+  flag?: AnalyteFlag;
+  referenceSnapshot?: ReferenceRangeSnapshot;
 }
 
-export interface PanelResult {
-  panelName: string; // e.g., 'CBC', 'Basic Chemistry', 'Urinalysis'
-  analytes: Analyte[];
-  performedAt?: Date;
-}
-
-export interface Result {
-  id?: string;
+export interface ResultReportModel {
+  id: string;
   orderId: string;
   caseId: string;
-  panels: PanelResult[];
-  interpretationVet?: string;
-  interpretationOwner?: string;
-  status: 'PENDING' | 'PARTIAL' | 'COMPLETE';
-  createdAt?: Date;
-  reportedAt?: Date;
+  tenantId: string;
+  templateId: string;
+  status: ResultReportStatus;
+  observations?: string;
+
+  // Professional footer
+  processedByName?: string;
+  processedByRole?: string;
+  processedByCredentials?: string;
+  approvedByName?: string;
+  approvedByRole?: string;
+  approvedByCredentials?: string;
+  signatureUrl?: string;
+
+  // Export
+  pdfUrl?: string;
+
+  // Audit
+  releasedAt?: Date;
+  releasedByUserId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+
+  analytes: ResultReportAnalyteModel[];
 }

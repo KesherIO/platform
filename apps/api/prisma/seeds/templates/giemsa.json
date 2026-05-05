@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "GIEMSA",
+  "species": "ANY",
+  "title": "Coloración de Giemsa",
+  "defaultObservations": "Tipo de muestra: general.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "GIEMSA",
+          "name": "Coloración de Giemsa",
+          "technique": "Tinción de Giemsa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

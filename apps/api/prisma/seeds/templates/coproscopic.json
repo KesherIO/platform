@@ -1,0 +1,126 @@
+{
+  "catalogItemCode": "COPROSCOPIC",
+  "species": "ANY",
+  "title": "Coproscópico Completo",
+  "defaultObservations": "Tipo de muestra: materia fecal.",
+  "sections": [
+    {
+      "name": "Examen Macroscópico",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "COPRO_ASPECTO",
+          "name": "Aspecto",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "COPRO_COLOR",
+          "name": "Color",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "COPRO_ELEMENTOS",
+          "name": "Elementos",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Examen Microscópico",
+      "sortOrder": 1,
+      "analytes": [
+        {
+          "code": "COPRO_DIRECTO",
+          "name": "Examen Directo",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "COPRO_FLOTACION",
+          "name": "Examen por Flotación Simple",
+          "technique": "Flotación simple",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Especiales",
+      "sortOrder": 2,
+      "analytes": [
+        {
+          "code": "COPRO_PH",
+          "name": "pH",
+          "technique": "Tira indicadora",
+          "valueType": "NUMERIC",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 6.5, "max": 7.5, "displayText": "6.5 – 7.5" }
+        },
+        {
+          "code": "COPRO_AZUCARES",
+          "name": "Azúcares Reductores",
+          "technique": "Reactivo Benedict",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "COPRO_GRASA",
+          "name": "Grasa Fecal",
+          "technique": "Tinción de Sudán III",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "COPRO_SANGRE",
+          "name": "Sangre Oculta",
+          "technique": "Inmunocromatografía cualitativa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "COPRO_WRIGHT",
+          "name": "Wright",
+          "technique": "Tinción de Wright",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

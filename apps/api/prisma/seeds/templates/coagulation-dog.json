@@ -1,0 +1,34 @@
+{
+  "catalogItemCode": "COAGULATION",
+  "species": "DOG",
+  "title": "Perfil de Coagulación Canino",
+  "defaultObservations": "Tipo de muestra: plasma citratado.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "PT",
+          "name": "PT (Tiempo de Protrombina)",
+          "technique": "Tiempo de formación del coágulo",
+          "valueType": "NUMERIC",
+          "unit": "s",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 8.00, "max": 11.00, "displayText": "8.00 – 11.00" }
+        },
+        {
+          "code": "PTT",
+          "name": "PTT (Tiempo de Tromboplastina Parcial)",
+          "technique": "Tiempo de formación del coágulo",
+          "valueType": "NUMERIC",
+          "unit": "s",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": { "min": 18.00, "max": 21.00, "displayText": "18.00 – 21.00" }
+        }
+      ]
+    }
+  ]
+}

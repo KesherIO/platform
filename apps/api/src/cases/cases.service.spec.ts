@@ -4,11 +4,7 @@ import { CasesService } from './cases.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TriageService } from '../triage/triage.service';
 import { CaseStatus, PatientSpecies } from '@vet-ai/shared-types';
-import type {
-  CreateCaseDto,
-  SendOrderDto,
-  UploadResultsDto,
-} from './dto/cases.dto';
+import type { CreateCaseDto, SendOrderDto } from './dto/cases.dto';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -34,8 +30,6 @@ function makeCase(overrides: Record<string, unknown> = {}) {
     suggestedCatalogItemIds: [],
     orderNotes: null,
     orderSentAt: null,
-    resultsUrl: null,
-    resultsReceivedAt: null,
     createdByUserId: 'user-1',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -50,7 +44,6 @@ const CREATE_DTO: CreateCaseDto = {
   ownerName: 'Carlos Mendoza',
 };
 
-const RESULTS_URL = 'https://storage.example.com/results/case-1.pdf';
 
 // ---------------------------------------------------------------------------
 // Mock factory
@@ -701,108 +694,12 @@ describe('CasesService', () => {
     });
   });
 
-  // ── uploadResults ──────────────────────────────────────────────────────────
-
-  describe('uploadResults', () => {
-    const RESULTS_DTO: UploadResultsDto = { resultsUrl: RESULTS_URL };
-
-    it('saves resultsUrl and returns the updated case', async () => {
-      prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.ORDERED })
-      );
-      const updated = makeCase({
-        status: CaseStatus.ORDERED,
-        resultsUrl: RESULTS_URL,
-      });
-      prisma.case.update.mockResolvedValue(updated);
-
-      const result = await service.uploadResults(
-        'tenant-1',
-        'case-1',
-        RESULTS_DTO
-      );
-
-      expect(result).toEqual(updated);
-      expect(prisma.case.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ resultsUrl: RESULTS_URL }),
-        })
-      );
-    });
-
-    it('sets resultsReceivedAt to the current timestamp (server-controlled)', async () => {
-      prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.ORDERED })
-      );
-      prisma.case.update.mockResolvedValue(
-        makeCase({ status: CaseStatus.ORDERED })
-      );
-
-      const before = new Date();
-      await service.uploadResults('tenant-1', 'case-1', RESULTS_DTO);
-      const after = new Date();
-
-      const receivedAt: Date =
-        prisma.case.update.mock.calls[0][0].data.resultsReceivedAt;
-      expect(receivedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
-      expect(receivedAt.getTime()).toBeLessThanOrEqual(after.getTime());
-    });
-
-    it('throws BadRequestException when status is OPEN', async () => {
-      prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.OPEN })
-      );
-
-      await expect(
-        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('throws BadRequestException when status is TRIAGED', async () => {
-      prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.TRIAGED })
-      );
-
-      await expect(
-        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('throws BadRequestException when status is COMPLETED', async () => {
-      prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.COMPLETED })
-      );
-
-      await expect(
-        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('throws BadRequestException when status is CANCELLED', async () => {
-      prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.CANCELLED })
-      );
-
-      await expect(
-        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('throws NotFoundException when the case does not exist', async () => {
-      prisma.case.findFirst.mockResolvedValue(null);
-
-      await expect(
-        service.uploadResults('tenant-1', 'case-1', RESULTS_DTO)
-      ).rejects.toThrow(NotFoundException);
-    });
-  });
-
   // ── completeCase ───────────────────────────────────────────────────────────
 
   describe('completeCase', () => {
     it('transitions ORDERED → COMPLETED and returns the updated case', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.ORDERED, resultsUrl: RESULTS_URL })
+        makeCase({ status: CaseStatus.ORDERED })
       );
       const updated = makeCase({ status: CaseStatus.COMPLETED });
       prisma.case.update.mockResolvedValue(updated);
@@ -814,16 +711,6 @@ describe('CasesService', () => {
         expect.objectContaining({
           data: expect.objectContaining({ status: CaseStatus.COMPLETED }),
         })
-      );
-    });
-
-    it('throws BadRequestException when resultsUrl is null', async () => {
-      prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.ORDERED, resultsUrl: null })
-      );
-
-      await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
-        BadRequestException
       );
     });
 
@@ -839,7 +726,7 @@ describe('CasesService', () => {
 
     it('throws BadRequestException when already COMPLETED', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.COMPLETED, resultsUrl: RESULTS_URL })
+        makeCase({ status: CaseStatus.COMPLETED })
       );
 
       await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
@@ -1000,14 +887,6 @@ describe('CasesService', () => {
       );
     });
 
-    it('uploadResults returns NotFoundException for a case in another tenant', async () => {
-      prisma.case.findFirst.mockResolvedValue(null);
-
-      await expect(
-        service.uploadResults('tenant-2', 'case-1', { resultsUrl: RESULTS_URL })
-      ).rejects.toThrow(NotFoundException);
-    });
-
     it('completeCase returns NotFoundException for a case in another tenant', async () => {
       prisma.case.findFirst.mockResolvedValue(null);
 
@@ -1095,7 +974,7 @@ describe('CasesService', () => {
 
     it('ORDERED → COMPLETED via completeCase', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.ORDERED, resultsUrl: RESULTS_URL })
+        makeCase({ status: CaseStatus.ORDERED })
       );
       prisma.case.update.mockResolvedValue(
         makeCase({ status: CaseStatus.COMPLETED })
@@ -1227,7 +1106,7 @@ describe('CasesService', () => {
 
     it('cannot complete a TRIAGED case (order step is missing)', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.TRIAGED, resultsUrl: RESULTS_URL })
+        makeCase({ status: CaseStatus.TRIAGED })
       );
 
       await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
@@ -1237,32 +1116,12 @@ describe('CasesService', () => {
 
     it('cannot complete a CANCELLED case', async () => {
       prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.CANCELLED, resultsUrl: RESULTS_URL })
+        makeCase({ status: CaseStatus.CANCELLED })
       );
 
       await expect(service.completeCase('tenant-1', 'case-1')).rejects.toThrow(
         BadRequestException
       );
-    });
-
-    it('cannot upload results before ORDERED', async () => {
-      prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.OPEN })
-      );
-
-      await expect(
-        service.uploadResults('tenant-1', 'case-1', { resultsUrl: RESULTS_URL })
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('cannot upload results on a CANCELLED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(
-        makeCase({ status: CaseStatus.CANCELLED })
-      );
-
-      await expect(
-        service.uploadResults('tenant-1', 'case-1', { resultsUrl: RESULTS_URL })
-      ).rejects.toThrow(BadRequestException);
     });
 
     it('cannot cancel an already COMPLETED case', async () => {

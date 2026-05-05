@@ -1,0 +1,70 @@
+{
+  "catalogItemCode": "FECAL",
+  "species": "ANY",
+  "title": "Examen Coprológico",
+  "defaultObservations": "Tipo de muestra: materia fecal.",
+  "sections": [
+    {
+      "name": "Examen Macroscópico",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "FECAL_ASPECTO",
+          "name": "Aspecto",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FECAL_COLOR",
+          "name": "Color",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FECAL_ELEMENTOS",
+          "name": "Elementos",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Examen Microscópico",
+      "sortOrder": 1,
+      "analytes": [
+        {
+          "code": "FECAL_DIRECTO",
+          "name": "Examen Directo",
+          "technique": "Microscopía directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "FECAL_FLOTACION",
+          "name": "Examen por Flotación Simple",
+          "technique": "Flotación simple",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

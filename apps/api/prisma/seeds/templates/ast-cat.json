@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "AST",
+  "species": "CAT",
+  "title": "AST / GOT",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "AST",
+          "name": "AST / GOT",
+          "technique": "Enzimático / Cinético",
+          "valueType": "NUMERIC",
+          "unit": "UI/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 9.0, "max": 50.0, "displayText": "9.0 – 50.0" }
+        }
+      ]
+    }
+  ]
+}

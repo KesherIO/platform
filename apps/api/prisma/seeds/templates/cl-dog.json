@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "CL",
+  "species": "DOG",
+  "title": "Cloruro",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "CL",
+          "name": "Cloruro",
+          "technique": "Colorimétrico tiocianato",
+          "valueType": "NUMERIC",
+          "unit": "mEq/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 113.0, "max": 123.0, "displayText": "113.0 – 123.0" }
+        }
+      ]
+    }
+  ]
+}

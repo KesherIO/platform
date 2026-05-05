@@ -1,0 +1,28 @@
+{
+  "catalogItemCode": "FRUCTOSAMINE",
+  "species": "DOG",
+  "title": "Fructosamina Canina",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "FRUCTOSAMINE",
+          "name": "Fructosamina",
+          "technique": "Quimioluminiscencia",
+          "valueType": "NUMERIC",
+          "unit": "µmol/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 225,
+            "max": 370,
+            "displayText": "Paciente sano: 225 – 370 | Diabético: < 400 Control excelente | 400–450 Control bueno | 450–500 Control normal | > 500 Control escaso"
+          }
+        }
+      ]
+    }
+  ]
+}

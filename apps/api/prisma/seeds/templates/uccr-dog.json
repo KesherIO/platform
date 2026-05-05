@@ -1,0 +1,48 @@
+{
+  "catalogItemCode": "UCCR",
+  "species": "DOG",
+  "title": "Cociente Cortisol/Creatinina en Orina",
+  "defaultObservations": "Tipo de muestra: orina.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "UCCR_COR",
+          "name": "Cortisol en orina",
+          "technique": "Quimioluminiscencia enzimática",
+          "valueType": "NUMERIC",
+          "unit": "µg/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UCCR_CRE",
+          "name": "Creatinina en orina",
+          "technique": "Química líquida",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "UCCR_RATIO",
+          "name": "Cociente cortisol/creatinina",
+          "technique": "Parámetro calculado",
+          "formula": "((([UCCR_COR]*50)/18123)/(([UCCR_CRE]*62500)/707))*1000000",
+          "valueType": "NUMERIC",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": {
+            "max": 20,
+            "displayText": "Descartar hiperadrenocorticismo: < 20"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,141 @@
+{
+  "catalogItemCode": "VAGINAL_CYTOLOGY",
+  "species": "ANY",
+  "title": "Citología Vaginal",
+  "defaultObservations": "Tipo de muestra: secreción vaginal. (*) Datos reportados por el médico veterinario tratante.",
+  "sections": [
+    {
+      "name": "Examen Macroscópico",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "VC_SANGRADO",
+          "name": "Sangrado*",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "VC_TUMEFACCION",
+          "name": "Tumefacción Vulvar*",
+          "technique": "Observación directa",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    },
+    {
+      "name": "Examen Microscópico",
+      "sortOrder": 1,
+      "analytes": [
+        {
+          "code": "VC_FONDO",
+          "name": "Fondo de la Lámina",
+          "technique": "Tinción de Wright",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "VC_RBC",
+          "name": "Eritrocitos",
+          "technique": "Tinción de Wright",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "VC_WBC",
+          "name": "Leucocitos",
+          "technique": "Tinción de Wright",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "VC_RECUENTO_HDR",
+          "name": "Recuento Celular",
+          "technique": null,
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": true,
+          "referenceRange": null
+        },
+        {
+          "code": "VC_PARABASAL",
+          "name": "Células Parabasales",
+          "technique": "Tinción de Wright",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "VC_INTERMEDIA",
+          "name": "Células Intermedias",
+          "technique": "Tinción de Wright",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 5,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "VC_SUP_INT",
+          "name": "Células Superficiales Intermedias",
+          "technique": "Tinción de Wright",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 6,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "CS",
+          "name": "Células Superficiales",
+          "technique": "Tinción de Wright",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 7,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "E",
+          "name": "Escamas",
+          "technique": "Tinción de Wright",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 8,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "VC_IE",
+          "name": "Índice Estrogénico",
+          "technique": "Tinción de Wright",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 9,
+          "isHeader": false,
+          "formula": "[CS]+[E]",
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

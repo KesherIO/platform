@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "PHENOBARBITAL",
+  "species": "DOG",
+  "title": "Fenobarbital Canino",
+  "defaultObservations": "Tipo de muestra: suero. Muestra tomada en estado de equilibrio (steady state), mínimo 2 semanas después de iniciar o ajustar la dosis.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "PHENOBARBITAL",
+          "name": "Fenobarbital Canino",
+          "technique": "Quimioluminiscencia",
+          "valueType": "NUMERIC",
+          "unit": "µg/mL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 15.0, "max": 45.0, "displayText": "15.0 – 45.0" }
+        }
+      ]
+    }
+  ]
+}

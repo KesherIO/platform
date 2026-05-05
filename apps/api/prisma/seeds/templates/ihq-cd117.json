@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "IHQ_CD117",
+  "species": "ANY",
+  "title": "IHQ CD117",
+  "defaultObservations": "Tipo de muestra: general.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "IHQ_CD117",
+          "name": "IHQ CD117",
+          "technique": "Inmunohistoquímica",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

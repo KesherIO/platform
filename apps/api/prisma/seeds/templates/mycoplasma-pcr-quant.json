@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "MYCOPLASMA_PCR_Q",
+  "species": "ANY",
+  "title": "Mycoplasma sp. Cuantitativo (qPCR)",
+  "defaultObservations": "Tipo de muestra: sangre entera.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "MYCOPLASMA_PCR_Q",
+          "name": "Mycoplasma sp.",
+          "technique": "PCR Tiempo Real Cuantitativo",
+          "valueType": "NUMERIC",
+          "unit": "Copias/µL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

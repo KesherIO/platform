@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "OSM",
+  "species": "CAT",
+  "title": "Osmolalidad Calculada",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "OSM",
+          "name": "Osmolalidad",
+          "technique": "Parámetro calculado",
+          "formula": "(2*([NA]+[K]))+([GLU]/18)+([BUN]/2.8)",
+          "valueType": "NUMERIC",
+          "unit": "mOsm/Kg",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 290.0, "max": 320.0, "displayText": "290.0 – 320.0" }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "FE",
+  "species": "DOG",
+  "title": "Hierro Total Canino",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "FE",
+          "name": "Hierro Total",
+          "technique": "Colorimétrico sin PPT",
+          "valueType": "NUMERIC",
+          "unit": "µg/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 84, "max": 186, "displayText": "84 – 186" }
+        }
+      ]
+    }
+  ]
+}

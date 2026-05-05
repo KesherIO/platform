@@ -35,6 +35,7 @@ enum PatientSpecies {
   REPTILE
   RABBIT
   OTHER
+  ANY   // species-agnostic template — applies to all species
 }
 
 enum AgeUnit {
@@ -88,6 +89,19 @@ enum OrderPriority {
   ROUTINE
   URGENT
   STAT
+}
+
+/// How a single analyte value should be entered and rendered.
+enum AnalyteValueType {
+  NUMERIC            // number + unit + ref range → auto-flag H/L/N
+  TEXT               // single-line string (culture report, microscopy)
+  POSITIVE_NEGATIVE  // boolean rendered as Positivo / Negativo
+  SELECT             // fixed option list stored in options[]
+}
+
+enum ResultReportStatus {
+  DRAFT    // lab is entering values — not visible to clinic
+  RELEASED // final and immutable — clinic can see it
 }
 
 // ---------------------------------------------------------------------------
@@ -226,10 +240,6 @@ model Case {
   orderNotes  String?
   orderSentAt DateTime?
 
-  // Results
-  resultsUrl         String?
-  resultsReceivedAt  DateTime?
-
   // Audit
   createdByUserId String
   createdAt       DateTime @default(now())
@@ -269,9 +279,10 @@ model CatalogItem {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  components      CatalogItemComposition[] @relation("PackageComponents")
-  packages        CatalogItemComposition[] @relation("ComponentPackages")
+  components       CatalogItemComposition[] @relation("PackageComponents")
+  packages         CatalogItemComposition[] @relation("ComponentPackages")
   caseCatalogItems CaseCatalogItem[]
+  resultTemplates  ResultTemplate[]
 
   @@index([kind])
   @@map("catalog_items")
@@ -346,10 +357,162 @@ model Order {
   completedAt         DateTime?
   cancelledAt         DateTime?
 
-  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  case         Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resultReport ResultReport?
 
   @@index([tenantId])
   @@index([tenantId, status])
   @@map("orders")
+}
+
+// ---------------------------------------------------------------------------
+// Result Templates (global, Biomet-owned — no tenantId)
+// ---------------------------------------------------------------------------
+
+/// Defines the structure of a lab report for a given test + species + age range.
+/// ageMinWeeks / ageMaxWeeks are inclusive bounds (null = no limit).
+/// createReport picks the most specific matching template for the patient's age;
+/// falls back to the age-agnostic template (both null) if no range matches.
+/// Global — created and managed by Biomet, shared across all tenants.
+model ResultTemplate {
+  id            String         @id @default(cuid())
+  catalogItemId String
+  species       PatientSpecies
+  ageMinWeeks   Int?           // null = no lower bound (e.g. adult template)
+  ageMaxWeeks   Int?           // null = no upper bound
+  title         String         // "Hemograma Canino — 4 Semanas"
+  version       Int            @default(1)
+  isActive      Boolean        @default(true)
+  defaultObservations String?  // prefilled lab note shown at bottom of report
+
+  catalogItem CatalogItem             @relation(fields: [catalogItemId], references: [id])
+  sections    ResultTemplateSection[]
+  analytes    ResultTemplateAnalyte[]
+
+  @@unique([catalogItemId, species, ageMinWeeks, ageMaxWeeks])
+  @@map("result_templates")
+}
+
+/// Named group of analytes within a template (e.g. "Serie Roja", "Examen Macroscópico").
+model ResultTemplateSection {
+  id         String @id @default(cuid())
+  templateId String
+  name       String
+  sortOrder  Int
+
+  template ResultTemplate          @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  analytes ResultTemplateAnalyte[]
+
+  @@map("result_template_sections")
+}
+
+/// One row in a result template — defines what the lab tech fills in.
+/// referenceRange JSON shape for MVP: { min?: number, max?: number, displayText: string }
+/// Deferred: tiered ranges, age-specific, sex-specific.
+model ResultTemplateAnalyte {
+  id         String           @id @default(cuid())
+  templateId String
+  sectionId  String?          // null = template has no sections
+  code       String           // stable semantic key: "WBC", "HGB" — AI + machine import anchor
+  name       String           // display name: "Recuento total de leucocitos (WBC)"
+  technique  String?          // "Impedancia eléctrica"
+  valueType  AnalyteValueType
+  unit       String?          // "10^3/µL" — null for qualitative analytes
+  options    String[]         // SELECT only — valid option values
+  sortOrder  Int
+  isHeader   Boolean          @default(false) // bold label row — no value input, no flag
+  formula    String?          // e.g. "([HCT]*10)/[RBC]" — computed on frontend, read-only input
+
+  /// MVP shape: { min?: number, max?: number, displayText: string }
+  /// Extend later with: { tiers: [{label, max}], ageMinMonths, ageMaxMonths, sex }
+  referenceRange Json?
+
+  template       ResultTemplate         @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  section        ResultTemplateSection? @relation(fields: [sectionId], references: [id])
+  reportAnalytes ResultReportAnalyte[]
+
+  @@map("result_template_analytes")
+}
+
+// ---------------------------------------------------------------------------
+// Result Reports (tenant-scoped, one per Order)
+// ---------------------------------------------------------------------------
+
+/// The actual filled lab result for an order.
+/// Created from a ResultTemplate — one report per order for MVP.
+/// DRAFT while the lab is entering values; RELEASED is final and visible to the clinic.
+model ResultReport {
+  id         String             @id @default(cuid())
+  orderId    String             @unique // one structured report per order
+  caseId     String             // denormalized — fast case-scoped queries without Order join
+  tenantId   String             // denormalized — fast tenant scoping
+  templateId String             // soft reference — no FK so old reports survive template changes
+
+  status       ResultReportStatus @default(DRAFT)
+  observations String?           // lab's free-text note (maps to "Observaciones" on real reports)
+
+  // Professional footer — filled when releasing the report
+  processedByName        String?
+  processedByRole        String?
+  processedByCredentials String?  // e.g. "Universidad Santiago de Cali"
+  approvedByName         String?
+  approvedByRole         String?
+  approvedByCredentials  String?  // e.g. "Universidad del Valle\nRegistro No.: 767658"
+  signatureUrl           String?  // approver signature image URL
+
+  // Machine import hook — store raw analyzer payload for audit; mapping deferred
+  rawPayload Json?
+
+  // PDF export — generated from structured data on release; not source of truth
+  pdfUrl String?
+
+  releasedAt       DateTime?
+  releasedByUserId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  order    Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  analytes ResultReportAnalyte[]
+
+  @@index([caseId])
+  @@index([tenantId, status])
+  @@map("result_reports")
+}
+
+/// One filled analyte row within a result report.
+/// All display fields are denormalized snapshots so released results are stable
+/// even if the source template is later edited.
+model ResultReportAnalyte {
+  id                String           @id @default(cuid())
+  reportId          String
+  templateAnalyteId String?          // null when row comes from machine import with no template match
+
+  // Snapshot fields — copied from template at report creation time
+  code        String           // "WBC" — the AI and cross-visit query anchor
+  name        String
+  technique   String?
+  unit        String?
+  valueType   AnalyteValueType
+  sectionName String?          // denormalized from section — render without extra joins
+  sortOrder   Int
+  isHeader    Boolean          @default(false)
+  formula     String?          // snapshot of formula — frontend uses this to auto-compute value
+
+  // Typed value — exactly one is populated per non-header row
+  numericValue  Float?
+  textValue     String?
+  booleanValue  Boolean?       // POSITIVE_NEGATIVE
+  selectValue   String?        // SELECT
+
+  // Semantic fields — computed on release and then frozen with the report
+  // flag: "H" (High) | "L" (Low) | "N" (Normal) | null (non-numeric or no ref range)
+  flag              String?
+  referenceSnapshot Json?      // snapshot of referenceRange at release time
+
+  report          ResultReport           @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  templateAnalyte ResultTemplateAnalyte? @relation(fields: [templateAnalyteId], references: [id])
+
+  @@index([reportId])
+  @@map("result_report_analytes")
 }

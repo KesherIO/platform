@@ -21,7 +21,6 @@ import {
   UpdatePatientInfoDto,
   AddSymptomsDto,
   SelectCatalogItemsDto,
-  UploadResultsDto,
 } from './dto/cases.dto';
 import { CreateOrderDto } from '../orders/dto/create-order.dto';
 
@@ -157,24 +156,9 @@ export class CasesController {
   }
 
   // ---------------------------------------------------------------------------
-  // POST /cases/:id/results
-  // Attach the results URL once the lab sends results. Allowed in: ORDERED.
-  // ---------------------------------------------------------------------------
-
-  @Post(':id/results')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Upload results URL (ORDERED only)' })
-  uploadResults(
-    @CurrentTenant() tenant: TenantContext,
-    @Param('id') id: string,
-    @Body() body: UploadResultsDto
-  ) {
-    return this.casesService.uploadResults(tenant.tenantId, id, body);
-  }
-
-  // ---------------------------------------------------------------------------
   // POST /cases/:id/complete
-  // Mark the case as completed. Requires resultsUrl to be set. Allowed in: ORDERED.
+  // Mark the case as completed. Allowed in: ORDERED.
+  // Results are entered via POST /results — not via this endpoint.
   // ---------------------------------------------------------------------------
 
   @Post(':id/complete')

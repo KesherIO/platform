@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "TSH",
+  "species": "CAT",
+  "title": "TSH Felino",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "TSH",
+          "name": "TSH Felino",
+          "technique": "Quimioluminiscencia",
+          "valueType": "NUMERIC",
+          "unit": "ng/mL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 0.0, "max": 0.5, "displayText": "0.0 – 0.5" }
+        }
+      ]
+    }
+  ]
+}

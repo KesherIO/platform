@@ -394,6 +394,39 @@
   "BRANDING": {
     "POWERED_BY": "Powered by Biomet VetAI"
   },
+  "RESULTS_INBOX": {
+    "TITLE": "Results",
+    "SUBTITLE": "Lab results for completed cases",
+    "EMPTY_TITLE": "No results yet",
+    "EMPTY_BODY": "Results will appear here once the lab releases them.",
+    "VIEW_REPORT": "View report"
+  },
+  "REPORT": {
+    "TITLE": "Lab Results Report",
+    "ORDER_NO": "Order",
+    "RELEASED": "Released",
+    "PATIENT_DATA": "Patient",
+    "CLINIC_DATA": "Clinic",
+    "FIELD_NAME": "Name",
+    "FIELD_SPECIES": "Species",
+    "FIELD_BREED": "Breed",
+    "FIELD_AGE": "Age",
+    "FIELD_OWNER": "Owner",
+    "FIELD_CLINIC": "Clinic",
+    "FIELD_SAMPLE_DATE": "Sample date",
+    "FIELD_ADDRESS": "Address",
+    "FIELD_PHONE": "Phone",
+    "COL_ANALYTE": "Analysis",
+    "COL_TECHNIQUE": "Technique",
+    "COL_RESULT": "Result",
+    "COL_UNIT": "Units",
+    "COL_REF": "Reference",
+    "OBSERVATIONS": "Observations",
+    "PROCESSED_BY": "Processed by",
+    "APPROVED_BY": "Reviewed & approved by",
+    "ERROR_NO_ORDER": "This case has no order associated.",
+    "ERROR_NOT_FOUND": "Lab results not available yet."
+  },
   "COUNTRIES": {
     "AR": "Argentina",
     "AU": "Australia",

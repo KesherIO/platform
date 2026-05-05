@@ -1,0 +1,54 @@
+{
+  "catalogItemCode": "4DX",
+  "species": "DOG",
+  "title": "Panel 4Dx",
+  "defaultObservations": "Tipo de muestra: suero o plasma EDTA.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "4DX_ANAPLASMA",
+          "name": "Anaplasma phagocytophilum",
+          "technique": "Inmunoensayo cromatográfico",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "4DX_EHRLICHIA",
+          "name": "Ehrlichia canis / Ehrlichia ewingii",
+          "technique": "Inmunoensayo cromatográfico",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "4DX_BORRELIA",
+          "name": "Borrelia burgdorferi",
+          "technique": "Inmunoensayo cromatográfico",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        },
+        {
+          "code": "4DX_HEARTWORM",
+          "name": "Dirofilaria immitis (Ag)",
+          "technique": "Inmunoensayo cromatográfico",
+          "valueType": "TEXT",
+          "unit": null,
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": { "displayText": "Negativo" }
+        }
+      ]
+    }
+  ]
+}

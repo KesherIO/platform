@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "OSM",
+  "species": "DOG",
+  "title": "Osmolalidad Calculada",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "OSM",
+          "name": "Osmolalidad",
+          "technique": "Parámetro calculado",
+          "formula": "(2*([NA]+[K]))+([GLU]/18)+([BUN]/2.8)",
+          "valueType": "NUMERIC",
+          "unit": "mOsm/Kg",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 250.0, "max": 310.0, "displayText": "250.0 – 310.0" }
+        }
+      ]
+    }
+  ]
+}

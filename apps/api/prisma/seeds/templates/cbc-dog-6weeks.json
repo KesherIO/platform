@@ -1,0 +1,358 @@
+{
+  "catalogItemCode": "CBC",
+  "species": "DOG",
+  "ageMinWeeks": 5,
+  "ageMaxWeeks": 6,
+  "title": "Hemograma Completo Canino 6 Semanas",
+  "defaultObservations": "Tipo de muestra: sangre entera anticoagulada con EDTA.",
+  "sections": [
+    {
+      "name": "Serie Roja",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "RBC",
+          "name": "Recuento total de eritrocitos",
+          "technique": "Impedancia eléctrica",
+          "valueType": "NUMERIC",
+          "unit": "10^6/µL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 4.3,
+            "max": 5.1,
+            "displayText": "4.30 – 5.10"
+          }
+        },
+        {
+          "code": "HGB",
+          "name": "Hemoglobina",
+          "technique": "Colorimétrico",
+          "valueType": "NUMERIC",
+          "unit": "g/dL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 8.5,
+            "max": 11.3,
+            "displayText": "8.50 – 11.30"
+          }
+        },
+        {
+          "code": "HCT",
+          "name": "Hematocrito",
+          "technique": "Parámetro calculado",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 25.5,
+            "max": 35.5,
+            "displayText": "25.50 – 35.50"
+          }
+        },
+        {
+          "code": "MCV",
+          "name": "Volumen Corpuscular Medio (VCM)",
+          "technique": "Parámetro calculado",
+          "formula": "([HCT]*10)/[RBC]",
+          "valueType": "NUMERIC",
+          "unit": "fL",
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 59.0,
+            "max": 69.6,
+            "displayText": "59.00 – 69.60"
+          }
+        },
+        {
+          "code": "MCH",
+          "name": "Hemoglobina Corpuscular Media (HCM)",
+          "technique": "Parámetro calculado",
+          "formula": "([HGB]*10)/[RBC]",
+          "valueType": "NUMERIC",
+          "unit": "pg",
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 19.0,
+            "max": 22.0,
+            "displayText": "19.00 – 22.00"
+          }
+        },
+        {
+          "code": "MCHC",
+          "name": "Concentración de Hemoglobina Corpuscular Media (CHCM)",
+          "technique": "Parámetro calculado",
+          "formula": "([HGB]*100)/[HCT]",
+          "valueType": "NUMERIC",
+          "unit": "g/dL",
+          "sortOrder": 5,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 31.0,
+            "max": 35.0,
+            "displayText": "31.00 – 35.00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Serie Blanca",
+      "sortOrder": 1,
+      "analytes": [
+        {
+          "code": "WBC",
+          "name": "Recuento total de leucocitos",
+          "technique": "Impedancia eléctrica",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 12.6,
+            "max": 26.7,
+            "displayText": "12.60 – 26.70"
+          }
+        },
+        {
+          "code": "DIFF_HEADER",
+          "name": "Recuento diferencial",
+          "valueType": "TEXT",
+          "sortOrder": 1,
+          "isHeader": true
+        },
+        {
+          "code": "NEU_PCT",
+          "name": "Neutrófilos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 33.0,
+            "max": 65.0,
+            "displayText": "33.00 – 65.00"
+          }
+        },
+        {
+          "code": "NEU",
+          "name": "Neutrófilos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([NEU_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 4.2,
+            "max": 17.3,
+            "displayText": "4.20 – 17.30"
+          }
+        },
+        {
+          "code": "LYM_PCT",
+          "name": "Linfocitos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 22.0,
+            "max": 62.0,
+            "displayText": "22.00 – 62.00"
+          }
+        },
+        {
+          "code": "LYM",
+          "name": "Linfocitos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([LYM_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 5,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 2.8,
+            "max": 16.6,
+            "displayText": "2.80 – 16.60"
+          }
+        },
+        {
+          "code": "MON_PCT",
+          "name": "Monocitos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 6,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 4.0,
+            "max": 10.0,
+            "displayText": "4.00 – 10.00"
+          }
+        },
+        {
+          "code": "MON",
+          "name": "Monocitos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([MON_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 7,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 0.5,
+            "max": 2.7,
+            "displayText": "0.50 – 2.70"
+          }
+        },
+        {
+          "code": "EOS_PCT",
+          "name": "Eosinófilos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 8,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 0.0,
+            "max": 3.0,
+            "displayText": "0.00 – 3.00"
+          }
+        },
+        {
+          "code": "EOS",
+          "name": "Eosinófilos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([EOS_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 9,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 0.0,
+            "max": 0.8,
+            "displayText": "0.00 – 0.80"
+          }
+        },
+        {
+          "code": "BAS_PCT",
+          "name": "Basófilos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 10,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 0.0,
+            "max": 1.0,
+            "displayText": "0.00 – 1.00"
+          }
+        },
+        {
+          "code": "BAS",
+          "name": "Basófilos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([BAS_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 11,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 0.0,
+            "max": 0.3,
+            "displayText": "0.00 – 0.30"
+          }
+        },
+        {
+          "code": "BAND_PCT",
+          "name": "Bandas porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 12,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 0.0,
+            "max": 1.0,
+            "displayText": "0.00 – 1.00"
+          }
+        },
+        {
+          "code": "BAND",
+          "name": "Bandas absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([BAND_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 13,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 0.0,
+            "max": 0.3,
+            "displayText": "0.00 – 0.30"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Plaquetas",
+      "sortOrder": 2,
+      "analytes": [
+        {
+          "code": "PLT",
+          "name": "Recuento total de plaquetas",
+          "technique": "Impedancia eléctrica",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 150.0,
+            "max": 500.0,
+            "displayText": "150.00 – 500.00"
+          }
+        },
+        {
+          "code": "MPV",
+          "name": "Volumen plaquetario medio (VPM)",
+          "technique": "Derivado histogramas",
+          "valueType": "NUMERIC",
+          "unit": "fL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 3.9,
+            "max": 11.1,
+            "displayText": "3.90 – 11.10"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Proteínas plasmáticas",
+      "sortOrder": 3,
+      "analytes": [
+        {
+          "code": "TP",
+          "name": "Proteínas plasmáticas",
+          "technique": "Colorimétrico Biuret",
+          "valueType": "NUMERIC",
+          "unit": "g/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": {
+            "min": 39.0,
+            "max": 57.0,
+            "displayText": "39.00 – 57.00"
+          }
+        }
+      ]
+    }
+  ]
+}
