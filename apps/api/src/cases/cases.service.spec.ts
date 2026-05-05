@@ -1149,29 +1149,45 @@ describe('CasesService', () => {
 
   describe('deleteCase', () => {
     it('deletes an OPEN case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.OPEN }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
       prisma.case.delete.mockResolvedValue({});
 
-      await expect(service.deleteCase('tenant-1', 'case-1')).resolves.toBeUndefined();
-      expect(prisma.case.delete).toHaveBeenCalledWith({ where: { id: 'case-1' } });
+      await expect(
+        service.deleteCase('tenant-1', 'case-1')
+      ).resolves.toBeUndefined();
+      expect(prisma.case.delete).toHaveBeenCalledWith({
+        where: { id: 'case-1' },
+      });
     });
 
     it('deletes a TRIAGED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.TRIAGED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
       prisma.case.delete.mockResolvedValue({});
 
-      await expect(service.deleteCase('tenant-1', 'case-1')).resolves.toBeUndefined();
+      await expect(
+        service.deleteCase('tenant-1', 'case-1')
+      ).resolves.toBeUndefined();
     });
 
     it('deletes a CANCELLED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.CANCELLED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
       prisma.case.delete.mockResolvedValue({});
 
-      await expect(service.deleteCase('tenant-1', 'case-1')).resolves.toBeUndefined();
+      await expect(
+        service.deleteCase('tenant-1', 'case-1')
+      ).resolves.toBeUndefined();
     });
 
     it('throws BadRequestException for an ORDERED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.ORDERED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
 
       await expect(service.deleteCase('tenant-1', 'case-1')).rejects.toThrow(
         BadRequestException
@@ -1179,7 +1195,9 @@ describe('CasesService', () => {
     });
 
     it('throws BadRequestException for a COMPLETED case', async () => {
-      prisma.case.findFirst.mockResolvedValue(makeCase({ status: CaseStatus.COMPLETED }));
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.COMPLETED })
+      );
 
       await expect(service.deleteCase('tenant-1', 'case-1')).rejects.toThrow(
         BadRequestException
