@@ -342,6 +342,25 @@ export class CasesService {
     });
   }
 
+  /**
+   * Delete a case permanently.
+   * Allowed in: OPEN, TRIAGED, CANCELLED.
+   * ORDERED and COMPLETED cases cannot be deleted.
+   */
+  async deleteCase(tenantId: string, id: string): Promise<void> {
+    const c = await this.fetchCase(tenantId, id);
+    this.assertStatus(
+      c,
+      [CaseStatus.OPEN, CaseStatus.TRIAGED, CaseStatus.CANCELLED],
+      'Only OPEN, TRIAGED, or CANCELLED cases can be deleted.'
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.caseCatalogItem.deleteMany({ where: { caseId: id } });
+      await tx.case.delete({ where: { id } });
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   UseGuards,
@@ -183,5 +184,17 @@ export class CasesController {
   @ApiOperation({ summary: 'Cancel the case (OPEN, TRIAGED, or ORDERED only)' })
   cancelCase(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
     return this.casesService.cancelCase(tenant.tenantId, id);
+  }
+
+  // ---------------------------------------------------------------------------
+  // DELETE /cases/:id
+  // Permanently delete a case. Allowed in: OPEN, TRIAGED, CANCELLED.
+  // ---------------------------------------------------------------------------
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a case (OPEN, TRIAGED, or CANCELLED only)' })
+  deleteCase(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
+    return this.casesService.deleteCase(tenant.tenantId, id);
   }
 }

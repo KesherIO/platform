@@ -56,6 +56,7 @@ function makePrismaMock() {
       findFirstOrThrow: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     caseCatalogItem: {
       count: jest.fn().mockResolvedValue(1),
@@ -1140,6 +1141,74 @@ describe('CasesService', () => {
 
       await expect(service.cancelCase('tenant-1', 'case-1')).rejects.toThrow(
         BadRequestException
+      );
+    });
+  });
+
+  // ── deleteCase ─────────────────────────────────────────────────────────────
+
+  describe('deleteCase', () => {
+    it('deletes an OPEN case', async () => {
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
+      prisma.case.delete.mockResolvedValue({});
+
+      await expect(
+        service.deleteCase('tenant-1', 'case-1')
+      ).resolves.toBeUndefined();
+      expect(prisma.case.delete).toHaveBeenCalledWith({
+        where: { id: 'case-1' },
+      });
+    });
+
+    it('deletes a TRIAGED case', async () => {
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.TRIAGED })
+      );
+      prisma.case.delete.mockResolvedValue({});
+
+      await expect(
+        service.deleteCase('tenant-1', 'case-1')
+      ).resolves.toBeUndefined();
+    });
+
+    it('deletes a CANCELLED case', async () => {
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.CANCELLED })
+      );
+      prisma.case.delete.mockResolvedValue({});
+
+      await expect(
+        service.deleteCase('tenant-1', 'case-1')
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws BadRequestException for an ORDERED case', async () => {
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.ORDERED })
+      );
+
+      await expect(service.deleteCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('throws BadRequestException for a COMPLETED case', async () => {
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.COMPLETED })
+      );
+
+      await expect(service.deleteCase('tenant-1', 'case-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+
+    it('throws NotFoundException when case does not exist', async () => {
+      prisma.case.findFirst.mockResolvedValue(null);
+
+      await expect(service.deleteCase('tenant-1', 'case-1')).rejects.toThrow(
+        NotFoundException
       );
     });
   });

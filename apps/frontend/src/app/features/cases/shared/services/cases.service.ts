@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, delay, tap, map, catchError } from 'rxjs';
+import { Observable, of, delay, tap, map, catchError, take } from 'rxjs';
 import {
   CaseModel,
   CaseStatus,
@@ -388,7 +388,7 @@ const MOCK_REPORT: ResultReportModel = {
   ],
 };
 
-let mockCases: CaseModel[] = [
+const mockCases: CaseModel[] = [
   // --- DOGS ---
   {
     id: 'c1',
@@ -985,10 +985,12 @@ export class CasesService {
   }
 
   deleteCase(id: string): Observable<void> {
-    mockCases = mockCases.filter((c) => c.id !== id);
-    if (this.activeCase()?.id === id) this.activeCase.set(null);
-    // TODO: Replace with actual API call DELETE /cases/:id
-    return of(undefined).pipe(delay(MOCK_DELAY));
+    return this.http.delete<void>(`/api/cases/${id}`, this.tenantHeaders).pipe(
+      take(1),
+      tap(() => {
+        if (this.activeCase()?.id === id) this.activeCase.set(null);
+      })
+    );
   }
 
   getReportByOrderId(orderId: string): Observable<ResultReportModel> {
