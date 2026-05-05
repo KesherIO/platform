@@ -16,7 +16,11 @@
           "unit": "ng/dL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 0.6, "max": 3.0, "displayText": "0.6 – 3.0" }
+          "referenceRange": {
+            "min": 0.6,
+            "max": 3.0,
+            "displayText": "0.6 – 3.0"
+          }
         }
       ]
     }

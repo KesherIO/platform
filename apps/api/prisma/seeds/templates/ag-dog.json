@@ -15,7 +15,11 @@
           "valueType": "NUMERIC",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 2.0, "max": 22.0, "displayText": "2.0 – 22.0" }
+          "referenceRange": {
+            "min": 2.0,
+            "max": 22.0,
+            "displayText": "2.0 – 22.0"
+          }
         }
       ]
     }

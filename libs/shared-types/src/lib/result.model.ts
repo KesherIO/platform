@@ -1,4 +1,7 @@
-import { AnalyteValueType, ReferenceRangeSnapshot } from './result-template.model.js';
+import {
+  AnalyteValueType,
+  ReferenceRangeSnapshot,
+} from './result-template.model.js';
 
 export type AnalyteFlag = 'H' | 'L' | 'N';
 

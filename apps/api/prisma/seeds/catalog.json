@@ -1,150 +1,993 @@
 {
   "replace": false,
   "items": [
-    { "kind": "TEST", "code": "CBC",              "name": "Hemograma Completo",                              "category": "Hematología",   "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "RETICULOCYTES",    "name": "Recuento de Reticulocitos",                       "category": "Hematología",   "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "HEMOPARASITES",    "name": "Hemoparásitos",                                   "category": "Hematología",   "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "COAGULATION",      "name": "Perfil de Coagulación",                           "category": "Hematología",   "turnaroundHours": 6  },
-    { "kind": "TEST", "code": "BLOOD_TYPE",       "name": "Grupo Sanguíneo",                                 "category": "Hematología",   "turnaroundHours": 4  },
+    {
+      "kind": "TEST",
+      "code": "CBC",
+      "name": "Hemograma Completo",
+      "category": "Hematología",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "RETICULOCYTES",
+      "name": "Recuento de Reticulocitos",
+      "category": "Hematología",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "HEMOPARASITES",
+      "name": "Hemoparásitos",
+      "category": "Hematología",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "COAGULATION",
+      "name": "Perfil de Coagulación",
+      "category": "Hematología",
+      "turnaroundHours": 6
+    },
+    {
+      "kind": "TEST",
+      "code": "BLOOD_TYPE",
+      "name": "Grupo Sanguíneo",
+      "category": "Hematología",
+      "turnaroundHours": 4
+    },
 
-    { "kind": "TEST", "code": "GLU",              "name": "Glucosa",                                         "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "BUN",              "name": "Nitrógeno Ureico (BUN)",                          "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "CREA",             "name": "Creatinina",                                      "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "ALT",              "name": "ALT / GPT",                                       "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "AST",              "name": "AST / GOT",                                       "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "ALP",              "name": "Fosfatasa Alcalina",                              "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "GGT",              "name": "Gamma Glutamil Transferasa (GGT)",                "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "CPK",              "name": "Creatinfosfoquinasa (CPK)",                       "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "TP_SER",           "name": "Proteínas Totales (Sérico)",                      "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "ALB",              "name": "Albúmina",                                        "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "TBIL",             "name": "Bilirrubina Total",                               "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "DBIL",             "name": "Bilirrubina Directa",                             "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "CHOL",             "name": "Colesterol",                                      "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "TRIG",             "name": "Triglicéridos",                                   "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "AMY",              "name": "Amilasa",                                         "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "LIP",              "name": "Lipasa",                                          "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "NH3",              "name": "Amoníaco",                                        "category": "Bioquímica",    "turnaroundHours": 6  },
+    {
+      "kind": "TEST",
+      "code": "GLU",
+      "name": "Glucosa",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "BUN",
+      "name": "Nitrógeno Ureico (BUN)",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "CREA",
+      "name": "Creatinina",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "ALT",
+      "name": "ALT / GPT",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "AST",
+      "name": "AST / GOT",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "ALP",
+      "name": "Fosfatasa Alcalina",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "GGT",
+      "name": "Gamma Glutamil Transferasa (GGT)",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "CPK",
+      "name": "Creatinfosfoquinasa (CPK)",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "TP_SER",
+      "name": "Proteínas Totales (Sérico)",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "ALB",
+      "name": "Albúmina",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "TBIL",
+      "name": "Bilirrubina Total",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "DBIL",
+      "name": "Bilirrubina Directa",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "CHOL",
+      "name": "Colesterol",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "TRIG",
+      "name": "Triglicéridos",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "AMY",
+      "name": "Amilasa",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "LIP",
+      "name": "Lipasa",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "NH3",
+      "name": "Amoníaco",
+      "category": "Bioquímica",
+      "turnaroundHours": 6
+    },
 
-    { "kind": "TEST", "code": "NA",               "name": "Sodio",                                           "category": "Electrolitos",  "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "K",                "name": "Potasio",                                         "category": "Electrolitos",  "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "CL",               "name": "Cloruro",                                         "category": "Electrolitos",  "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "CA",               "name": "Calcio",                                          "category": "Electrolitos",  "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "PHOS",             "name": "Fósforo",                                         "category": "Electrolitos",  "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "CO2",              "name": "Bicarbonato",                                     "category": "Electrolitos",  "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "AG",               "name": "Brecha Aniónica (Anion Gap)",                     "category": "Electrolitos",  "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "OSM",              "name": "Osmolalidad Calculada",                           "category": "Electrolitos",  "turnaroundHours": 4  },
+    {
+      "kind": "TEST",
+      "code": "NA",
+      "name": "Sodio",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "K",
+      "name": "Potasio",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "CL",
+      "name": "Cloruro",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "CA",
+      "name": "Calcio",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "PHOS",
+      "name": "Fósforo",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "CO2",
+      "name": "Bicarbonato",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "AG",
+      "name": "Brecha Aniónica (Anion Gap)",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "OSM",
+      "name": "Osmolalidad Calculada",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
 
-    { "kind": "TEST", "code": "T4",               "name": "Tiroxina Total (T4)",                             "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "FT4",              "name": "T4 Libre",                                        "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "TSH",              "name": "TSH Canina",                                      "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "CORTISOL",         "name": "Cortisol",                                        "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "INSULIN",          "name": "Insulina",                                        "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "PROG",             "name": "Progesterona",                                    "category": "Hormonas",      "turnaroundHours": 12 },
-    { "kind": "TEST", "code": "HBA1C",            "name": "Hemoglobina Glicada",                             "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "FRUCTOSAMINE",     "name": "Fructosamina",                                    "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "PHENOBARBITAL",    "name": "Fenobarbital",                                    "category": "Fármacos",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "HISTOVACCINE",     "name": "Histovacuna",                                     "category": "Patología",     "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "GALLSTONES",       "name": "Análisis de Cálculos Biliares",                   "category": "Patología",     "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "DRUG_SCREEN",      "name": "Cocaína - Metanfetaminas en Orina",               "category": "Toxicología",   "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "LEPTOSPIRA_PCR",   "name": "Leptospira spp. (qPCR)",                          "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "PARVO_PCR",        "name": "Parvovirus Canino (qPCR)",                        "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "FECOV_PCR",        "name": "Coronavirus Felino Entérico (qPCR)",              "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "CORONA_PCR_DOG",  "name": "Coronavirus Canino (qPCR)",                       "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "HERPES_PCR_DOG", "name": "Herpes Virus Canino (qPCR)",                       "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "HERPES_PCR_CAT", "name": "Herpes Virus Felino (qPCR)",                        "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "ANAPLASMA_PCR",  "name": "Anaplasma sp. (qPCR)",                             "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "VIT_B12",        "name": "Vitamina B12 (Cianocobalamina)",                   "category": "Bioquímica",    "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "CRP",            "name": "Proteína C Reactiva",                             "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "FOLATE",         "name": "Ácido Fólico",                                    "category": "Bioquímica",    "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "FOLATE_B12",     "name": "Ácido Fólico + Vitamina B12",                     "category": "Bioquímica",    "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "FECOV_MUT_PCR",   "name": "Coronavirus Felino Mutante (qPCR)",               "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "ANEXO_PATOLOGIA", "name": "Anexo Patología (Clasificación Sarcomas)",         "category": "Patología",     "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "GIEMSA",          "name": "Coloración de Giemsa",                            "category": "Patología",     "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "CYTO_PAS",        "name": "Citología PAS",                                   "category": "Histoquímica",  "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "IHQ_CD163",       "name": "IHQ CD163",                                       "category": "Inmunohistoquímica", "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "IHQ_CD117",       "name": "IHQ CD117",                                       "category": "Inmunohistoquímica", "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "IHQ_CD117_CKIT",  "name": "IHQ CD117 C-KIT",                                "category": "Inmunohistoquímica", "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "IHQ_IGG",         "name": "IHQ IgG",                                         "category": "Inmunohistoquímica", "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "IHQ_PANEL",       "name": "IHQ (CD163, CD3, Pax-5)",                         "category": "Inmunohistoquímica", "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "IHQ_KI67_CK",     "name": "IHQ (Ki-67, CK AE1/AE3)",                        "category": "Inmunohistoquímica", "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "CYTO_SPEC",       "name": "Citología Especial",                               "category": "Citología",     "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "CALICI_PCR",      "name": "Calicivirus Felino (qPCR)",                        "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "DISTEMPER_PCR",    "name": "Distemper CDV (qPCR)",                            "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "FIV_FELV_PCR",     "name": "FIV + FeLV (qPCR)",                               "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "MYCOPLASMA_PCR",   "name": "Mycoplasma spp. (qPCR)",                          "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "MYCOPLASMA_PCR_Q", "name": "Mycoplasma sp. Cuantitativo (qPCR)",              "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "HEPATOZOON_PCR",   "name": "Hepatozoon spp. (qPCR)",                          "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "BARTONELLA_PCR",   "name": "Bartonella spp. (qPCR)",                          "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "RICKETTSIALES_PCR","name": "Rickettsiales Felino (qPCR)",                      "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "LEISHMANIA_PCR",   "name": "Leishmania spp. (qPCR)",                          "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "TRICHOGRAM",       "name": "Tricograma",                                      "category": "Patología",     "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "BABESIA_PCR",      "name": "Babesia spp. (qPCR)",                             "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "DIROFILARIA_PCR",  "name": "Dirofilaria spp. (qPCR)",                         "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "BILE_ACIDS",       "name": "Ácidos Biliares Totales",                         "category": "Bioquímica",    "turnaroundHours": 6  },
-    { "kind": "TEST", "code": "PLATELET_COUNT",   "name": "Recuento de Plaquetas",                           "category": "Hematología",   "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "HEMO_PCR",         "name": "Hemoparásitos Cualitativo (qPCR)",                "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "HEMO_PCR_CAT",     "name": "Hemoparásitos Felino Cualitativo (qPCR)",         "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "HEMO_PCR_CAT_Q",  "name": "Hemoparásitos Felino Cuantitativo (qPCR)",        "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "HEMO_PCR_DOG_Q",  "name": "Hemoparásitos Canino Cuantitativo (qPCR)",        "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "EHRLICHIA_ANAPLASMA", "name": "Ehrlichia + Anaplasma",                        "category": "Serología",     "turnaroundHours": 1  },
-    { "kind": "TEST", "code": "TESTOSTERONE",     "name": "Testosterona Total",                              "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "CORTISOL_T4",      "name": "Cortisol + T4 Total",                             "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "TSH_T4",           "name": "TSH + T4 Total",                                  "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "TSH_FT4",          "name": "TSH + T4 Libre",                                  "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "TSH_T4_CAT",       "name": "TSH + T4 Total Felino",                           "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "TSH_FT4_CAT",      "name": "TSH + T4 Libre Felino",                           "category": "Hormonas",      "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "VIRAL_PANEL_CAT",  "name": "Panel Viral Felino Cualitativo (qPCR)",            "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "VIRAL_PANEL_CAT_Q","name": "Panel Viral Felino Cuantitativo (qPCR)",           "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "CORTISOL_DST",     "name": "Cortisol Supresión Dexametasona",                 "category": "Hormonas",      "turnaroundHours": 12 },
-    { "kind": "TEST", "code": "UA",               "name": "Ácido Úrico",                                     "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "LDH",              "name": "Deshidrogenasa Láctica (LDH)",                    "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "FE",               "name": "Hierro Total",                                    "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "MG",               "name": "Magnesio",                                        "category": "Electrolitos",  "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "SDMA",             "name": "SDMA (Dimetilarginina Simétrica)",                "category": "Bioquímica",    "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "FIBRINOGEN",       "name": "Fibrinógeno",                                     "category": "Coagulación",   "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "CA_ION",           "name": "Calcio Ionizado",                                 "category": "Electrolitos",  "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "UCCR",             "name": "Cociente Cortisol/Creatinina en Orina",           "category": "Uroanálisis",   "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "LIPASE_SPEC",      "name": "Lipasa Pancreática Específica",                   "category": "Bioquímica",    "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "HBA1C",            "name": "Hemoglobina Glicada",                             "category": "Endocrinología", "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "NEURO_PCR_DOG",   "name": "Perfil Neurológico Canino Cualitativo (qPCR)",    "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "KOH_CYTO",         "name": "KOH + Citología",                                 "category": "Microbiología", "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "EHRLICHIA",        "name": "Ehrlichia canis",                                  "category": "Serología",     "turnaroundHours": 1  },
-    { "kind": "TEST", "code": "FLUID_CYTO",       "name": "Citoquímico de Líquidos",                         "category": "Patología",     "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "PANLEUKOPENIA",    "name": "Panleucopenia Felina (Ag)",                        "category": "Serología",     "turnaroundHours": 1  },
+    {
+      "kind": "TEST",
+      "code": "T4",
+      "name": "Tiroxina Total (T4)",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "FT4",
+      "name": "T4 Libre",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "TSH",
+      "name": "TSH Canina",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "CORTISOL",
+      "name": "Cortisol",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "INSULIN",
+      "name": "Insulina",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "PROG",
+      "name": "Progesterona",
+      "category": "Hormonas",
+      "turnaroundHours": 12
+    },
+    {
+      "kind": "TEST",
+      "code": "HBA1C",
+      "name": "Hemoglobina Glicada",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "FRUCTOSAMINE",
+      "name": "Fructosamina",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "PHENOBARBITAL",
+      "name": "Fenobarbital",
+      "category": "Fármacos",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "HISTOVACCINE",
+      "name": "Histovacuna",
+      "category": "Patología",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "GALLSTONES",
+      "name": "Análisis de Cálculos Biliares",
+      "category": "Patología",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "DRUG_SCREEN",
+      "name": "Cocaína - Metanfetaminas en Orina",
+      "category": "Toxicología",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "LEPTOSPIRA_PCR",
+      "name": "Leptospira spp. (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "PARVO_PCR",
+      "name": "Parvovirus Canino (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "FECOV_PCR",
+      "name": "Coronavirus Felino Entérico (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "CORONA_PCR_DOG",
+      "name": "Coronavirus Canino (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "HERPES_PCR_DOG",
+      "name": "Herpes Virus Canino (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "HERPES_PCR_CAT",
+      "name": "Herpes Virus Felino (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "ANAPLASMA_PCR",
+      "name": "Anaplasma sp. (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "VIT_B12",
+      "name": "Vitamina B12 (Cianocobalamina)",
+      "category": "Bioquímica",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "CRP",
+      "name": "Proteína C Reactiva",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "FOLATE",
+      "name": "Ácido Fólico",
+      "category": "Bioquímica",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "FOLATE_B12",
+      "name": "Ácido Fólico + Vitamina B12",
+      "category": "Bioquímica",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "FECOV_MUT_PCR",
+      "name": "Coronavirus Felino Mutante (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "ANEXO_PATOLOGIA",
+      "name": "Anexo Patología (Clasificación Sarcomas)",
+      "category": "Patología",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "GIEMSA",
+      "name": "Coloración de Giemsa",
+      "category": "Patología",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "CYTO_PAS",
+      "name": "Citología PAS",
+      "category": "Histoquímica",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "IHQ_CD163",
+      "name": "IHQ CD163",
+      "category": "Inmunohistoquímica",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "IHQ_CD117",
+      "name": "IHQ CD117",
+      "category": "Inmunohistoquímica",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "IHQ_CD117_CKIT",
+      "name": "IHQ CD117 C-KIT",
+      "category": "Inmunohistoquímica",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "IHQ_IGG",
+      "name": "IHQ IgG",
+      "category": "Inmunohistoquímica",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "IHQ_PANEL",
+      "name": "IHQ (CD163, CD3, Pax-5)",
+      "category": "Inmunohistoquímica",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "IHQ_KI67_CK",
+      "name": "IHQ (Ki-67, CK AE1/AE3)",
+      "category": "Inmunohistoquímica",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "CYTO_SPEC",
+      "name": "Citología Especial",
+      "category": "Citología",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "CALICI_PCR",
+      "name": "Calicivirus Felino (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "DISTEMPER_PCR",
+      "name": "Distemper CDV (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "FIV_FELV_PCR",
+      "name": "FIV + FeLV (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "MYCOPLASMA_PCR",
+      "name": "Mycoplasma spp. (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "MYCOPLASMA_PCR_Q",
+      "name": "Mycoplasma sp. Cuantitativo (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "HEPATOZOON_PCR",
+      "name": "Hepatozoon spp. (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "BARTONELLA_PCR",
+      "name": "Bartonella spp. (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "RICKETTSIALES_PCR",
+      "name": "Rickettsiales Felino (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "LEISHMANIA_PCR",
+      "name": "Leishmania spp. (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "TRICHOGRAM",
+      "name": "Tricograma",
+      "category": "Patología",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "BABESIA_PCR",
+      "name": "Babesia spp. (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "DIROFILARIA_PCR",
+      "name": "Dirofilaria spp. (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "BILE_ACIDS",
+      "name": "Ácidos Biliares Totales",
+      "category": "Bioquímica",
+      "turnaroundHours": 6
+    },
+    {
+      "kind": "TEST",
+      "code": "PLATELET_COUNT",
+      "name": "Recuento de Plaquetas",
+      "category": "Hematología",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "HEMO_PCR",
+      "name": "Hemoparásitos Cualitativo (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "HEMO_PCR_CAT",
+      "name": "Hemoparásitos Felino Cualitativo (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "HEMO_PCR_CAT_Q",
+      "name": "Hemoparásitos Felino Cuantitativo (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "HEMO_PCR_DOG_Q",
+      "name": "Hemoparásitos Canino Cuantitativo (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "EHRLICHIA_ANAPLASMA",
+      "name": "Ehrlichia + Anaplasma",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
+    {
+      "kind": "TEST",
+      "code": "TESTOSTERONE",
+      "name": "Testosterona Total",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "CORTISOL_T4",
+      "name": "Cortisol + T4 Total",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "TSH_T4",
+      "name": "TSH + T4 Total",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "TSH_FT4",
+      "name": "TSH + T4 Libre",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "TSH_T4_CAT",
+      "name": "TSH + T4 Total Felino",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "TSH_FT4_CAT",
+      "name": "TSH + T4 Libre Felino",
+      "category": "Hormonas",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "VIRAL_PANEL_CAT",
+      "name": "Panel Viral Felino Cualitativo (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "VIRAL_PANEL_CAT_Q",
+      "name": "Panel Viral Felino Cuantitativo (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "CORTISOL_DST",
+      "name": "Cortisol Supresión Dexametasona",
+      "category": "Hormonas",
+      "turnaroundHours": 12
+    },
+    {
+      "kind": "TEST",
+      "code": "UA",
+      "name": "Ácido Úrico",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "LDH",
+      "name": "Deshidrogenasa Láctica (LDH)",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "FE",
+      "name": "Hierro Total",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "MG",
+      "name": "Magnesio",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "SDMA",
+      "name": "SDMA (Dimetilarginina Simétrica)",
+      "category": "Bioquímica",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "FIBRINOGEN",
+      "name": "Fibrinógeno",
+      "category": "Coagulación",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "CA_ION",
+      "name": "Calcio Ionizado",
+      "category": "Electrolitos",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "UCCR",
+      "name": "Cociente Cortisol/Creatinina en Orina",
+      "category": "Uroanálisis",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "LIPASE_SPEC",
+      "name": "Lipasa Pancreática Específica",
+      "category": "Bioquímica",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "HBA1C",
+      "name": "Hemoglobina Glicada",
+      "category": "Endocrinología",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "NEURO_PCR_DOG",
+      "name": "Perfil Neurológico Canino Cualitativo (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "KOH_CYTO",
+      "name": "KOH + Citología",
+      "category": "Microbiología",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "EHRLICHIA",
+      "name": "Ehrlichia canis",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
+    {
+      "kind": "TEST",
+      "code": "FLUID_CYTO",
+      "name": "Citoquímico de Líquidos",
+      "category": "Patología",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "PANLEUKOPENIA",
+      "name": "Panleucopenia Felina (Ag)",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
 
-    { "kind": "TEST", "code": "URINALYSIS",       "name": "Urianálisis Completo",                            "category": "Urianálisis",   "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "UPC",              "name": "Relación Proteína/Creatinina Urinaria (UPC)",     "category": "Urianálisis",   "turnaroundHours": 6  },
+    {
+      "kind": "TEST",
+      "code": "URINALYSIS",
+      "name": "Urianálisis Completo",
+      "category": "Urianálisis",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "UPC",
+      "name": "Relación Proteína/Creatinina Urinaria (UPC)",
+      "category": "Urianálisis",
+      "turnaroundHours": 6
+    },
 
-    { "kind": "TEST", "code": "FECAL",            "name": "Examen Coprológico",                              "category": "Coprología",    "turnaroundHours": 6  },
-    { "kind": "TEST", "code": "COPROSCOPIC",      "name": "Coproscópico Completo",                           "category": "Coprología",    "turnaroundHours": 6  },
-    { "kind": "TEST", "code": "FECAL_FLOAT",      "name": "Flotación Fecal",                                 "category": "Coprología",    "turnaroundHours": 4  },
+    {
+      "kind": "TEST",
+      "code": "FECAL",
+      "name": "Examen Coprológico",
+      "category": "Coprología",
+      "turnaroundHours": 6
+    },
+    {
+      "kind": "TEST",
+      "code": "COPROSCOPIC",
+      "name": "Coproscópico Completo",
+      "category": "Coprología",
+      "turnaroundHours": 6
+    },
+    {
+      "kind": "TEST",
+      "code": "FECAL_FLOAT",
+      "name": "Flotación Fecal",
+      "category": "Coprología",
+      "turnaroundHours": 4
+    },
 
-    { "kind": "TEST", "code": "CULTURE",          "name": "Cultivo y Antibiograma",                          "category": "Microbiología", "turnaroundHours": 72 },
-    { "kind": "TEST", "code": "KOH",              "name": "Examen KOH (Hongos)",                             "category": "Microbiología", "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "GRAM",             "name": "Tinción de Gram",                                 "category": "Microbiología", "turnaroundHours": 4  },
+    {
+      "kind": "TEST",
+      "code": "CULTURE",
+      "name": "Cultivo y Antibiograma",
+      "category": "Microbiología",
+      "turnaroundHours": 72
+    },
+    {
+      "kind": "TEST",
+      "code": "KOH",
+      "name": "Examen KOH (Hongos)",
+      "category": "Microbiología",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "GRAM",
+      "name": "Tinción de Gram",
+      "category": "Microbiología",
+      "turnaroundHours": 4
+    },
 
-    { "kind": "TEST", "code": "CYTOLOGY",         "name": "Citología",                                       "category": "Citología",     "turnaroundHours": 24 },
-    { "kind": "TEST", "code": "VAGINAL_CYTOLOGY", "name": "Citología Vaginal",                               "category": "Citología",     "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "HISTOPATH",        "name": "Histopatología / Biopsia",                        "category": "Patología",     "turnaroundHours": 72 },
+    {
+      "kind": "TEST",
+      "code": "CYTOLOGY",
+      "name": "Citología",
+      "category": "Citología",
+      "turnaroundHours": 24
+    },
+    {
+      "kind": "TEST",
+      "code": "VAGINAL_CYTOLOGY",
+      "name": "Citología Vaginal",
+      "category": "Citología",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "HISTOPATH",
+      "name": "Histopatología / Biopsia",
+      "category": "Patología",
+      "turnaroundHours": 72
+    },
 
-    { "kind": "TEST", "code": "PARVO",            "name": "Parvovirus",                                      "category": "Serología",     "turnaroundHours": 1  },
-    { "kind": "TEST", "code": "DISTEMPER",        "name": "Distemper",                                       "category": "Serología",     "turnaroundHours": 1  },
-    { "kind": "TEST", "code": "HEARTWORM",        "name": "Antígeno Dirofilaria (Heartworm)",                "category": "Serología",     "turnaroundHours": 1  },
-    { "kind": "TEST", "code": "4DX",              "name": "Panel 4Dx (Heartworm + Ehrlichia + Anaplasma + Borrelia)", "category": "Serología", "turnaroundHours": 1 },
-    { "kind": "TEST", "code": "LEISHMANIA",       "name": "Leishmania (Anticuerpos)",                        "category": "Serología",     "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "BRUCELLA",         "name": "Brucella canis",                                  "category": "Serología",     "turnaroundHours": 4  },
-    { "kind": "TEST", "code": "BRUCELLA_PCR",    "name": "Brucella sp. (qPCR)",                             "category": "Biología Molecular", "turnaroundHours": 48 },
-    { "kind": "TEST", "code": "FeLV",             "name": "Leucemia Felina (FeLV)",                          "category": "Serología",     "turnaroundHours": 1  },
-    { "kind": "TEST", "code": "FIV",              "name": "Inmunodeficiencia Felina (FIV)",                  "category": "Serología",     "turnaroundHours": 1  },
-    { "kind": "TEST", "code": "FeLV_FIV",         "name": "FeLV + FIV",                                      "category": "Serología",     "turnaroundHours": 1  },
-    { "kind": "TEST", "code": "TOXOPLASMA",       "name": "Toxoplasma gondii (IgG + IgM)",                   "category": "Serología",     "turnaroundHours": 24 },
+    {
+      "kind": "TEST",
+      "code": "PARVO",
+      "name": "Parvovirus",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
+    {
+      "kind": "TEST",
+      "code": "DISTEMPER",
+      "name": "Distemper",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
+    {
+      "kind": "TEST",
+      "code": "HEARTWORM",
+      "name": "Antígeno Dirofilaria (Heartworm)",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
+    {
+      "kind": "TEST",
+      "code": "4DX",
+      "name": "Panel 4Dx (Heartworm + Ehrlichia + Anaplasma + Borrelia)",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
+    {
+      "kind": "TEST",
+      "code": "LEISHMANIA",
+      "name": "Leishmania (Anticuerpos)",
+      "category": "Serología",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "BRUCELLA",
+      "name": "Brucella canis",
+      "category": "Serología",
+      "turnaroundHours": 4
+    },
+    {
+      "kind": "TEST",
+      "code": "BRUCELLA_PCR",
+      "name": "Brucella sp. (qPCR)",
+      "category": "Biología Molecular",
+      "turnaroundHours": 48
+    },
+    {
+      "kind": "TEST",
+      "code": "FeLV",
+      "name": "Leucemia Felina (FeLV)",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
+    {
+      "kind": "TEST",
+      "code": "FIV",
+      "name": "Inmunodeficiencia Felina (FIV)",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
+    {
+      "kind": "TEST",
+      "code": "FeLV_FIV",
+      "name": "FeLV + FIV",
+      "category": "Serología",
+      "turnaroundHours": 1
+    },
+    {
+      "kind": "TEST",
+      "code": "TOXOPLASMA",
+      "name": "Toxoplasma gondii (IgG + IgM)",
+      "category": "Serología",
+      "turnaroundHours": 24
+    },
 
-    { "kind": "PACKAGE", "name": "Perfil Hemático Completo",    "description": "Hemograma + Hemoparásitos + Reticulocitos",                       "category": "Hematología",  "componentCodes": ["CBC", "HEMOPARASITES", "RETICULOCYTES"]                                                           },
-    { "kind": "PACKAGE", "name": "Perfil Bioquímico Básico",    "description": "GLU + BUN + CREA + ALT + AST + ALP + TP + ALB",                   "category": "Bioquímica",   "componentCodes": ["GLU", "BUN", "CREA", "ALT", "AST", "ALP", "TP_SER", "ALB"]                                       },
-    { "kind": "PACKAGE", "name": "Perfil Bioquímico Completo",  "description": "Bioquímica básica + GGT + CPK + bilis + lípidos + páncreas + NH3", "category": "Bioquímica",   "componentCodes": ["GLU", "BUN", "CREA", "ALT", "AST", "ALP", "GGT", "CPK", "TP_SER", "ALB", "TBIL", "DBIL", "CHOL", "TRIG", "AMY", "LIP", "NH3"] },
-    { "kind": "PACKAGE", "name": "Perfil de Electrolitos",      "description": "Na + K + Cl + Ca + P + CO2 + Brecha Aniónica + Osmolalidad",     "category": "Electrolitos", "componentCodes": ["NA", "K", "CL", "CA", "PHOS", "CO2", "AG", "OSM"]                                                },
-    { "kind": "PACKAGE", "name": "Perfil Renal",                "description": "BUN + Creatinina + Urianálisis",                                    "category": "Bioquímica",   "componentCodes": ["BUN", "CREA", "URINALYSIS"]                                                                        },
-    { "kind": "PACKAGE", "name": "Perfil Tiroideo",             "description": "T4 Total + T4 Libre + TSH",                                         "category": "Hormonas",     "componentCodes": ["T4", "FT4", "TSH"]                                                                                },
-    { "kind": "PACKAGE", "name": "FeLV + FIV + Hemograma",     "description": "Hemograma + FeLV + FIV",                                            "category": "Serología",    "componentCodes": ["CBC", "FeLV_FIV"]                                                                                  }
+    {
+      "kind": "PACKAGE",
+      "name": "Perfil Hemático Completo",
+      "description": "Hemograma + Hemoparásitos + Reticulocitos",
+      "category": "Hematología",
+      "componentCodes": ["CBC", "HEMOPARASITES", "RETICULOCYTES"]
+    },
+    {
+      "kind": "PACKAGE",
+      "name": "Perfil Bioquímico Básico",
+      "description": "GLU + BUN + CREA + ALT + AST + ALP + TP + ALB",
+      "category": "Bioquímica",
+      "componentCodes": [
+        "GLU",
+        "BUN",
+        "CREA",
+        "ALT",
+        "AST",
+        "ALP",
+        "TP_SER",
+        "ALB"
+      ]
+    },
+    {
+      "kind": "PACKAGE",
+      "name": "Perfil Bioquímico Completo",
+      "description": "Bioquímica básica + GGT + CPK + bilis + lípidos + páncreas + NH3",
+      "category": "Bioquímica",
+      "componentCodes": [
+        "GLU",
+        "BUN",
+        "CREA",
+        "ALT",
+        "AST",
+        "ALP",
+        "GGT",
+        "CPK",
+        "TP_SER",
+        "ALB",
+        "TBIL",
+        "DBIL",
+        "CHOL",
+        "TRIG",
+        "AMY",
+        "LIP",
+        "NH3"
+      ]
+    },
+    {
+      "kind": "PACKAGE",
+      "name": "Perfil de Electrolitos",
+      "description": "Na + K + Cl + Ca + P + CO2 + Brecha Aniónica + Osmolalidad",
+      "category": "Electrolitos",
+      "componentCodes": ["NA", "K", "CL", "CA", "PHOS", "CO2", "AG", "OSM"]
+    },
+    {
+      "kind": "PACKAGE",
+      "name": "Perfil Renal",
+      "description": "BUN + Creatinina + Urianálisis",
+      "category": "Bioquímica",
+      "componentCodes": ["BUN", "CREA", "URINALYSIS"]
+    },
+    {
+      "kind": "PACKAGE",
+      "name": "Perfil Tiroideo",
+      "description": "T4 Total + T4 Libre + TSH",
+      "category": "Hormonas",
+      "componentCodes": ["T4", "FT4", "TSH"]
+    },
+    {
+      "kind": "PACKAGE",
+      "name": "FeLV + FIV + Hemograma",
+      "description": "Hemograma + FeLV + FIV",
+      "category": "Serología",
+      "componentCodes": ["CBC", "FeLV_FIV"]
+    }
   ]
 }

@@ -2,7 +2,11 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { take } from 'rxjs';
-import { CaseModel, ResultReportModel, ResultReportAnalyteModel } from '@vet-ai/shared-types';
+import {
+  CaseModel,
+  ResultReportModel,
+  ResultReportAnalyteModel,
+} from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -61,7 +65,9 @@ export class ReportComponent implements OnInit {
     const d = this.report()?.releasedAt;
     if (!d) return null;
     return new Date(d).toLocaleDateString('es-CO', {
-      day: '2-digit', month: 'long', year: 'numeric',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
     });
   });
 
@@ -69,7 +75,9 @@ export class ReportComponent implements OnInit {
     const d = this.case()?.orderSentAt;
     if (!d) return null;
     return new Date(d).toLocaleDateString('es-CO', {
-      day: '2-digit', month: 'long', year: 'numeric',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
     });
   });
 
@@ -113,8 +121,10 @@ export class ReportComponent implements OnInit {
 
   formatValue(a: ResultReportAnalyteModel): string {
     if (a.isHeader) return '';
-    if (a.valueType === 'NUMERIC') return a.numericValue != null ? String(a.numericValue) : '—';
-    if (a.valueType === 'POSITIVE_NEGATIVE') return a.booleanValue ? 'Positivo' : 'Negativo';
+    if (a.valueType === 'NUMERIC')
+      return a.numericValue != null ? String(a.numericValue) : '—';
+    if (a.valueType === 'POSITIVE_NEGATIVE')
+      return a.booleanValue ? 'Positivo' : 'Negativo';
     if (a.valueType === 'SELECT') return a.selectValue ?? '—';
     return a.textValue ?? '—';
   }

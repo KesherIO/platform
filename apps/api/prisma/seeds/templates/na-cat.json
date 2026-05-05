@@ -16,7 +16,11 @@
           "unit": "mEq/L",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 141.0, "max": 155.0, "displayText": "141.0 – 155.0" }
+          "referenceRange": {
+            "min": 141.0,
+            "max": 155.0,
+            "displayText": "141.0 – 155.0"
+          }
         }
       ]
     }

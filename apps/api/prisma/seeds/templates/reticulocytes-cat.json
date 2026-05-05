@@ -79,7 +79,7 @@
             "max": 60000,
             "displayText": "No regenerativa: < 60,000 | Leve: 60,000 – 150,000 | Moderada: 150,000 – 300,000 | Marcada: > 300,000"
           }
-        },
+        }
       ]
     }
   ]

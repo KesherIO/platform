@@ -16,7 +16,11 @@
           "unit": "mOsm/Kg",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 250.0, "max": 310.0, "displayText": "250.0 – 310.0" }
+          "referenceRange": {
+            "min": 250.0,
+            "max": 310.0,
+            "displayText": "250.0 – 310.0"
+          }
         }
       ]
     }

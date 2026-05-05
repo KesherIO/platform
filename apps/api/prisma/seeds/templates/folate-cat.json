@@ -16,7 +16,11 @@
           "unit": "ng/mL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 10.0, "max": 20.0, "displayText": "10.0 – 20.0" }
+          "referenceRange": {
+            "min": 10.0,
+            "max": 20.0,
+            "displayText": "10.0 – 20.0"
+          }
         }
       ]
     }

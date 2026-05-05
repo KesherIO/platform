@@ -16,7 +16,11 @@
           "unit": "ng/mL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 4.0, "max": 13.0, "displayText": "4.0 – 13.0" }
+          "referenceRange": {
+            "min": 4.0,
+            "max": 13.0,
+            "displayText": "4.0 – 13.0"
+          }
         },
         {
           "code": "FB12_B12_DOG",
@@ -26,7 +30,11 @@
           "unit": "pg/mL",
           "sortOrder": 1,
           "isHeader": false,
-          "referenceRange": { "min": 150, "max": 580, "displayText": "150 – 580" }
+          "referenceRange": {
+            "min": 150,
+            "max": 580,
+            "displayText": "150 – 580"
+          }
         }
       ]
     }

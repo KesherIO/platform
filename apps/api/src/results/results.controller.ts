@@ -73,7 +73,9 @@ export class ResultsController {
     description: 'Biomet internal API key',
     required: true,
   })
-  @ApiOperation({ summary: 'Import (upsert) a result template — Biomet lab internal only' })
+  @ApiOperation({
+    summary: 'Import (upsert) a result template — Biomet lab internal only',
+  })
   importTemplate(@Body() body: ImportTemplateDto) {
     return this.resultsService.importTemplate(body);
   }
@@ -94,7 +96,10 @@ export class ResultsController {
     description: 'Biomet internal API key',
     required: true,
   })
-  @ApiOperation({ summary: 'Create a structured result report for an order — lab internal only' })
+  @ApiOperation({
+    summary:
+      'Create a structured result report for an order — lab internal only',
+  })
   createReport(@Body() body: CreateReportDto) {
     return this.resultsService.createReport(body);
   }
@@ -133,7 +138,9 @@ export class ResultsController {
     description: 'Biomet internal API key',
     required: true,
   })
-  @ApiOperation({ summary: 'Save analyte values on a DRAFT report — lab internal only' })
+  @ApiOperation({
+    summary: 'Save analyte values on a DRAFT report — lab internal only',
+  })
   saveAnalytes(@Param('id') id: string, @Body() body: SaveAnalytesDto) {
     return this.resultsService.saveAnalytes(id, body);
   }

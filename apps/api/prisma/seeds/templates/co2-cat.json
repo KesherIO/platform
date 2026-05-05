@@ -16,7 +16,11 @@
           "unit": "mEq/L",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 19.0, "max": 27.0, "displayText": "19.0 – 27.0" }
+          "referenceRange": {
+            "min": 19.0,
+            "max": 27.0,
+            "displayText": "19.0 – 27.0"
+          }
         }
       ]
     }

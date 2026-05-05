@@ -16,7 +16,11 @@
           "unit": "UI/L",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 9.0, "max": 50.0, "displayText": "9.0 – 50.0" }
+          "referenceRange": {
+            "min": 9.0,
+            "max": 50.0,
+            "displayText": "9.0 – 50.0"
+          }
         }
       ]
     }

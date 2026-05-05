@@ -16,7 +16,11 @@
           "unit": "mmol/L",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 0.90, "max": 1.48, "displayText": "0.90 – 1.48" }
+          "referenceRange": {
+            "min": 0.9,
+            "max": 1.48,
+            "displayText": "0.90 – 1.48"
+          }
         }
       ]
     }

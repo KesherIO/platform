@@ -16,7 +16,11 @@
           "unit": "s",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 8.00, "max": 11.00, "displayText": "8.00 – 11.00" }
+          "referenceRange": {
+            "min": 8.0,
+            "max": 11.0,
+            "displayText": "8.00 – 11.00"
+          }
         },
         {
           "code": "PTT",
@@ -26,7 +30,11 @@
           "unit": "s",
           "sortOrder": 1,
           "isHeader": false,
-          "referenceRange": { "min": 18.00, "max": 21.00, "displayText": "18.00 – 21.00" }
+          "referenceRange": {
+            "min": 18.0,
+            "max": 21.0,
+            "displayText": "18.00 – 21.00"
+          }
         }
       ]
     }

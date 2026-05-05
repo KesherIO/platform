@@ -16,7 +16,11 @@
           "unit": "µg/dL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 1.0, "max": 4.0, "displayText": "1.0 – 4.0" }
+          "referenceRange": {
+            "min": 1.0,
+            "max": 4.0,
+            "displayText": "1.0 – 4.0"
+          }
         },
         {
           "code": "CT4_CORTISOL",
@@ -26,7 +30,11 @@
           "unit": "µg/dL",
           "sortOrder": 1,
           "isHeader": false,
-          "referenceRange": { "min": 0.5, "max": 5.5, "displayText": "0.5 – 5.5" }
+          "referenceRange": {
+            "min": 0.5,
+            "max": 5.5,
+            "displayText": "0.5 – 5.5"
+          }
         }
       ]
     }

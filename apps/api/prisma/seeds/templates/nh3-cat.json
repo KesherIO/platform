@@ -16,7 +16,11 @@
           "unit": "µmol/L",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 30.0, "max": 100.0, "displayText": "30.0 – 100.0" }
+          "referenceRange": {
+            "min": 30.0,
+            "max": 100.0,
+            "displayText": "30.0 – 100.0"
+          }
         }
       ]
     }

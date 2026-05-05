@@ -16,7 +16,11 @@
           "unit": "µg/mL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 15.0, "max": 45.0, "displayText": "15.0 – 45.0" }
+          "referenceRange": {
+            "min": 15.0,
+            "max": 45.0,
+            "displayText": "15.0 – 45.0"
+          }
         }
       ]
     }

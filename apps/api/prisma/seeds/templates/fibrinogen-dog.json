@@ -16,7 +16,11 @@
           "unit": "mg/dL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 100, "max": 400, "displayText": "100 – 400" }
+          "referenceRange": {
+            "min": 100,
+            "max": 400,
+            "displayText": "100 – 400"
+          }
         }
       ]
     }

@@ -61,7 +61,10 @@ export class ReferenceRangeDto {
 }
 
 export class ImportTemplateAnalyteDto {
-  @ApiProperty({ example: 'WBC', description: 'Stable semantic code — AI + machine import anchor' })
+  @ApiProperty({
+    example: 'WBC',
+    description: 'Stable semantic code — AI + machine import anchor',
+  })
   @IsString()
   @IsNotEmpty()
   code!: string;
@@ -85,7 +88,10 @@ export class ImportTemplateAnalyteDto {
   @IsString()
   unit?: string;
 
-  @ApiPropertyOptional({ type: [String], example: ['Amarillo', 'Naranja', 'Rojo'] })
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['Amarillo', 'Naranja', 'Rojo'],
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -96,12 +102,18 @@ export class ImportTemplateAnalyteDto {
   @Min(0)
   sortOrder!: number;
 
-  @ApiPropertyOptional({ default: false, description: 'Bold label row — no value input' })
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Bold label row — no value input',
+  })
   @IsOptional()
   @IsBoolean()
   isHeader?: boolean;
 
-  @ApiPropertyOptional({ example: '([HCT]*10)/[RBC]', description: 'Formula using [CODE] references — computed on frontend' })
+  @ApiPropertyOptional({
+    example: '([HCT]*10)/[RBC]',
+    description: 'Formula using [CODE] references — computed on frontend',
+  })
   @IsOptional()
   @IsString()
   formula?: string;
@@ -131,7 +143,10 @@ export class ImportTemplateSectionDto {
 }
 
 export class ImportTemplateDto {
-  @ApiProperty({ example: 'CBC', description: 'Catalog item code to link this template to' })
+  @ApiProperty({
+    example: 'CBC',
+    description: 'Catalog item code to link this template to',
+  })
   @IsString()
   @IsNotEmpty()
   catalogItemCode!: string;
@@ -140,13 +155,19 @@ export class ImportTemplateDto {
   @IsEnum(PatientSpeciesDto)
   species!: PatientSpeciesDto;
 
-  @ApiPropertyOptional({ example: 0, description: 'Inclusive lower age bound in weeks. Null = no lower limit.' })
+  @ApiPropertyOptional({
+    example: 0,
+    description: 'Inclusive lower age bound in weeks. Null = no lower limit.',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   ageMinWeeks?: number;
 
-  @ApiPropertyOptional({ example: 4, description: 'Inclusive upper age bound in weeks. Null = no upper limit.' })
+  @ApiPropertyOptional({
+    example: 4,
+    description: 'Inclusive upper age bound in weeks. Null = no upper limit.',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -157,7 +178,9 @@ export class ImportTemplateDto {
   @IsNotEmpty()
   title!: string;
 
-  @ApiPropertyOptional({ example: 'Tipo de muestra: sangre entera anticoagulada con EDTA.' })
+  @ApiPropertyOptional({
+    example: 'Tipo de muestra: sangre entera anticoagulada con EDTA.',
+  })
   @IsOptional()
   @IsString()
   defaultObservations?: string;
@@ -227,7 +250,9 @@ export class SaveAnalytesDto {
 // ---------------------------------------------------------------------------
 
 export class ReleaseReportDto {
-  @ApiPropertyOptional({ example: 'Tipo de muestra: sangre entera anticoagulada con EDTA.' })
+  @ApiPropertyOptional({
+    example: 'Tipo de muestra: sangre entera anticoagulada con EDTA.',
+  })
   @IsOptional()
   @IsString()
   observations?: string;
@@ -242,7 +267,9 @@ export class ReleaseReportDto {
   @IsString()
   processedByRole?: string;
 
-  @ApiPropertyOptional({ example: 'Microbióloga\nUniversidad Santiago de Cali' })
+  @ApiPropertyOptional({
+    example: 'Microbióloga\nUniversidad Santiago de Cali',
+  })
   @IsOptional()
   @IsString()
   processedByCredentials?: string;
@@ -257,12 +284,17 @@ export class ReleaseReportDto {
   @IsString()
   approvedByRole?: string;
 
-  @ApiPropertyOptional({ example: 'Bacteriólogo y Laboratorista Clínico\nUniversidad del Valle\nRegistro No.: 767658' })
+  @ApiPropertyOptional({
+    example:
+      'Bacteriólogo y Laboratorista Clínico\nUniversidad del Valle\nRegistro No.: 767658',
+  })
   @IsOptional()
   @IsString()
   approvedByCredentials?: string;
 
-  @ApiPropertyOptional({ example: 'https://storage.example.com/signatures/canaval.png' })
+  @ApiPropertyOptional({
+    example: 'https://storage.example.com/signatures/canaval.png',
+  })
   @IsOptional()
   @IsUrl()
   signatureUrl?: string;

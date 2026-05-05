@@ -78,7 +78,11 @@
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 6.5, "max": 7.5, "displayText": "6.5 – 7.5" }
+          "referenceRange": {
+            "min": 6.5,
+            "max": 7.5,
+            "displayText": "6.5 – 7.5"
+          }
         },
         {
           "code": "COPRO_AZUCARES",

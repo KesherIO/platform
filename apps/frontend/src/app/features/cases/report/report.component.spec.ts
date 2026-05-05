@@ -60,7 +60,9 @@ describe('ReportComponent', () => {
         },
         {
           provide: AuthService,
-          useValue: { me: () => ({ tenants: [{ name: 'Test Clinic', logoUrl: null }] }) },
+          useValue: {
+            me: () => ({ tenants: [{ name: 'Test Clinic', logoUrl: null }] }),
+          },
         },
       ],
     }).compileComponents();
@@ -85,7 +87,15 @@ describe('ReportComponent', () => {
   });
 
   it('formatValue returns — for header rows', () => {
-    const header = { isHeader: true, valueType: 'TEXT' as const, sortOrder: 0, id: 'h', reportId: 'r', code: 'H', name: 'H' };
+    const header = {
+      isHeader: true,
+      valueType: 'TEXT' as const,
+      sortOrder: 0,
+      id: 'h',
+      reportId: 'r',
+      code: 'H',
+      name: 'H',
+    };
     expect(component.formatValue(header)).toBe('');
   });
 });

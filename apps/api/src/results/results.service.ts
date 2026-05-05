@@ -4,7 +4,12 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import { AnalyteValueType, CaseStatus, PatientSpecies, Prisma } from '@prisma/client';
+import {
+  AnalyteValueType,
+  CaseStatus,
+  PatientSpecies,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type {
   ResultTemplateModel,
@@ -70,7 +75,12 @@ export class ResultsService {
 
     const template = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.resultTemplate.findFirst({
-        where: { catalogItemId: catalogItem.id, species, ageMinWeeks, ageMaxWeeks },
+        where: {
+          catalogItemId: catalogItem.id,
+          species,
+          ageMinWeeks,
+          ageMaxWeeks,
+        },
         select: { id: true },
       });
 
@@ -111,7 +121,11 @@ export class ResultsService {
 
       for (const sectionDto of dto.sections) {
         const section = await tx.resultTemplateSection.create({
-          data: { templateId, name: sectionDto.name, sortOrder: sectionDto.sortOrder },
+          data: {
+            templateId,
+            name: sectionDto.name,
+            sortOrder: sectionDto.sortOrder,
+          },
           select: { id: true },
         });
 
@@ -129,7 +143,9 @@ export class ResultsService {
               sortOrder: analyteDto.sortOrder,
               isHeader: analyteDto.isHeader ?? false,
               formula: analyteDto.formula ?? null,
-              referenceRange: (analyteDto.referenceRange as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+              referenceRange:
+                (analyteDto.referenceRange as Prisma.InputJsonValue) ??
+                Prisma.JsonNull,
             },
           });
         }
@@ -185,7 +201,15 @@ export class ResultsService {
 
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },
-      include: { case: { select: { patientSpecies: true, patientAge: true, patientAgeUnit: true } } },
+      include: {
+        case: {
+          select: {
+            patientSpecies: true,
+            patientAge: true,
+            patientAgeUnit: true,
+          },
+        },
+      },
     });
     if (!order) throw new NotFoundException('Order not found.');
 
@@ -234,17 +258,24 @@ export class ResultsService {
     // Per catalog item: pick the best template.
     // Priority: (1) age-specific + species-specific > (2) age-specific + ANY >
     //           (3) age-agnostic + species-specific > (4) age-agnostic + ANY
-    const templateByCatalogItem = new Map<string, typeof templateRows[number]>();
+    const templateByCatalogItem = new Map<
+      string,
+      (typeof templateRows)[number]
+    >();
     for (const t of templateRows) {
-      const ageMatches = patientAgeWeeks == null
-        ? (t.ageMinWeeks == null && t.ageMaxWeeks == null) // no patient age → only agnostic
-        : (t.ageMinWeeks == null || patientAgeWeeks >= t.ageMinWeeks) &&
-          (t.ageMaxWeeks == null || patientAgeWeeks <= t.ageMaxWeeks);
+      const ageMatches =
+        patientAgeWeeks == null
+          ? t.ageMinWeeks == null && t.ageMaxWeeks == null // no patient age → only agnostic
+          : (t.ageMinWeeks == null || patientAgeWeeks >= t.ageMinWeeks) &&
+            (t.ageMaxWeeks == null || patientAgeWeeks <= t.ageMaxWeeks);
 
       if (!ageMatches) continue;
 
       const existing = templateByCatalogItem.get(t.catalogItemId);
-      if (!existing) { templateByCatalogItem.set(t.catalogItemId, t); continue; }
+      if (!existing) {
+        templateByCatalogItem.set(t.catalogItemId, t);
+        continue;
+      }
 
       const tScore = this.templateScore(t, species);
       const eScore = this.templateScore(existing, species);
@@ -287,7 +318,7 @@ export class ResultsService {
             unit: analyte.unit ?? null,
             valueType: analyte.valueType,
             sectionName: analyte.sectionId
-              ? (sectionNameById.get(analyte.sectionId) ?? null)
+              ? sectionNameById.get(analyte.sectionId) ?? null
               : null,
             sortOrder: analyte.sortOrder,
             isHeader: analyte.isHeader,
@@ -408,7 +439,8 @@ export class ResultsService {
         analytes
           .filter((a) => !a.isHeader)
           .map((a) => {
-            const ref = a.templateAnalyte?.referenceRange as ReferenceRangeSnapshot | null;
+            const ref = a.templateAnalyte
+              ?.referenceRange as ReferenceRangeSnapshot | null;
             const flag =
               a.valueType === 'NUMERIC' && a.numericValue != null
                 ? this.computeFlag(ref, a.numericValue)
@@ -418,7 +450,8 @@ export class ResultsService {
               where: { id: a.id },
               data: {
                 flag,
-                referenceSnapshot: (ref as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+                referenceSnapshot:
+                  (ref as Prisma.InputJsonValue) ?? Prisma.JsonNull,
               },
             });
           })
@@ -462,20 +495,29 @@ export class ResultsService {
   private toAgeWeeks(age: number | null, unit: string | null): number | null {
     if (age == null || unit == null) return null;
     switch (unit) {
-      case 'DAYS':   return age / 7;
-      case 'WEEKS':  return age;
-      case 'MONTHS': return age * 4.33;
-      case 'YEARS':  return age * 52;
-      default:       return null;
+      case 'DAYS':
+        return age / 7;
+      case 'WEEKS':
+        return age;
+      case 'MONTHS':
+        return age * 4.33;
+      case 'YEARS':
+        return age * 52;
+      default:
+        return null;
     }
   }
 
   private templateScore(
-    t: { species: PatientSpecies; ageMinWeeks: number | null; ageMaxWeeks: number | null },
+    t: {
+      species: PatientSpecies;
+      ageMinWeeks: number | null;
+      ageMaxWeeks: number | null;
+    },
     patientSpecies: PatientSpecies
   ): number {
     const speciesScore = t.species === patientSpecies ? 2 : 0; // ANY = 0
-    const ageScore     = (t.ageMinWeeks != null || t.ageMaxWeeks != null) ? 1 : 0;
+    const ageScore = t.ageMinWeeks != null || t.ageMaxWeeks != null ? 1 : 0;
     return speciesScore + ageScore;
   }
 
@@ -490,7 +532,9 @@ export class ResultsService {
   }
 
   private formatTemplate(
-    raw: Awaited<ReturnType<typeof this.prisma.resultTemplate.findUniqueOrThrow>> & {
+    raw: Awaited<
+      ReturnType<typeof this.prisma.resultTemplate.findUniqueOrThrow>
+    > & {
       sections: Array<{
         id: string;
         name: string;
@@ -579,7 +623,9 @@ export class ResultsService {
   }
 
   private formatReport(
-    raw: Awaited<ReturnType<typeof this.prisma.resultReport.findUniqueOrThrow>> & {
+    raw: Awaited<
+      ReturnType<typeof this.prisma.resultReport.findUniqueOrThrow>
+    > & {
       analytes: Array<{
         id: string;
         reportId: string;
@@ -621,26 +667,29 @@ export class ResultsService {
       releasedByUserId: raw.releasedByUserId ?? undefined,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
-      analytes: raw.analytes.map((a): ResultReportAnalyteModel => ({
-        id: a.id,
-        reportId: a.reportId,
-        templateAnalyteId: a.templateAnalyteId ?? undefined,
-        code: a.code,
-        name: a.name,
-        technique: a.technique ?? undefined,
-        unit: a.unit ?? undefined,
-        valueType: a.valueType as ResultReportAnalyteModel['valueType'],
-        sectionName: a.sectionName ?? undefined,
-        sortOrder: a.sortOrder,
-        isHeader: a.isHeader,
-        formula: a.formula ?? undefined,
-        numericValue: a.numericValue ?? undefined,
-        textValue: a.textValue ?? undefined,
-        booleanValue: a.booleanValue ?? undefined,
-        selectValue: a.selectValue ?? undefined,
-        flag: (a.flag as ResultReportAnalyteModel['flag']) ?? undefined,
-        referenceSnapshot: (a.referenceSnapshot as ReferenceRangeSnapshot) ?? undefined,
-      })),
+      analytes: raw.analytes.map(
+        (a): ResultReportAnalyteModel => ({
+          id: a.id,
+          reportId: a.reportId,
+          templateAnalyteId: a.templateAnalyteId ?? undefined,
+          code: a.code,
+          name: a.name,
+          technique: a.technique ?? undefined,
+          unit: a.unit ?? undefined,
+          valueType: a.valueType as ResultReportAnalyteModel['valueType'],
+          sectionName: a.sectionName ?? undefined,
+          sortOrder: a.sortOrder,
+          isHeader: a.isHeader,
+          formula: a.formula ?? undefined,
+          numericValue: a.numericValue ?? undefined,
+          textValue: a.textValue ?? undefined,
+          booleanValue: a.booleanValue ?? undefined,
+          selectValue: a.selectValue ?? undefined,
+          flag: (a.flag as ResultReportAnalyteModel['flag']) ?? undefined,
+          referenceSnapshot:
+            (a.referenceSnapshot as ReferenceRangeSnapshot) ?? undefined,
+        })
+      ),
     };
   }
 }

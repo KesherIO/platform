@@ -16,7 +16,11 @@
           "unit": "10³/µL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 200, "max": 500, "displayText": "200 – 500" }
+          "referenceRange": {
+            "min": 200,
+            "max": 500,
+            "displayText": "200 – 500"
+          }
         }
       ]
     }

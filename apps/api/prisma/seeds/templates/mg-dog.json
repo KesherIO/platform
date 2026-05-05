@@ -16,7 +16,11 @@
           "unit": "mg/dL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 1.6, "max": 2.4, "displayText": "1.6 – 2.4" }
+          "referenceRange": {
+            "min": 1.6,
+            "max": 2.4,
+            "displayText": "1.6 – 2.4"
+          }
         }
       ]
     }

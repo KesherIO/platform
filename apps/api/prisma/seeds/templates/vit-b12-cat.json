@@ -16,7 +16,11 @@
           "unit": "pg/mL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 150, "max": 1700, "displayText": "150 – 1700" }
+          "referenceRange": {
+            "min": 150,
+            "max": 1700,
+            "displayText": "150 – 1700"
+          }
         }
       ]
     }

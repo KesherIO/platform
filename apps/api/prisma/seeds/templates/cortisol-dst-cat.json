@@ -16,7 +16,11 @@
           "unit": "µg/dL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 1.0, "max": 4.5, "displayText": "1.0 – 4.5" }
+          "referenceRange": {
+            "min": 1.0,
+            "max": 4.5,
+            "displayText": "1.0 – 4.5"
+          }
         },
         {
           "code": "CDST_CAT2",

@@ -16,7 +16,11 @@
           "unit": "µg/dL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 0.5, "max": 3.4, "displayText": "0.5 – 3.4" }
+          "referenceRange": {
+            "min": 0.5,
+            "max": 3.4,
+            "displayText": "0.5 – 3.4"
+          }
         },
         {
           "code": "TSHT4_TSH",
@@ -26,7 +30,11 @@
           "unit": "ng/mL",
           "sortOrder": 1,
           "isHeader": false,
-          "referenceRange": { "min": 0.0, "max": 0.5, "displayText": "0.0 – 0.5" }
+          "referenceRange": {
+            "min": 0.0,
+            "max": 0.5,
+            "displayText": "0.0 – 0.5"
+          }
         }
       ]
     }

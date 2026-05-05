@@ -16,7 +16,11 @@
           "unit": "mg/dL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 0.1, "max": 0.70, "displayText": "0.10 – 0.70" }
+          "referenceRange": {
+            "min": 0.1,
+            "max": 0.7,
+            "displayText": "0.10 – 0.70"
+          }
         },
         {
           "code": "DBIL",

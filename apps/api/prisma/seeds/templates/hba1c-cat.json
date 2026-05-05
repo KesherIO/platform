@@ -16,7 +16,11 @@
           "unit": "%",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 0.9, "max": 2.5, "displayText": "0.9 – 2.5" }
+          "referenceRange": {
+            "min": 0.9,
+            "max": 2.5,
+            "displayText": "0.9 – 2.5"
+          }
         }
       ]
     }

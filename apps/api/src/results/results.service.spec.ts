@@ -1,8 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ResultsService } from './results.service';
 import { PrismaService } from '../prisma/prisma.service';
-import type { ImportTemplateDto, CreateReportDto, SaveAnalytesDto, ReleaseReportDto } from './dto/results.dto';
+import type {
+  ImportTemplateDto,
+  CreateReportDto,
+  SaveAnalytesDto,
+  ReleaseReportDto,
+} from './dto/results.dto';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -66,7 +75,9 @@ const ORDER = {
   id: 'order-1',
   caseId: 'case-1',
   tenantId: 'tenant-1',
-  orderedItems: [{ catalogItemId: 'cat-1', code: 'CBC', name: 'CBC', kind: 'TEST' }],
+  orderedItems: [
+    { catalogItemId: 'cat-1', code: 'CBC', name: 'CBC', kind: 'TEST' },
+  ],
   case: { patientSpecies: 'DOG' },
   createdAt: new Date(),
 };
@@ -181,10 +192,7 @@ describe('ResultsService', () => {
     prisma = makePrismaMock();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ResultsService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [ResultsService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     service = module.get(ResultsService);
@@ -213,7 +221,11 @@ describe('ResultsService', () => {
               valueType: 'NUMERIC' as const,
               unit: 'g/dL',
               sortOrder: 1,
-              referenceRange: { min: 12.0, max: 18.0, displayText: '12.0 – 18.0' },
+              referenceRange: {
+                min: 12.0,
+                max: 18.0,
+                displayText: '12.0 – 18.0',
+              },
             },
           ],
         },
@@ -271,7 +283,9 @@ describe('ResultsService', () => {
     it('throws NotFoundException when catalogItemCode is not found', async () => {
       prisma.catalogItem.findUnique.mockResolvedValue(null);
 
-      await expect(service.importTemplate(dto)).rejects.toThrow(NotFoundException);
+      await expect(service.importTemplate(dto)).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -310,14 +324,18 @@ describe('ResultsService', () => {
     it('throws ConflictException when a report already exists for the order', async () => {
       prisma.resultReport.findUnique.mockResolvedValue({ id: 'report-1' });
 
-      await expect(service.createReport(dto)).rejects.toThrow(ConflictException);
+      await expect(service.createReport(dto)).rejects.toThrow(
+        ConflictException
+      );
     });
 
     it('throws NotFoundException when order does not exist', async () => {
       prisma.resultReport.findUnique.mockResolvedValue(null);
       prisma.order.findUnique.mockResolvedValue(null);
 
-      await expect(service.createReport(dto)).rejects.toThrow(NotFoundException);
+      await expect(service.createReport(dto)).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('throws NotFoundException when no matching template is found', async () => {
@@ -325,7 +343,9 @@ describe('ResultsService', () => {
       prisma.order.findUnique.mockResolvedValue(ORDER);
       prisma.resultTemplate.findMany.mockResolvedValue([]);
 
-      await expect(service.createReport(dto)).rejects.toThrow(NotFoundException);
+      await expect(service.createReport(dto)).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -390,7 +410,7 @@ describe('ResultsService', () => {
         makeReport({ status: 'DRAFT', caseId: 'case-1' })
       );
       prisma.resultReportAnalyte.findMany.mockResolvedValue([
-        makeAnalyte({ numericValue: 8.2 }),  // below min: 12 → flag L
+        makeAnalyte({ numericValue: 8.2 }), // below min: 12 → flag L
       ]);
       prisma.resultReportAnalyte.update.mockResolvedValue({});
       prisma.resultReport.update.mockResolvedValue({});
@@ -453,7 +473,11 @@ describe('ResultsService', () => {
 
     it('sets null flag for non-numeric analytes', async () => {
       prisma.resultReportAnalyte.findMany.mockResolvedValue([
-        makeAnalyte({ valueType: 'TEXT', textValue: 'Ligeramente turbio', numericValue: null }),
+        makeAnalyte({
+          valueType: 'TEXT',
+          textValue: 'Ligeramente turbio',
+          numericValue: null,
+        }),
       ]);
 
       await service.releaseReport('report-1', dto);

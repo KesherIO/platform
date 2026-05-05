@@ -16,7 +16,11 @@
           "unit": "s",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 8.0, "max": 13.0, "displayText": "8.0 – 13.0" }
+          "referenceRange": {
+            "min": 8.0,
+            "max": 13.0,
+            "displayText": "8.0 – 13.0"
+          }
         },
         {
           "code": "PTT",
@@ -26,7 +30,11 @@
           "unit": "s",
           "sortOrder": 1,
           "isHeader": false,
-          "referenceRange": { "min": 15.0, "max": 25.0, "displayText": "15.0 – 25.0" }
+          "referenceRange": {
+            "min": 15.0,
+            "max": 25.0,
+            "displayText": "15.0 – 25.0"
+          }
         }
       ]
     }

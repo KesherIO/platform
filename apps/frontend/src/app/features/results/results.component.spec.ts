@@ -46,7 +46,11 @@ describe('ResultsComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ResultsComponent, TranslateModule.forRoot(), RouterTestingModule],
+      imports: [
+        ResultsComponent,
+        TranslateModule.forRoot(),
+        RouterTestingModule,
+      ],
       providers: [
         {
           provide: CasesService,

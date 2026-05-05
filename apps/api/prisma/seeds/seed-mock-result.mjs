@@ -11,35 +11,35 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
 
-const CASE_ID  = 'cmok9n2700003ljs5tcdrwlbc';
+const CASE_ID = 'cmok9n2700003ljs5tcdrwlbc';
 const ORDER_ID = 'cmok9rva70005ljs5dv99bc5x';
 const TENANT_ID = 'cmnja2z0v0001ljircyhpc3lf';
 const RELEASED_BY_USER_ID = 'b6ea573b-8964-46f6-95c7-b8d8da95ce09';
 
 // Realistic CBC values — mild anemia matching Dominique's parasitic anorexia presentation
 const VALUES = {
-  RBC:     { num: 4.8,  flag: 'L' },
-  HGB:     { num: 10.2, flag: 'L' },
-  HCT:     { num: 30.5, flag: 'L' },
-  MCV:     { num: 63.5, flag: 'N' },
-  MCH:     { num: 21.3, flag: 'N' },
-  MCHC:    { num: 33.4, flag: 'N' },
-  WBC:     { num: 14.2, flag: 'N' },
-  NEU_PCT: { num: 75,   flag: 'N' },
-  NEU:     { num: 10.7, flag: 'N' },
-  LYM_PCT: { num: 17,   flag: 'N' },
-  LYM:     { num: 2.4,  flag: 'N' },
-  MON_PCT: { num: 6,    flag: 'N' },
-  MON:     { num: 0.85, flag: 'N' },
-  EOS_PCT: { num: 2,    flag: 'N' },
-  EOS:     { num: 0.28, flag: 'N' },
-  BAS_PCT: { num: 0,    flag: 'N' },
-  BAS:     { num: 0,    flag: 'N' },
-  BAND_PCT:{ num: 0,    flag: 'N' },
-  BAND:    { num: 0,    flag: 'N' },
-  PLT:     { num: 312,  flag: 'N' },
-  MPV:     { num: 8.4,  flag: 'N' },
-  TP:      { num: 62,   flag: 'N' },
+  RBC: { num: 4.8, flag: 'L' },
+  HGB: { num: 10.2, flag: 'L' },
+  HCT: { num: 30.5, flag: 'L' },
+  MCV: { num: 63.5, flag: 'N' },
+  MCH: { num: 21.3, flag: 'N' },
+  MCHC: { num: 33.4, flag: 'N' },
+  WBC: { num: 14.2, flag: 'N' },
+  NEU_PCT: { num: 75, flag: 'N' },
+  NEU: { num: 10.7, flag: 'N' },
+  LYM_PCT: { num: 17, flag: 'N' },
+  LYM: { num: 2.4, flag: 'N' },
+  MON_PCT: { num: 6, flag: 'N' },
+  MON: { num: 0.85, flag: 'N' },
+  EOS_PCT: { num: 2, flag: 'N' },
+  EOS: { num: 0.28, flag: 'N' },
+  BAS_PCT: { num: 0, flag: 'N' },
+  BAS: { num: 0, flag: 'N' },
+  BAND_PCT: { num: 0, flag: 'N' },
+  BAND: { num: 0, flag: 'N' },
+  PLT: { num: 312, flag: 'N' },
+  MPV: { num: 8.4, flag: 'N' },
+  TP: { num: 62, flag: 'N' },
 };
 
 async function main() {
@@ -109,7 +109,9 @@ async function main() {
   }
 
   // 3. Skip if report already exists
-  const existing = await prisma.resultReport.findFirst({ where: { orderId: ORDER_ID } });
+  const existing = await prisma.resultReport.findFirst({
+    where: { orderId: ORDER_ID },
+  });
   if (existing) {
     console.log(`Report already exists (${existing.id}), skipping.`);
   } else {
@@ -131,7 +133,7 @@ async function main() {
         sortOrder: a.sortOrder,
         isHeader: a.isHeader,
         numericValue: val?.num ?? null,
-        flag: a.isHeader ? null : (val?.flag ?? null),
+        flag: a.isHeader ? null : val?.flag ?? null,
         referenceSnapshot: a.referenceRange ?? null,
       };
     });
@@ -161,7 +163,10 @@ async function main() {
   }
 
   // 5. Mark the case and order as COMPLETED
-  await prisma.case.update({ where: { id: CASE_ID }, data: { status: 'COMPLETED' } });
+  await prisma.case.update({
+    where: { id: CASE_ID },
+    data: { status: 'COMPLETED' },
+  });
   await prisma.order.update({
     where: { id: ORDER_ID },
     data: { status: 'COMPLETED', completedAt: new Date() },
@@ -170,5 +175,8 @@ async function main() {
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());

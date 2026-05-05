@@ -15,7 +15,11 @@
           "valueType": "NUMERIC",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 8.0, "max": 18.0, "displayText": "8.0 – 18.0" }
+          "referenceRange": {
+            "min": 8.0,
+            "max": 18.0,
+            "displayText": "8.0 – 18.0"
+          }
         }
       ]
     }

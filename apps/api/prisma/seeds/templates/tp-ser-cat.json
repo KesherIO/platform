@@ -16,7 +16,11 @@
           "unit": "g/dL",
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "min": 6.5, "max": 8.9, "displayText": "6.5 – 8.9" }
+          "referenceRange": {
+            "min": 6.5,
+            "max": 8.9,
+            "displayText": "6.5 – 8.9"
+          }
         }
       ]
     }
