@@ -985,10 +985,12 @@ export class CasesService {
   }
 
   deleteCase(id: string): Observable<void> {
-    mockCases = mockCases.filter((c) => c.id !== id);
-    if (this.activeCase()?.id === id) this.activeCase.set(null);
-    // TODO: Replace with actual API call DELETE /cases/:id
-    return of(undefined).pipe(delay(MOCK_DELAY));
+    return this.http.delete<void>(`/api/cases/${id}`).pipe(
+      take(1),
+      tap(() => {
+        if (this.activeCase()?.id === id) this.activeCase.set(null);
+      })
+    );
   }
 
   getReportByOrderId(orderId: string): Observable<ResultReportModel> {
