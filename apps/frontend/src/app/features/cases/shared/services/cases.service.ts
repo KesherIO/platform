@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, delay, tap, map, catchError } from 'rxjs';
+import { Observable, of, delay, tap, map, catchError, take } from 'rxjs';
 import {
   CaseModel,
   CaseStatus,
@@ -985,7 +985,7 @@ export class CasesService {
   }
 
   deleteCase(id: string): Observable<void> {
-    return this.http.delete<void>(`/api/cases/${id}`).pipe(
+    return this.http.delete<void>(`/api/cases/${id}`, this.tenantHeaders).pipe(
       take(1),
       tap(() => {
         if (this.activeCase()?.id === id) this.activeCase.set(null);
