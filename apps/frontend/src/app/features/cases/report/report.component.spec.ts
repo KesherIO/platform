@@ -5,6 +5,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { ReportComponent } from './report.component';
 import { CasesService } from '../shared/services/cases.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { LanguageService } from '../../../core/services/language.service';
 import { CaseStatus, PatientSpecies, AgeUnit } from '@vet-ai/shared-types';
 
 const mockCase = {
@@ -56,6 +57,7 @@ describe('ReportComponent', () => {
           useValue: {
             getCase: () => of(mockCase),
             getReportByOrderId: () => of(mockReport),
+            getExistingInterpretation: () => of(null),
           },
         },
         {
@@ -63,6 +65,10 @@ describe('ReportComponent', () => {
           useValue: {
             me: () => ({ tenants: [{ name: 'Test Clinic', logoUrl: null }] }),
           },
+        },
+        {
+          provide: LanguageService,
+          useValue: { currentLang: () => 'en' },
         },
       ],
     }).compileComponents();

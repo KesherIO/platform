@@ -14,3 +14,4 @@ export * from './staff.model.js';
 export * from './diagnosis.model.js';
 export * from './catalog-item.model.js';
 export * from './triage-result.model.js';
+export * from './ai-interpretation.model.js';

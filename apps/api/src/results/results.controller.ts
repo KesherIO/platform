@@ -5,6 +5,7 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -21,7 +22,8 @@ import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { Public } from '../auth/decorators/public.decorator';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
-import type { TenantContext } from '@vet-ai/shared-types';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { TenantContext, AuthenticatedUser } from '@vet-ai/shared-types';
 import {
   ImportTemplateDto,
   CreateReportDto,
@@ -180,5 +182,59 @@ export class ResultsController {
     @Param('orderId') orderId: string
   ) {
     return this.resultsService.findReportByOrderId(tenant.tenantId, orderId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /results/reports/:id/interpret
+  // Return the stored AI interpretation if it exists — no Claude call.
+  // Returns null when none has been generated yet.
+  // ---------------------------------------------------------------------------
+
+  @Get('reports/:id/interpret')
+  @ApiBearerAuth()
+  @UseGuards(TenantGuard)
+  @ApiOperation({
+    summary: 'Get stored AI interpretation for a report, if any',
+  })
+  findInterpretation(
+    @Param('id') id: string,
+    @CurrentTenant() tenant: TenantContext,
+    @Query('lang') lang?: string
+  ) {
+    const safeLang = lang === 'es' ? 'es' : 'en';
+    return this.resultsService.findInterpretation(
+      id,
+      tenant.tenantId,
+      safeLang
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // POST /results/reports/:id/interpret
+  // Get or create AI interpretation for a released report — clinic-facing.
+  // Returns cached interpretation if already generated, otherwise calls AI.
+  // ---------------------------------------------------------------------------
+
+  @Post('reports/:id/interpret')
+  @ApiBearerAuth()
+  @UseGuards(TenantGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Get or create AI interpretation for a released report (clinic view)',
+  })
+  interpretReport(
+    @Param('id') id: string,
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('lang') lang?: string
+  ) {
+    const safeLang = lang === 'es' ? 'es' : 'en';
+    return this.resultsService.getOrCreateInterpretation(
+      id,
+      tenant.tenantId,
+      user?.id,
+      safeLang
+    );
   }
 }
