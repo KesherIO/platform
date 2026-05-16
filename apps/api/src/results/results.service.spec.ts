@@ -4,8 +4,10 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ResultsService } from './results.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RagService } from '../rag/rag.service';
 import type {
   ImportTemplateDto,
   CreateReportDto,
@@ -193,7 +195,18 @@ describe('ResultsService', () => {
     prisma = makePrismaMock();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ResultsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        ResultsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: ConfigService,
+          useValue: { getOrThrow: () => 'test-key', get: () => undefined },
+        },
+        {
+          provide: RagService,
+          useValue: { retrieveRelevantChunks: async () => [] },
+        },
+      ],
     }).compile();
 
     service = module.get(ResultsService);

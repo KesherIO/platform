@@ -4,11 +4,14 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import {
   CaseModel,
+  CaseStatus,
   ResultReportModel,
   ResultReportAnalyteModel,
+  AiInterpretationModel,
 } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { LanguageService } from '../../../core/services/language.service';
 
 @Component({
   selector: 'app-report',
@@ -22,11 +25,24 @@ export class ReportComponent implements OnInit {
   private router = inject(Router);
   private casesService = inject(CasesService);
   private authService = inject(AuthService);
+  private languageService = inject(LanguageService);
 
   loading = signal(true);
   error = signal<string | null>(null);
   case = signal<CaseModel | null>(null);
   report = signal<ResultReportModel | null>(null);
+
+  activeTab = signal<'results' | 'ai'>('results');
+
+  interpretation = signal<AiInterpretationModel | null>(null);
+  isInterpreting = signal(false);
+  interpretationError = signal<string | null>(null);
+
+  readonly CaseStatus = CaseStatus;
+
+  canInterpret = computed(
+    () => this.case()?.status === CaseStatus.COMPLETED && this.report() !== null
+  );
 
   caseId = computed(() => this.route.snapshot.paramMap.get('id') ?? '');
 
@@ -101,6 +117,15 @@ export class ReportComponent implements OnInit {
               next: (r) => {
                 this.report.set(r);
                 this.loading.set(false);
+                this.casesService
+                  .getExistingInterpretation(
+                    r.id,
+                    this.languageService.currentLang()
+                  )
+                  .pipe(take(1))
+                  .subscribe((existing) => {
+                    if (existing) this.interpretation.set(existing);
+                  });
               },
               error: () => {
                 this.error.set('REPORT.ERROR_NOT_FOUND');
@@ -115,8 +140,28 @@ export class ReportComponent implements OnInit {
       });
   }
 
+  interpret(): void {
+    const reportId = this.report()?.id;
+    if (!reportId || this.isInterpreting()) return;
+    this.isInterpreting.set(true);
+    this.interpretationError.set(null);
+    this.casesService
+      .interpretReport(reportId, this.languageService.currentLang())
+      .pipe(take(1))
+      .subscribe({
+        next: (result) => {
+          this.interpretation.set(result);
+          this.isInterpreting.set(false);
+        },
+        error: () => {
+          this.interpretationError.set('REPORT.AI_INTERPRETATION.ERROR');
+          this.isInterpreting.set(false);
+        },
+      });
+  }
+
   goBack(): void {
-    this.router.navigate(['/cases', this.caseId(), 'order']);
+    this.router.navigate(['/results']);
   }
 
   formatValue(a: ResultReportAnalyteModel): string {

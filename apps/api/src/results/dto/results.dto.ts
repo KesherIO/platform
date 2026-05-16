@@ -249,6 +249,76 @@ export class SaveAnalytesDto {
 // Release the report — computes flags, freezes values, completes the case.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// POST /results/reports/:id/interpret
+// Get or create AI interpretation for a released report — clinic-facing.
+// ---------------------------------------------------------------------------
+
+export class AiInterpretationFlaggedAnalyteDto {
+  @ApiProperty({ example: 'WBC' })
+  code!: string;
+
+  @ApiProperty({ example: 'Recuento total de leucocitos (WBC)' })
+  name!: string;
+
+  @ApiProperty({ example: '11.3 10^3/µL' })
+  value!: string;
+
+  @ApiProperty({ enum: ['H', 'L'] })
+  flag!: 'H' | 'L';
+
+  @ApiProperty({
+    example: 'Mild leukocytosis may suggest an active inflammatory response.',
+  })
+  clinicalMeaning!: string;
+}
+
+export class AiInterpretationResponseDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  reportId!: string;
+
+  @ApiProperty()
+  caseId!: string;
+
+  @ApiProperty()
+  tenantId!: string;
+
+  @ApiProperty({ example: 'claude-sonnet-4-6' })
+  model!: string;
+
+  @ApiProperty({ example: 'v1' })
+  promptVersion!: string;
+
+  @ApiProperty()
+  summary!: string;
+
+  @ApiProperty({ type: [AiInterpretationFlaggedAnalyteDto] })
+  flaggedAnalytes!: AiInterpretationFlaggedAnalyteDto[];
+
+  @ApiProperty({ type: [String] })
+  risks!: string[];
+
+  @ApiProperty({ type: [String] })
+  suggestedNextSteps!: string[];
+
+  @ApiProperty()
+  disclaimer!: string;
+
+  @ApiPropertyOptional()
+  generatedByUserId?: string;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+}
+
+// ---------------------------------------------------------------------------
+
 export class ReleaseReportDto {
   @ApiPropertyOptional({
     example: 'Tipo de muestra: sangre entera anticoagulada con EDTA.',

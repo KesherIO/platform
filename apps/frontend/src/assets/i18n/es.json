@@ -404,7 +404,7 @@
   "REPORT": {
     "TITLE": "Informe de Resultados",
     "ORDER_NO": "Orden",
-    "RELEASED": "Liberado",
+    "RELEASED": "Generado",
     "PATIENT_DATA": "Paciente",
     "CLINIC_DATA": "Clínica",
     "FIELD_NAME": "Nombre",
@@ -424,8 +424,24 @@
     "OBSERVATIONS": "Observaciones",
     "PROCESSED_BY": "Analizó",
     "APPROVED_BY": "Revisó y autorizó",
+    "TAB_RESULTS": "Resultados",
+    "TAB_AI": "Interpretación IA",
     "ERROR_NO_ORDER": "Este caso no tiene una orden asociada.",
-    "ERROR_NOT_FOUND": "Los resultados del laboratorio aún no están disponibles."
+    "ERROR_NOT_FOUND": "Los resultados del laboratorio aún no están disponibles.",
+    "AI_INTERPRETATION": {
+      "BUTTON": "Interpretar con IA",
+      "LOADING": "Generando interpretación con IA...",
+      "RETRY": "Reintentar",
+      "ERROR": "No se pudo generar la interpretación. Por favor, intente de nuevo.",
+      "TITLE": "Interpretación Clínica con IA",
+      "BADGE": "Generado por IA",
+      "SUMMARY_LABEL": "Resumen",
+      "FLAGGED_LABEL": "Valores Anormales",
+      "RISKS_LABEL": "Riesgos Clínicos",
+      "NEXT_STEPS_LABEL": "Próximos Pasos Sugeridos",
+      "DISCLAIMER_LABEL": "Aviso legal",
+      "NO_FLAGGED": "Todos los analitos reportados están dentro de los rangos de referencia."
+    }
   },
   "COUNTRIES": {
     "AR": "Argentina",

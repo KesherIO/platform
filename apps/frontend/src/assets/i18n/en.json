@@ -424,8 +424,24 @@
     "OBSERVATIONS": "Observations",
     "PROCESSED_BY": "Processed by",
     "APPROVED_BY": "Reviewed & approved by",
+    "TAB_RESULTS": "Results",
+    "TAB_AI": "AI Interpretation",
     "ERROR_NO_ORDER": "This case has no order associated.",
-    "ERROR_NOT_FOUND": "Lab results not available yet."
+    "ERROR_NOT_FOUND": "Lab results not available yet.",
+    "AI_INTERPRETATION": {
+      "BUTTON": "Interpret with AI",
+      "LOADING": "Generating AI interpretation...",
+      "RETRY": "Retry",
+      "ERROR": "Could not generate AI interpretation. Please try again.",
+      "TITLE": "AI Clinical Interpretation",
+      "BADGE": "AI-generated",
+      "SUMMARY_LABEL": "Summary",
+      "FLAGGED_LABEL": "Abnormal Values",
+      "RISKS_LABEL": "Clinical Risks",
+      "NEXT_STEPS_LABEL": "Suggested Next Steps",
+      "DISCLAIMER_LABEL": "Disclaimer",
+      "NO_FLAGGED": "All reported analytes are within reference ranges."
+    }
   },
   "COUNTRIES": {
     "AR": "Argentina",

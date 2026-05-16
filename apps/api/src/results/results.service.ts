@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import {
   AnalyteValueType,
@@ -10,7 +11,10 @@ import {
   PatientSpecies,
   Prisma,
 } from '@prisma/client';
+import Anthropic from '@anthropic-ai/sdk';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { RagService, RetrievedChunk } from '../rag/rag.service';
 import type {
   ResultTemplateModel,
   ResultTemplateSectionModel,
@@ -18,6 +22,8 @@ import type {
   ResultReportModel,
   ResultReportAnalyteModel,
   ReferenceRangeSnapshot,
+  AiInterpretationModel,
+  AiInterpretationFlaggedAnalyte,
 } from '@vet-ai/shared-types';
 import type {
   ImportTemplateDto,
@@ -26,6 +32,38 @@ import type {
   ReleaseReportDto,
 } from './dto/results.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
+
+const AI_INTERPRETATION_MODEL = 'claude-sonnet-4-6';
+const AI_INTERPRETATION_PROMPT_VERSION = 'v2'; // v2: RAG-augmented prompt
+
+const INTERPRETATION_SYSTEM_PROMPT = `You are a veterinary clinical pathology assistant embedded in a lab results platform.
+
+Given a patient description, clinical symptoms, and structured lab results, return ONLY a valid JSON object — no markdown, no explanation — matching this exact schema:
+{
+  "summary": "string — 2 to 3 sentences giving a plain-language clinical overview of the results in context of the symptoms",
+  "flaggedAnalytes": [
+    {
+      "code": "string — analyte code e.g. WBC",
+      "name": "string — analyte display name",
+      "value": "string — formatted value with unit e.g. '11.3 10^3/µL'",
+      "flag": "H or L",
+      "clinicalMeaning": "string — 1 to 2 sentences on the clinical significance of this specific abnormality"
+    }
+  ],
+  "risks": ["string", ...],
+  "suggestedNextSteps": ["string", ...],
+  "disclaimer": "string"
+}
+
+Rules:
+- flaggedAnalytes must include ONLY analytes with flag H or L — skip normal (N) values
+- If all analytes are within reference range, return an empty flaggedAnalytes array
+- risks: 2 to 4 concise clinical risks relevant to the patient, based on abnormal values and symptoms
+- suggestedNextSteps: 2 to 4 actionable recommendations for the veterinarian
+- disclaimer must always be: "This AI-generated interpretation is a clinical decision support tool only. It does not constitute a diagnosis. Always apply professional veterinary judgment."
+- Tailor interpretation to the patient species — normal ranges and disease prevalence differ across species
+- Write in a tone appropriate for a licensed veterinarian, not a pet owner
+- CRITICAL: output must be a single, complete, valid JSON object — never truncate mid-object, never repeat keys, never add text outside the JSON`;
 
 // ---------------------------------------------------------------------------
 // Include shapes
@@ -47,7 +85,17 @@ const REPORT_INCLUDE = {
 
 @Injectable()
 export class ResultsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly anthropic: Anthropic;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+    private readonly ragService: RagService
+  ) {
+    this.anthropic = new Anthropic({
+      apiKey: this.config.getOrThrow<string>('ANTHROPIC_API_KEY'),
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // Template management (Biomet internal)
@@ -484,6 +532,171 @@ export class ResultsService {
   }
 
   // ---------------------------------------------------------------------------
+  // AI Interpretation (clinic-facing)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Returns the stored AI interpretation for a report, or generates, saves,
+   * and returns a new one if none exists yet.
+   * Structured so the inner generation logic can later be called from an
+   * async event handler (e.g. on report release) without changing this method.
+   */
+  async findInterpretation(
+    reportId: string,
+    tenantId: string,
+    lang: 'en' | 'es' = 'en'
+  ): Promise<AiInterpretationModel | null> {
+    const existing = await this.prisma.aiInterpretation.findUnique({
+      where: { reportId_lang: { reportId, lang } },
+    });
+    if (!existing || existing.tenantId !== tenantId) return null;
+    return this.formatInterpretation(existing);
+  }
+
+  async getOrCreateInterpretation(
+    reportId: string,
+    tenantId: string,
+    userId?: string,
+    lang: 'en' | 'es' = 'en'
+  ): Promise<AiInterpretationModel> {
+    const existing = await this.prisma.aiInterpretation.findUnique({
+      where: { reportId_lang: { reportId, lang } },
+    });
+    if (existing && existing.tenantId === tenantId) {
+      return this.formatInterpretation(existing);
+    }
+
+    const report = await this.prisma.resultReport.findUnique({
+      where: { id: reportId },
+      include: { analytes: { orderBy: { sortOrder: 'asc' } } },
+    });
+    if (!report) throw new NotFoundException('Result report not found.');
+    if (report.tenantId !== tenantId)
+      throw new NotFoundException('Result report not found.');
+    if (report.status !== 'RELEASED') {
+      throw new BadRequestException(
+        'AI interpretation is only available for released reports.'
+      );
+    }
+
+    const caseRow = await this.prisma.case.findUnique({
+      where: { id: report.caseId },
+      select: {
+        patientName: true,
+        patientSpecies: true,
+        patientSex: true,
+        patientBreed: true,
+        patientAge: true,
+        patientAgeUnit: true,
+        patientWeight: true,
+        symptoms: true,
+      },
+    });
+    if (!caseRow) throw new NotFoundException('Case not found.');
+
+    const patientLine = [
+      `Species: ${caseRow.patientSpecies}`,
+      caseRow.patientBreed ? `Breed: ${caseRow.patientBreed}` : null,
+      caseRow.patientAge != null && caseRow.patientAgeUnit
+        ? `Age: ${caseRow.patientAge} ${caseRow.patientAgeUnit.toLowerCase()}`
+        : null,
+      caseRow.patientWeight != null
+        ? `Weight: ${caseRow.patientWeight} kg`
+        : null,
+      caseRow.patientSex ? `Sex: ${caseRow.patientSex}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    const analyteLines = report.analytes
+      .filter((a) => !a.isHeader)
+      .map((a) => {
+        const ref = a.referenceSnapshot as ReferenceRangeSnapshot | null;
+        const valuePart =
+          a.valueType === 'NUMERIC' && a.numericValue != null
+            ? `${a.numericValue}${a.unit ? ' ' + a.unit : ''}`
+            : a.textValue ??
+              a.selectValue ??
+              (a.booleanValue != null ? String(a.booleanValue) : '—');
+        const flagPart = a.flag && a.flag !== 'N' ? ` [${a.flag}]` : '';
+        const refPart = ref?.displayText ? ` (ref: ${ref.displayText})` : '';
+        return `${a.code} | ${a.name}: ${valuePart}${flagPart}${refPart}`;
+      })
+      .join('\n');
+
+    // RAG retrieval — build query from flagged analytes + symptoms + species
+    const flaggedForRag = report.analytes
+      .filter((a) => !a.isHeader && (a.flag === 'H' || a.flag === 'L'))
+      .map((a) => ({ code: a.code, flag: a.flag as 'H' | 'L' }));
+
+    let retrievedChunks: RetrievedChunk[] = [];
+    try {
+      retrievedChunks = await this.ragService.retrieveRelevantChunks({
+        species: caseRow.patientSpecies.toLowerCase(),
+        symptoms: caseRow.symptoms,
+        analytes: flaggedForRag,
+      });
+    } catch (err) {
+      console.warn('[RAG] Retrieval failed — proceeding without context:', err);
+    }
+
+    const ragContextBlock =
+      retrievedChunks.length > 0
+        ? [
+            '--- Relevant clinical context from veterinary knowledge base ---',
+            ...retrievedChunks.map(
+              (c, i) =>
+                `[${i + 1}] ${c.documentTitle} — ${c.section}\n${c.content}`
+            ),
+            '---',
+          ].join('\n\n')
+        : null;
+
+    const languageInstruction =
+      lang === 'es'
+        ? 'Respond entirely in Spanish.'
+        : 'Respond entirely in English.';
+
+    const userMessage = [
+      ragContextBlock,
+      `Patient: ${caseRow.patientName}`,
+      patientLine,
+      `Symptoms: ${caseRow.symptoms ?? 'Not recorded'}`,
+      '',
+      'Lab results:',
+      analyteLines,
+      '',
+      languageInstruction,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const parsed = await this.callInterpretationAi(userMessage);
+
+    const saved = await this.prisma.aiInterpretation.create({
+      data: {
+        reportId,
+        lang,
+        caseId: report.caseId,
+        tenantId,
+        model: AI_INTERPRETATION_MODEL,
+        promptVersion: AI_INTERPRETATION_PROMPT_VERSION,
+        summary: parsed.summary ?? '',
+        flaggedAnalytes: (parsed.flaggedAnalytes ??
+          []) as unknown as Prisma.InputJsonValue,
+        risks: (parsed.risks ?? []) as unknown as Prisma.InputJsonValue,
+        suggestedNextSteps: (parsed.suggestedNextSteps ??
+          []) as unknown as Prisma.InputJsonValue,
+        disclaimer: parsed.disclaimer ?? '',
+        generatedByUserId: userId ?? null,
+        retrievedChunkIds: retrievedChunks.map((c) => c.id),
+      },
+    });
+
+    return this.formatInterpretation(saved);
+  }
+
+  // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
 
@@ -524,6 +737,76 @@ export class ResultsService {
     if (ref.min != null && value < ref.min) return 'L';
     if (ref.max != null && value > ref.max) return 'H';
     return 'N';
+  }
+
+  private async callInterpretationAi(userMessage: string): Promise<{
+    summary: string;
+    flaggedAnalytes: AiInterpretationFlaggedAnalyte[];
+    risks: string[];
+    suggestedNextSteps: string[];
+    disclaimer: string;
+  }> {
+    const MAX_ATTEMPTS = 2;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const response = await this.anthropic.messages.create({
+        model: AI_INTERPRETATION_MODEL,
+        max_tokens: 1400,
+        system: [
+          {
+            type: 'text',
+            text: INTERPRETATION_SYSTEM_PROMPT,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        messages: [{ role: 'user', content: userMessage }],
+      });
+
+      const text =
+        response.content[0].type === 'text' ? response.content[0].text : '';
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      const jsonSlice =
+        start !== -1 && end > start ? text.slice(start, end + 1) : text;
+
+      try {
+        return JSON.parse(jsonSlice);
+      } catch {
+        console.warn(
+          `[AI Interpretation] Parse attempt ${attempt}/${MAX_ATTEMPTS} failed. Raw response:\n${text}`
+        );
+        if (attempt === MAX_ATTEMPTS) {
+          throw new InternalServerErrorException(
+            'AI interpretation returned malformed JSON.'
+          );
+        }
+      }
+    }
+
+    // unreachable — loop always throws or returns
+    throw new InternalServerErrorException('AI interpretation failed.');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private formatInterpretation(raw: any): AiInterpretationModel {
+    return {
+      id: raw.id,
+      reportId: raw.reportId,
+      caseId: raw.caseId,
+      tenantId: raw.tenantId,
+      model: raw.model,
+      promptVersion: raw.promptVersion,
+      summary: raw.summary,
+      flaggedAnalytes: (raw.flaggedAnalytes ??
+        []) as AiInterpretationFlaggedAnalyte[],
+      risks: (raw.risks ?? []) as string[],
+      suggestedNextSteps: (raw.suggestedNextSteps ?? []) as string[],
+      disclaimer: raw.disclaimer,
+      generatedByUserId: raw.generatedByUserId ?? undefined,
+      retrievedChunkIds: (raw.retrievedChunkIds ?? []) as string[],
+      createdAt: raw.createdAt,
+      updatedAt: raw.updatedAt,
+    };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

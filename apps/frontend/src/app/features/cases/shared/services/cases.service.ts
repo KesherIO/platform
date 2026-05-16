@@ -9,6 +9,7 @@ import {
   AgeUnit,
   TriageResultModel,
   ResultReportModel,
+  AiInterpretationModel,
 } from '@vet-ai/shared-types';
 import { AuthService } from '../../../../core/services/auth.service';
 import { MOCK_CATALOG_ITEMS } from '../../../../core/services/catalog.service';
@@ -999,6 +1000,29 @@ export class CasesService {
     }
     return this.http.get<ResultReportModel>(
       `/api/results/by-order/${orderId}`,
+      this.tenantHeaders
+    );
+  }
+
+  getExistingInterpretation(
+    reportId: string,
+    lang: 'en' | 'es'
+  ): Observable<AiInterpretationModel | null> {
+    return this.http
+      .get<AiInterpretationModel | null>(
+        `/api/results/reports/${reportId}/interpret?lang=${lang}`,
+        this.tenantHeaders
+      )
+      .pipe(catchError(() => of(null)));
+  }
+
+  interpretReport(
+    reportId: string,
+    lang: 'en' | 'es'
+  ): Observable<AiInterpretationModel> {
+    return this.http.post<AiInterpretationModel>(
+      `/api/results/reports/${reportId}/interpret`,
+      { lang },
       this.tenantHeaders
     );
   }
