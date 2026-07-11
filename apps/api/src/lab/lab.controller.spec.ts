@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { LabController } from './lab.controller';
 import { LabService } from './lab.service';
+import { LabUsersService } from './lab-users.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('LabController', () => {
   let controller: LabController;
@@ -19,9 +22,21 @@ describe('LabController', () => {
       upsertLaboratoryProfile: jest.fn().mockResolvedValue({}),
     };
 
+    const usersServiceMock: Partial<jest.Mocked<LabUsersService>> = {
+      listMembers: jest.fn().mockResolvedValue([]),
+      createLabUser: jest.fn().mockResolvedValue({}),
+      updateRole: jest.fn().mockResolvedValue({}),
+      removeMember: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LabController],
-      providers: [{ provide: LabService, useValue: serviceMock }],
+      providers: [
+        { provide: LabService, useValue: serviceMock },
+        { provide: LabUsersService, useValue: usersServiceMock },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('test-key') } },
+        { provide: PrismaService, useValue: { userTenantMembership: { findUnique: jest.fn() } } },
+      ],
     }).compile();
 
     controller = module.get<LabController>(LabController);
