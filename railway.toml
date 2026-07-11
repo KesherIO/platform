@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install && ./node_modules/.bin/nx build api --configuration=production"
+buildCommand = "npm install --include=dev && ./node_modules/.bin/nx build api --configuration=production"
 
 [deploy]
 startCommand = "node apps/api/dist/main.js"
