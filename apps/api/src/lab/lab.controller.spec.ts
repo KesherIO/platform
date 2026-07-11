@@ -34,8 +34,14 @@ describe('LabController', () => {
       providers: [
         { provide: LabService, useValue: serviceMock },
         { provide: LabUsersService, useValue: usersServiceMock },
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('test-key') } },
-        { provide: PrismaService, useValue: { userTenantMembership: { findUnique: jest.fn() } } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('test-key') },
+        },
+        {
+          provide: PrismaService,
+          useValue: { userTenantMembership: { findUnique: jest.fn() } },
+        },
       ],
     }).compile();
 
