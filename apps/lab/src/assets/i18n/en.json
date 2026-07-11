@@ -1,0 +1,153 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved successfully",
+    "error_loading": "Error loading",
+    "orders": "orders"
+  },
+  "auth": {
+    "title": "Biomet VetAI Lab",
+    "subtitle": "Laboratory portal",
+    "email": "Email",
+    "password": "Password",
+    "login": "Sign in",
+    "logging_in": "Signing in..."
+  },
+  "nav": {
+    "brand": "Biomet VetAI",
+    "lab_label": "Laboratory",
+    "orders_queue": "Orders queue",
+    "team": "Team",
+    "settings": "Settings",
+    "sign_out": "Sign out"
+  },
+  "status": {
+    "PENDING": "Pending",
+    "READY_FOR_PICKUP": "Ready for pickup",
+    "COLLECTED": "Collected",
+    "RECEIVED_BY_LAB": "Received",
+    "PROCESSING": "Processing",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled",
+    "IN_PROGRESS": "In progress",
+    "DRAFT": "Draft",
+    "RELEASED": "Released"
+  },
+  "species": {
+    "DOG": "Canine",
+    "CAT": "Feline",
+    "EQUINE": "Equine",
+    "BOVINE": "Bovine",
+    "BIRD": "Bird",
+    "REPTILE": "Reptile",
+    "RABBIT": "Rabbit",
+    "OTHER": "Other"
+  },
+  "priority": {
+    "ROUTINE": "Routine",
+    "URGENT": "Urgent",
+    "STAT": "STAT"
+  },
+  "orders": {
+    "title": "Orders queue",
+    "empty": "No orders match this filter.",
+    "error": "Error loading orders:",
+    "owner": "Owner:",
+    "filter": {
+      "all": "All",
+      "received": "Received",
+      "processing": "Processing",
+      "completed": "Completed"
+    },
+    "actions": {
+      "mark_received": "Mark as received",
+      "start_processing": "Start processing",
+      "mark_completed": "Mark as completed"
+    }
+  },
+  "workspace": {
+    "back": "← Orders queue",
+    "clinic": "Clinic",
+    "symptoms": "Symptoms",
+    "sample": "Sample",
+    "ordered_tests": "Ordered tests",
+    "init_tests": "Initialize tests",
+    "review_release": "Review & release",
+    "tests_init_hint": "Tests are initialized when the sample is received.",
+    "enter_results": "Enter results"
+  },
+  "result_entry": {
+    "back": "← Back to order",
+    "entry_method": "Entry method",
+    "manual": "Manual",
+    "instrument": "Analyzer",
+    "imported": "Import file",
+    "start": "Start result entry",
+    "starting": "Starting...",
+    "in_progress_via": "Result entry in progress via",
+    "manual_label": "manual entry",
+    "in_progress_note": "Analyte values are entered directly in the result report. Once entry is complete, mark the test as completed.",
+    "report_hint": "To enter analyte values, use the Result Report section available in the order.",
+    "mark_complete": "Mark test as completed",
+    "saving": "Saving...",
+    "status_completed": "completed",
+    "status_cancelled": "cancelled",
+    "already_done": "This test was already {{status}}.",
+    "not_found": "Test not found."
+  },
+  "review": {
+    "back": "← Back to order",
+    "title": "Review & release — {{patient}}",
+    "test_status": "Test status",
+    "result_report": "Result report",
+    "already_released": "Report already released",
+    "release_btn": "Release report to clinic",
+    "pending_warning": "Some tests are still pending. You can release the report anyway.",
+    "no_report": "No result report created for this order.",
+    "release_error": "Error releasing report:"
+  },
+  "settings": {
+    "title": "Laboratory settings",
+    "accreditation_number": "Accreditation number",
+    "director_name": "Technical director",
+    "director_credentials": "Director credentials",
+    "default_observations": "Default observations",
+    "signature_url": "Digital signature URL"
+  },
+  "team": {
+    "title": "Team",
+    "members": "members",
+    "add_user": "Add user",
+    "empty": "No team members yet.",
+    "you": "you",
+    "roles": {
+      "ADMIN": "Admin",
+      "TECHNICIAN": "Technician",
+      "VET": "Veterinarian",
+      "RECEPTIONIST": "Receptionist"
+    },
+    "form": {
+      "title": "Add team member",
+      "first_name": "First name",
+      "last_name": "Last name",
+      "email": "Email",
+      "password": "Password",
+      "password_hint": "Minimum 8 characters. The user can change it after logging in.",
+      "role": "Role",
+      "cancel": "Cancel",
+      "submit": "Add member",
+      "submitting": "Adding..."
+    },
+    "remove": {
+      "button": "Remove",
+      "confirm": "Remove {{name}} from the lab? They will lose access immediately."
+    },
+    "errors": {
+      "load": "Error loading team members.",
+      "create": "Error adding user:",
+      "remove": "Error removing user:"
+    }
+  }
+}

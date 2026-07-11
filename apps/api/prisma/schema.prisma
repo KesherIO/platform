@@ -114,14 +114,36 @@ enum DocumentStatus {
   ARCHIVED
 }
 
+enum TenantType {
+  CLINIC  // veterinary clinic — creates cases and orders
+  LAB     // external reference laboratory
+  VETAI   // VetAI platform tenant (singleton)
+}
+
+/// Status of a single ordered test within a lab order.
+enum OrderedTestStatus {
+  PENDING      // received, not yet started
+  IN_PROGRESS  // lab is processing / entering values
+  COMPLETED    // values entered, awaiting report release
+  CANCELLED    // test cancelled (sample issue, vet request)
+}
+
+/// How analyte values were entered for a given ordered test.
+enum ResultEntryMethod {
+  MANUAL      // technician enters values manually
+  INSTRUMENT  // connected analyzer pushed data
+  IMPORTED    // CSV / HL7 file import
+}
+
 // ---------------------------------------------------------------------------
 // Auth / Multi-tenancy
 // ---------------------------------------------------------------------------
 
 model Tenant {
-  id                 String   @id @default(cuid())
+  id                 String     @id @default(cuid())
   name               String
-  slug               String   @unique
+  type               TenantType @default(CLINIC)
+  slug               String     @unique
   // Contact & clinic details — collected during onboarding clinic-setup step
   address            String?
   city               String?
@@ -135,10 +157,14 @@ model Tenant {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  memberships   UserTenantMembership[]
-  invitations   TenantInvitation[]
-  cases         Case[]
-  orders        Order[]
+  memberships        UserTenantMembership[]
+  invitations        TenantInvitation[]
+  cases              Case[]
+  orders             Order[]              @relation("ClinicOrders")
+  labOrders          Order[]              @relation("LabOrders")
+  laboratoryProfile  LaboratoryProfile?
+  clinicConnections  ClinicLabConnection[] @relation("ClinicConnections")
+  labConnections     ClinicLabConnection[] @relation("LabConnections")
 
   @@map("tenants")
 }
@@ -155,6 +181,7 @@ model User {
   memberships     UserTenantMembership[]
   sentInvitations TenantInvitation[]
   createdCases    Case[]
+  assignedTests   OrderedTest[]
 
   @@map("users")
 }
@@ -293,6 +320,7 @@ model CatalogItem {
   packages         CatalogItemComposition[] @relation("ComponentPackages")
   caseCatalogItems CaseCatalogItem[]
   resultTemplates  ResultTemplate[]
+  orderedTests     OrderedTest[]
 
   @@index([kind])
   @@map("catalog_items")
@@ -345,6 +373,7 @@ model Order {
   requisitionNumber   String        @unique  // REQ-2026-000001
   caseId              String        @unique  // one active order per case (MVP)
   tenantId            String
+  labTenantId         String?       // which lab processes this order (null = Biomet direct for MVP seed)
   status              OrderStatus   @default(PENDING)
   priority            OrderPriority @default(ROUTINE)
 
@@ -368,11 +397,15 @@ model Order {
   cancelledAt         DateTime?
 
   case         Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant        @relation("ClinicOrders", fields: [tenantId], references: [id], onDelete: Cascade)
+  labTenant    Tenant?       @relation("LabOrders", fields: [labTenantId], references: [id])
   resultReport ResultReport?
+  orderedTests OrderedTest[]
 
   @@index([tenantId])
   @@index([tenantId, status])
+  @@index([labTenantId])
+  @@index([labTenantId, status])
   @@map("orders")
 }
 
@@ -581,6 +614,7 @@ model ResultReportAnalyte {
   id                String           @id @default(cuid())
   reportId          String
   templateAnalyteId String?          // null when row comes from machine import with no template match
+  orderedTestId     String?          // links this analyte group to the specific ordered test (Option B)
 
   // Snapshot fields — copied from template at report creation time
   code        String           // "WBC" — the AI and cross-visit query anchor
@@ -606,7 +640,87 @@ model ResultReportAnalyte {
 
   report          ResultReport           @relation(fields: [reportId], references: [id], onDelete: Cascade)
   templateAnalyte ResultTemplateAnalyte? @relation(fields: [templateAnalyteId], references: [id])
+  orderedTest     OrderedTest?           @relation(fields: [orderedTestId], references: [id])
 
   @@index([reportId])
+  @@index([orderedTestId])
   @@map("result_report_analytes")
+}
+
+// ---------------------------------------------------------------------------
+// Lab Workflow (multi-tenant lab support)
+// ---------------------------------------------------------------------------
+
+/// Lab-specific settings for a tenant of type LAB or VETAI.
+model LaboratoryProfile {
+  id                  String  @id @default(cuid())
+  tenantId            String  @unique
+  accreditationNumber String?
+  directorName        String?
+  directorCredentials String?
+  signatureUrl        String?  // default signature image URL for released reports
+  defaultObservations String?  // default footer text pre-filled in result reports
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("laboratory_profiles")
+}
+
+/// Explicit connection between a clinic tenant and a lab tenant.
+/// isDefault = true means this is the primary lab for the clinic (MVP: only one).
+/// isActive = false allows soft-disabling without deleting the connection history.
+model ClinicLabConnection {
+  id        String   @id @default(cuid())
+  clinicId  String
+  labId     String
+  isDefault Boolean  @default(true)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clinic Tenant @relation("ClinicConnections", fields: [clinicId], references: [id], onDelete: Cascade)
+  lab    Tenant @relation("LabConnections",    fields: [labId],    references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, labId])
+  @@index([clinicId])
+  @@index([labId])
+  @@map("clinic_lab_connections")
+}
+
+/// One row per catalog item requested within an order.
+/// Tracks per-test status and assignment independently of the overall order status.
+/// Status is derived from aggregating these rows — never persisted on Order directly.
+model OrderedTest {
+  id            String            @id @default(cuid())
+  orderId       String
+  catalogItemId String
+
+  status      OrderedTestStatus @default(PENDING)
+  entryMethod ResultEntryMethod @default(MANUAL)
+
+  // Snapshot at order time — stable if catalog changes
+  catalogItemCode String?
+  catalogItemName String
+
+  // Lab assignment
+  assignedUserId String?  // lab technician responsible for this test
+  instrumentId   String?  // analyzer / instrument used (future integration anchor)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order          Order               @relation(fields: [orderId],       references: [id], onDelete: Cascade)
+  catalogItem    CatalogItem         @relation(fields: [catalogItemId], references: [id])
+  assignedTo     User?               @relation(fields: [assignedUserId], references: [id])
+  reportAnalytes ResultReportAnalyte[]
+
+  @@index([orderId])
+  @@index([catalogItemId])
+  @@index([assignedUserId])
+  @@map("ordered_tests")
 }

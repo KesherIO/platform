@@ -12,6 +12,7 @@ import { StorageModule } from '../storage/storage.module';
 import { CatalogModule } from '../catalog/catalog.module';
 import { OrdersModule } from '../orders/orders.module';
 import { ResultsModule } from '../results/results.module';
+import { LabModule } from '../lab/lab.module';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -30,6 +31,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     CatalogModule,
     OrdersModule,
     ResultsModule,
+    LabModule,
   ],
   controllers: [AppController],
   providers: [

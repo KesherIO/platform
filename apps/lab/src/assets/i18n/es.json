@@ -1,0 +1,153 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "saving": "Guardando...",
+    "saved": "Guardado correctamente",
+    "error_loading": "Error cargando",
+    "orders": "órdenes"
+  },
+  "auth": {
+    "title": "Biomet VetAI Lab",
+    "subtitle": "Portal de laboratorio",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "login": "Iniciar sesión",
+    "logging_in": "Iniciando sesión..."
+  },
+  "nav": {
+    "brand": "Biomet VetAI",
+    "lab_label": "Laboratorio",
+    "orders_queue": "Cola de órdenes",
+    "team": "Equipo",
+    "settings": "Configuración",
+    "sign_out": "Cerrar sesión"
+  },
+  "status": {
+    "PENDING": "Pendiente",
+    "READY_FOR_PICKUP": "Listo para recoger",
+    "COLLECTED": "Recolectado",
+    "RECEIVED_BY_LAB": "Recibido",
+    "PROCESSING": "En proceso",
+    "COMPLETED": "Completado",
+    "CANCELLED": "Cancelado",
+    "IN_PROGRESS": "En proceso",
+    "DRAFT": "Borrador",
+    "RELEASED": "Liberado"
+  },
+  "species": {
+    "DOG": "Canino",
+    "CAT": "Felino",
+    "EQUINE": "Equino",
+    "BOVINE": "Bovino",
+    "BIRD": "Ave",
+    "REPTILE": "Reptil",
+    "RABBIT": "Conejo",
+    "OTHER": "Otro"
+  },
+  "priority": {
+    "ROUTINE": "Rutina",
+    "URGENT": "Urgente",
+    "STAT": "STAT"
+  },
+  "orders": {
+    "title": "Cola de órdenes",
+    "empty": "No hay órdenes con este filtro.",
+    "error": "Error cargando órdenes:",
+    "owner": "Propietario:",
+    "filter": {
+      "all": "Todos",
+      "received": "Recibidos",
+      "processing": "En proceso",
+      "completed": "Completados"
+    },
+    "actions": {
+      "mark_received": "Marcar como recibido",
+      "start_processing": "Iniciar procesamiento",
+      "mark_completed": "Marcar como completado"
+    }
+  },
+  "workspace": {
+    "back": "← Cola de órdenes",
+    "clinic": "Clínica",
+    "symptoms": "Síntomas",
+    "sample": "Muestra",
+    "ordered_tests": "Exámenes solicitados",
+    "init_tests": "Inicializar exámenes",
+    "review_release": "Revisar y liberar",
+    "tests_init_hint": "Los exámenes se inicializan al recibir la muestra.",
+    "enter_results": "Ingresar resultados"
+  },
+  "result_entry": {
+    "back": "← Regresar a la orden",
+    "entry_method": "Método de ingreso",
+    "manual": "Manual",
+    "instrument": "Analizador",
+    "imported": "Importar archivo",
+    "start": "Iniciar ingreso de resultados",
+    "starting": "Iniciando...",
+    "in_progress_via": "Ingreso de resultados en progreso via",
+    "manual_label": "captura manual",
+    "in_progress_note": "Los valores analíticos se ingresan directamente en el informe de resultados. Una vez completado el ingreso, marque el examen como completado.",
+    "report_hint": "Para ingresar los valores analíticos, use la sección de Informe de Resultados disponible en la orden.",
+    "mark_complete": "Marcar examen como completado",
+    "saving": "Guardando...",
+    "status_completed": "completado",
+    "status_cancelled": "cancelado",
+    "already_done": "Este examen ya fue {{status}}.",
+    "not_found": "Examen no encontrado."
+  },
+  "review": {
+    "back": "← Regresar a la orden",
+    "title": "Revisar y liberar — {{patient}}",
+    "test_status": "Estado de exámenes",
+    "result_report": "Informe de resultados",
+    "already_released": "Informe ya liberado",
+    "release_btn": "Liberar informe para la clínica",
+    "pending_warning": "Hay exámenes pendientes de completar. Puede liberar el informe de todas formas.",
+    "no_report": "No hay informe de resultados creado para esta orden.",
+    "release_error": "Error al liberar el informe:"
+  },
+  "settings": {
+    "title": "Configuración del laboratorio",
+    "accreditation_number": "Número de acreditación",
+    "director_name": "Director técnico",
+    "director_credentials": "Credenciales del director",
+    "default_observations": "Observaciones predeterminadas",
+    "signature_url": "URL de firma digital"
+  },
+  "team": {
+    "title": "Equipo",
+    "members": "miembros",
+    "add_user": "Agregar usuario",
+    "empty": "Aún no hay miembros en el equipo.",
+    "you": "tú",
+    "roles": {
+      "ADMIN": "Administrador",
+      "TECHNICIAN": "Técnico",
+      "VET": "Veterinario",
+      "RECEPTIONIST": "Recepcionista"
+    },
+    "form": {
+      "title": "Agregar miembro al equipo",
+      "first_name": "Nombre",
+      "last_name": "Apellido",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "password_hint": "Mínimo 8 caracteres. El usuario puede cambiarla después de iniciar sesión.",
+      "role": "Rol",
+      "cancel": "Cancelar",
+      "submit": "Agregar miembro",
+      "submitting": "Agregando..."
+    },
+    "remove": {
+      "button": "Eliminar",
+      "confirm": "¿Eliminar a {{name}} del laboratorio? Perderá el acceso inmediatamente."
+    },
+    "errors": {
+      "load": "Error cargando el equipo.",
+      "create": "Error al agregar el usuario:",
+      "remove": "Error al eliminar el usuario:"
+    }
+  }
+}

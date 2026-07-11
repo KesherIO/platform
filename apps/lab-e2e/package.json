@@ -1,0 +1,10 @@
+{
+  "name": "@vet-ai/lab-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@vet-ai/lab"
+    ]
+  }
+}

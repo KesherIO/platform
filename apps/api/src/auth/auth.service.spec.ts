@@ -3,6 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(() => ({
+    auth: { admin: { createUser: jest.fn(), deleteUser: jest.fn() } },
+  })),
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
