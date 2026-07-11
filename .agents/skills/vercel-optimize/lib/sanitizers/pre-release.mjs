@@ -7,7 +7,8 @@ const PRE_RELEASE_FEATURES = [
   {
     match: /\bppr\b|partial[- ]?prerendering/i,
     requires: 'next@canary',
-    message: 'PPR is experimental — verify your Next.js version supports it as stable',
+    message:
+      'PPR is experimental — verify your Next.js version supports it as stable',
   },
   {
     match: /\buse cache['"]?\s*directive\b|"use cache"|'use cache'/i,
@@ -26,7 +27,8 @@ const PRE_RELEASE_FEATURES = [
   },
 ];
 
-const SEMVER_PRE_RELEASE_RE = /\b([\w-]+)@(\d+\.\d+\.\d+-(?:rc|beta|canary|alpha|next|exp)[\w.-]*)/g;
+const SEMVER_PRE_RELEASE_RE =
+  /\b([\w-]+)@(\d+\.\d+\.\d+-(?:rc|beta|canary|alpha|next|exp)[\w.-]*)/g;
 
 export const metadata = {
   id: 'pre-release',

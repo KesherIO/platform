@@ -50,7 +50,9 @@ async function main() {
     where: { labTenantId: null },
     data: { labTenantId: biomet.id },
   });
-  console.log(`Backfilled ${updated.count} orders with labTenantId = ${biomet.id}`);
+  console.log(
+    `Backfilled ${updated.count} orders with labTenantId = ${biomet.id}`
+  );
 
   // 4. Create ClinicLabConnection for all clinic tenants
   const clinics = await prisma.tenant.findMany({
@@ -74,7 +76,9 @@ async function main() {
     connected++;
   }
   console.log(`Connected ${connected} clinic(s) to Biomet lab`);
-  console.log('\nBiomet lab tenant ID (add to lab app localStorage as labTenantId):');
+  console.log(
+    '\nBiomet lab tenant ID (add to lab app localStorage as labTenantId):'
+  );
   console.log(biomet.id);
 }
 

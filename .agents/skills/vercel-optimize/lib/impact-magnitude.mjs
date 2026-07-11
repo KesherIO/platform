@@ -5,18 +5,33 @@ export function impactMagnitude({ currentCost, impactTier }) {
   const estUsd = (currentCost ?? 0) * fraction;
 
   if (estUsd < 5) {
-    return { magnitude: 'negligible', phrase: 'small cost impact at current traffic' };
+    return {
+      magnitude: 'negligible',
+      phrase: 'small cost impact at current traffic',
+    };
   }
   if (estUsd < 50) {
-    return { magnitude: 'small', phrase: 'low-tens of dollars per month at current traffic' };
+    return {
+      magnitude: 'small',
+      phrase: 'low-tens of dollars per month at current traffic',
+    };
   }
   if (estUsd < 500) {
-    return { magnitude: 'medium', phrase: 'hundreds of dollars per month at current traffic' };
+    return {
+      magnitude: 'medium',
+      phrase: 'hundreds of dollars per month at current traffic',
+    };
   }
   if (estUsd < 5000) {
-    return { magnitude: 'large', phrase: 'low-thousands of dollars per month at current traffic' };
+    return {
+      magnitude: 'large',
+      phrase: 'low-thousands of dollars per month at current traffic',
+    };
   }
-  return { magnitude: 'very-large', phrase: 'thousands+ of dollars per month at current traffic' };
+  return {
+    magnitude: 'very-large',
+    phrase: 'thousands+ of dollars per month at current traffic',
+  };
 }
 
 // Preserves Postgres placeholders ($1, $2, …) — digits with no comma/period/k/m suffix.
@@ -37,7 +52,16 @@ export function stripDollarLiterals(text) {
 }
 
 export function applyDollarStrip(rec) {
-  const fields = ['what', 'why', 'fix', 'impact', 'currentBehavior', 'desiredBehavior', 'before', 'after'];
+  const fields = [
+    'what',
+    'why',
+    'fix',
+    'impact',
+    'currentBehavior',
+    'desiredBehavior',
+    'before',
+    'after',
+  ];
   let totalStripped = 0;
   for (const f of fields) {
     if (typeof rec[f] !== 'string') continue;

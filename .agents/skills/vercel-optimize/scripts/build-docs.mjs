@@ -7,7 +7,11 @@ import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { scanners } from '../lib/scanners/index.mjs';
-import { gates, MAX_CODE_CANDIDATES, GATE_VERSION } from '../lib/gates/index.mjs';
+import {
+  gates,
+  MAX_CODE_CANDIDATES,
+  GATE_VERSION,
+} from '../lib/gates/index.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REFS = join(HERE, '..', 'references');
@@ -24,9 +28,12 @@ async function main() {
 }
 
 function renderScanners() {
-  const sorted = scanners.slice().sort((a, b) => a.metadata.id.localeCompare(b.metadata.id));
+  const sorted = scanners
+    .slice()
+    .sort((a, b) => a.metadata.id.localeCompare(b.metadata.id));
   let out = GENERATED_BANNER + '# Scanner patterns\n\n';
-  out += 'AST/grep-style scanners run in parallel with metric-driven investigation. They find known anti-patterns. Findings on cold-path or unmappable files are dropped unless the scanner declares `trafficIndependent: true`.\n\n';
+  out +=
+    'AST/grep-style scanners run in parallel with metric-driven investigation. They find known anti-patterns. Findings on cold-path or unmappable files are dropped unless the scanner declares `trafficIndependent: true`.\n\n';
   out += `Total scanners: ${sorted.length}.\n\n`;
   out += '## Patterns\n\n';
   for (const s of sorted) {
@@ -34,11 +41,17 @@ function renderScanners() {
     out += `### \`${m.id}\` — ${m.title}\n\n`;
     out += `- **Severity**: ${m.severity}\n`;
     out += `- **Billing dimension**: ${m.billingDimension}\n`;
-    out += `- **Traffic-independent**: ${m.trafficIndependent ? 'yes (cold-path findings survive the doctrine drop)' : 'no (cold-path findings get dropped)'}\n\n`;
+    out += `- **Traffic-independent**: ${
+      m.trafficIndependent
+        ? 'yes (cold-path findings survive the doctrine drop)'
+        : 'no (cold-path findings get dropped)'
+    }\n\n`;
     out += `**Description.** ${m.description}\n\n`;
     out += `**Fix.** ${m.fix}\n\n`;
     if (m.citations?.length) {
-      out += `**Citations:**\n${m.citations.map((c) => `- \`${c}\``).join('\n')}\n\n`;
+      out += `**Citations:**\n${m.citations
+        .map((c) => `- \`${c}\``)
+        .join('\n')}\n\n`;
     }
     out += '---\n\n';
   }
@@ -46,9 +59,12 @@ function renderScanners() {
 }
 
 function renderCandidates() {
-  const sorted = gates.slice().sort((a, b) => a.metadata.id.localeCompare(b.metadata.id));
+  const sorted = gates
+    .slice()
+    .sort((a, b) => a.metadata.id.localeCompare(b.metadata.id));
   let out = GENERATED_BANNER + '# Candidate gates\n\n';
-  out += 'The deterministic threshold expressions that turn observability signals into investigation candidates. Pure JS, no LLM. Thresholds live in `lib/gates/*.mjs`.\n\n';
+  out +=
+    'The deterministic threshold expressions that turn observability signals into investigation candidates. Pure JS, no LLM. Thresholds live in `lib/gates/*.mjs`.\n\n';
   out += `Total gates: ${sorted.length}. Budget cap: \`MAX_CODE_CANDIDATES = ${MAX_CODE_CANDIDATES}\`. Gate version: \`${GATE_VERSION}\`.\n\n`;
   out += '## Gates\n\n';
   for (const g of sorted) {

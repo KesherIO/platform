@@ -4,7 +4,8 @@
 
 export const metadata = {
   id: 'function-duration-invocations',
-  description: 'Remove false claims that slow-route data-cache fixes reduce function invocation count.',
+  description:
+    'Remove false claims that slow-route data-cache fixes reduce function invocation count.',
 };
 
 const STRING_FIELDS = [

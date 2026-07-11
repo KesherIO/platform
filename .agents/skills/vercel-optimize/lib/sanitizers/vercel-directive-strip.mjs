@@ -4,11 +4,15 @@
 
 import { escapeRegex } from '../util.mjs';
 
-const STRIP_DIRECTIVES = ['stale-if-error', 'proxy-revalidate', 'must-revalidate'];
+const STRIP_DIRECTIVES = [
+  'stale-if-error',
+  'proxy-revalidate',
+  'must-revalidate',
+];
 
 export const metadata = {
   id: 'vercel-directive-strip',
-  description: 'Strip cache-control directives Vercel\'s CDN does not honor.',
+  description: "Strip cache-control directives Vercel's CDN does not honor.",
 };
 
 export function apply(rec, _ctx = {}) {
@@ -17,7 +21,10 @@ export function apply(rec, _ctx = {}) {
   for (const f of fields) {
     if (typeof rec[f] !== 'string') continue;
     for (const directive of STRIP_DIRECTIVES) {
-      const re = new RegExp(`(?:,\\s*)?\\b${escapeRegex(directive)}\\b(?:\\s*,)?`, 'g');
+      const re = new RegExp(
+        `(?:,\\s*)?\\b${escapeRegex(directive)}\\b(?:\\s*,)?`,
+        'g'
+      );
       if (re.test(rec[f])) {
         rec[f] = rec[f]
           .replace(new RegExp(`\\b${escapeRegex(directive)}\\b`, 'g'), '')

@@ -7,9 +7,9 @@ export function Layout() {
   const { t } = useTranslation();
 
   const NAV_ITEMS = [
-    { to: '/orders',            label: t('nav.orders_queue'), icon: '🧪' },
-    { to: '/settings/users',    label: t('nav.team'),         icon: '👥' },
-    { to: '/settings/laboratory', label: t('nav.settings'),   icon: '⚙️' },
+    { to: '/orders', label: t('nav.orders_queue'), icon: '🧪' },
+    { to: '/settings/users', label: t('nav.team'), icon: '👥' },
+    { to: '/settings/laboratory', label: t('nav.settings'), icon: '⚙️' },
   ];
 
   return (
@@ -19,7 +19,9 @@ export function Layout() {
           <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
             {t('nav.brand')}
           </p>
-          <p className="mt-0.5 text-sm font-bold text-white">{t('nav.lab_label')}</p>
+          <p className="mt-0.5 text-sm font-bold text-white">
+            {t('nav.lab_label')}
+          </p>
         </div>
 
         <nav className="flex-1 space-y-1 px-2 py-2">

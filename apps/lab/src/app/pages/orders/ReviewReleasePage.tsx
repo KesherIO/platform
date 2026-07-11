@@ -23,7 +23,9 @@ export function ReviewReleasePage() {
     }
   }, [orderId]);
 
-  useEffect(() => { loadOrder(); }, [loadOrder]);
+  useEffect(() => {
+    loadOrder();
+  }, [loadOrder]);
 
   const releaseReport = async () => {
     if (!order?.resultReport?.id) return;
@@ -68,7 +70,10 @@ export function ReviewReleasePage() {
   return (
     <div className="p-6">
       <div className="mb-4">
-        <Link to={`/orders/${order.id}`} className="text-sm text-gray-400 hover:text-white">
+        <Link
+          to={`/orders/${order.id}`}
+          className="text-sm text-gray-400 hover:text-white"
+        >
           {t('review.back')}
         </Link>
       </div>
@@ -78,7 +83,9 @@ export function ReviewReleasePage() {
       </h1>
 
       <section className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-300">{t('review.test_status')}</h2>
+        <h2 className="mb-3 text-sm font-semibold text-gray-300">
+          {t('review.test_status')}
+        </h2>
         <div className="space-y-2">
           {order.orderedTests.map((test) => (
             <div key={test.id} className="flex items-center justify-between">
@@ -91,11 +98,15 @@ export function ReviewReleasePage() {
 
       {order.resultReport ? (
         <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-300">{t('review.result_report')}</h2>
+          <h2 className="mb-3 text-sm font-semibold text-gray-300">
+            {t('review.result_report')}
+          </h2>
           <div className="mb-4 flex items-center gap-3">
             <StatusBadge status={order.resultReport.status} />
             {order.resultReport.status === 'RELEASED' && (
-              <span className="text-sm text-green-400">{t('review.already_released')}</span>
+              <span className="text-sm text-green-400">
+                {t('review.already_released')}
+              </span>
             )}
           </div>
 
@@ -103,7 +114,9 @@ export function ReviewReleasePage() {
             <>
               {!allCompleted && (
                 <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
-                  <p className="text-sm text-yellow-300">{t('review.pending_warning')}</p>
+                  <p className="text-sm text-yellow-300">
+                    {t('review.pending_warning')}
+                  </p>
                 </div>
               )}
               <button

@@ -20,17 +20,17 @@ return (
   <LegendList
     renderItem={({ item }) => {
       // bad: creates a new callback on each render
-      const onPress = () => handlePress(item.id)
-      return <Item key={item.id} item={item} onPress={onPress} />
+      const onPress = () => handlePress(item.id);
+      return <Item key={item.id} item={item} onPress={onPress} />;
     }}
   />
-)
+);
 ```
 
 **Correct (a single function instance passed to each item):**
 
 ```typescript
-const onPress = useCallback(() => handlePress(item.id), [handlePress, item.id])
+const onPress = useCallback(() => handlePress(item.id), [handlePress, item.id]);
 
 return (
   <LegendList
@@ -38,7 +38,7 @@ return (
       <Item key={item.id} item={item} onPress={onPress} />
     )}
   />
-)
+);
 ```
 
 Reference: [Link to documentation or resource](https://example.com)

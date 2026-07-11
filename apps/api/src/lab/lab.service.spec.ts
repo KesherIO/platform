@@ -56,10 +56,7 @@ describe('LabService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        LabService,
-        { provide: PrismaService, useValue: prismaMock },
-      ],
+      providers: [LabService, { provide: PrismaService, useValue: prismaMock }],
     }).compile();
 
     service = module.get<LabService>(LabService);
@@ -89,7 +86,9 @@ describe('LabService', () => {
       (prisma.order.findFirst as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.updateOrderStatus(LAB_TENANT_ID, ORDER_ID, { status: 'PROCESSING' })
+        service.updateOrderStatus(LAB_TENANT_ID, ORDER_ID, {
+          status: 'PROCESSING',
+        })
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -100,7 +99,9 @@ describe('LabService', () => {
       });
 
       await expect(
-        service.updateOrderStatus(LAB_TENANT_ID, ORDER_ID, { status: 'PROCESSING' })
+        service.updateOrderStatus(LAB_TENANT_ID, ORDER_ID, {
+          status: 'PROCESSING',
+        })
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -114,7 +115,9 @@ describe('LabService', () => {
         status: 'PROCESSING',
       });
 
-      await service.updateOrderStatus(LAB_TENANT_ID, ORDER_ID, { status: 'PROCESSING' });
+      await service.updateOrderStatus(LAB_TENANT_ID, ORDER_ID, {
+        status: 'PROCESSING',
+      });
 
       expect(prisma.order.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -129,7 +132,9 @@ describe('LabService', () => {
       (prisma.orderedTest.findFirst as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.updateOrderedTest(LAB_TENANT_ID, 'test-1', { status: 'IN_PROGRESS' })
+        service.updateOrderedTest(LAB_TENANT_ID, 'test-1', {
+          status: 'IN_PROGRESS',
+        })
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -141,7 +146,9 @@ describe('LabService', () => {
       });
       (prisma.orderedTest.update as jest.Mock).mockResolvedValue({});
 
-      await service.updateOrderedTest(LAB_TENANT_ID, 'test-1', { status: 'IN_PROGRESS' });
+      await service.updateOrderedTest(LAB_TENANT_ID, 'test-1', {
+        status: 'IN_PROGRESS',
+      });
 
       expect(prisma.orderedTest.update).toHaveBeenCalledWith(
         expect.objectContaining({

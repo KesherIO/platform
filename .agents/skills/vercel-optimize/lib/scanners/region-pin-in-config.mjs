@@ -17,9 +17,8 @@ export const metadata = {
   billingDimension: 'function-duration',
   trafficIndependent: true,
   description:
-    "vercel.json `regions` or per-route `preferredRegion` is set. If the pinned region is far from the dominant user geo (or far from a data source) p95 TTFB suffers. This scanner provides the configured-region signal so the region-misconfig gate can recommend an audit.",
-  fix:
-    "Audit the pinned region against traffic geography (Speed Insights or Web Analytics by country) and data-source location. Consider multi-region if data lives in a fixed location and users are global; consider relocating if users are concentrated in one geography.",
+    'vercel.json `regions` or per-route `preferredRegion` is set. If the pinned region is far from the dominant user geo (or far from a data source) p95 TTFB suffers. This scanner provides the configured-region signal so the region-misconfig gate can recommend an audit.',
+  fix: 'Audit the pinned region against traffic geography (Speed Insights or Web Analytics by country) and data-source location. Consider multi-region if data lives in a fixed location and users are global; consider relocating if users are concentrated in one geography.',
   citations: [
     'https://vercel.com/docs/functions/configuring-functions/region',
     'https://vercel.com/docs/functions/configuring-functions/region',
@@ -37,7 +36,8 @@ export const metadata = {
 // Matches `regions: ["iad1"]`, `regions: ['iad1', 'sfo1']`, or `"regions": ["iad1"]`
 const VERCEL_JSON_REGIONS_RE = /['"]?regions['"]?\s*:\s*\[([^\]]+)\]/;
 // `export const preferredRegion = 'iad1'` OR `= ['iad1', 'sfo1']`
-const PREFERRED_REGION_RE = /export\s+const\s+preferredRegion\s*=\s*(['"][^'"]+['"]|\[[^\]]+\])/;
+const PREFERRED_REGION_RE =
+  /export\s+const\s+preferredRegion\s*=\s*(['"][^'"]+['"]|\[[^\]]+\])/;
 
 export function scan({ files }) {
   const out = [];
@@ -54,7 +54,8 @@ export function scan({ files }) {
           line: lineOf(content, m.index),
           evidence: `vercel.json regions: [${regions.join(', ')}]`,
           trafficIndependent: metadata.trafficIndependent,
-          subtype: regions.length === 1 ? 'vercel-json-single' : 'vercel-json-list',
+          subtype:
+            regions.length === 1 ? 'vercel-json-single' : 'vercel-json-list',
           regions,
         });
       }
@@ -65,7 +66,9 @@ export function scan({ files }) {
     const m = PREFERRED_REGION_RE.exec(content);
     if (m) {
       const raw = m[1];
-      const regions = raw.startsWith('[') ? parseRegionList(raw.slice(1, -1)) : [raw.replace(/['"]/g, '')];
+      const regions = raw.startsWith('[')
+        ? parseRegionList(raw.slice(1, -1))
+        : [raw.replace(/['"]/g, '')];
       out.push({
         pattern: metadata.id,
         file: path,

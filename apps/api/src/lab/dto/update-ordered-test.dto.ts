@@ -1,5 +1,8 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import type { OrderedTestStatus, ResultEntryMethod } from '@vet-ai/shared-types';
+import type {
+  OrderedTestStatus,
+  ResultEntryMethod,
+} from '@vet-ai/shared-types';
 
 export class UpdateOrderedTestDto {
   @IsEnum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])

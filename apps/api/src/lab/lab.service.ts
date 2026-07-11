@@ -10,13 +10,13 @@ import type { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 // Valid status transitions for orders handled by the lab
 const LAB_STATUS_TRANSITIONS: Record<string, OrderStatus[]> = {
-  PENDING:         ['RECEIVED_BY_LAB', 'CANCELLED'],
+  PENDING: ['RECEIVED_BY_LAB', 'CANCELLED'],
   READY_FOR_PICKUP: ['RECEIVED_BY_LAB', 'CANCELLED'],
-  COLLECTED:       ['RECEIVED_BY_LAB', 'CANCELLED'],
+  COLLECTED: ['RECEIVED_BY_LAB', 'CANCELLED'],
   RECEIVED_BY_LAB: ['PROCESSING', 'CANCELLED'],
-  PROCESSING:      ['COMPLETED', 'CANCELLED'],
-  COMPLETED:       [],
-  CANCELLED:       [],
+  PROCESSING: ['COMPLETED', 'CANCELLED'],
+  COMPLETED: [],
+  CANCELLED: [],
 };
 
 @Injectable()
@@ -121,9 +121,9 @@ export class LabService {
     const now = new Date();
     const timestamps: Record<string, Date | null> = {};
     if (dto.status === 'RECEIVED_BY_LAB') timestamps.receivedByLabAt = now;
-    if (dto.status === 'PROCESSING')      timestamps.processingStartedAt = now;
-    if (dto.status === 'COMPLETED')        timestamps.completedAt = now;
-    if (dto.status === 'CANCELLED')        timestamps.cancelledAt = now;
+    if (dto.status === 'PROCESSING') timestamps.processingStartedAt = now;
+    if (dto.status === 'COMPLETED') timestamps.completedAt = now;
+    if (dto.status === 'CANCELLED') timestamps.cancelledAt = now;
 
     return this.prisma.order.update({
       where: { id: orderId },
@@ -189,17 +189,22 @@ export class LabService {
 
     const now = new Date();
     const timestamps: Record<string, Date | null> = {};
-    if (dto.status === 'IN_PROGRESS' && !test.startedAt) timestamps.startedAt = now;
-    if (dto.status === 'COMPLETED')                       timestamps.completedAt = now;
-    if (dto.status === 'CANCELLED')                       timestamps.cancelledAt = now;
+    if (dto.status === 'IN_PROGRESS' && !test.startedAt)
+      timestamps.startedAt = now;
+    if (dto.status === 'COMPLETED') timestamps.completedAt = now;
+    if (dto.status === 'CANCELLED') timestamps.cancelledAt = now;
 
     return this.prisma.orderedTest.update({
       where: { id: orderedTestId },
       data: {
-        ...(dto.status      !== undefined && { status: dto.status }),
+        ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.entryMethod !== undefined && { entryMethod: dto.entryMethod }),
-        ...(dto.assignedUserId !== undefined && { assignedUserId: dto.assignedUserId }),
-        ...(dto.instrumentId   !== undefined && { instrumentId: dto.instrumentId }),
+        ...(dto.assignedUserId !== undefined && {
+          assignedUserId: dto.assignedUserId,
+        }),
+        ...(dto.instrumentId !== undefined && {
+          instrumentId: dto.instrumentId,
+        }),
         ...timestamps,
       },
     });

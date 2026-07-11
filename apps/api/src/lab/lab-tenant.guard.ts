@@ -6,7 +6,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { AuthenticatedUser, TenantContext, TenantRole } from '@vet-ai/shared-types';
+import type {
+  AuthenticatedUser,
+  TenantContext,
+  TenantRole,
+} from '@vet-ai/shared-types';
 
 /**
  * Guards lab-only endpoints. Works like TenantGuard but additionally verifies
@@ -34,11 +38,18 @@ export class LabTenantGuard implements CanActivate {
     });
 
     if (!membership) {
-      throw new ForbiddenException('You are not a member of the requested tenant.');
+      throw new ForbiddenException(
+        'You are not a member of the requested tenant.'
+      );
     }
 
-    if (membership.tenant.type !== 'LAB' && membership.tenant.type !== 'VETAI') {
-      throw new ForbiddenException('This endpoint is restricted to laboratory tenants.');
+    if (
+      membership.tenant.type !== 'LAB' &&
+      membership.tenant.type !== 'VETAI'
+    ) {
+      throw new ForbiddenException(
+        'This endpoint is restricted to laboratory tenants.'
+      );
     }
 
     const tenantContext: TenantContext = {

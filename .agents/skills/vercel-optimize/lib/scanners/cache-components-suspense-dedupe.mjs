@@ -22,14 +22,20 @@ export const metadata = {
   trafficIndependent: false,
   description:
     "Default `'use cache'` does not dedupe identical calls across separate `<Suspense>` boundaries on the same render. Each boundary re-invokes the cached function, multiplying function-duration cost and inflating ISR write churn when the output is large.",
-  fix:
-    "Hoist the promise to the page level (`const dataPromise = fetchData()` at the top, passed down to each Suspense child) OR move the shared fetch into a `'use cache: remote'` data-access layer so cross-request and cross-boundary dedupe applies.",
+  fix: "Hoist the promise to the page level (`const dataPromise = fetchData()` at the top, passed down to each Suspense child) OR move the shared fetch into a `'use cache: remote'` data-access layer so cross-request and cross-boundary dedupe applies.",
   citations: [
     'https://nextjs.org/docs/app/api-reference/directives/use-cache',
     'https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents',
     'https://nextjs.org/docs/app/guides/migrating-to-cache-components',
   ],
-  excludeGlobs: ['node_modules/**', '.next/**', 'dist/**', '__tests__/**', '**/*.test.*', '**/*.spec.*'],
+  excludeGlobs: [
+    'node_modules/**',
+    '.next/**',
+    'dist/**',
+    '__tests__/**',
+    '**/*.test.*',
+    '**/*.spec.*',
+  ],
   includeGlobs: [
     '**/page.{ts,tsx,js,jsx}',
     '**/layout.{ts,tsx,js,jsx}',
@@ -41,7 +47,8 @@ const USE_CACHE_RE = /^[\t ]*['"]use cache['"]/m;
 const SUSPENSE_TAG_RE = /<Suspense\b/g;
 const FETCH_LITERAL_RE = /fetch\s*\(\s*(['"`])([^'"`]{6,200})\1/g;
 // Helper function calls that look like data-fetchers (lowercase camel, no JSX/HTML noise).
-const HELPER_CALL_RE = /\b(get|fetch|load|find|query|read)[A-Z][A-Za-z0-9_]+\s*\(/g;
+const HELPER_CALL_RE =
+  /\b(get|fetch|load|find|query|read)[A-Z][A-Za-z0-9_]+\s*\(/g;
 
 export function scan({ files }) {
   const out = [];
@@ -61,9 +68,12 @@ export function scan({ files }) {
       pattern: metadata.id,
       file: path,
       line: lineOf(content, first.firstIdx),
-      evidence: first.kind === 'fetch'
-        ? `fetch("${truncate(first.token, 60)}") called ${first.count}× across Suspense boundaries`
-        : `${first.token}() called ${first.count}× across Suspense boundaries`,
+      evidence:
+        first.kind === 'fetch'
+          ? `fetch("${truncate(first.token, 60)}") called ${
+              first.count
+            }× across Suspense boundaries`
+          : `${first.token}() called ${first.count}× across Suspense boundaries`,
       trafficIndependent: metadata.trafficIndependent,
       subtype: first.kind === 'fetch' ? 'fetch-literal' : 'helper-call',
     });

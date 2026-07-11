@@ -26,14 +26,19 @@ export function gate(signals) {
 
   const totalSpikeDays = dayTotals
     .map((value, idx) => ({ idx, value }))
-    .filter((d) => d.value > mean * TOTAL_MULTIPLIER && d.value > MIN_BILLED_FLOOR);
+    .filter(
+      (d) => d.value > mean * TOTAL_MULTIPLIER && d.value > MIN_BILLED_FLOOR
+    );
 
   const skuStats = aggregateSkuStats(days);
   const skuSpikes = [];
   for (const stat of skuStats) {
     if (stat.mean <= MIN_BILLED_FLOOR) continue;
     for (const sample of stat.samples) {
-      if (sample.value > stat.mean * SKU_MULTIPLIER && sample.value > MIN_BILLED_FLOOR) {
+      if (
+        sample.value > stat.mean * SKU_MULTIPLIER &&
+        sample.value > MIN_BILLED_FLOOR
+      ) {
         skuSpikes.push({
           name: stat.name,
           dayIndex: sample.idx,
@@ -56,9 +61,14 @@ export function gate(signals) {
       files: [],
       priority: 60,
       confidence: 0.78,
-      o11ySignal: `total_spike day_idx=${peak.idx} day_billed=${peak.value.toFixed(2)} window_mean=${mean.toFixed(2)} mult=${(peak.value / mean).toFixed(1)}x`,
+      o11ySignal: `total_spike day_idx=${
+        peak.idx
+      } day_billed=${peak.value.toFixed(2)} window_mean=${mean.toFixed(
+        2
+      )} mult=${(peak.value / mean).toFixed(1)}x`,
       reason: 'total billed cost on one day exceeds 2× the window mean',
-      question: 'Which workload generated the day-over-day spike — bot or AI-crawler traffic on a cacheable route, a viral event, a pricing-model migration, or a code regression?',
+      question:
+        'Which workload generated the day-over-day spike — bot or AI-crawler traffic on a cacheable route, a viral event, a pricing-model migration, or a code regression?',
       evidence: {
         metric: 'usage.breakdown.data.total',
         spikeDay: peak.idx,
@@ -70,7 +80,9 @@ export function gate(signals) {
     });
   }
   // Up to 3 SKU-specific candidates; the rest fold into 'multiple SKUs spiking' framing.
-  const orderedSkuSpikes = skuSpikes.sort((a, b) => b.dayValue - a.dayValue).slice(0, 3);
+  const orderedSkuSpikes = skuSpikes
+    .sort((a, b) => b.dayValue - a.dayValue)
+    .slice(0, 3);
   for (const spike of orderedSkuSpikes) {
     candidates.push({
       kind: metadata.id,
@@ -78,9 +90,17 @@ export function gate(signals) {
       files: [],
       priority: 55,
       confidence: 0.78,
-      o11ySignal: `sku_spike sku="${spike.name}" day_idx=${spike.dayIndex} day_billed=${spike.dayValue.toFixed(2)} sku_mean=${spike.skuMean.toFixed(2)} mult=${spike.multiplier.toFixed(1)}x`,
+      o11ySignal: `sku_spike sku="${spike.name}" day_idx=${
+        spike.dayIndex
+      } day_billed=${spike.dayValue.toFixed(
+        2
+      )} sku_mean=${spike.skuMean.toFixed(2)} mult=${spike.multiplier.toFixed(
+        1
+      )}x`,
       reason: `${spike.name} on one day exceeds 3× its window mean`,
-      question: `${spike.name} spiked ${spike.multiplier.toFixed(1)}× on day ${spike.dayIndex}. Which event (bot traffic, viral content, deploy regression, integration sync) drove it, and is the spiking SKU one the skill already covers?`,
+      question: `${spike.name} spiked ${spike.multiplier.toFixed(1)}× on day ${
+        spike.dayIndex
+      }. Which event (bot traffic, viral content, deploy regression, integration sync) drove it, and is the spiking SKU one the skill already covers?`,
       evidence: {
         metric: 'usage.breakdown.data.services',
         skuName: spike.name,
@@ -96,7 +116,10 @@ export function gate(signals) {
 
 function dayTotal(day) {
   if (Array.isArray(day?.services)) {
-    return day.services.reduce((a, s) => a + Number(s.billedCost ?? s.cost ?? 0), 0);
+    return day.services.reduce(
+      (a, s) => a + Number(s.billedCost ?? s.cost ?? 0),
+      0
+    );
   }
   return Number(day?.billedCost ?? day?.cost ?? 0);
 }

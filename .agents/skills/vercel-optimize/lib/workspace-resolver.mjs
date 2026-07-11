@@ -12,18 +12,36 @@ const DEFAULT_RESOLVE_OPTIONS = {
   suffixFanoutDepth: 2,
   perSpecifierCap: 3,
 };
-const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
+const SOURCE_EXTENSIONS = new Set([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+]);
 const EXTENSIONS = ['', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
-const INDEX_FILES = ['index.ts', 'index.tsx', 'index.js', 'index.jsx', 'index.mjs'];
-const SUFFIX_FANOUT_RE = /(^|\/)(content|data|loader|fetch|service|metadata|actions)\.tsx?$/;
-const EXPORT_FORWARD_RE = /export\s+(?:type\s+)?(?:\*|\*\s+as\s+[A-Za-z_$][\w$]*|\{[^}]*\})\s+from\s+['"][^'"\n]+['"]\s*;?/gs;
+const INDEX_FILES = [
+  'index.ts',
+  'index.tsx',
+  'index.js',
+  'index.jsx',
+  'index.mjs',
+];
+const SUFFIX_FANOUT_RE =
+  /(^|\/)(content|data|loader|fetch|service|metadata|actions)\.tsx?$/;
+const EXPORT_FORWARD_RE =
+  /export\s+(?:type\s+)?(?:\*|\*\s+as\s+[A-Za-z_$][\w$]*|\{[^}]*\})\s+from\s+['"][^'"\n]+['"]\s*;?/gs;
 
 export async function detectMonorepoRoot(startDir) {
   let dir = pathResolve(startDir);
   for (let depth = 0; depth < 15; depth++) {
     if (await fileExists(join(dir, 'pnpm-workspace.yaml'))) return dir;
     const pkg = await tryReadJson(join(dir, 'package.json'));
-    if (pkg && (Array.isArray(pkg.workspaces) || Array.isArray(pkg.workspaces?.packages))) {
+    if (
+      pkg &&
+      (Array.isArray(pkg.workspaces) || Array.isArray(pkg.workspaces?.packages))
+    ) {
       return dir;
     }
     const parent = dirname(dir);
@@ -53,9 +71,15 @@ export function parsePnpmWorkspaceYaml(text) {
   for (const rawLine of text.split('\n')) {
     const line = rawLine.replace(/#.*$/, '').trimEnd();
     if (!line.trim()) continue;
-    if (/^packages\s*:/.test(line)) { inPackages = true; continue; }
+    if (/^packages\s*:/.test(line)) {
+      inPackages = true;
+      continue;
+    }
     if (!inPackages) continue;
-    if (!/^\s/.test(line)) { inPackages = false; continue; }
+    if (!/^\s/.test(line)) {
+      inPackages = false;
+      continue;
+    }
     const m = line.match(/^\s*-\s+['"]?([^'"\s]+)['"]?\s*$/);
     if (m) out.push(m[1]);
   }
@@ -91,8 +115,12 @@ async function expandParts(currentDir, parts) {
     let entries = [];
     try {
       entries = await readdir(currentDir, { withFileTypes: true });
-    } catch { return []; }
-    const childDirs = entries.filter((e) => e.isDirectory()).map((e) => join(currentDir, e.name));
+    } catch {
+      return [];
+    }
+    const childDirs = entries
+      .filter((e) => e.isDirectory())
+      .map((e) => join(currentDir, e.name));
     const out = [];
     for (const d of childDirs) {
       const more = await expandParts(d, rest);
@@ -123,7 +151,8 @@ export function buildResolver(packages) {
       .sort((a, b) => b.length - a.length);
     if (candidates.length === 0) return null;
     const pkgName = candidates[0];
-    const subpath = specifier === pkgName ? '.' : './' + specifier.slice(pkgName.length + 1);
+    const subpath =
+      specifier === pkgName ? '.' : './' + specifier.slice(pkgName.length + 1);
     const lookup = byName.get(pkgName);
     return lookup.resolveSubpath(subpath);
   };
@@ -157,7 +186,10 @@ function buildPackageLookup(p) {
       if (exactHit) return joinPackagePath(p.dir, exactHit);
       for (const w of wildcards) {
         if (subpath.startsWith(w.keyPrefix) && subpath.endsWith(w.keySuffix)) {
-          const star = subpath.slice(w.keyPrefix.length, subpath.length - w.keySuffix.length);
+          const star = subpath.slice(
+            w.keyPrefix.length,
+            subpath.length - w.keySuffix.length
+          );
           if (!star) continue;
           const target = w.valueTemplate.replace('*', star);
           return joinPackagePath(p.dir, target);
@@ -183,14 +215,25 @@ function pickConditionalTarget(value) {
     return null;
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  for (const cond of ['default', 'import', 'node', 'browser', 'require', 'types']) {
+  for (const cond of [
+    'default',
+    'import',
+    'node',
+    'browser',
+    'require',
+    'types',
+  ]) {
     const v = value[cond];
     if (typeof v === 'string') return v;
   }
   return null;
 }
 
-export async function resolveWorkspaceImports(sourceFilePath, resolver, options = {}) {
+export async function resolveWorkspaceImports(
+  sourceFilePath,
+  resolver,
+  options = {}
+) {
   let text;
   try {
     text = await readFile(sourceFilePath, 'utf-8');
@@ -202,9 +245,18 @@ export async function resolveWorkspaceImports(sourceFilePath, resolver, options 
   const out = [];
   const seen = new Set();
   for (const ref of refs) {
-    const resolved = await resolveModuleSpecifier(sourceFilePath, ref.specifier, resolver);
+    const resolved = await resolveModuleSpecifier(
+      sourceFilePath,
+      ref.specifier,
+      resolver
+    );
     if (!resolved) continue;
-    const expanded = await expandResolvedSpecifier(resolved, ref.importedNames, resolver, opts);
+    const expanded = await expandResolvedSpecifier(
+      resolved,
+      ref.importedNames,
+      resolver,
+      opts
+    );
     for (const file of expanded) {
       if (seen.has(file)) continue;
       seen.add(file);
@@ -216,14 +268,21 @@ export async function resolveWorkspaceImports(sourceFilePath, resolver, options 
 
 // Skips CommonJS `require('foo')` and template-literal dynamic imports (statically unresolvable).
 export function extractImportSpecifiers(text) {
-  return [...new Set(extractModuleReferences(text).map((ref) => ref.specifier))];
+  return [
+    ...new Set(extractModuleReferences(text).map((ref) => ref.specifier)),
+  ];
 }
 
 function joinPackagePath(packageDir, relativeTarget) {
   return join(packageDir, relativeTarget.replace(/^\.\//, ''));
 }
 
-async function expandResolvedSpecifier(startFile, importedNames, resolver, opts) {
+async function expandResolvedSpecifier(
+  startFile,
+  importedNames,
+  resolver,
+  opts
+) {
   const out = [];
   const seen = new Set();
   const barrelVisited = new Set();
@@ -251,10 +310,19 @@ async function expandResolvedSpecifier(startFile, importedNames, resolver, opts)
     barrelVisited.add(file);
     const text = await tryReadText(file);
     if (text == null || !isPureBarrel(text)) return;
-    const refs = await selectRelevantForwards(file, extractExportForwardRefs(text), requestedNames, resolver);
+    const refs = await selectRelevantForwards(
+      file,
+      extractExportForwardRefs(text),
+      requestedNames,
+      resolver
+    );
     for (const { ref, next } of refs) {
       if (!add(next)) return;
-      await expandPureBarrel(next, requestedNamesForForward(ref, requestedNames), depth + 1);
+      await expandPureBarrel(
+        next,
+        requestedNamesForForward(ref, requestedNames),
+        depth + 1
+      );
     }
   }
 
@@ -275,15 +343,29 @@ async function expandResolvedSpecifier(startFile, importedNames, resolver, opts)
   }
 }
 
-async function selectRelevantForwards(fromFile, refs, requestedNames, resolver) {
+async function selectRelevantForwards(
+  fromFile,
+  refs,
+  requestedNames,
+  resolver
+) {
   const resolved = [];
   for (const [index, ref] of refs.entries()) {
-    const next = await resolveModuleSpecifier(fromFile, ref.specifier, resolver);
+    const next = await resolveModuleSpecifier(
+      fromFile,
+      ref.specifier,
+      resolver
+    );
     if (!next) continue;
-    let score = requestedNames && requestedNames.size > 0
-      ? forwardRelevanceScore(ref, requestedNames, refs.length)
-      : 1;
-    if (requestedNames && requestedNames.size > 0 && await fileExportsAnyName(next, requestedNames)) {
+    let score =
+      requestedNames && requestedNames.size > 0
+        ? forwardRelevanceScore(ref, requestedNames, refs.length)
+        : 1;
+    if (
+      requestedNames &&
+      requestedNames.size > 0 &&
+      (await fileExportsAnyName(next, requestedNames))
+    ) {
       score = Math.max(score, 75);
     }
     resolved.push({ ref, next, index, score });
@@ -375,7 +457,8 @@ function extractDynamicImportReferences(text) {
 
 function extractExportForwardRefs(text) {
   const out = [];
-  const re = /export\s+(?:type\s+)?(\*|\*\s+as\s+[A-Za-z_$][\w$]*|\{[^}]*\})\s+from\s+['"]([^'"\n]+)['"]\s*;?/g;
+  const re =
+    /export\s+(?:type\s+)?(\*|\*\s+as\s+[A-Za-z_$][\w$]*|\{[^}]*\})\s+from\s+['"]([^'"\n]+)['"]\s*;?/g;
   let m;
   while ((m = re.exec(text)) !== null) {
     const clause = m[1].trim();
@@ -404,7 +487,10 @@ function parseImportNames(clause) {
       if (source?.trim()) names.add(source.trim());
     }
   }
-  const withoutNamed = trimmed.replace(/\{[^}]*\}/s, '').replace(/,\s*$/, '').trim();
+  const withoutNamed = trimmed
+    .replace(/\{[^}]*\}/s, '')
+    .replace(/,\s*$/, '')
+    .trim();
   if (withoutNamed && !withoutNamed.startsWith('*')) names.add('default');
   return names.size > 0 ? names : null;
 }
@@ -427,7 +513,10 @@ function parseExportNames(clause) {
 }
 
 function splitImportList(value) {
-  return value.split(',').map((part) => part.trim()).filter(Boolean);
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
 }
 
 function isPureBarrel(text) {
@@ -440,10 +529,15 @@ function isPureBarrel(text) {
 }
 
 function specifierMatchesNames(specifier, names) {
-  const normalizedSpecifier = normalizeName(specifier.split('/').at(-1) ?? specifier);
+  const normalizedSpecifier = normalizeName(
+    specifier.split('/').at(-1) ?? specifier
+  );
   for (const name of names) {
     const normalizedName = normalizeName(name);
-    if (normalizedSpecifier === normalizedName || normalizedSpecifier.endsWith(normalizedName)) {
+    if (
+      normalizedSpecifier === normalizedName ||
+      normalizedSpecifier.endsWith(normalizedName)
+    ) {
       return true;
     }
   }
@@ -451,7 +545,9 @@ function specifierMatchesNames(specifier, names) {
 }
 
 function normalizeName(value) {
-  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 }
 
 function isSuffixFanoutFile(file) {
@@ -469,7 +565,9 @@ async function fileExportsAnyName(file, names) {
 
 function textExportsName(text, name) {
   const escaped = escapeRegExp(name);
-  const declaration = new RegExp(`export\\s+(?:async\\s+)?(?:function|const|let|var|class|interface|type)\\s+${escaped}\\b`);
+  const declaration = new RegExp(
+    `export\\s+(?:async\\s+)?(?:function|const|let|var|class|interface|type)\\s+${escaped}\\b`
+  );
   if (declaration.test(text)) return true;
   const listRe = /export\s+\{([^}]+)\}(?!\s+from\b)/gs;
   let m;
@@ -499,7 +597,12 @@ async function tryReadText(path) {
 }
 
 async function fileExists(p) {
-  try { await stat(p); return true; } catch { return false; }
+  try {
+    await stat(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function isFile(p) {

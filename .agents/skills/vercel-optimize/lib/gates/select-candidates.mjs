@@ -14,26 +14,41 @@ const DIVERSITY_ELIGIBILITY = new Map([
   // A handful of 5xx errors can pass the route_errors gate because the rate is
   // high, but that should not displace much larger cost/performance signals in
   // the default six-candidate pass.
-  ['route_errors', (candidate) => numberFromEvidence(candidate, 'count') >= 1000],
+  [
+    'route_errors',
+    (candidate) => numberFromEvidence(candidate, 'count') >= 1000,
+  ],
 
   // Scanner-driven cache findings are valuable, but the default pass should
   // spend a slot only when observability shows meaningful route traffic or a
   // very slow route handler.
-  ['cache_header_gap', (candidate) => {
-    const invocations = numberFromSignal(candidate?.o11ySignal, 'inv');
-    const p95Ms = durationMsFromSignal(candidate?.o11ySignal, 'p95');
-    return invocations >= 50_000 || p95Ms >= 2000;
-  }],
-  ['rendering_candidate', (candidate) => numberFromSignal(candidate?.o11ySignal, 'inv') >= 50_000],
+  [
+    'cache_header_gap',
+    (candidate) => {
+      const invocations = numberFromSignal(candidate?.o11ySignal, 'inv');
+      const p95Ms = durationMsFromSignal(candidate?.o11ySignal, 'p95');
+      return invocations >= 50_000 || p95Ms >= 2000;
+    },
+  ],
+  [
+    'rendering_candidate',
+    (candidate) => numberFromSignal(candidate?.o11ySignal, 'inv') >= 50_000,
+  ],
 ]);
 
-export function selectLaunchCandidates(candidates, budget, { diversify = false } = {}) {
+export function selectLaunchCandidates(
+  candidates,
+  budget,
+  { diversify = false } = {}
+) {
   const pool = Array.isArray(candidates) ? candidates : [];
   if (budget === Infinity) {
     return { selected: pool, skipped: [], selectionMode: 'all' };
   }
   if (!Number.isInteger(budget) || budget < 1) {
-    throw new TypeError('selectLaunchCandidates budget must be a positive integer or Infinity');
+    throw new TypeError(
+      'selectLaunchCandidates budget must be a positive integer or Infinity'
+    );
   }
   if (!diversify) {
     return {
@@ -88,7 +103,9 @@ export function selectLaunchCandidates(candidates, budget, { diversify = false }
 
   return {
     selected,
-    skipped: pool.filter((candidate) => !selectedKeys.has(candidateIdentity(candidate))),
+    skipped: pool.filter(
+      (candidate) => !selectedKeys.has(candidateIdentity(candidate))
+    ),
     selectionMode: 'diverse-default',
   };
 }

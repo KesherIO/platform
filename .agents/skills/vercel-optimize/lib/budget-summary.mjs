@@ -12,17 +12,22 @@ export function buildBudgetSummary(gate) {
   const currentBudget =
     typeof gate?.budget?.maxCandidates === 'number'
       ? gate.budget.maxCandidates
-      : (gate?.budget?.maxCandidates === 'all' ? Infinity : 6);
+      : gate?.budget?.maxCandidates === 'all'
+      ? Infinity
+      : 6;
 
   // Only budget skips can be reached by raising the budget; disqualified/coveredBy can't.
-  const skippedByBudget = gated.filter((g) =>
-    typeof g.gatedReason === 'string' && g.gatedReason.startsWith('skippedByBudget')
+  const skippedByBudget = gated.filter(
+    (g) =>
+      typeof g.gatedReason === 'string' &&
+      g.gatedReason.startsWith('skippedByBudget')
   );
   const skipped = skippedByBudget.length;
   const totalPassed = toLaunch.length + skipped;
 
   const reasonParts = [];
-  if (budgetSource !== 'default') reasonParts.push(`user pre-set budget via ${budgetSource}`);
+  if (budgetSource !== 'default')
+    reasonParts.push(`user pre-set budget via ${budgetSource}`);
   if (skipped === 0) reasonParts.push('no candidates skipped by budget');
   const shouldAsk = budgetSource === 'default' && skipped > 0;
   const reason = shouldAsk
@@ -37,18 +42,36 @@ export function buildBudgetSummary(gate) {
     priority: c.priority ?? null,
   });
 
-  const investigatingPreviewCount = typeof currentBudget === 'number' && currentBudget <= MAX_FULL_INVESTIGATING_PREVIEW
-    ? currentBudget
-    : TOP_INVESTIGATING_PREVIEW;
-  const topInvestigating = toLaunch.slice(0, investigatingPreviewCount).map(summarize);
+  const investigatingPreviewCount =
+    typeof currentBudget === 'number' &&
+    currentBudget <= MAX_FULL_INVESTIGATING_PREVIEW
+      ? currentBudget
+      : TOP_INVESTIGATING_PREVIEW;
+  const topInvestigating = toLaunch
+    .slice(0, investigatingPreviewCount)
+    .map(summarize);
   const topSkipped = skippedByBudget.map(summarize);
   const options = buildOptions(toLaunch.length, skipped);
-  const questionText = buildQuestionText({ shouldAsk, totalPassed, currentBudget });
+  const questionText = buildQuestionText({
+    shouldAsk,
+    totalPassed,
+    currentBudget,
+  });
   const printContract = shouldAsk
     ? 'Print chatPreview verbatim by copying exactChatMessage.body as a chat message before asking questionText. Do not summarize, truncate, reorder, shorten, or rewrite options.'
     : null;
-  const questionPayload = shouldAsk ? buildQuestionPayload(questionText, options) : null;
-  const chatPreview = buildChatPreview({ shouldAsk, totalPassed, currentBudget, skipped, topInvestigating, topSkipped, reason });
+  const questionPayload = shouldAsk
+    ? buildQuestionPayload(questionText, options)
+    : null;
+  const chatPreview = buildChatPreview({
+    shouldAsk,
+    totalPassed,
+    currentBudget,
+    skipped,
+    topInvestigating,
+    topSkipped,
+    reason,
+  });
   const exactChatMessage = buildExactChatMessage(chatPreview);
   return {
     shouldAsk,
@@ -63,26 +86,52 @@ export function buildBudgetSummary(gate) {
     printContract,
     chatPreview,
     exactChatMessage,
-    printCheck: shouldAsk ? buildPrintCheck({ exactChatMessage, skipped }) : null,
+    printCheck: shouldAsk
+      ? buildPrintCheck({ exactChatMessage, skipped })
+      : null,
     questionText,
     questionPayload,
   };
 }
 
-function buildChatPreview({ shouldAsk, totalPassed, currentBudget, skipped, topInvestigating, topSkipped, reason }) {
+function buildChatPreview({
+  shouldAsk,
+  totalPassed,
+  currentBudget,
+  skipped,
+  topInvestigating,
+  topSkipped,
+  reason,
+}) {
   if (!shouldAsk) return `Audit scope: no question needed — ${reason}.`;
   const lines = [];
-  lines.push(`Found ${totalPassed} potential issue${totalPassed === 1 ? '' : 's'} worth checking. By default I'll inspect the ${currentBudget} strongest now; ${skipped} will stay in the report for a larger run.`);
-  lines.push(`Choose a larger scope if you want broader coverage. More checks take longer.`);
+  lines.push(
+    `Found ${totalPassed} potential issue${
+      totalPassed === 1 ? '' : 's'
+    } worth checking. By default I'll inspect the ${currentBudget} strongest now; ${skipped} will stay in the report for a larger run.`
+  );
+  lines.push(
+    `Choose a larger scope if you want broader coverage. More checks take longer.`
+  );
   if (topInvestigating.length > 0) {
     lines.push('');
-    lines.push(`Checking now${topInvestigating.length < currentBudget ? ` (${topInvestigating.length} shown)` : ''}:`);
-    topInvestigating.forEach((c, i) => lines.push(`  ${i + 1}. ${formatCandidateLine(c)}`));
+    lines.push(
+      `Checking now${
+        topInvestigating.length < currentBudget
+          ? ` (${topInvestigating.length} shown)`
+          : ''
+      }:`
+    );
+    topInvestigating.forEach((c, i) =>
+      lines.push(`  ${i + 1}. ${formatCandidateLine(c)}`)
+    );
   }
   if (topSkipped.length > 0) {
     lines.push('');
     lines.push(`Only checked if you expand this run (${topSkipped.length}):`);
-    topSkipped.forEach((c, i) => lines.push(`  ${i + 1}. ${formatCandidateLine(c)}`));
+    topSkipped.forEach((c, i) =>
+      lines.push(`  ${i + 1}. ${formatCandidateLine(c)}`)
+    );
   }
   return lines.join('\n');
 }
@@ -109,7 +158,8 @@ function buildPrintCheck({ exactChatMessage, skipped }) {
       '\\b\\d+\\s*[-–—]\\s*\\d+\\.\\s+\\d+\\s+more\\b',
       '\\betc\\.\\b',
     ],
-    instruction: 'The budget message is valid only when every line from exactChatMessage.body is preserved exactly. If you cannot verify that, print exactChatMessage.body again before asking the question.',
+    instruction:
+      'The budget message is valid only when every line from exactChatMessage.body is preserved exactly. If you cannot verify that, print exactChatMessage.body again before asking the question.',
   };
 }
 
@@ -126,15 +176,19 @@ function buildOptions(currentCount, skippedCount) {
       label: `Check ${currentCount} (default)`,
       value: currentCount,
       recommended: true,
-      description: 'Fastest first pass; checks the strongest cost and performance signals.',
-      rationale: 'fastest first pass; checks the strongest cost and performance signals',
+      description:
+        'Fastest first pass; checks the strongest cost and performance signals.',
+      rationale:
+        'fastest first pass; checks the strongest cost and performance signals',
     },
     {
       label: `Check all ${total}`,
       value: 'all',
       recommended: false,
-      description: 'Most complete; takes longer because every flagged route is investigated.',
-      rationale: 'most complete; takes longer because every flagged route is investigated',
+      description:
+        'Most complete; takes longer because every flagged route is investigated.',
+      rationale:
+        'most complete; takes longer because every flagged route is investigated',
     },
     {
       label: 'Pick a number',
@@ -148,15 +202,17 @@ function buildOptions(currentCount, skippedCount) {
 
 function buildQuestionPayload(questionText, options) {
   return {
-    questions: [{
-      question: questionText,
-      header: 'Audit scope',
-      multiSelect: false,
-      options: options.map((o) => ({
-        label: o.label,
-        description: o.description ?? o.rationale,
-      })),
-    }],
+    questions: [
+      {
+        question: questionText,
+        header: 'Audit scope',
+        multiSelect: false,
+        options: options.map((o) => ({
+          label: o.label,
+          description: o.description ?? o.rationale,
+        })),
+      },
+    ],
   };
 }
 

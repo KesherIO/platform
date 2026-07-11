@@ -10,11 +10,23 @@ export type OrderStatus =
   | 'COMPLETED'
   | 'CANCELLED';
 
-export type OrderedTestStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type OrderedTestStatus =
+  | 'PENDING'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED';
 export type ResultEntryMethod = 'MANUAL' | 'INSTRUMENT' | 'IMPORTED';
 export type ReportStatus = 'DRAFT' | 'RELEASED';
 export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
-export type Species = 'DOG' | 'CAT' | 'EQUINE' | 'BOVINE' | 'BIRD' | 'REPTILE' | 'RABBIT' | 'OTHER';
+export type Species =
+  | 'DOG'
+  | 'CAT'
+  | 'EQUINE'
+  | 'BOVINE'
+  | 'BIRD'
+  | 'REPTILE'
+  | 'RABBIT'
+  | 'OTHER';
 
 export interface OrderedTest {
   id: string;

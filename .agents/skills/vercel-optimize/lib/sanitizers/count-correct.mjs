@@ -5,13 +5,19 @@ import { escapeRegex } from '../util.mjs';
 
 export const metadata = {
   id: 'count-correct',
-  description: 'Rewrite count claims to verified ground truth (count-correct) or "a number of" (count-strip) when verifier disagrees.',
+  description:
+    'Rewrite count claims to verified ground truth (count-correct) or "a number of" (count-strip) when verifier disagrees.',
 };
 
-const COUNT_CLAIM_TYPES = new Set(['pattern_count', 'repo_count', 'cited_count_literal']);
+const COUNT_CLAIM_TYPES = new Set([
+  'pattern_count',
+  'repo_count',
+  'cited_count_literal',
+]);
 
 export function apply(rec, ctx = {}) {
-  const results = ctx.verifyResults ?? rec.verifyResults ?? rec.verification?.failed ?? null;
+  const results =
+    ctx.verifyResults ?? rec.verifyResults ?? rec.verification?.failed ?? null;
   if (!Array.isArray(results) || results.length === 0) return {};
 
   const tags = [];
@@ -20,7 +26,8 @@ export function apply(rec, ctx = {}) {
     if (!r) continue;
     const type = r.type ?? r.claimType;
     if (!COUNT_CLAIM_TYPES.has(type)) continue;
-    const disp = r.disposition ?? (r.actual !== r.expected ? 'failed' : 'verified');
+    const disp =
+      r.disposition ?? (r.actual !== r.expected ? 'failed' : 'verified');
     if (disp !== 'failed') continue;
     const expected = r.expected;
     const actual = r.actual;

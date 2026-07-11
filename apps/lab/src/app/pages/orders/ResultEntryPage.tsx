@@ -17,7 +17,7 @@ export function ResultEntryPage() {
     if (!orderId) return;
     setLoading(true);
     try {
-      const order = await labApi.orders.getById(orderId) as LabOrderDetail;
+      const order = (await labApi.orders.getById(orderId)) as LabOrderDetail;
       const found = order.orderedTests.find((t) => t.id === testId);
       if (found) {
         setTest(found);
@@ -28,14 +28,19 @@ export function ResultEntryPage() {
     }
   }, [orderId, testId]);
 
-  useEffect(() => { loadOrder(); }, [loadOrder]);
+  useEffect(() => {
+    loadOrder();
+  }, [loadOrder]);
 
   const handleStartTest = async (e: FormEvent) => {
     e.preventDefault();
     if (!testId) return;
     setSaving(true);
     try {
-      await labApi.orderedTests.update(testId, { status: 'IN_PROGRESS', entryMethod });
+      await labApi.orderedTests.update(testId, {
+        status: 'IN_PROGRESS',
+        entryMethod,
+      });
       await loadOrder();
     } finally {
       setSaving(false);
@@ -62,23 +67,34 @@ export function ResultEntryPage() {
   }
 
   if (!test) {
-    return <div className="p-6 text-red-400">{t('result_entry.not_found')}</div>;
+    return (
+      <div className="p-6 text-red-400">{t('result_entry.not_found')}</div>
+    );
   }
 
   const entryMethodLabel =
-    test.entryMethod === 'MANUAL' ? t('result_entry.manual_label') : test.entryMethod.toLowerCase();
+    test.entryMethod === 'MANUAL'
+      ? t('result_entry.manual_label')
+      : test.entryMethod.toLowerCase();
 
   return (
     <div className="p-6">
       <div className="mb-4">
-        <Link to={`/orders/${orderId}`} className="text-sm text-gray-400 hover:text-white">
+        <Link
+          to={`/orders/${orderId}`}
+          className="text-sm text-gray-400 hover:text-white"
+        >
           {t('result_entry.back')}
         </Link>
       </div>
 
-      <h1 className="mb-1 text-xl font-bold text-white">{test.catalogItemName}</h1>
+      <h1 className="mb-1 text-xl font-bold text-white">
+        {test.catalogItemName}
+      </h1>
       {test.catalogItemCode && (
-        <p className="mb-6 font-mono text-sm text-gray-400">{test.catalogItemCode}</p>
+        <p className="mb-6 font-mono text-sm text-gray-400">
+          {test.catalogItemCode}
+        </p>
       )}
 
       <div className="max-w-lg rounded-xl border border-gray-800 bg-gray-900 p-6">
@@ -94,7 +110,9 @@ export function ResultEntryPage() {
                 className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-cyan focus:outline-none"
               >
                 <option value="MANUAL">{t('result_entry.manual')}</option>
-                <option value="INSTRUMENT">{t('result_entry.instrument')}</option>
+                <option value="INSTRUMENT">
+                  {t('result_entry.instrument')}
+                </option>
                 <option value="IMPORTED">{t('result_entry.imported')}</option>
               </select>
             </div>
@@ -112,18 +130,27 @@ export function ResultEntryPage() {
           <div className="space-y-4">
             <p className="text-sm text-gray-300">
               {t('result_entry.in_progress_via')}{' '}
-              <span className="font-semibold text-white">{entryMethodLabel}</span>.
+              <span className="font-semibold text-white">
+                {entryMethodLabel}
+              </span>
+              .
             </p>
-            <p className="text-sm text-gray-400">{t('result_entry.in_progress_note')}</p>
+            <p className="text-sm text-gray-400">
+              {t('result_entry.in_progress_note')}
+            </p>
             <div className="rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
-              <p className="text-sm text-yellow-300">{t('result_entry.report_hint')}</p>
+              <p className="text-sm text-yellow-300">
+                {t('result_entry.report_hint')}
+              </p>
             </div>
             <button
               onClick={handleMarkComplete}
               disabled={saving}
               className="w-full rounded-lg bg-green-600 px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
-              {saving ? t('result_entry.saving') : t('result_entry.mark_complete')}
+              {saving
+                ? t('result_entry.saving')
+                : t('result_entry.mark_complete')}
             </button>
           </div>
         )}

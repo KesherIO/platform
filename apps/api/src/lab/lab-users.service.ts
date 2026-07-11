@@ -13,7 +13,7 @@ import type { CreateLabUserDto } from './dto/create-lab-user.dto';
 export class LabUsersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auth: AuthService,
+    private readonly auth: AuthService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ export class LabUsersService {
     });
     if (existing) {
       throw new ConflictException(
-        'A lab admin already exists. Use the user management screen to add more users.',
+        'A lab admin already exists. Use the user management screen to add more users.'
       );
     }
     return this.createLabUser(labTenantId, { ...dto, role: 'ADMIN' });
@@ -72,11 +72,16 @@ export class LabUsersService {
       where: { email: dto.email },
     });
     if (existingUser) {
-      const existingMembership = await this.prisma.userTenantMembership.findUnique({
-        where: { userId_tenantId: { userId: existingUser.id, tenantId: labTenantId } },
-      });
+      const existingMembership =
+        await this.prisma.userTenantMembership.findUnique({
+          where: {
+            userId_tenantId: { userId: existingUser.id, tenantId: labTenantId },
+          },
+        });
       if (existingMembership) {
-        throw new ConflictException('This user is already a member of the lab.');
+        throw new ConflictException(
+          'This user is already a member of the lab.'
+        );
       }
     }
 
@@ -85,7 +90,7 @@ export class LabUsersService {
       dto.email,
       dto.password,
       dto.firstName,
-      dto.lastName,
+      dto.lastName
     );
 
     try {
@@ -132,7 +137,12 @@ export class LabUsersService {
   // Change role
   // ---------------------------------------------------------------------------
 
-  async updateRole(labTenantId: string, userId: string, role: string, requestingUserId: string) {
+  async updateRole(
+    labTenantId: string,
+    userId: string,
+    role: string,
+    requestingUserId: string
+  ) {
     if (userId === requestingUserId) {
       throw new ForbiddenException('You cannot change your own role.');
     }
@@ -140,7 +150,8 @@ export class LabUsersService {
     const membership = await this.prisma.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId, tenantId: labTenantId } },
     });
-    if (!membership) throw new NotFoundException('User is not a member of this lab.');
+    if (!membership)
+      throw new NotFoundException('User is not a member of this lab.');
 
     return this.prisma.userTenantMembership.update({
       where: { userId_tenantId: { userId, tenantId: labTenantId } },
@@ -152,7 +163,11 @@ export class LabUsersService {
   // Remove from lab (does NOT delete the Supabase auth user)
   // ---------------------------------------------------------------------------
 
-  async removeMember(labTenantId: string, userId: string, requestingUserId: string) {
+  async removeMember(
+    labTenantId: string,
+    userId: string,
+    requestingUserId: string
+  ) {
     if (userId === requestingUserId) {
       throw new ForbiddenException('You cannot remove yourself from the lab.');
     }
@@ -160,7 +175,8 @@ export class LabUsersService {
     const membership = await this.prisma.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId, tenantId: labTenantId } },
     });
-    if (!membership) throw new NotFoundException('User is not a member of this lab.');
+    if (!membership)
+      throw new NotFoundException('User is not a member of this lab.');
 
     await this.prisma.userTenantMembership.delete({
       where: { userId_tenantId: { userId, tenantId: labTenantId } },

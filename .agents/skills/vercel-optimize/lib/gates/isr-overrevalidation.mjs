@@ -24,9 +24,15 @@ export function gate(signals) {
         files: [],
         priority: Math.round(r.writes),
         confidence: 0.88,
-        o11ySignal: `writes=${r.writes},reads=${r.reads},w/r=${ratio.toFixed(2)}`,
+        o11ySignal: `writes=${r.writes},reads=${r.reads},w/r=${ratio.toFixed(
+          2
+        )}`,
         reason: 'ISR revalidating faster than read traffic justifies',
-        question: `On ${r.route}, ${r.writes} ISR writes against ${r.reads} reads (${(ratio * 100).toFixed(0)} writes per 100 reads) — what is the current revalidate interval and can it be lengthened or switched to on-demand?`,
+        question: `On ${r.route}, ${r.writes} ISR writes against ${
+          r.reads
+        } reads (${(ratio * 100).toFixed(
+          0
+        )} writes per 100 reads) — what is the current revalidate interval and can it be lengthened or switched to on-demand?`,
         evidence: {
           metric: 'isrWritesByRoute',
           route: r.route,
@@ -45,7 +51,10 @@ function extractRows(signals) {
   const writeByRoute = new Map();
   for (const r of writes) {
     if (!r.route) continue;
-    writeByRoute.set(r.route, (writeByRoute.get(r.route) ?? 0) + (r.value ?? 0));
+    writeByRoute.set(
+      r.route,
+      (writeByRoute.get(r.route) ?? 0) + (r.value ?? 0)
+    );
   }
   const readByRoute = new Map();
   for (const r of reads) {

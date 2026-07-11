@@ -7,9 +7,9 @@ import type { LabMember, LabRole } from '../../types/lab.types';
 const ROLES: LabRole[] = ['ADMIN', 'TECHNICIAN', 'VET', 'RECEPTIONIST'];
 
 const ROLE_COLORS: Record<LabRole, string> = {
-  ADMIN:        'bg-purple/20 text-purple',
-  TECHNICIAN:   'bg-cyan/20 text-cyan',
-  VET:          'bg-blue-900/40 text-blue-300',
+  ADMIN: 'bg-purple/20 text-purple',
+  TECHNICIAN: 'bg-cyan/20 text-cyan',
+  VET: 'bg-blue-900/40 text-blue-300',
   RECEPTIONIST: 'bg-gray-800 text-gray-400',
 };
 
@@ -52,7 +52,9 @@ export function TeamPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadMembers(); }, []);
+  useEffect(() => {
+    loadMembers();
+  }, []);
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -74,7 +76,9 @@ export function TeamPage() {
     try {
       await labApi.users.updateRole(userId, role);
       setMembers((prev) =>
-        prev.map((m) => (m.userId === userId ? { ...m, role: role as LabRole } : m))
+        prev.map((m) =>
+          m.userId === userId ? { ...m, role: role as LabRole } : m
+        )
       );
     } catch {
       // role change failed — reload to show correct state
@@ -83,7 +87,9 @@ export function TeamPage() {
   };
 
   const handleRemove = async (member: LabMember) => {
-    const name = [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email;
+    const name =
+      [member.firstName, member.lastName].filter(Boolean).join(' ') ||
+      member.email;
     if (!confirm(t('team.remove.confirm', { name }))) return;
     try {
       await labApi.users.remove(member.userId);
@@ -105,7 +111,10 @@ export function TeamPage() {
           )}
         </div>
         <button
-          onClick={() => { setShowForm(true); setFormError(null); }}
+          onClick={() => {
+            setShowForm(true);
+            setFormError(null);
+          }}
           className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
         >
           + {t('team.add_user')}
@@ -115,7 +124,9 @@ export function TeamPage() {
       {/* Add user form */}
       {showForm && (
         <div className="mb-6 rounded-xl border border-gray-700 bg-gray-900 p-5">
-          <h2 className="mb-4 text-sm font-semibold text-white">{t('team.form.title')}</h2>
+          <h2 className="mb-4 text-sm font-semibold text-white">
+            {t('team.form.title')}
+          </h2>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -125,7 +136,9 @@ export function TeamPage() {
                 <input
                   required
                   value={form.firstName}
-                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, firstName: e.target.value })
+                  }
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
                 />
               </div>
@@ -136,7 +149,9 @@ export function TeamPage() {
                 <input
                   required
                   value={form.lastName}
-                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, lastName: e.target.value })
+                  }
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
                 />
               </div>
@@ -167,7 +182,9 @@ export function TeamPage() {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
               />
-              <p className="mt-1 text-xs text-gray-500">{t('team.form.password_hint')}</p>
+              <p className="mt-1 text-xs text-gray-500">
+                {t('team.form.password_hint')}
+              </p>
             </div>
 
             <div>
@@ -176,7 +193,9 @@ export function TeamPage() {
               </label>
               <select
                 value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value as LabRole })}
+                onChange={(e) =>
+                  setForm({ ...form, role: e.target.value as LabRole })
+                }
                 className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
               >
                 {ROLES.map((r) => (
@@ -203,7 +222,10 @@ export function TeamPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }}
+                onClick={() => {
+                  setShowForm(false);
+                  setForm(EMPTY_FORM);
+                }}
                 className="rounded-lg border border-gray-700 px-5 py-2 text-sm text-gray-300 hover:bg-gray-800"
               >
                 {t('team.form.cancel')}
@@ -221,7 +243,9 @@ export function TeamPage() {
       )}
 
       {error && (
-        <div className="rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-300">{error}</div>
+        <div className="rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
       )}
 
       {!loading && !error && members.length === 0 && (
@@ -233,7 +257,8 @@ export function TeamPage() {
           {members.map((member) => {
             const isMe = member.userId === user?.id;
             const displayName =
-              [member.firstName, member.lastName].filter(Boolean).join(' ') || member.email;
+              [member.firstName, member.lastName].filter(Boolean).join(' ') ||
+              member.email;
 
             return (
               <div
@@ -248,7 +273,9 @@ export function TeamPage() {
                     <p className="text-sm font-medium text-white">
                       {displayName}
                       {isMe && (
-                        <span className="ml-2 text-xs text-gray-500">({t('team.you')})</span>
+                        <span className="ml-2 text-xs text-gray-500">
+                          ({t('team.you')})
+                        </span>
                       )}
                     </p>
                     <p className="text-xs text-gray-400">{member.email}</p>
@@ -258,13 +285,19 @@ export function TeamPage() {
                 <div className="flex items-center gap-3">
                   {/* Role selector — disabled for self */}
                   {isMe ? (
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${ROLE_COLORS[member.role]}`}>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${
+                        ROLE_COLORS[member.role]
+                      }`}
+                    >
                       {t(`team.roles.${member.role}`)}
                     </span>
                   ) : (
                     <select
                       value={member.role}
-                      onChange={(e) => handleRoleChange(member.userId, e.target.value)}
+                      onChange={(e) =>
+                        handleRoleChange(member.userId, e.target.value)
+                      }
                       className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white focus:border-cyan focus:outline-none"
                     >
                       {ROLES.map((r) => (

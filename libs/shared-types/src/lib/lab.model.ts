@@ -1,4 +1,8 @@
-export type OrderedTestStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type OrderedTestStatus =
+  | 'PENDING'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED';
 
 export type ResultEntryMethod = 'MANUAL' | 'INSTRUMENT' | 'IMPORTED';
 
@@ -46,8 +50,8 @@ export interface LabOrderModel {
   id: string;
   requisitionNumber: string;
   caseId: string;
-  tenantId: string;         // clinic tenant
-  clinicName: string;       // denormalized for display
+  tenantId: string; // clinic tenant
+  clinicName: string; // denormalized for display
   labTenantId: string | null;
   status: string;
   priority: string;

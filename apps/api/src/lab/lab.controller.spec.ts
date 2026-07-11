@@ -34,11 +34,18 @@ describe('LabController', () => {
 
   it('getOrders calls service with tenantId and status', async () => {
     await controller.getOrders(tenant, 'RECEIVED_BY_LAB');
-    expect(service.getLabOrders).toHaveBeenCalledWith('lab-1', 'RECEIVED_BY_LAB');
+    expect(service.getLabOrders).toHaveBeenCalledWith(
+      'lab-1',
+      'RECEIVED_BY_LAB'
+    );
   });
 
   it('updateOrderStatus delegates to service', async () => {
-    await controller.updateOrderStatus(tenant, 'order-1', { status: 'PROCESSING' });
-    expect(service.updateOrderStatus).toHaveBeenCalledWith('lab-1', 'order-1', { status: 'PROCESSING' });
+    await controller.updateOrderStatus(tenant, 'order-1', {
+      status: 'PROCESSING',
+    });
+    expect(service.updateOrderStatus).toHaveBeenCalledWith('lab-1', 'order-1', {
+      status: 'PROCESSING',
+    });
   });
 });

@@ -30,7 +30,9 @@ export function LaboratorySettingsPage() {
     setSaving(true);
     setSaved(false);
     try {
-      await labApi.settings.updateProfile(profile as unknown as Record<string, unknown>);
+      await labApi.settings.updateProfile(
+        profile as unknown as Record<string, unknown>
+      );
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } finally {
@@ -38,9 +40,15 @@ export function LaboratorySettingsPage() {
     }
   };
 
-  const field = (label: string, key: keyof LaboratoryProfile, multiline = false) => (
+  const field = (
+    label: string,
+    key: keyof LaboratoryProfile,
+    multiline = false
+  ) => (
     <div key={key}>
-      <label className="mb-1 block text-sm font-medium text-gray-300">{label}</label>
+      <label className="mb-1 block text-sm font-medium text-gray-300">
+        {label}
+      </label>
       {multiline ? (
         <textarea
           rows={3}
@@ -69,7 +77,9 @@ export function LaboratorySettingsPage() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold text-white">{t('settings.title')}</h1>
+      <h1 className="mb-6 text-xl font-bold text-white">
+        {t('settings.title')}
+      </h1>
 
       <form onSubmit={handleSubmit} className="max-w-lg space-y-5">
         {field(t('settings.accreditation_number'), 'accreditationNumber')}
@@ -86,7 +96,9 @@ export function LaboratorySettingsPage() {
           >
             {saving ? t('common.saving') : t('common.save')}
           </button>
-          {saved && <span className="text-sm text-green-400">{t('common.saved')}</span>}
+          {saved && (
+            <span className="text-sm text-green-400">{t('common.saved')}</span>
+          )}
         </div>
       </form>
     </div>

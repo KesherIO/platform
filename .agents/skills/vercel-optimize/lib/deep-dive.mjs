@@ -38,16 +38,29 @@ export const SPEC_GENERATORS = {
     const f = odataEq('route', route);
     // cacheBreakdown/bandwidthByCache let sub-agent see miss-path cost on static routes (dynamic='error' can still show p95=900ms over millions of requests).
     return [
-      ...latencyPercentiles('latency', 'vercel.function_invocation.function_duration_ms', f),
+      ...latencyPercentiles(
+        'latency',
+        'vercel.function_invocation.function_duration_ms',
+        f
+      ),
       ...latencyPercentiles('ttfb', 'vercel.function_invocation.ttfb_ms', f),
-      ...latencyPercentiles('cpu', 'vercel.function_invocation.function_cpu_time_ms', f, ['p95']),
+      ...latencyPercentiles(
+        'cpu',
+        'vercel.function_invocation.function_cpu_time_ms',
+        f,
+        ['p95']
+      ),
       {
         id: 'startTypeSplit',
         metricId: 'vercel.function_invocation.count',
         aggregation: 'sum',
         groupBy: ['function_start_type'],
         filter: f,
-        broadPassEquivalent: { key: 'fnStartTypeByRoute', routeFilter: route, projectDims: ['function_start_type'] },
+        broadPassEquivalent: {
+          key: 'fnStartTypeByRoute',
+          routeFilter: route,
+          projectDims: ['function_start_type'],
+        },
       },
       // function-invocation status (5xx from function) — distinct from request-level status, can't reuse broad-pass.
       {
@@ -71,7 +84,11 @@ export const SPEC_GENERATORS = {
         aggregation: 'sum',
         groupBy: ['cache_result'],
         filter: f,
-        broadPassEquivalent: { key: 'requestsByRouteCache', routeFilter: route, projectDims: ['cache_result'] },
+        broadPassEquivalent: {
+          key: 'requestsByRouteCache',
+          routeFilter: route,
+          projectDims: ['cache_result'],
+        },
       },
       // broad-pass bandwidthByCacheResult is account-wide, so per-route still required.
       {
@@ -95,7 +112,11 @@ export const SPEC_GENERATORS = {
         aggregation: 'sum',
         groupBy: ['cache_result'],
         filter: f,
-        broadPassEquivalent: { key: 'requestsByRouteCache', routeFilter: route, projectDims: ['cache_result'] },
+        broadPassEquivalent: {
+          key: 'requestsByRouteCache',
+          routeFilter: route,
+          projectDims: ['cache_result'],
+        },
       },
       {
         id: 'methodDistribution',
@@ -103,7 +124,11 @@ export const SPEC_GENERATORS = {
         aggregation: 'sum',
         groupBy: ['request_method'],
         filter: f,
-        broadPassEquivalent: { key: 'requestsByRouteMethod', routeFilter: route, projectDims: ['request_method'] },
+        broadPassEquivalent: {
+          key: 'requestsByRouteMethod',
+          routeFilter: route,
+          projectDims: ['request_method'],
+        },
       },
       {
         id: 'botShare',
@@ -188,7 +213,11 @@ export const SPEC_GENERATORS = {
     if (!host) return [];
     const f = odataEq('origin_hostname', host);
     return [
-      ...latencyPercentiles('latency', 'vercel.external_api_request.request_duration_ms', f),
+      ...latencyPercentiles(
+        'latency',
+        'vercel.external_api_request.request_duration_ms',
+        f
+      ),
       {
         // "calling route" dim is origin_route (verified via metrics schema).
         id: 'callersByRoute',
@@ -235,9 +264,21 @@ export const SPEC_GENERATORS = {
     if (!route) return [];
     const f = odataEq('route', route);
     return [
-      ...latencyPercentiles('lcp', 'vercel.speed_insights_metric.lcp', f, ['p50', 'p75', 'p95']),
-      ...latencyPercentiles('inp', 'vercel.speed_insights_metric.inp', f, ['p50', 'p75', 'p95']),
-      ...latencyPercentiles('cls', 'vercel.speed_insights_metric.cls', f, ['p50', 'p75', 'p95']),
+      ...latencyPercentiles('lcp', 'vercel.speed_insights_metric.lcp', f, [
+        'p50',
+        'p75',
+        'p95',
+      ]),
+      ...latencyPercentiles('inp', 'vercel.speed_insights_metric.inp', f, [
+        'p50',
+        'p75',
+        'p95',
+      ]),
+      ...latencyPercentiles('cls', 'vercel.speed_insights_metric.cls', f, [
+        'p50',
+        'p75',
+        'p95',
+      ]),
     ];
   },
 
@@ -311,7 +352,12 @@ export function specsForCandidate(candidate) {
 }
 
 // One spec per percentile — CLI does not support `-a p50 -a p95` multi-aggregation.
-function latencyPercentiles(idPrefix, metricId, filter, percentiles = ['p50', 'p75', 'p95', 'p99']) {
+function latencyPercentiles(
+  idPrefix,
+  metricId,
+  filter,
+  percentiles = ['p50', 'p75', 'p95', 'p99']
+) {
   return percentiles.map((p) => ({
     id: `${idPrefix}.${p}`,
     metricId,

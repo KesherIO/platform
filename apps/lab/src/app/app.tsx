@@ -34,7 +34,10 @@ export function App() {
             path="/orders/:orderId/review"
             element={<ReviewReleasePage />}
           />
-          <Route path="/settings/laboratory" element={<LaboratorySettingsPage />} />
+          <Route
+            path="/settings/laboratory"
+            element={<LaboratorySettingsPage />}
+          />
           <Route path="/settings/users" element={<TeamPage />} />
         </Route>
 

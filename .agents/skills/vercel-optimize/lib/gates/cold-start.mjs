@@ -24,14 +24,25 @@ export function gate(signals) {
       confidence: 0.92,
       o11ySignal: `cold=${(r.coldPct * 100).toFixed(0)}%,inv=${r.total}`,
       reason: 'high cold-start rate on hot route',
-      question: `What initialization or bundle overhead makes ${r.route} cold-start ${(r.coldPct * 100).toFixed(0)}% of ${r.total} invocations?`,
-      evidence: { metric: 'fnStartTypeByRoute', route: r.route, coldPct: r.coldPct, total: r.total, coldCount: r.coldCount ?? null },
+      question: `What initialization or bundle overhead makes ${
+        r.route
+      } cold-start ${(r.coldPct * 100).toFixed(0)}% of ${r.total} invocations?`,
+      evidence: {
+        metric: 'fnStartTypeByRoute',
+        route: r.route,
+        coldPct: r.coldPct,
+        total: r.total,
+        coldCount: r.coldCount ?? null,
+      },
     }));
 }
 
 function extractColdStarts(signals) {
   const live = signals.metrics?.fnStartTypeByRoute;
-  if (Array.isArray(live?.rows) && live.rows.some((r) => 'coldCount' in r || 'coldPct' in r)) {
+  if (
+    Array.isArray(live?.rows) &&
+    live.rows.some((r) => 'coldCount' in r || 'coldPct' in r)
+  ) {
     return live.rows
       .filter((r) => r.route)
       .map((r) => ({
@@ -47,7 +58,11 @@ function extractColdStarts(signals) {
   if (Array.isArray(direct?.rows)) {
     return direct.rows
       .filter((r) => r.route)
-      .map((r) => ({ route: r.route, coldPct: r.coldPct ?? 0, total: r.total ?? 0 }));
+      .map((r) => ({
+        route: r.route,
+        coldPct: r.coldPct ?? 0,
+        total: r.total ?? 0,
+      }));
   }
 
   // Older legacy fixture: series + summary shape.
@@ -57,7 +72,11 @@ function extractColdStarts(signals) {
       .map((s) => {
         const total = s.summary?.count ?? 0;
         const coldCount = s.summary?.coldCount ?? s.summary?.sum ?? 0;
-        return { route: s.groupValues?.route, total, coldPct: total > 0 ? coldCount / total : 0 };
+        return {
+          route: s.groupValues?.route,
+          total,
+          coldPct: total > 0 ? coldCount / total : 0,
+        };
       })
       .filter((r) => r.route);
   }

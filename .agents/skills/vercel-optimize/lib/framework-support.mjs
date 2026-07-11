@@ -12,7 +12,9 @@ const LABELS = {
 };
 
 export function frameworkLabel(framework) {
-  return LABELS[normalizeFramework(framework)] ?? String(framework ?? 'unknown');
+  return (
+    LABELS[normalizeFramework(framework)] ?? String(framework ?? 'unknown')
+  );
 }
 
 export function classifyFrameworkSupport(stack = {}) {
@@ -55,12 +57,16 @@ export function classifyFrameworkSupport(stack = {}) {
     label,
     supportedFrameworks: supportedLabels,
     limitedFrameworks: limitedLabels,
-    detail: `${label} is not supported for metric-backed route-to-file investigations. Supported frameworks: ${supportedLabels.join(', ')}. Limited support: ${limitedLabels.join(', ')}.`,
+    detail: `${label} is not supported for metric-backed route-to-file investigations. Supported frameworks: ${supportedLabels.join(
+      ', '
+    )}. Limited support: ${limitedLabels.join(', ')}.`,
   };
 }
 
 function normalizeFramework(value) {
-  const raw = String(value ?? 'unknown').trim().toLowerCase();
+  const raw = String(value ?? 'unknown')
+    .trim()
+    .toLowerCase();
   if (raw === 'nextjs' || raw === 'next.js') return 'next';
   if (raw === 'svelte' || raw === 'svelte-kit') return 'sveltekit';
   return raw || 'unknown';

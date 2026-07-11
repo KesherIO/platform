@@ -30,7 +30,7 @@ import { UpdateLabUserRoleDto } from './dto/update-lab-user-role.dto';
 export class LabController {
   constructor(
     private readonly labService: LabService,
-    private readonly labUsersService: LabUsersService,
+    private readonly labUsersService: LabUsersService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -43,7 +43,7 @@ export class LabController {
   @Post('setup')
   setup(
     @Query('labTenantId') labTenantId: string,
-    @Body() dto: CreateLabUserDto,
+    @Body() dto: CreateLabUserDto
   ) {
     return this.labUsersService.bootstrapAdmin(labTenantId, dto);
   }
@@ -57,7 +57,7 @@ export class LabController {
   @Get('orders')
   getOrders(
     @CurrentTenant() tenant: TenantContext,
-    @Query('status') status?: string,
+    @Query('status') status?: string
   ) {
     return this.labService.getLabOrders(tenant.tenantId, status);
   }
@@ -65,7 +65,10 @@ export class LabController {
   // GET /api/lab/orders/:id
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Get('orders/:id')
-  getOrderById(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
+  getOrderById(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
     return this.labService.getLabOrderById(tenant.tenantId, id);
   }
 
@@ -75,7 +78,7 @@ export class LabController {
   updateOrderStatus(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
-    @Body() dto: UpdateOrderStatusDto,
+    @Body() dto: UpdateOrderStatusDto
   ) {
     return this.labService.updateOrderStatus(tenant.tenantId, id, dto);
   }
@@ -83,7 +86,10 @@ export class LabController {
   // POST /api/lab/orders/:id/ordered-tests
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Post('orders/:id/ordered-tests')
-  initOrderedTests(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
+  initOrderedTests(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
     return this.labService.initOrderedTests(tenant.tenantId, id);
   }
 
@@ -93,7 +99,7 @@ export class LabController {
   updateOrderedTest(
     @CurrentTenant() tenant: TenantContext,
     @Param('testId') testId: string,
-    @Body() dto: UpdateOrderedTestDto,
+    @Body() dto: UpdateOrderedTestDto
   ) {
     return this.labService.updateOrderedTest(tenant.tenantId, testId, dto);
   }
@@ -110,7 +116,7 @@ export class LabController {
   @Patch('settings/laboratory')
   upsertLaboratoryProfile(
     @CurrentTenant() tenant: TenantContext,
-    @Body() body: UpsertLaboratoryProfileDto,
+    @Body() body: UpsertLaboratoryProfileDto
   ) {
     return this.labService.upsertLaboratoryProfile(tenant.tenantId, body);
   }
@@ -131,7 +137,7 @@ export class LabController {
   @Post('users')
   createUser(
     @CurrentTenant() tenant: TenantContext,
-    @Body() dto: CreateLabUserDto,
+    @Body() dto: CreateLabUserDto
   ) {
     return this.labUsersService.createLabUser(tenant.tenantId, dto);
   }
@@ -143,9 +149,14 @@ export class LabController {
     @CurrentTenant() tenant: TenantContext,
     @CurrentUser() user: AuthenticatedUser,
     @Param('userId') userId: string,
-    @Body() dto: UpdateLabUserRoleDto,
+    @Body() dto: UpdateLabUserRoleDto
   ) {
-    return this.labUsersService.updateRole(tenant.tenantId, userId, dto.role, user.id);
+    return this.labUsersService.updateRole(
+      tenant.tenantId,
+      userId,
+      dto.role,
+      user.id
+    );
   }
 
   // DELETE /api/lab/users/:userId
@@ -155,7 +166,7 @@ export class LabController {
   removeMember(
     @CurrentTenant() tenant: TenantContext,
     @CurrentUser() user: AuthenticatedUser,
-    @Param('userId') userId: string,
+    @Param('userId') userId: string
   ) {
     return this.labUsersService.removeMember(tenant.tenantId, userId, user.id);
   }

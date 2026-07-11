@@ -6,23 +6,25 @@ import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { LabOrderSummary } from '../../types/lab.types';
 
 const PRIORITY_COLORS: Record<string, string> = {
-  STAT:    'text-red-400',
-  URGENT:  'text-orange-400',
+  STAT: 'text-red-400',
+  URGENT: 'text-orange-400',
   ROUTINE: 'text-gray-400',
 };
 
 export function OrdersQueuePage() {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<LabOrderSummary[]>([]);
-  const [activeFilter, setActiveFilter] = useState<string | undefined>(undefined);
+  const [activeFilter, setActiveFilter] = useState<string | undefined>(
+    undefined
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const FILTER_TABS = [
-    { label: t('orders.filter.all'),        value: undefined },
-    { label: t('orders.filter.received'),   value: 'RECEIVED_BY_LAB' },
+    { label: t('orders.filter.all'), value: undefined },
+    { label: t('orders.filter.received'), value: 'RECEIVED_BY_LAB' },
     { label: t('orders.filter.processing'), value: 'PROCESSING' },
-    { label: t('orders.filter.completed'),  value: 'COMPLETED' },
+    { label: t('orders.filter.completed'), value: 'COMPLETED' },
   ];
 
   useEffect(() => {
@@ -73,7 +75,9 @@ export function OrdersQueuePage() {
       )}
 
       {!loading && !error && orders.length === 0 && (
-        <div className="py-16 text-center text-gray-500">{t('orders.empty')}</div>
+        <div className="py-16 text-center text-gray-500">
+          {t('orders.empty')}
+        </div>
       )}
 
       {!loading && !error && orders.length > 0 && (
@@ -85,11 +89,17 @@ export function OrdersQueuePage() {
               className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4 transition hover:border-gray-700 hover:bg-gray-800"
             >
               <div>
-                <p className="font-mono text-xs text-gray-500">{order.requisitionNumber}</p>
+                <p className="font-mono text-xs text-gray-500">
+                  {order.requisitionNumber}
+                </p>
                 <p className="mt-0.5 font-semibold text-white">
                   {order.patientName}{' '}
                   <span className="text-sm font-normal text-gray-400">
-                    ({t(`species.${order.patientSpecies}`, { defaultValue: order.patientSpecies })})
+                    (
+                    {t(`species.${order.patientSpecies}`, {
+                      defaultValue: order.patientSpecies,
+                    })}
+                    )
                   </span>
                 </p>
                 <p className="text-sm text-gray-400">
@@ -100,8 +110,14 @@ export function OrdersQueuePage() {
               <div className="flex items-center gap-4 text-right">
                 <div>
                   <p className="text-xs text-gray-500">{order.clinicName}</p>
-                  <p className={`mt-0.5 text-xs font-semibold ${PRIORITY_COLORS[order.priority] ?? ''}`}>
-                    {t(`priority.${order.priority}`, { defaultValue: order.priority })}
+                  <p
+                    className={`mt-0.5 text-xs font-semibold ${
+                      PRIORITY_COLORS[order.priority] ?? ''
+                    }`}
+                  >
+                    {t(`priority.${order.priority}`, {
+                      defaultValue: order.priority,
+                    })}
                   </p>
                 </div>
                 <StatusBadge status={order.status} />

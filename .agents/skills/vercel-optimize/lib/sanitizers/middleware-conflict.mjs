@@ -12,19 +12,30 @@ export const metadata = {
 
 export function apply(rec, ctx = {}) {
   const findings = ctx?.signals?.codebase?.findings ?? [];
-  const middlewareFinding = findings.find((f) => f?.scannerId === 'middleware-broad-matcher' || f?.id === 'middleware-broad-matcher');
+  const middlewareFinding = findings.find(
+    (f) =>
+      f?.scannerId === 'middleware-broad-matcher' ||
+      f?.id === 'middleware-broad-matcher'
+  );
   if (!middlewareFinding) return {};
 
   const route = extractRoute(rec);
   if (!route) return {};
 
-  const matcher = middlewareFinding.detail?.matcher
-    ?? middlewareFinding.matcher
-    ?? '(unspecified matcher)';
-  const middlewareFile = middlewareFinding.file ?? middlewareFinding.path ?? 'middleware.ts';
+  const matcher =
+    middlewareFinding.detail?.matcher ??
+    middlewareFinding.matcher ??
+    '(unspecified matcher)';
+  const middlewareFile =
+    middlewareFinding.file ?? middlewareFinding.path ?? 'middleware.ts';
 
-  const covered = middlewareFinding.detail?.routesCovered ?? middlewareFinding.routesCovered;
-  if (Array.isArray(covered) && covered.length > 0 && !covered.includes(route)) {
+  const covered =
+    middlewareFinding.detail?.routesCovered ?? middlewareFinding.routesCovered;
+  if (
+    Array.isArray(covered) &&
+    covered.length > 0 &&
+    !covered.includes(route)
+  ) {
     return {};
   }
 

@@ -4,7 +4,8 @@
 //
 // This module is the ONLY place we touch Next.js metric path encoding — every gate calls canonicalizeRoute before aggregating.
 
-export const ROUTE_SHAPE_RE = /(?:^.{200,}$)|[\s'"`,;&=<>(){}!\\^|\u0000-\u001F]|%(?:22|5B|5C|7B|7D|20|3C|3E|26)|localhost:|https?:\/|\/\/(?!$)|[:,\$\s]$|\.segments?\/|__PAGE__|@[a-z]/i;
+export const ROUTE_SHAPE_RE =
+  /(?:^.{200,}$)|[\s'"`,;&=<>(){}!\\^|\u0000-\u001F]|%(?:22|5B|5C|7B|7D|20|3C|3E|26)|localhost:|https?:\/|\/\/(?!$)|[:,\$\s]$|\.segments?\/|__PAGE__|@[a-z]/i;
 
 export function isSegmentTreePath(route) {
   if (typeof route !== 'string') return false;
@@ -13,7 +14,8 @@ export function isSegmentTreePath(route) {
 
 export function canonicalizeRoute(route) {
   if (typeof route !== 'string' || route.length === 0) return route;
-  if (!isSegmentTreePath(route)) return stripRouteGroups(replaceBase64WithDynamic(route));
+  if (!isSegmentTreePath(route))
+    return stripRouteGroups(replaceBase64WithDynamic(route));
 
   // Discard prefix (flag-state + dynamic value, both noise). Tail is the segment-tree node.
   const idx = route.indexOf('.segments');
@@ -37,9 +39,7 @@ function canonicalizeBranchPrefix(route, segmentsIdx) {
   const prefix = route.slice(0, segmentsIdx);
   const parts = prefix.split('/').filter(Boolean);
   // Drop trailing dynamic value (e.g. "london") and base64 flag-state — neither is a route segment.
-  const cleaned = parts
-    .filter((p) => !isBase64FlagState(p))
-    .slice(0, -1);
+  const cleaned = parts.filter((p) => !isBase64FlagState(p)).slice(0, -1);
   if (cleaned.length === 0) return prefix || '/';
   return '/' + cleaned.join('/');
 }
@@ -50,7 +50,7 @@ function isMetricLeaf(token) {
     token === '_tree.segment' ||
     token === '_index.segment' ||
     token === '__page__.segment' ||
-    token.endsWith('.segment') && token.startsWith('_')
+    (token.endsWith('.segment') && token.startsWith('_'))
   );
 }
 
@@ -58,7 +58,9 @@ function isMetricLeaf(token) {
 function isBase64FlagState(token) {
   if (typeof token !== 'string') return false;
   if (token.length < 16) return false;
-  return /^[A-Za-z0-9_-]+$/.test(token) && /[A-Z]/.test(token) && /[a-z]/.test(token);
+  return (
+    /^[A-Za-z0-9_-]+$/.test(token) && /[A-Z]/.test(token) && /[a-z]/.test(token)
+  );
 }
 
 // `/event/<base64>/teaser` → `/event/[*]/teaser`. Stripping entirely (old behavior) corrupted segment count and broke route→file lookup.
@@ -68,7 +70,10 @@ function replaceBase64WithDynamic(route) {
   let mutated = false;
   const replaced = parts.map((p, i) => {
     if (i === 0) return p;
-    if (isBase64FlagState(p)) { mutated = true; return '[*]'; }
+    if (isBase64FlagState(p)) {
+      mutated = true;
+      return '[*]';
+    }
     return p;
   });
   if (!mutated) return route;
@@ -81,14 +86,16 @@ function stripRouteGroups(route) {
   const parts = route.split('/');
   const kept = parts.filter((p) => !/^\([^)]+\)$/.test(p));
   const joined = kept.join('/');
-  return joined.startsWith('/') ? (joined || '/') : '/' + joined;
+  return joined.startsWith('/') ? joined || '/' : '/' + joined;
 }
 
 // $d$X → [X] · $oc$X → [[...X]] · $c$X → [...X] · !K…p → (group) · metric-leaves → dropped.
 function decodeSegmentToken(token) {
   if (isMetricLeaf(token)) return '';
 
-  let t = token.endsWith('.segment') ? token.slice(0, -'.segment'.length) : token;
+  let t = token.endsWith('.segment')
+    ? token.slice(0, -'.segment'.length)
+    : token;
 
   if (/^\$d\$/.test(t)) return `[${t.slice(3)}]`;
   if (/^\$oc\$/.test(t)) return `[[...${t.slice(4)}]]`;
@@ -152,10 +159,14 @@ export function dedupeCandidates(candidates) {
       dropped.push({
         candidate: c,
         mergedInto: key,
-        reason: 'duplicate of higher-priority sibling (same source route after canonicalization)',
+        reason:
+          'duplicate of higher-priority sibling (same source route after canonicalization)',
       });
     } else {
-      byKey.set(key, { ...c, route: c.route ? canonicalizeRoute(c.route) : c.route });
+      byKey.set(key, {
+        ...c,
+        route: c.route ? canonicalizeRoute(c.route) : c.route,
+      });
       order.push({ __key: key });
     }
   }
@@ -164,7 +175,9 @@ export function dedupeCandidates(candidates) {
 }
 
 export function isLikelyNextRouteShape(route) {
-  return typeof route === 'string' && route.length > 0 && !ROUTE_SHAPE_RE.test(route);
+  return (
+    typeof route === 'string' && route.length > 0 && !ROUTE_SHAPE_RE.test(route)
+  );
 }
 
 export function routeShapeWarning(route, signals = {}) {
@@ -174,7 +187,8 @@ export function routeShapeWarning(route, signals = {}) {
 export function routeShapeWarnings(route, signals = {}) {
   if (typeof route !== 'string' || route.length === 0) return [];
   const warnings = [];
-  if (ROUTE_SHAPE_RE.test(route)) warnings.push('route-shape:suspicious-metric-label');
+  if (ROUTE_SHAPE_RE.test(route))
+    warnings.push('route-shape:suspicious-metric-label');
   const first = firstRouteSegment(canonicalizeRoute(route));
   if (first && shouldWarnUnknownFirstSegment(first, signals)) {
     warnings.push(`route-shape:unknown-first-segment:${first}`);
@@ -187,7 +201,12 @@ export function withRouteShapeWarnings(candidate, signals = {}) {
   if (warnings.length === 0) return candidate;
   return {
     ...candidate,
-    warnings: [...new Set([...(Array.isArray(candidate.warnings) ? candidate.warnings : []), ...warnings])],
+    warnings: [
+      ...new Set([
+        ...(Array.isArray(candidate.warnings) ? candidate.warnings : []),
+        ...warnings,
+      ]),
+    ],
   };
 }
 

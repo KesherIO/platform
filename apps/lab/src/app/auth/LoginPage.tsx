@@ -18,7 +18,10 @@ export function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     setLoading(false);
     if (authError) setError(authError.message);
   };
@@ -48,7 +51,10 @@ export function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-300" htmlFor="password">
+            <label
+              className="mb-1 block text-sm text-gray-300"
+              htmlFor="password"
+            >
               {t('auth.password')}
             </label>
             <input
@@ -63,7 +69,9 @@ export function LoginPage() {
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-900/40 px-4 py-2 text-sm text-red-300">{error}</p>
+            <p className="rounded-lg bg-red-900/40 px-4 py-2 text-sm text-red-300">
+              {error}
+            </p>
           )}
 
           <button

@@ -5,15 +5,26 @@ import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { LabOrderDetail } from '../../types/lab.types';
 
-const STATUS_TRANSITIONS: Record<string, { labelKey: string; next: string }[]> = {
-  PENDING:          [{ labelKey: 'orders.actions.mark_received',    next: 'RECEIVED_BY_LAB' }],
-  READY_FOR_PICKUP: [{ labelKey: 'orders.actions.mark_received',    next: 'RECEIVED_BY_LAB' }],
-  COLLECTED:        [{ labelKey: 'orders.actions.mark_received',    next: 'RECEIVED_BY_LAB' }],
-  RECEIVED_BY_LAB:  [{ labelKey: 'orders.actions.start_processing', next: 'PROCESSING' }],
-  PROCESSING:       [{ labelKey: 'orders.actions.mark_completed',   next: 'COMPLETED' }],
-  COMPLETED:        [],
-  CANCELLED:        [],
-};
+const STATUS_TRANSITIONS: Record<string, { labelKey: string; next: string }[]> =
+  {
+    PENDING: [
+      { labelKey: 'orders.actions.mark_received', next: 'RECEIVED_BY_LAB' },
+    ],
+    READY_FOR_PICKUP: [
+      { labelKey: 'orders.actions.mark_received', next: 'RECEIVED_BY_LAB' },
+    ],
+    COLLECTED: [
+      { labelKey: 'orders.actions.mark_received', next: 'RECEIVED_BY_LAB' },
+    ],
+    RECEIVED_BY_LAB: [
+      { labelKey: 'orders.actions.start_processing', next: 'PROCESSING' },
+    ],
+    PROCESSING: [
+      { labelKey: 'orders.actions.mark_completed', next: 'COMPLETED' },
+    ],
+    COMPLETED: [],
+    CANCELLED: [],
+  };
 
 export function OrderWorkspacePage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -36,7 +47,9 @@ export function OrderWorkspacePage() {
     }
   }, [orderId]);
 
-  useEffect(() => { loadOrder(); }, [loadOrder]);
+  useEffect(() => {
+    loadOrder();
+  }, [loadOrder]);
 
   const initTests = async () => {
     if (!orderId) return;
@@ -64,7 +77,11 @@ export function OrderWorkspacePage() {
   }
 
   if (error || !order) {
-    return <div className="p-6 text-red-400">{t('common.error_loading')}: {error}</div>;
+    return (
+      <div className="p-6 text-red-400">
+        {t('common.error_loading')}: {error}
+      </div>
+    );
   }
 
   const transitions = STATUS_TRANSITIONS[order.status] ?? [];
@@ -81,10 +98,14 @@ export function OrderWorkspacePage() {
 
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <p className="font-mono text-sm text-gray-400">{order.requisitionNumber}</p>
+          <p className="font-mono text-sm text-gray-400">
+            {order.requisitionNumber}
+          </p>
           <h1 className="mt-1 text-xl font-bold text-white">{c.patientName}</h1>
           <p className="text-sm text-gray-400">
-            {t(`species.${c.patientSpecies}`, { defaultValue: c.patientSpecies })}
+            {t(`species.${c.patientSpecies}`, {
+              defaultValue: c.patientSpecies,
+            })}
             {c.patientBreed ? ` — ${c.patientBreed}` : ''}
             {c.patientAge ? ` · ${c.patientAge} ${c.patientAgeUnit}` : ''}
             {c.patientWeight ? ` · ${c.patientWeight} kg` : ''}
@@ -112,7 +133,9 @@ export function OrderWorkspacePage() {
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-1 space-y-4">
           <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-            <h2 className="mb-3 text-sm font-semibold text-gray-300">{t('workspace.clinic')}</h2>
+            <h2 className="mb-3 text-sm font-semibold text-gray-300">
+              {t('workspace.clinic')}
+            </h2>
             <p className="text-sm text-white">{order.clinicName}</p>
             {order.clinicNotes && (
               <p className="mt-2 text-sm text-gray-400">{order.clinicNotes}</p>
@@ -121,23 +144,35 @@ export function OrderWorkspacePage() {
 
           {c.symptoms && (
             <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-              <h2 className="mb-2 text-sm font-semibold text-gray-300">{t('workspace.symptoms')}</h2>
+              <h2 className="mb-2 text-sm font-semibold text-gray-300">
+                {t('workspace.symptoms')}
+              </h2>
               <p className="text-sm text-gray-300">{c.symptoms}</p>
             </section>
           )}
 
           {(order.sampleType || order.sampleNotes) && (
             <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-              <h2 className="mb-2 text-sm font-semibold text-gray-300">{t('workspace.sample')}</h2>
-              {order.sampleType && <p className="text-sm text-white">{order.sampleType}</p>}
-              {order.sampleNotes && <p className="mt-1 text-sm text-gray-400">{order.sampleNotes}</p>}
+              <h2 className="mb-2 text-sm font-semibold text-gray-300">
+                {t('workspace.sample')}
+              </h2>
+              {order.sampleType && (
+                <p className="text-sm text-white">{order.sampleType}</p>
+              )}
+              {order.sampleNotes && (
+                <p className="mt-1 text-sm text-gray-400">
+                  {order.sampleNotes}
+                </p>
+              )}
             </section>
           )}
         </div>
 
         <div className="col-span-2">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-300">{t('workspace.ordered_tests')}</h2>
+            <h2 className="text-sm font-semibold text-gray-300">
+              {t('workspace.ordered_tests')}
+            </h2>
             {!hasTests && order.status !== 'PENDING' && (
               <button
                 onClick={initTests}
@@ -164,21 +199,26 @@ export function OrderWorkspacePage() {
                   className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-4 py-3"
                 >
                   <div>
-                    <p className="font-medium text-white">{test.catalogItemName}</p>
+                    <p className="font-medium text-white">
+                      {test.catalogItemName}
+                    </p>
                     {test.catalogItemCode && (
-                      <p className="font-mono text-xs text-gray-500">{test.catalogItemCode}</p>
+                      <p className="font-mono text-xs text-gray-500">
+                        {test.catalogItemCode}
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center gap-3">
                     <StatusBadge status={test.status} size="sm" />
-                    {test.status !== 'COMPLETED' && test.status !== 'CANCELLED' && (
-                      <Link
-                        to={`/orders/${order.id}/tests/${test.id}/results`}
-                        className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
-                      >
-                        {t('workspace.enter_results')}
-                      </Link>
-                    )}
+                    {test.status !== 'COMPLETED' &&
+                      test.status !== 'CANCELLED' && (
+                        <Link
+                          to={`/orders/${order.id}/tests/${test.id}/results`}
+                          className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
+                        >
+                          {t('workspace.enter_results')}
+                        </Link>
+                      )}
                   </div>
                 </div>
               ))
