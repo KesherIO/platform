@@ -23,6 +23,7 @@ export interface OrderModel {
   requisitionNumber: string; // REQ-2026-000001 — written on tubes
   caseId: string;
   tenantId: string;
+  labTenantId: string | null;
   status: OrderStatus;
   priority: OrderPriority;
   orderedItems: OrderedItem[];

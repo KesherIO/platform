@@ -17,6 +17,12 @@
     },
     {
       "path": "./apps/frontend"
+    },
+    {
+      "path": "./apps/lab-e2e"
+    },
+    {
+      "path": "./apps/lab"
     }
   ]
 }

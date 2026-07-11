@@ -1,6 +1,9 @@
+export type TenantType = 'CLINIC' | 'LAB' | 'VETAI';
+
 export interface Tenant {
   id: string;
   name: string;
+  type: TenantType;
   slug: string;
   // Contact details — collected during clinic-setup onboarding step
   address?: string;
