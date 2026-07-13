@@ -3,6 +3,8 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY patch-angular-build.js ./
+COPY apps/api/prisma/schema.prisma ./apps/api/prisma/schema.prisma
 RUN npm ci
 
 COPY . .
