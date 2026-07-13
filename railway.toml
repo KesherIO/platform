@@ -1,7 +1,6 @@
 [build]
-builder = "nixpacks"
-buildCommand = "NODE_ENV=development npm install && npx nx build api --configuration=production"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "node apps/api/dist/main.js"
 restartPolicyType = "on_failure"
