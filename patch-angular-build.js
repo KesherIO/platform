@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 const ESM_PACKAGES = [
   'vite',
@@ -22,14 +21,22 @@ if (!fs.existsSync(BASE)) {
   process.exit(0);
 }
 
-let files = [];
-try {
-  const result = execSync(
-    `grep -rl "Promise.resolve().then.*__importStar(require(" "${BASE}" --include="*.js"`,
-    { encoding: 'utf8' }
-  );
-  files = result.trim().split('\n').filter(Boolean);
-} catch {
+function findJsFiles(dir) {
+  let results = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) results = results.concat(findJsFiles(full));
+    else if (entry.name.endsWith('.js')) results.push(full);
+  }
+  return results;
+}
+
+const PATTERN = /Promise\.resolve\(\)\.then\(.*__importStar\(require\(/;
+const files = findJsFiles(BASE).filter(f => {
+  try { return PATTERN.test(fs.readFileSync(f, 'utf8')); } catch { return false; }
+});
+
+if (files.length === 0) {
   console.log('[patch-angular-build] No matching files found, skipping');
   process.exit(0);
 }
