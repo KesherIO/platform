@@ -4,13 +4,11 @@ import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import type { LabMember, LabRole } from '../../types/lab.types';
 
-const ROLES: LabRole[] = ['ADMIN', 'TECHNICIAN', 'VET', 'RECEPTIONIST'];
+const ROLES: LabRole[] = ['ADMIN', 'TECHNICIAN'];
 
 const ROLE_COLORS: Record<LabRole, string> = {
   ADMIN: 'bg-purple/20 text-purple',
   TECHNICIAN: 'bg-cyan/20 text-cyan',
-  VET: 'bg-blue-900/40 text-blue-300',
-  RECEPTIONIST: 'bg-gray-800 text-gray-400',
 };
 
 interface CreateForm {
@@ -31,7 +29,7 @@ const EMPTY_FORM: CreateForm = {
 
 export function TeamPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const [members, setMembers] = useState<LabMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,15 +108,17 @@ export function TeamPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={() => {
-            setShowForm(true);
-            setFormError(null);
-          }}
-          className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
-        >
-          + {t('team.add_user')}
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => {
+              setShowForm(true);
+              setFormError(null);
+            }}
+            className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
+          >
+            + {t('team.add_user')}
+          </button>
+        )}
       </div>
 
       {/* Add user form */}
@@ -177,7 +177,7 @@ export function TeamPage() {
               <input
                 type="password"
                 required
-                minLength={8}
+                minLength={10}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
@@ -283,8 +283,7 @@ export function TeamPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {/* Role selector — disabled for self */}
-                  {isMe ? (
+                  {isMe || !isAdmin ? (
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-medium ${
                         ROLE_COLORS[member.role]
@@ -308,7 +307,7 @@ export function TeamPage() {
                     </select>
                   )}
 
-                  {!isMe && (
+                  {!isMe && isAdmin && (
                     <button
                       onClick={() => handleRemove(member)}
                       className="rounded-lg border border-red-900/50 px-3 py-1.5 text-xs text-red-400 hover:bg-red-900/20"

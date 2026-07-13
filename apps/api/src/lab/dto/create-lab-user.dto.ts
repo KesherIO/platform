@@ -5,7 +5,7 @@ export class CreateLabUserDto {
   email!: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(10)
   password!: string;
 
   @IsString()
@@ -14,6 +14,6 @@ export class CreateLabUserDto {
   @IsString()
   lastName!: string;
 
-  @IsEnum(['ADMIN', 'TECHNICIAN', 'VET', 'RECEPTIONIST'])
+  @IsEnum(['ADMIN', 'TECHNICIAN'])
   role!: string;
 }

@@ -13,7 +13,21 @@
     "email": "Correo electrónico",
     "password": "Contraseña",
     "login": "Iniciar sesión",
-    "logging_in": "Iniciando sesión..."
+    "logging_in": "Iniciando sesión...",
+    "forgot_password": "¿Olvidaste tu contraseña?",
+    "reset_title": "Restablecer contraseña",
+    "reset_body": "Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.",
+    "reset_button": "Enviar enlace",
+    "reset_sent": "Revisa tu correo para el enlace de restablecimiento.",
+    "back_to_login": "Volver a iniciar sesión",
+    "set_password_title": "Nueva contraseña",
+    "set_password_body": "Ingresa tu nueva contraseña.",
+    "new_password": "Nueva contraseña",
+    "confirm_password": "Confirmar contraseña",
+    "password_mismatch": "Las contraseñas no coinciden.",
+    "set_password_button": "Actualizar contraseña",
+    "updating_password": "Actualizando...",
+    "password_updated": "Contraseña actualizada. Redirigiendo..."
   },
   "nav": {
     "brand": "Biomet VetAI",
@@ -124,9 +138,7 @@
     "you": "tú",
     "roles": {
       "ADMIN": "Administrador",
-      "TECHNICIAN": "Técnico",
-      "VET": "Veterinario",
-      "RECEPTIONIST": "Recepcionista"
+      "TECHNICIAN": "Personal"
     },
     "form": {
       "title": "Agregar miembro al equipo",
@@ -134,7 +146,7 @@
       "last_name": "Apellido",
       "email": "Correo electrónico",
       "password": "Contraseña",
-      "password_hint": "Mínimo 8 caracteres. El usuario puede cambiarla después de iniciar sesión.",
+      "password_hint": "Mínimo 10 caracteres. El usuario puede cambiarla después de iniciar sesión.",
       "role": "Rol",
       "cancel": "Cancelar",
       "submit": "Agregar miembro",

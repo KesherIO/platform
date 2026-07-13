@@ -63,7 +63,7 @@ export class AdminProfileComponent implements OnInit {
         lastName:        [saved?.lastName ?? '', [Validators.required, Validators.minLength(2)]],
         email:           [saved?.email ?? '', [Validators.required, Validators.email]],
         telephone:       [saved?.telephone ?? ''],
-        password:        ['', [Validators.required, Validators.minLength(8)]],
+        password:        ['', [Validators.required, Validators.minLength(10)]],
         confirmPassword: ['', [Validators.required]],
       },
       { validators: passwordsMatch },
