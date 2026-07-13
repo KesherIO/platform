@@ -2,8 +2,11 @@ node_modules
 dist
 .git
 .nx
-*.md
 .angular
 .vscode
 .idea
 apps/frontend
+apps/frontend-e2e
+apps/api-e2e
+apps/lab
+apps/lab-e2e
