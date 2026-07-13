@@ -8,6 +8,7 @@ COPY apps/api/prisma/schema.prisma ./apps/api/prisma/schema.prisma
 RUN npm ci
 
 COPY . .
+RUN npx nx sync
 RUN npx nx build api --configuration=production
 
 FROM node:22-alpine
