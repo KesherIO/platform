@@ -2,16 +2,11 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
-COPY package.json package-lock.json patch-angular-build.js ./
-COPY apps/api/package.json apps/api/package.json
-COPY apps/api/prisma apps/api/prisma
+COPY package.json package-lock.json patch-angular-build.js nx.json tsconfig.base.json ./
+COPY apps/api apps/api
 COPY libs libs
 
 RUN npm ci
-
-COPY nx.json tsconfig.base.json ./
-COPY apps/api apps/api
-
 RUN npx nx build api --configuration=production
 
 FROM node:22-alpine
