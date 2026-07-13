@@ -12,6 +12,9 @@
     "test": "nx test"
   },
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "overrides": {
     "@noble/hashes": "2.0.1"
   },
