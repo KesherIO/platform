@@ -22,7 +22,12 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'app-staff-profile',
   standalone: true,
-  imports: [ReactiveFormsModule, TranslatePipe, InputComponent, PrimaryButtonComponent],
+  imports: [
+    ReactiveFormsModule,
+    TranslatePipe,
+    InputComponent,
+    PrimaryButtonComponent,
+  ],
   templateUrl: './staff-profile.component.html',
 })
 export class StaffProfileComponent implements OnInit {
@@ -31,7 +36,9 @@ export class StaffProfileComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly onboardingService = inject(OnboardingService);
   private readonly destroyRef = inject(DestroyRef);
-  readonly view = signal<'loading' | 'new-user' | 'existing-user' | 'error'>('loading');
+  readonly view = signal<'loading' | 'new-user' | 'existing-user' | 'error'>(
+    'loading'
+  );
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly tenantName = signal('');
@@ -46,13 +53,13 @@ export class StaffProfileComponent implements OnInit {
   /** Form shown to users who don't have an account yet. */
   readonly newUserForm = this.fb.group(
     {
-      firstName:       ['', [Validators.required, Validators.minLength(2)]],
-      lastName:        ['', [Validators.required]],
-      email:           ['', [Validators.required, Validators.email]],
-      password:        ['', [Validators.required, Validators.minLength(10)]],
+      firstName: ['', [Validators.required, Validators.minLength(2)]],
+      lastName: ['', [Validators.required]],
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(10)]],
       confirmPassword: ['', [Validators.required]],
     },
-    { validators: passwordsMatch },
+    { validators: passwordsMatch }
   );
 
   get passwordMismatch(): boolean {
@@ -72,29 +79,29 @@ export class StaffProfileComponent implements OnInit {
 
     this.inviteToken = token;
 
-    this.onboardingService.verifyMagicLink(token)
-      .pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe({
-      next: (result) => {
-        this.tenantName.set(result.tenantName);
-        this.inviteEmail.set(result.email);
-        this.inviteRole = result.role;
+    this.onboardingService
+      .verifyMagicLink(token)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.tenantName.set(result.tenantName);
+          this.inviteEmail.set(result.email);
+          this.inviteRole = result.role;
 
-        if (result.email) {
-          // Email-specific invite: pre-fill and lock the email field.
-          this.newUserForm.get('email')?.setValue(result.email);
-          this.newUserForm.get('email')?.disable();
-          this.emailEditable.set(false);
-        } else {
-          // Generic invite: user must enter their own email.
-          this.emailEditable.set(true);
-        }
+          if (result.email) {
+            // Email-specific invite: pre-fill and lock the email field.
+            this.newUserForm.get('email')?.setValue(result.email);
+            this.newUserForm.get('email')?.disable();
+            this.emailEditable.set(false);
+          } else {
+            // Generic invite: user must enter their own email.
+            this.emailEditable.set(true);
+          }
 
-        this.view.set(result.userExists ? 'existing-user' : 'new-user');
-      },
-      error: () => this.view.set('error'),
-    });
+          this.view.set(result.userExists ? 'existing-user' : 'new-user');
+        },
+        error: () => this.view.set('error'),
+      });
   }
 
   /** New user — create account and redirect to login. */
@@ -104,28 +111,30 @@ export class StaffProfileComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    const { firstName, lastName, email, password } = this.newUserForm.getRawValue();
+    const { firstName, lastName, email, password } =
+      this.newUserForm.getRawValue();
     const fullName = `${firstName} ${lastName}`.trim();
     const resolvedEmail = this.inviteEmail() || email!;
 
-    this.onboardingService.completeStaffOnboarding({
-      token: this.inviteToken,
-      fullName,
-      email: resolvedEmail,
-      password: password!,
-      role: this.inviteRole,
-    }) .pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.router.navigate(['/auth/login']);
-      },
-      error: (err: { message?: string }) => {
-        this.loading.set(false);
-        this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
-      },
-    });
+    this.onboardingService
+      .completeStaffOnboarding({
+        token: this.inviteToken,
+        fullName,
+        email: resolvedEmail,
+        password: password!,
+        role: this.inviteRole,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.loading.set(false);
+          this.router.navigate(['/auth/login']);
+        },
+        error: (err: { message?: string }) => {
+          this.loading.set(false);
+          this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
+        },
+      });
   }
 
   /** Existing user — create membership only and redirect to login. */
@@ -133,22 +142,22 @@ export class StaffProfileComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.onboardingService.completeStaffOnboarding({
-      token: this.inviteToken,
-      email: this.inviteEmail(),
-      role: this.inviteRole,
-    })
-      .pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe({
-      next: () => {
-        this.loading.set(false);
-        this.router.navigate(['/auth/login']);
-      },
-      error: (err: { message?: string }) => {
-        this.loading.set(false);
-        this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
-      },
-    });
+    this.onboardingService
+      .completeStaffOnboarding({
+        token: this.inviteToken,
+        email: this.inviteEmail(),
+        role: this.inviteRole,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.loading.set(false);
+          this.router.navigate(['/auth/login']);
+        },
+        error: (err: { message?: string }) => {
+          this.loading.set(false);
+          this.error.set(err?.message ?? 'AUTH.ERROR_GENERIC');
+        },
+      });
   }
 }

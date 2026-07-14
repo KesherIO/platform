@@ -1,14 +1,22 @@
 import { Component, OnInit, inject, signal, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  Validators,
+  AbstractControl,
+  ValidationErrors,
+} from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const password = control.get('password')?.value;
-  const confirm  = control.get('confirm')?.value;
-  return password && confirm && password !== confirm ? { mismatch: true } : null;
+  const confirm = control.get('confirm')?.value;
+  return password && confirm && password !== confirm
+    ? { mismatch: true }
+    : null;
 }
 
 /**
@@ -25,23 +33,24 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
 })
 export class CallbackComponent implements OnInit {
   private readonly auth = inject(AuthService);
-  private readonly fb   = inject(FormBuilder);
+  private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly view    = signal<'loading' | 'set-password' | 'error'>('loading');
+  readonly view = signal<'loading' | 'set-password' | 'error'>('loading');
   readonly loading = signal(false);
-  readonly error   = signal<string | null>(null);
+  readonly error = signal<string | null>(null);
 
   readonly form = this.fb.group(
     {
       password: ['', [Validators.required, Validators.minLength(10)]],
-      confirm:  ['', [Validators.required]],
+      confirm: ['', [Validators.required]],
     },
-    { validators: passwordsMatch },
+    { validators: passwordsMatch }
   );
 
   ngOnInit() {
-    this.auth.handleAuthCallback()
+    this.auth
+      .handleAuthCallback()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (type) => {
@@ -65,7 +74,8 @@ export class CallbackComponent implements OnInit {
 
     const { password } = this.form.getRawValue();
 
-    this.auth.updatePassword(password!)
+    this.auth
+      .updatePassword(password!)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.loading.set(false),

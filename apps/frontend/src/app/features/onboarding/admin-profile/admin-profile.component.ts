@@ -19,7 +19,7 @@ import { OutlineButtonComponent } from '../../../shared/components/outline-butto
 
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
   const password = group.get('password')?.value;
-  const confirm  = group.get('confirmPassword')?.value;
+  const confirm = group.get('confirmPassword')?.value;
   return password && confirm && password !== confirm
     ? { passwordMismatch: true }
     : null;
@@ -55,25 +55,37 @@ export class AdminProfileComponent implements OnInit {
 
   ngOnInit(): void {
     // Restore previously entered data if user navigates back from a later step
-    const saved = this.onboardingService.getOnboardingState()().adminProfileDraft;
+    const saved =
+      this.onboardingService.getOnboardingState()().adminProfileDraft;
 
     this.profileForm = this.fb.group(
       {
-        firstName:       [saved?.firstName ?? '', [Validators.required, Validators.minLength(2)]],
-        lastName:        [saved?.lastName ?? '', [Validators.required, Validators.minLength(2)]],
-        email:           [saved?.email ?? '', [Validators.required, Validators.email]],
-        telephone:       [saved?.telephone ?? ''],
-        password:        ['', [Validators.required, Validators.minLength(10)]],
+        firstName: [
+          saved?.firstName ?? '',
+          [Validators.required, Validators.minLength(2)],
+        ],
+        lastName: [
+          saved?.lastName ?? '',
+          [Validators.required, Validators.minLength(2)],
+        ],
+        email: [saved?.email ?? '', [Validators.required, Validators.email]],
+        telephone: [saved?.telephone ?? ''],
+        password: ['', [Validators.required, Validators.minLength(10)]],
         confirmPassword: ['', [Validators.required]],
       },
-      { validators: passwordsMatch },
+      { validators: passwordsMatch }
     );
   }
 
   onBack(): void {
     // Save current form values (excluding passwords) so they're restored if user returns
     const { firstName, lastName, email, telephone } = this.profileForm.value;
-    this.onboardingService.storeAdminProfileDraft({ firstName, lastName, email, telephone });
+    this.onboardingService.storeAdminProfileDraft({
+      firstName,
+      lastName,
+      email,
+      telephone,
+    });
     this.router.navigate(['/onboarding/clinic-setup']);
   }
 
@@ -92,19 +104,29 @@ export class AdminProfileComponent implements OnInit {
     const clinic = state.clinic;
 
     if (!token) {
-      this.error.set('No onboarding token found. Please use the link from your invitation email.');
+      this.error.set(
+        'No onboarding token found. Please use the link from your invitation email.'
+      );
       return;
     }
 
     if (!clinic) {
-      this.error.set('Clinic setup data is missing. Please go back and complete the clinic setup step.');
+      this.error.set(
+        'Clinic setup data is missing. Please go back and complete the clinic setup step.'
+      );
       return;
     }
 
     this.loading.set(true);
     this.error.set(null);
 
-    const { firstName, lastName, email: adminEmail, telephone, password } = this.profileForm.value;
+    const {
+      firstName,
+      lastName,
+      email: adminEmail,
+      telephone,
+      password,
+    } = this.profileForm.value;
 
     const payload = {
       token,
@@ -122,19 +144,24 @@ export class AdminProfileComponent implements OnInit {
       ...(clinic.country ? { country: clinic.country } : {}),
     };
 
-    this.onboardingService.completeAdminOnboarding(payload, clinic.pendingLogoFile)
+    this.onboardingService
+      .completeAdminOnboarding(payload, clinic.pendingLogoFile)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {
           this.loading.set(false);
           if (res.logoUploadFailed) {
-            this.logoUploadWarning.set(res.message ?? 'ADMIN_PROFILE.LOGO_UPLOAD_FAILED');
+            this.logoUploadWarning.set(
+              res.message ?? 'ADMIN_PROFILE.LOGO_UPLOAD_FAILED'
+            );
           }
           this.completed.set(true);
         },
         error: (err: unknown) => {
           this.loading.set(false);
-          this.error.set((err as { message?: string })?.message ?? 'AUTH.ERROR_GENERIC');
+          this.error.set(
+            (err as { message?: string })?.message ?? 'AUTH.ERROR_GENERIC'
+          );
         },
       });
   }
@@ -143,7 +170,8 @@ export class AdminProfileComponent implements OnInit {
     // Sign out any stale Supabase session before going to login,
     // so the noAuthGuard doesn't try to verify an invalid token.
     if (this.authService.isLoggedIn()) {
-      this.authService.signOut()
+      this.authService
+        .signOut()
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           complete: () => this.router.navigate(['/auth/login']),
