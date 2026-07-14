@@ -17,6 +17,8 @@ import { LabTenantGuard } from './lab-tenant.guard';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { TenantRole } from '@vet-ai/shared-types';
 import type { TenantContext, AuthenticatedUser } from '@vet-ai/shared-types';
 import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
@@ -51,6 +53,13 @@ export class LabController {
   // ---------------------------------------------------------------------------
   // All routes below require a valid JWT + lab tenant membership
   // ---------------------------------------------------------------------------
+
+  // GET /api/lab/me
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('me')
+  getMe(@CurrentTenant() tenant: TenantContext) {
+    return { role: tenant.role };
+  }
 
   // GET /api/lab/orders?status=RECEIVED_BY_LAB
   @UseGuards(JwtAuthGuard, LabTenantGuard)
@@ -134,6 +143,7 @@ export class LabController {
 
   // POST /api/lab/users
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
   @Post('users')
   createUser(
     @CurrentTenant() tenant: TenantContext,
@@ -144,6 +154,7 @@ export class LabController {
 
   // PATCH /api/lab/users/:userId/role
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
   @Patch('users/:userId/role')
   updateRole(
     @CurrentTenant() tenant: TenantContext,
@@ -161,6 +172,7 @@ export class LabController {
 
   // DELETE /api/lab/users/:userId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
   @Delete('users/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeMember(

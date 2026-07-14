@@ -154,6 +154,7 @@ export class AuthService {
                 id: true,
                 name: true,
                 slug: true,
+                type: true,
                 email: true,
                 phone: true,
                 address: true,

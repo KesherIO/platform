@@ -3,9 +3,10 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
-  BadRequestException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
+import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import type {
   AuthenticatedUser,
   TenantContext,
@@ -19,27 +20,38 @@ import type {
  */
 @Injectable()
 export class LabTenantGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reflector: Reflector
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const user = request.user as AuthenticatedUser;
 
     const tenantId = request.headers['x-tenant-id'] as string | undefined;
-    if (!tenantId) {
-      throw new BadRequestException(
-        'Active tenant could not be resolved. Provide an x-tenant-id header.'
-      );
-    }
 
-    const membership = await this.prisma.userTenantMembership.findUnique({
-      where: { userId_tenantId: { userId: user.id, tenantId } },
-      select: { role: true, tenant: { select: { type: true } } },
-    });
+    let membership;
+
+    if (tenantId) {
+      membership = await this.prisma.userTenantMembership.findUnique({
+        where: { userId_tenantId: { userId: user.id, tenantId } },
+        select: { role: true, tenant: { select: { id: true, type: true } } },
+      });
+    } else {
+      membership = await this.prisma.userTenantMembership.findFirst({
+        where: {
+          userId: user.id,
+          tenant: { type: { in: ['LAB', 'VETAI'] } },
+        },
+        select: { role: true, tenant: { select: { id: true, type: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
 
     if (!membership) {
       throw new ForbiddenException(
-        'You are not a member of the requested tenant.'
+        'You are not a member of any laboratory tenant.'
       );
     }
 
@@ -53,10 +65,23 @@ export class LabTenantGuard implements CanActivate {
     }
 
     const tenantContext: TenantContext = {
-      tenantId,
+      tenantId: membership.tenant.id,
       role: membership.role as TenantRole,
     };
     request.tenant = tenantContext;
+
+    const requiredRoles = this.reflector.getAllAndOverride<TenantRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()]
+    );
+    if (
+      requiredRoles?.length &&
+      !requiredRoles.includes(membership.role as TenantRole)
+    ) {
+      throw new ForbiddenException(
+        'You do not have the required role for this action.'
+      );
+    }
 
     return true;
   }

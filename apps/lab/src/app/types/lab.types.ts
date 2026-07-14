@@ -92,7 +92,7 @@ export interface LabOrderDetail extends LabOrderSummary {
   resultReport: ResultReport | null;
 }
 
-export type LabRole = 'ADMIN' | 'TECHNICIAN' | 'VET' | 'RECEPTIONIST';
+export type LabRole = 'ADMIN' | 'TECHNICIAN';
 
 export interface LabMember {
   userId: string;

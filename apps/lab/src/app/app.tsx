@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { LoginPage } from './auth/LoginPage';
+import { AuthCallbackPage } from './auth/AuthCallbackPage';
+import { ResetPasswordPage } from './auth/ResetPasswordPage';
 import { Layout } from './shared/components/Layout';
 import { OrdersQueuePage } from './pages/orders/OrdersQueuePage';
 import { OrderWorkspacePage } from './pages/orders/OrderWorkspacePage';
@@ -15,6 +17,8 @@ export function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route
           element={
