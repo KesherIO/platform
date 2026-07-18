@@ -1,4 +1,9 @@
 import { supabase } from '../../auth/supabase';
+import type {
+  KnowledgeSearchResult,
+  OrderAttention,
+  Species,
+} from '../../types/lab.types';
 
 async function authHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession();
@@ -71,5 +76,21 @@ export const labApi = {
     updateRole: (userId: string, role: string) =>
       patch<unknown>(`lab/users/${userId}/role`, { role }),
     remove: (userId: string) => del(`lab/users/${userId}`),
+  },
+  assistant: {
+    ordersNeedingAttention: () =>
+      get<OrderAttention[]>('lab/assistant/attention'),
+    searchKnowledge: (params: {
+      species: Species;
+      symptoms?: string;
+      topK?: number;
+    }) => {
+      const query = new URLSearchParams({ species: params.species });
+      if (params.symptoms) query.set('symptoms', params.symptoms);
+      if (params.topK) query.set('topK', String(params.topK));
+      return get<KnowledgeSearchResult[]>(
+        `lab/assistant/knowledge-search?${query.toString()}`
+      );
+    },
   },
 };

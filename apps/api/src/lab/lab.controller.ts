@@ -22,18 +22,23 @@ import { TenantRole } from '@vet-ai/shared-types';
 import type { TenantContext, AuthenticatedUser } from '@vet-ai/shared-types';
 import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
+import { OrderAttentionService } from './order-attention.service';
+import { KnowledgeSearchService } from '../rag/knowledge-search.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import { UpsertLaboratoryProfileDto } from './dto/upsert-laboratory-profile.dto';
 import { UpdateLabContactDto } from './dto/update-lab-contact.dto';
 import { CreateLabUserDto } from './dto/create-lab-user.dto';
 import { UpdateLabUserRoleDto } from './dto/update-lab-user-role.dto';
+import { KnowledgeSearchQueryDto } from './dto/knowledge-search-query.dto';
 
 @Controller('lab')
 export class LabController {
   constructor(
     private readonly labService: LabService,
-    private readonly labUsersService: LabUsersService
+    private readonly labUsersService: LabUsersService,
+    private readonly orderAttentionService: OrderAttentionService,
+    private readonly knowledgeSearchService: KnowledgeSearchService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -64,6 +69,26 @@ export class LabController {
       tenantName: tenant.tenantName,
       logoUrl: tenant.tenantLogoUrl,
     };
+  }
+
+  // GET /api/lab/assistant/attention
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('assistant/attention')
+  getOrdersNeedingAttention(@CurrentTenant() tenant: TenantContext) {
+    return this.orderAttentionService.getOrdersNeedingAttention(
+      tenant.tenantId
+    );
+  }
+
+  // GET /api/lab/assistant/knowledge-search?species=DOG&symptoms=...&topK=5
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('assistant/knowledge-search')
+  searchKnowledge(@Query() query: KnowledgeSearchQueryDto) {
+    return this.knowledgeSearchService.search({
+      species: query.species,
+      symptoms: query.symptoms,
+      topK: query.topK,
+    });
   }
 
   // GET /api/lab/orders?status=RECEIVED_BY_LAB

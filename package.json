@@ -94,6 +94,7 @@
     "@angular/router": "~21.2.0",
     "@angular/service-worker": "^21.2.5",
     "@anthropic-ai/sdk": "^0.90.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
@@ -110,6 +111,7 @@
     "react-i18next": "^15.7.4",
     "react-router-dom": "6.30.3",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "~7.8.0"
+    "rxjs": "~7.8.0",
+    "zod": "^4.4.3"
   }
 }

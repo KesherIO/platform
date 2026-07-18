@@ -205,5 +205,33 @@
       "create": "Error adding user:",
       "remove": "Error removing user:"
     }
+  },
+  "assistant": {
+    "toggle": "AI Lab Assistant",
+    "title": "AI Lab Assistant",
+    "prompt": "What would you like to know?",
+    "close": "Close",
+    "back": "← Back",
+    "loading": "Loading...",
+    "error": "Something went wrong:",
+    "open_order": "Open order",
+    "suggestions": {
+      "attention": "Orders needing attention",
+      "delayed": "Delayed orders",
+      "knowledge": "Search veterinary knowledge"
+    },
+    "attention_summary": "{{count}} order(s) need attention.",
+    "attention_empty": "No orders currently need attention.",
+    "delayed_summary": "{{count}} order(s) are delayed.",
+    "delayed_empty": "No orders are currently delayed.",
+    "knowledge_form": {
+      "species": "Species",
+      "species_placeholder": "Select species",
+      "symptoms": "Symptoms (optional)",
+      "symptoms_placeholder": "e.g. lethargy, vomiting, polyuria...",
+      "submit": "Search"
+    },
+    "knowledge_empty": "No matching knowledge found.",
+    "relevance": "Relevance"
   }
 }

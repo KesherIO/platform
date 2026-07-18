@@ -13,6 +13,7 @@ import { CatalogModule } from '../catalog/catalog.module';
 import { OrdersModule } from '../orders/orders.module';
 import { ResultsModule } from '../results/results.module';
 import { LabModule } from '../lab/lab.module';
+import { McpModule } from '../mcp/mcp.module';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -32,6 +33,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     OrdersModule,
     ResultsModule,
     LabModule,
+    McpModule,
   ],
   controllers: [AppController],
   providers: [

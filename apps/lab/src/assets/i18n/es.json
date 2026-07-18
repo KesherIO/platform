@@ -205,5 +205,33 @@
       "create": "Error al agregar el usuario:",
       "remove": "Error al eliminar el usuario:"
     }
+  },
+  "assistant": {
+    "toggle": "Asistente IA",
+    "title": "Asistente IA",
+    "prompt": "¿Qué te gustaría saber?",
+    "close": "Cerrar",
+    "back": "← Volver",
+    "loading": "Cargando...",
+    "error": "Ocurrió un error:",
+    "open_order": "Abrir orden",
+    "suggestions": {
+      "attention": "Órdenes que necesitan atención",
+      "delayed": "Órdenes retrasadas",
+      "knowledge": "Buscar conocimiento veterinario"
+    },
+    "attention_summary": "{{count}} orden(es) necesitan atención.",
+    "attention_empty": "Actualmente no hay órdenes que necesiten atención.",
+    "delayed_summary": "{{count}} orden(es) están retrasadas.",
+    "delayed_empty": "Actualmente no hay órdenes retrasadas.",
+    "knowledge_form": {
+      "species": "Especie",
+      "species_placeholder": "Seleccionar especie",
+      "symptoms": "Síntomas (opcional)",
+      "symptoms_placeholder": "ej. letargo, vómito, poliuria...",
+      "submit": "Buscar"
+    },
+    "knowledge_empty": "No se encontró conocimiento relacionado.",
+    "relevance": "Relevancia"
   }
 }

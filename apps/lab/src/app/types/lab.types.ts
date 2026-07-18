@@ -141,3 +141,35 @@ export interface LabContactInfo {
   mapLat: number | null;
   mapLng: number | null;
 }
+
+export type AttentionSeverity = 'HIGH' | 'CRITICAL';
+
+export interface AttentionReason {
+  code: string;
+  message: string;
+  severity: AttentionSeverity;
+  elapsedMinutes?: number;
+  thresholdMinutes?: number;
+}
+
+export interface OrderAttention {
+  orderId: string;
+  requisitionNumber: string;
+  status: OrderStatus;
+  priority: Priority;
+  patientName: string;
+  patientSpecies: Species;
+  clinicName: string;
+  ageMinutes: number;
+  severity: AttentionSeverity;
+  attentionReasons: AttentionReason[];
+}
+
+export interface KnowledgeSearchResult {
+  id: string;
+  documentTitle: string;
+  section: string;
+  content: string;
+  species: Species | null;
+  similarity: number;
+}
