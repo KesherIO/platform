@@ -1,9 +1,26 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  ContactLabSettingsComponent,
-  LAB_CONTACT,
-} from './contact-lab-settings.component';
+import { ContactLabSettingsComponent } from './contact-lab-settings.component';
 import { provideTranslateService } from '@ngx-translate/core';
+import { provideHttpClient } from '@angular/common/http';
+import {
+  SettingsService,
+  LabContact,
+} from '../../../core/services/settings.service';
+import { of } from 'rxjs';
+
+const MOCK_LAB: LabContact = {
+  name: 'Test Lab',
+  email: 'lab@test.com',
+  phone: '+1 555 555',
+  address: '123 Test St',
+  logoUrl: null,
+  phoneNumbers: [
+    { label: 'whatsapp', number: '+573174361989' },
+    { label: 'commercial', number: '+1 555 000' },
+  ],
+  mapLat: 3.45,
+  mapLng: -76.53,
+};
 
 describe('ContactLabSettingsComponent', () => {
   let fixture: ComponentFixture<ContactLabSettingsComponent>;
@@ -12,7 +29,14 @@ describe('ContactLabSettingsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ContactLabSettingsComponent],
-      providers: [provideTranslateService({ defaultLanguage: 'en' })],
+      providers: [
+        provideTranslateService({ defaultLanguage: 'en' }),
+        provideHttpClient(),
+        {
+          provide: SettingsService,
+          useValue: { getLabContact: () => of(MOCK_LAB) },
+        },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ContactLabSettingsComponent);
@@ -24,25 +48,16 @@ describe('ContactLabSettingsComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('lab exposes mock contact info', () => {
-    expect(component.lab.name).toBe('Biomet Lab');
-    expect(component.lab.email).toBeTruthy();
-    expect(component.lab.phone).toBeTruthy();
-    expect(component.lab.address).toContain('Cali');
+  it('loads lab contact from service', () => {
+    expect(component.lab()?.name).toBe('Test Lab');
+    expect(component.loading()).toBe(false);
   });
 
-  it('labWhatsAppUrl is a valid wa.me link with the correct number', () => {
-    expect(component.labWhatsAppUrl).toBe(
-      `https://wa.me/${LAB_CONTACT.whatsappNumber}`
-    );
+  it('derives WhatsApp URL from whatsapp-labeled phone', () => {
+    expect(component.whatsAppUrl()).toBe('https://wa.me/573174361989');
   });
 
-  it('mapEmbedUrl is a trusted resource URL for OpenStreetMap', () => {
-    // DomSanitizer wraps it; verify via the fixture's rendered iframe src attribute
-    const iframe = fixture.nativeElement.querySelector(
-      'iframe'
-    ) as HTMLIFrameElement;
-    expect(iframe).toBeTruthy();
-    expect(iframe.src).toContain('openstreetmap.org');
+  it('computes phone list from phoneNumbers', () => {
+    expect(component.phones().length).toBe(2);
   });
 });

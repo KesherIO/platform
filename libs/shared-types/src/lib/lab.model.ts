@@ -31,8 +31,30 @@ export interface LaboratoryProfileModel {
   directorCredentials: string | null;
   signatureUrl: string | null;
   defaultObservations: string | null;
+  phoneNumbers?: LabPhoneNumber[];
+  mapLat?: number;
+  mapLng?: number;
+  signers?: LabSignerModel[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface LabPhoneNumber {
+  label: string;
+  number: string;
+}
+
+export type LabSignerRole = 'ANALYST' | 'REVIEWER' | 'DATA_ENTRY';
+
+export interface LabSignerModel {
+  id: string;
+  name: string;
+  roles: LabSignerRole[];
+  title: string;
+  specialty: string;
+  university: string;
+  registrationNumber?: string;
+  signatureUrl: string | null;
 }
 
 export interface ClinicLabConnectionModel {

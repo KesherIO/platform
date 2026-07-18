@@ -1,7 +1,7 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 
-const LANG_KEY = 'vetai_lang';
+const LANG_KEY = 'kesherio_lang';
 
 @Injectable({ providedIn: 'root' })
 export class LanguageService {
@@ -10,7 +10,9 @@ export class LanguageService {
   // Initialise the signal from localStorage so it reflects the language
   // that APP_INITIALIZER already applied before the app rendered.
   currentLang = signal<'en' | 'es'>(
-    (localStorage.getItem(LANG_KEY) as 'en' | 'es' | null) === 'es' ? 'es' : 'en'
+    (localStorage.getItem(LANG_KEY) as 'en' | 'es' | null) === 'es'
+      ? 'es'
+      : 'en'
   );
 
   setLanguage(lang: 'en' | 'es'): void {

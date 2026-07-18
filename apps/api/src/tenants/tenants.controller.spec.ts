@@ -3,7 +3,12 @@ import { TenantsController } from './tenants.controller';
 import { TenantsService } from './tenants.service';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 
-const TENANT_CTX = { tenantId: 'tenant-1', userId: 'user-1', role: 'ADMIN' };
+const TENANT_CTX = {
+  tenantId: 'tenant-1',
+  tenantName: 'Test Tenant',
+  userId: 'user-1',
+  role: 'ADMIN',
+};
 
 describe('TenantsController', () => {
   let controller: TenantsController;

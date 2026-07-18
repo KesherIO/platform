@@ -1,14 +1,11 @@
 import { supabase } from '../../auth/supabase';
 
-const getLabTenantId = () => localStorage.getItem('labTenantId') ?? '';
-
 async function authHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token ?? '';
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
-    'x-tenant-id': getLabTenantId(),
   };
 }
 
@@ -64,6 +61,9 @@ export const labApi = {
     getProfile: () => get<unknown>('lab/settings/laboratory'),
     updateProfile: (data: Record<string, unknown>) =>
       patch<unknown>('lab/settings/laboratory', data),
+    getContactInfo: () => get<unknown>('lab/settings/contact'),
+    updateContactInfo: (data: Record<string, unknown>) =>
+      patch<unknown>('lab/settings/contact', data),
   },
   users: {
     list: () => get<unknown[]>('lab/users'),

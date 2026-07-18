@@ -9,7 +9,11 @@ describe('LabController', () => {
   let controller: LabController;
   let service: jest.Mocked<LabService>;
 
-  const tenant = { tenantId: 'lab-1', role: 'ADMIN' as const };
+  const tenant = {
+    tenantId: 'lab-1',
+    tenantName: 'Test Lab',
+    role: 'ADMIN' as const,
+  };
 
   beforeEach(async () => {
     const serviceMock: Partial<jest.Mocked<LabService>> = {

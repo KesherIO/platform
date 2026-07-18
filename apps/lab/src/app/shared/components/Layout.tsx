@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 
 export function Layout() {
-  const { user, signOut } = useAuth();
+  const { user, tenantName, logoUrl, signOut } = useAuth();
   const { t } = useTranslation();
 
   const NAV_ITEMS = [
@@ -15,13 +15,17 @@ export function Layout() {
   return (
     <div className="flex h-screen bg-gray-950 text-white">
       <aside className="flex w-60 flex-col border-r border-gray-800 bg-gray-900">
-        <div className="px-4 py-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-            {t('nav.brand')}
-          </p>
-          <p className="mt-0.5 text-sm font-bold text-white">
-            {t('nav.lab_label')}
-          </p>
+        <div className="flex items-center gap-3 px-4 py-5">
+          <img
+            src={logoUrl || '/default_logo.png'}
+            alt="Lab logo"
+            className="h-9 w-9 shrink-0 rounded-lg object-cover"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-white">
+              {tenantName || t('nav.brand')}
+            </p>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-1 px-2 py-2">

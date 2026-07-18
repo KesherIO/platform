@@ -1,4 +1,12 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, IsUrl, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MinLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ---------------------------------------------------------------------------
@@ -40,7 +48,10 @@ export class SaveClinicSetupDto {
    * and then includes it here. Never store raw file data or base64 in this field.
    * Optional — onboarding works without a logo; the frontend falls back to the default app icon.
    */
-  @ApiPropertyOptional({ example: 'https://your-project.supabase.co/storage/v1/object/public/clinic-logos/tenants/clx123/logo-1700000000000.png' })
+  @ApiPropertyOptional({
+    example:
+      'https://your-project.supabase.co/storage/v1/object/public/clinic-logos/tenants/clx123/logo-1700000000000.png',
+  })
   @IsOptional()
   @IsUrl()
   logoUrl?: string;
@@ -164,7 +175,7 @@ export class CompleteStaffOnboardingDto {
 
 // ---------------------------------------------------------------------------
 // POST /onboarding/admin-link
-// Creates a new ADMIN onboarding token for a clinic (called by Biomet).
+// Creates a new ADMIN onboarding token for a clinic (called by KesherIO).
 // ---------------------------------------------------------------------------
 
 export class CreateAdminLinkDto {
@@ -178,11 +189,11 @@ export class CreateAdminLinkDto {
   @IsEmail()
   clinicEmail!: string;
 
-  /** Optional external reference from Biomet's own system */
-  @ApiPropertyOptional({ example: 'BIO-12345' })
+  /** Optional external reference from KesherIO's own system */
+  @ApiPropertyOptional({ example: 'KIO-12345' })
   @IsOptional()
   @IsString()
-  biometClinicId?: string;
+  externalClinicId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +239,7 @@ export class CompleteAdminOnboardingDto {
 
   // ── Clinic details (collected on clinic-setup screen) ──────────────────
 
-  /** Clinic display name — user may have edited the Biomet-provided default */
+  /** Clinic display name — user may have edited the KesherIO-provided default */
   @ApiProperty({ example: 'City Vet Clinic' })
   @IsString()
   @MinLength(2)
@@ -263,7 +274,10 @@ export class CompleteAdminOnboardingDto {
   @IsString()
   country?: string;
 
-  @ApiPropertyOptional({ example: 'https://your-project.supabase.co/storage/v1/object/public/clinic-logos/tenants/clx123/logo.png' })
+  @ApiPropertyOptional({
+    example:
+      'https://your-project.supabase.co/storage/v1/object/public/clinic-logos/tenants/clx123/logo.png',
+  })
   @IsOptional()
   @IsUrl()
   logoUrl?: string;

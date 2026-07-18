@@ -53,7 +53,7 @@ export class TenantGuard implements CanActivate {
 
     const membership = await this.prisma.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId: user.id, tenantId } },
-      select: { role: true },
+      select: { role: true, tenant: { select: { name: true, logoUrl: true } } },
     });
 
     if (!membership) {
@@ -62,9 +62,10 @@ export class TenantGuard implements CanActivate {
       );
     }
 
-    // Attach tenant context to request for downstream use via @CurrentTenant()
     const tenantContext: TenantContext = {
       tenantId,
+      tenantName: membership.tenant.name,
+      tenantLogoUrl: membership.tenant.logoUrl,
       role: membership.role as TenantRole,
     };
     request.tenant = tenantContext;

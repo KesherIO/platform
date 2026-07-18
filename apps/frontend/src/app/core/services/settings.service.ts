@@ -17,6 +17,17 @@ export interface MagicLinkResult {
   alreadyExists: boolean;
 }
 
+export interface LabContact {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  logoUrl: string | null;
+  phoneNumbers: { label: string; number: string }[] | null;
+  mapLat: number | null;
+  mapLng: number | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -118,6 +129,17 @@ export class SettingsService {
     return this.http.patch<void>(
       `/api/tenants/${tenantId}`,
       body,
+      this.tenantHeaders
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lab contact (clinic-side)
+  // ---------------------------------------------------------------------------
+
+  getLabContact(): Observable<LabContact> {
+    return this.http.get<LabContact>(
+      `/api/tenants/${this.tenantId}/lab-contact`,
       this.tenantHeaders
     );
   }

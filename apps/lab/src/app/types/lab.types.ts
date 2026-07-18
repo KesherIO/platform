@@ -109,4 +109,35 @@ export interface LaboratoryProfile {
   directorCredentials: string | null;
   defaultObservations: string | null;
   signatureUrl: string | null;
+  signers?: LabSigner[];
+}
+
+export type PhoneLabel = 'whatsapp' | 'commercial' | 'personal' | 'other';
+
+export interface LabPhoneNumber {
+  label: PhoneLabel | string;
+  number: string;
+}
+
+export type LabSignerRole = 'ANALYST' | 'REVIEWER' | 'DATA_ENTRY';
+
+export interface LabSigner {
+  id: string;
+  name: string;
+  roles: LabSignerRole[];
+  title: string;
+  specialty: string;
+  university: string;
+  registrationNumber: string;
+  signatureUrl: string | null;
+}
+
+export interface LabContactInfo {
+  name: string;
+  email: string;
+  logoUrl: string | null;
+  address: string;
+  phoneNumbers: LabPhoneNumber[];
+  mapLat: number | null;
+  mapLng: number | null;
 }

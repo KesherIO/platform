@@ -171,4 +171,34 @@ export class TenantsService {
       throw new ConflictException('last_admin');
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Lab contact (clinic-side)
+  // ---------------------------------------------------------------------------
+
+  async getLabContact(clinicTenantId: string) {
+    const connection = await this.prisma.clinicLabConnection.findFirst({
+      where: { clinicId: clinicTenantId, isActive: true, isDefault: true },
+      select: {
+        lab: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+            address: true,
+            logoUrl: true,
+            phoneNumbers: true,
+            mapLat: true,
+            mapLng: true,
+          },
+        },
+      },
+    });
+
+    if (!connection) {
+      throw new NotFoundException('No lab connected to this clinic.');
+    }
+
+    return connection.lab;
+  }
 }

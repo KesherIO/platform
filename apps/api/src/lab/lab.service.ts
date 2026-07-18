@@ -217,6 +217,7 @@ export class LabService {
   async getLaboratoryProfile(labTenantId: string) {
     return this.prisma.laboratoryProfile.findUnique({
       where: { tenantId: labTenantId },
+      include: { signers: { orderBy: { createdAt: 'asc' } } },
     });
   }
 
@@ -228,12 +229,101 @@ export class LabService {
       directorCredentials?: string;
       signatureUrl?: string;
       defaultObservations?: string;
+      signers?: {
+        id?: string;
+        name: string;
+        roles: string[];
+        title?: string;
+        specialty?: string;
+        university?: string;
+        registrationNumber?: string;
+        signatureUrl?: string;
+      }[];
     }
   ) {
-    return this.prisma.laboratoryProfile.upsert({
+    const { signers, ...profileData } = data;
+
+    const profile = await this.prisma.laboratoryProfile.upsert({
       where: { tenantId: labTenantId },
-      create: { tenantId: labTenantId, ...data, updatedAt: new Date() },
-      update: { ...data },
+      create: { tenantId: labTenantId, ...profileData, updatedAt: new Date() },
+      update: { ...profileData },
+    });
+
+    if (signers !== undefined) {
+      await this.prisma.labSigner.deleteMany({
+        where: { laboratoryProfileId: profile.id },
+      });
+
+      if (signers.length > 0) {
+        const now = new Date();
+        await this.prisma.labSigner.createMany({
+          data: signers.map((s) => ({
+            laboratoryProfileId: profile.id,
+            name: s.name,
+            roles: s.roles,
+            title: s.title ?? '',
+            specialty: s.specialty ?? '',
+            university: s.university ?? '',
+            registrationNumber: s.registrationNumber ?? '',
+            signatureUrl: s.signatureUrl ?? null,
+            updatedAt: now,
+          })),
+        });
+      }
+    }
+
+    return this.prisma.laboratoryProfile.findUnique({
+      where: { id: profile.id },
+      include: { signers: { orderBy: { createdAt: 'asc' } } },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lab contact info (reads/writes Tenant fields directly)
+  // ---------------------------------------------------------------------------
+
+  async getLabContact(labTenantId: string) {
+    return this.prisma.tenant.findUniqueOrThrow({
+      where: { id: labTenantId },
+      select: {
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        logoUrl: true,
+        phoneNumbers: true,
+        mapLat: true,
+        mapLng: true,
+      },
+    });
+  }
+
+  async updateLabContact(
+    labTenantId: string,
+    data: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      address?: string;
+      logoUrl?: string;
+      phoneNumbers?: { label: string; number: string }[];
+      mapLat?: number;
+      mapLng?: number;
+    }
+  ) {
+    return this.prisma.tenant.update({
+      where: { id: labTenantId },
+      data,
+      select: {
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        logoUrl: true,
+        phoneNumbers: true,
+        mapLat: true,
+        mapLng: true,
+      },
     });
   }
 

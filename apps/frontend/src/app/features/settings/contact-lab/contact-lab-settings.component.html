@@ -1,29 +1,34 @@
 <div class="flex flex-col gap-4 px-4 py-6">
-  <!-- ─── Lab Info Card ────────────────────────────────────────────── -->
+  <!-- Loading -->
+  @if (loading()) {
+  <div class="flex items-center justify-center py-16">
+    <div
+      class="h-6 w-6 animate-spin rounded-full border-4 border-cyan border-t-transparent"
+    ></div>
+  </div>
+  }
+
+  <!-- Error -->
+  @if (error()) {
+  <div class="rounded-2xl border border-red-100 bg-red-50 p-6 text-center">
+    <p class="text-sm text-red-600">
+      {{ 'SETTINGS.CONTACT_LAB.ERROR' | translate }}
+    </p>
+  </div>
+  }
+
+  <!-- Lab Info -->
+  @if (lab(); as labData) {
   <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
     <!-- Header -->
     <div class="flex items-center gap-3 mb-5">
-      <div
-        class="w-12 h-12 rounded-xl bg-cyan/10 flex items-center justify-center shrink-0"
-      >
-        <svg
-          class="w-6 h-6 text-cyan"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
-          />
-        </svg>
-      </div>
+      <img
+        [src]="labLogoSrc()"
+        alt="Lab logo"
+        class="w-12 h-12 rounded-xl object-cover shrink-0"
+      />
       <div>
-        <p class="text-sm font-semibold text-gray-900">
-          {{ 'SETTINGS.CONTACT_LAB.TITLE' | translate }}
-        </p>
+        <p class="text-sm font-semibold text-gray-900">{{ labData.name }}</p>
         <p class="text-xs text-gray-400 mt-0.5">
           {{ 'SETTINGS.CONTACT_LAB.SUBTITLE' | translate }}
         </p>
@@ -33,6 +38,7 @@
     <!-- Contact rows -->
     <div class="flex flex-col gap-3 mb-5">
       <!-- Email -->
+      @if (labData.email) {
       <div class="flex items-center gap-3">
         <div
           class="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0"
@@ -52,14 +58,16 @@
           </svg>
         </div>
         <a
-          [href]="'mailto:' + lab.email"
+          [href]="'mailto:' + labData.email"
           class="text-sm text-gray-700 hover:text-cyan transition-colors"
         >
-          {{ lab.email }}
+          {{ labData.email }}
         </a>
       </div>
+      }
 
-      <!-- Phone -->
+      <!-- Phone numbers -->
+      @for (phone of phones(); track phone.number) {
       <div class="flex items-center gap-3">
         <div
           class="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0"
@@ -78,15 +86,22 @@
             />
           </svg>
         </div>
-        <a
-          [href]="'tel:' + lab.whatsappNumber"
-          class="text-sm text-gray-700 hover:text-cyan transition-colors"
-        >
-          {{ lab.phone }}
-        </a>
+        <div class="flex flex-col">
+          <a
+            [href]="'tel:' + phone.number"
+            class="text-sm text-gray-700 hover:text-cyan transition-colors"
+          >
+            {{ phone.number }}
+          </a>
+          <span class="text-xs text-gray-400">{{
+            phoneTypeKey(phone.label) | translate
+          }}</span>
+        </div>
       </div>
+      }
 
       <!-- Address -->
+      @if (labData.address) {
       <div class="flex items-center gap-3">
         <div
           class="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0"
@@ -110,13 +125,15 @@
             />
           </svg>
         </div>
-        <span class="text-sm text-gray-700">{{ lab.address }}</span>
+        <span class="text-sm text-gray-700">{{ labData.address }}</span>
       </div>
+      }
     </div>
 
     <!-- WhatsApp CTA -->
+    @if (whatsAppUrl(); as waUrl) {
     <a
-      [href]="labWhatsAppUrl"
+      [href]="waUrl"
       target="_blank"
       rel="noopener noreferrer"
       class="flex items-center justify-center gap-2 w-full rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 hover:bg-green-100 transition-colors"
@@ -131,9 +148,11 @@
       </svg>
       {{ 'SETTINGS.CONTACT_LAB.WHATSAPP_BTN' | translate }}
     </a>
+    }
   </div>
 
-  <!-- ─── Map Card ──────────────────────────────────────────────────── -->
+  <!-- Map Card -->
+  @if (mapEmbedUrl(); as mapUrl) {
   <div
     class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
   >
@@ -143,11 +162,12 @@
       </p>
     </div>
     <iframe
-      [src]="mapEmbedUrl"
+      [src]="mapUrl"
       class="w-full h-52 border-0"
       loading="lazy"
-      title="Biomet Lab location"
+      title="Lab location"
       referrerpolicy="no-referrer-when-downgrade"
     ></iframe>
   </div>
+  } }
 </div>

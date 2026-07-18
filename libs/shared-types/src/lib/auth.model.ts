@@ -15,9 +15,9 @@ export enum TenantRole {
  * `sub` is the Supabase Auth user UUID — this becomes User.id in our DB.
  */
 export interface JwtPayload {
-  sub: string;           // Supabase Auth UUID
+  sub: string; // Supabase Auth UUID
   email: string;
-  role: string;          // Supabase role ("authenticated")
+  role: string; // Supabase role ("authenticated")
   aud: string;
   exp: number;
   iat: number;
@@ -34,7 +34,7 @@ export interface JwtPayload {
  * Populated by JwtAuthGuard (user) + TenantGuard (tenant + role).
  */
 export interface AuthenticatedUser {
-  id: string;            // Supabase Auth UUID = local User.id
+  id: string; // Supabase Auth UUID = local User.id
   email: string;
   firstName?: string | null;
   lastName?: string | null;
@@ -42,5 +42,7 @@ export interface AuthenticatedUser {
 
 export interface TenantContext {
   tenantId: string;
+  tenantName: string;
+  tenantLogoUrl: string | null;
   role: TenantRole;
 }

@@ -105,7 +105,7 @@ enum ResultReportStatus {
 }
 
 enum KnowledgeScope {
-  GLOBAL  // shared across all tenants — Biomet-owned
+  GLOBAL  // shared across all tenants — platform-owned
   TENANT  // specific to one clinic/lab
 }
 
@@ -115,9 +115,9 @@ enum DocumentStatus {
 }
 
 enum TenantType {
-  CLINIC  // veterinary clinic — creates cases and orders
-  LAB     // external reference laboratory
-  VETAI   // VetAI platform tenant (singleton)
+  CLINIC    // veterinary clinic — creates cases and orders
+  LAB       // external reference laboratory
+  PLATFORM  // KesherIO platform tenant (singleton)
 }
 
 /// Status of a single ordered test within a lab order.
@@ -149,11 +149,14 @@ model Tenant {
   city               String?
   email              String?
   phone              String?
+  phoneNumbers       Json?    // [{label: "WhatsApp", number: "+1 555…"}, …]
   country            String?
   notificationMethod String?  // 'email' | 'sms'
   // Branding — optional, populated via future branding/settings step
   logoUrl            String?  // URL to uploaded logo in storage (never store file data here)
   primaryColor       String?
+  mapLat             Float?
+  mapLng             Float?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -221,7 +224,7 @@ model TenantInvitation {
   @@map("tenant_invitations")
 }
 
-/// Onboarding tokens created by Biomet to invite clinic admins.
+/// Onboarding tokens created by KesherIO to invite clinic admins.
 /// Each token is single-use and expires after 7 days.
 /// On completion, the backend creates the Supabase user, Tenant, and ADMIN membership.
 model OnboardingToken {
@@ -230,7 +233,7 @@ model OnboardingToken {
   type            OnboardingTokenType @default(ADMIN)
   clinicName      String
   clinicEmail     String              // contact email for the clinic (Tenant.email)
-  biometClinicId  String?             // optional external reference from Biomet
+  externalClinicId String?             // optional external reference from the platform
   expiresAt       DateTime
   used            Boolean             @default(false)
   usedAt          DateTime?
@@ -373,7 +376,7 @@ model Order {
   requisitionNumber   String        @unique  // REQ-2026-000001
   caseId              String        @unique  // one active order per case (MVP)
   tenantId            String
-  labTenantId         String?       // which lab processes this order (null = Biomet direct for MVP seed)
+  labTenantId         String?       // which lab processes this order (null = platform direct for MVP seed)
   status              OrderStatus   @default(PENDING)
   priority            OrderPriority @default(ROUTINE)
 
@@ -410,14 +413,14 @@ model Order {
 }
 
 // ---------------------------------------------------------------------------
-// Result Templates (global, Biomet-owned — no tenantId)
+// Result Templates (global, platform-owned — no tenantId)
 // ---------------------------------------------------------------------------
 
 /// Defines the structure of a lab report for a given test + species + age range.
 /// ageMinWeeks / ageMaxWeeks are inclusive bounds (null = no limit).
 /// createReport picks the most specific matching template for the patient's age;
 /// falls back to the age-agnostic template (both null) if no range matches.
-/// Global — created and managed by Biomet, shared across all tenants.
+/// Global — created and managed by KesherIO, shared across all tenants.
 model ResultTemplate {
   id            String         @id @default(cuid())
   catalogItemId String
@@ -483,7 +486,7 @@ model ResultTemplateAnalyte {
 // ---------------------------------------------------------------------------
 
 /// A knowledge document ingested into the RAG system.
-/// tenantId = null → global shared knowledge (Biomet-owned).
+/// tenantId = null → global shared knowledge (platform-owned).
 /// tenantId = value → clinic/lab-specific knowledge (future).
 model KnowledgeDocument {
   id         String         @id @default(cuid())
@@ -651,7 +654,7 @@ model ResultReportAnalyte {
 // Lab Workflow (multi-tenant lab support)
 // ---------------------------------------------------------------------------
 
-/// Lab-specific settings for a tenant of type LAB or VETAI.
+/// Lab-specific settings for a tenant of type LAB or PLATFORM.
 model LaboratoryProfile {
   id                  String  @id @default(cuid())
   tenantId            String  @unique
@@ -663,9 +666,28 @@ model LaboratoryProfile {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant  Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  signers LabSigner[]
 
   @@map("laboratory_profiles")
+}
+
+model LabSigner {
+  id                 String   @id @default(cuid())
+  laboratoryProfileId String
+  name               String
+  roles              String[] // ANALYST, REVIEWER, DATA_ENTRY
+  title              String   @default("")
+  specialty          String   @default("")
+  university         String   @default("")
+  registrationNumber String   @default("")
+  signatureUrl       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  laboratoryProfile LaboratoryProfile @relation(fields: [laboratoryProfileId], references: [id], onDelete: Cascade)
+
+  @@map("lab_signers")
 }
 
 /// Explicit connection between a clinic tenant and a lab tenant.

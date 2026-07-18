@@ -1,26 +1,18 @@
-import { Component, inject } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DomSanitizer } from '@angular/platform-browser';
 import { TranslatePipe } from '@ngx-translate/core';
-
-// TODO: When the lab interface is built, all of this data must come from the server.
-//       The API should expose a GET /api/lab endpoint (or equivalent) returning a lab profile with:
-//         - name: string
-//         - email: string
-//         - phone: string            (display-formatted, e.g. "+57 317 436 1989")
-//         - whatsappNumber: string   (digits only, no +/spaces, e.g. "573174361989")
-//         - address: string
-//         - mapLat: number           (GPS latitude — verify exact coords when address is confirmed)
-//         - mapLng: number           (GPS longitude)
-//       Until then, these are hardcoded mock values for demo purposes.
-export const LAB_CONTACT = {
-  name: 'Biomet Lab',
-  email: 'info@biometlab.com',
-  phone: '+57 317 436 1989',
-  address: 'Carrera 56 No. 7-54, Cali, Colombia',
-  whatsappNumber: '573174361989',
-  mapLat: 3.4516, // TODO: verify exact coords once address is confirmed
-  mapLng: -76.532, // TODO: verify exact coords once address is confirmed
-} as const;
+import {
+  SettingsService,
+  LabContact,
+} from '../../../core/services/settings.service';
 
 @Component({
   selector: 'app-contact-lab-settings',
@@ -29,18 +21,66 @@ export const LAB_CONTACT = {
   templateUrl: './contact-lab-settings.component.html',
   styleUrl: './contact-lab-settings.component.scss',
 })
-export class ContactLabSettingsComponent {
+export class ContactLabSettingsComponent implements OnInit {
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly settings = inject(SettingsService);
+  private readonly destroyRef = inject(DestroyRef);
 
-  readonly lab = LAB_CONTACT;
+  readonly lab = signal<LabContact | null>(null);
+  readonly loading = signal(true);
+  readonly error = signal(false);
 
-  readonly labWhatsAppUrl = `https://wa.me/${LAB_CONTACT.whatsappNumber}`;
+  readonly labLogoSrc = computed(() => {
+    const l = this.lab();
+    return l?.logoUrl || 'assets/icons/default_logo.png';
+  });
 
-  readonly mapEmbedUrl: SafeResourceUrl =
-    this.sanitizer.bypassSecurityTrustResourceUrl(
+  readonly phones = computed(() => {
+    const l = this.lab();
+    return Array.isArray(l?.phoneNumbers) ? l!.phoneNumbers : [];
+  });
+
+  readonly whatsAppUrl = computed(() => {
+    const wp = this.phones().find((p) => p.label === 'whatsapp');
+    if (!wp) return null;
+    const digits = wp.number.replace(/\D/g, '');
+    return `https://wa.me/${digits}`;
+  });
+
+  readonly mapEmbedUrl = computed(() => {
+    const l = this.lab();
+    if (l?.mapLat == null || l?.mapLng == null) return null;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(
       `https://www.openstreetmap.org/export/embed.html` +
-        `?bbox=${LAB_CONTACT.mapLng - 0.02}%2C${LAB_CONTACT.mapLat - 0.015}` +
-        `%2C${LAB_CONTACT.mapLng + 0.02}%2C${LAB_CONTACT.mapLat + 0.015}` +
-        `&layer=mapnik&marker=${LAB_CONTACT.mapLat}%2C${LAB_CONTACT.mapLng}`
+        `?bbox=${l.mapLng - 0.02}%2C${l.mapLat - 0.015}` +
+        `%2C${l.mapLng + 0.02}%2C${l.mapLat + 0.015}` +
+        `&layer=mapnik&marker=${l.mapLat}%2C${l.mapLng}`
     );
+  });
+
+  ngOnInit(): void {
+    this.settings
+      .getLabContact()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data) => {
+          this.lab.set(data);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.error.set(true);
+          this.loading.set(false);
+        },
+      });
+  }
+
+  phoneTypeKey(label: string): string {
+    const map: Record<string, string> = {
+      whatsapp: 'SETTINGS.CONTACT_LAB.PHONE_WHATSAPP',
+      commercial: 'SETTINGS.CONTACT_LAB.PHONE_COMMERCIAL',
+      personal: 'SETTINGS.CONTACT_LAB.PHONE_PERSONAL',
+      other: 'SETTINGS.CONTACT_LAB.PHONE_OTHER',
+    };
+    return map[label] ?? 'SETTINGS.CONTACT_LAB.PHONE_OTHER';
+  }
 }

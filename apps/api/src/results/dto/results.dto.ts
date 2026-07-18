@@ -327,7 +327,7 @@ export class ReleaseReportDto {
   @IsString()
   observations?: string;
 
-  @ApiPropertyOptional({ example: 'Vivian Andrea Plalonga Quintero' })
+  @ApiPropertyOptional({ example: 'Karina Martinez' })
   @IsOptional()
   @IsString()
   processedByName?: string;
@@ -338,13 +338,13 @@ export class ReleaseReportDto {
   processedByRole?: string;
 
   @ApiPropertyOptional({
-    example: 'Microbióloga\nUniversidad Santiago de Cali',
+    example: 'Microbióloga\nUniversidad del Valle',
   })
   @IsOptional()
   @IsString()
   processedByCredentials?: string;
 
-  @ApiPropertyOptional({ example: 'Carlos Alberto Canaval Ocampo' })
+  @ApiPropertyOptional({ example: 'John Doe' })
   @IsOptional()
   @IsString()
   approvedByName?: string;
@@ -355,15 +355,14 @@ export class ReleaseReportDto {
   approvedByRole?: string;
 
   @ApiPropertyOptional({
-    example:
-      'Bacteriólogo y Laboratorista Clínico\nUniversidad del Valle\nRegistro No.: 767658',
+    example: 'Bacteriólogo y Laboratorista Clínico\nUniversidad del Valle',
   })
   @IsOptional()
   @IsString()
   approvedByCredentials?: string;
 
   @ApiPropertyOptional({
-    example: 'https://storage.example.com/signatures/canaval.png',
+    example: 'https://storage.example.com/signatures/Martinez.png',
   })
   @IsOptional()
   @IsUrl()

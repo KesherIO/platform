@@ -30,7 +30,7 @@ export const routes: Routes = [
   },
 
   // Onboarding — public. Users arrive here before they have credentials.
-  // Access is controlled by the Biomet-generated tenantId or invite token in the URL.
+  // Access is controlled by the KesherIO-generated tenantId or invite token in the URL.
   {
     path: 'onboarding',
     loadChildren: () =>

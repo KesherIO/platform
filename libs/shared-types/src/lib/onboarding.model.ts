@@ -7,7 +7,7 @@ export interface OnboardingState {
   adminProfileDraft?: AdminProfileDraft;
   isFirstUser: boolean;
   inviteToken?: string;
-  /** The raw onboarding token from the Biomet link (?token=...) */
+  /** The raw onboarding token from the KesherIO link (?token=...) */
   onboardingToken?: string;
   /** Clinic name prefilled from server verify response — editable by the admin */
   prefillClinicName?: string;
@@ -23,13 +23,19 @@ export interface AdminProfileDraft {
   telephone: string;
 }
 
-export type OnboardingStep = 'welcome' | 'clinic-setup' | 'admin-profile' | 'staff-invite' | 'staff-profile' | 'complete';
+export type OnboardingStep =
+  | 'welcome'
+  | 'clinic-setup'
+  | 'admin-profile'
+  | 'staff-invite'
+  | 'staff-profile'
+  | 'complete';
 
 export interface ClinicSetupData {
   name: string;
   address: string;
   city: string;
-  /** Clinic contact email — prefilled from Biomet token, read-only in the form */
+  /** Clinic contact email — prefilled from KesherIO token, read-only in the form */
   email: string;
   telephone: string;
   notificationMethod: 'email' | 'sms';

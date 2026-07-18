@@ -1,7 +1,7 @@
 {
   "AUTH": {
     "TITLE": "Clinic Portal Sign in",
-    "SUBTITLE": "Powered by Biomet VetAI",
+    "SUBTITLE": "Powered by KesherIO",
     "BODY": "Enter your credentials to continue",
     "EMAIL_LABEL": "Email",
     "EMAIL_PLACEHOLDER": "email@domain.com",
@@ -62,7 +62,7 @@
   },
   "WELCOME": {
     "TITLE": "Welcome to {{name}} Copilot",
-    "SUBTITLE": "Powered by Biomet VetAI",
+    "SUBTITLE": "Powered by KesherIO",
     "BODY": "Let's set up your clinic so you can start using Copilot.\nThis will only take a few minutes.",
     "TERMS_PRE": "By clicking continue, you agree to our",
     "TERMS_LINK": "Terms of Service",
@@ -70,15 +70,15 @@
     "PRIVACY_LINK": "Privacy Policy",
     "LOADING": "Verifying your link...",
     "INVALID_TITLE": "Invalid onboarding link",
-    "INVALID_BODY": "This onboarding link is not valid. Please request a new link from Biomet.",
+    "INVALID_BODY": "This onboarding link is not valid. Please request a new link from your Admin.",
     "EXPIRED_TITLE": "Link expired",
-    "EXPIRED_BODY": "This onboarding link has expired. Please contact Biomet to request a new one.",
+    "EXPIRED_BODY": "This onboarding link has expired. Please contact your admin to request a new one.",
     "USED_TITLE": "Link already used",
-    "USED_BODY": "This onboarding link has already been used. If you believe this is an error, please contact Biomet.",
+    "USED_BODY": "This onboarding link has already been used. If you believe this is an error, please contact your admin.",
     "NOT_FOUND_TITLE": "Link not found",
     "NOT_FOUND_BODY": "We could not find this onboarding link. Please check the link and try again.",
     "NO_TOKEN_TITLE": "No onboarding link",
-    "NO_TOKEN_BODY": "Please use the onboarding link provided by Biomet to set up your clinic account."
+    "NO_TOKEN_BODY": "Please use the onboarding link provided by your admin to set up your clinic account."
   },
   "CLINIC_SETUP": {
     "TITLE": "Setup your clinic account",
@@ -98,7 +98,7 @@
     "COUNTRY_LABEL": "Country",
     "COUNTRY_PLACEHOLDER": "e.g. United States",
     "EMAIL_LABEL": "Clinic email",
-    "EMAIL_READONLY_HINT": "This email was provided by Biomet and cannot be changed.",
+    "EMAIL_READONLY_HINT": "This email was provided by your admin and cannot be changed.",
     "PHONE_LABEL": "Telephone",
     "PHONE_PLACEHOLDER": "555 555 5555",
     "NOTIFICATION_LABEL": "Notification method",
@@ -118,7 +118,7 @@
     "PHONE_PLACEHOLDER": "555 555 5555",
     "EMAIL_LABEL": "Email",
     "EMAIL_PLACEHOLDER": "email@domain.com",
-    "EMAIL_READONLY_HINT": "This email was provided by Biomet and cannot be changed.",
+    "EMAIL_READONLY_HINT": "This email was provided by your admin and cannot be changed.",
     "PASSWORD_LABEL": "Password",
     "PASSWORD_PLACEHOLDER": "Min. 10 characters",
     "CONFIRM_PASSWORD_LABEL": "Confirm password",
@@ -171,10 +171,14 @@
     "TAB_CONTACT_LAB": "Lab",
     "COMING_SOON": "Coming soon",
     "CONTACT_LAB": {
-      "TITLE": "Biomet Lab",
       "SUBTITLE": "Your reference laboratory",
       "WHATSAPP_BTN": "Chat on WhatsApp",
-      "LOCATION_TITLE": "Location"
+      "LOCATION_TITLE": "Location",
+      "ERROR": "Could not load lab info. Please try again later.",
+      "PHONE_WHATSAPP": "WhatsApp",
+      "PHONE_COMMERCIAL": "Commercial",
+      "PHONE_PERSONAL": "Personal",
+      "PHONE_OTHER": "Other"
     },
     "CLINIC": {
       "EDIT": "Edit",
@@ -227,9 +231,9 @@
       "COPY_EXISTING": "Copy existing link",
       "ERROR_CAPACITY": "You've reached the maximum of 10 pending invites. Wait for one to be accepted or expire before creating a new one.",
       "ERROR_MEMBER": "This user is already a member of the clinic.",
-      "EXISTING_TOGGLE": "This person already has a VetAI account →",
+      "EXISTING_TOGGLE": "This person already has a KesherIO account →",
       "EXISTING_TITLE": "Invite someone with an existing account",
-      "EXISTING_BODY": "Use this if the person already has a VetAI account — from this clinic or another. They'll join without creating a new account.",
+      "EXISTING_BODY": "Use this if the person already has a KesherIO account — from this clinic or another. They'll join without creating a new account.",
       "EXISTING_EMAIL_PLACEHOLDER": "staff@example.com",
       "EXISTING_SEND": "Send invite",
       "EXISTING_CANCEL": "Cancel",
@@ -392,7 +396,7 @@
     }
   },
   "BRANDING": {
-    "POWERED_BY": "Powered by Biomet VetAI"
+    "POWERED_BY": "Powered by KesherIO"
   },
   "RESULTS_INBOX": {
     "TITLE": "Results",

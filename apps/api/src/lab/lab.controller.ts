@@ -25,6 +25,7 @@ import { LabUsersService } from './lab-users.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import { UpsertLaboratoryProfileDto } from './dto/upsert-laboratory-profile.dto';
+import { UpdateLabContactDto } from './dto/update-lab-contact.dto';
 import { CreateLabUserDto } from './dto/create-lab-user.dto';
 import { UpdateLabUserRoleDto } from './dto/update-lab-user-role.dto';
 
@@ -58,7 +59,11 @@ export class LabController {
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Get('me')
   getMe(@CurrentTenant() tenant: TenantContext) {
-    return { role: tenant.role };
+    return {
+      role: tenant.role,
+      tenantName: tenant.tenantName,
+      logoUrl: tenant.tenantLogoUrl,
+    };
   }
 
   // GET /api/lab/orders?status=RECEIVED_BY_LAB
@@ -128,6 +133,23 @@ export class LabController {
     @Body() body: UpsertLaboratoryProfileDto
   ) {
     return this.labService.upsertLaboratoryProfile(tenant.tenantId, body);
+  }
+
+  // GET /api/lab/settings/contact
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('settings/contact')
+  getLabContact(@CurrentTenant() tenant: TenantContext) {
+    return this.labService.getLabContact(tenant.tenantId);
+  }
+
+  // PATCH /api/lab/settings/contact
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Patch('settings/contact')
+  updateLabContact(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() dto: UpdateLabContactDto
+  ) {
+    return this.labService.updateLabContact(tenant.tenantId, dto);
   }
 
   // ---------------------------------------------------------------------------

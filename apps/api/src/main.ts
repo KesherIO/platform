@@ -1,5 +1,6 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { json } from 'express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
 
@@ -8,11 +9,13 @@ async function bootstrap() {
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
 
+  app.use(json({ limit: '5mb' }));
+
   // ── Swagger ──────────────────────────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('VetAI API')
+    .setTitle('KesherIO PLATFORM API')
     .setDescription(
-      'NestJS API for VetAI — multi-tenant veterinary AI platform.\n\n' +
+      'NestJS API for KesherIO — multi-tenant platform.\n\n' +
         'Authenticate via Supabase, then pass the JWT as a Bearer token.'
     )
     .setVersion('1.0')

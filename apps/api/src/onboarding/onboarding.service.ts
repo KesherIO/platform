@@ -31,7 +31,7 @@ export class OnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-    private readonly storageService: StorageService,
+    private readonly storageService: StorageService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ export class OnboardingService {
     userId: string,
     tenantId: string,
     token: string,
-    dto: SaveStaffProfileDto,
+    dto: SaveStaffProfileDto
   ) {
     // Verify invite token
     const invite = await this.prisma.tenantInvitation.findUnique({
@@ -91,9 +91,10 @@ export class OnboardingService {
 
     // Rule: user must not already be an active member of this clinic.
     // This guards against someone using a link after they were already added via another path.
-    const existingMembership = await this.prisma.userTenantMembership.findUnique({
-      where: { userId_tenantId: { userId, tenantId } },
-    });
+    const existingMembership =
+      await this.prisma.userTenantMembership.findUnique({
+        where: { userId_tenantId: { userId, tenantId } },
+      });
     if (existingMembership) {
       throw new ConflictException('You are already a member of this clinic.');
     }
@@ -143,7 +144,11 @@ export class OnboardingService {
   //   5. checkTenantCapacity() is the extension point for future plan-based limits
   // ---------------------------------------------------------------------------
 
-  async generateInvite(invitedByUserId: string, tenantId: string, dto: GenerateInviteDto) {
+  async generateInvite(
+    invitedByUserId: string,
+    tenantId: string,
+    dto: GenerateInviteDto
+  ) {
     const now = new Date();
     const email = dto.email?.trim().toLowerCase() ?? '';
 
@@ -158,7 +163,7 @@ export class OnboardingService {
       });
       if (activeMember) {
         throw new ConflictException(
-          'This user is already an active member of this clinic.',
+          'This user is already an active member of this clinic.'
         );
       }
 
@@ -195,7 +200,7 @@ export class OnboardingService {
     const invitation = await this.prisma.tenantInvitation.create({
       data: {
         tenantId,
-        email,           // empty string for generic (anyone-can-use) magic links
+        email, // empty string for generic (anyone-can-use) magic links
         role: tenantRole,
         token,
         expiresAt,
@@ -218,7 +223,10 @@ export class OnboardingService {
   // Rule 5 (future): add plan-based active-user limits here when billing is ready.
   // ---------------------------------------------------------------------------
 
-  private async checkTenantCapacity(tenantId: string, now: Date): Promise<void> {
+  private async checkTenantCapacity(
+    tenantId: string,
+    now: Date
+  ): Promise<void> {
     const PENDING_INVITE_CAP = 10;
 
     const pendingCount = await this.prisma.tenantInvitation.count({
@@ -232,7 +240,7 @@ export class OnboardingService {
     if (pendingCount >= PENDING_INVITE_CAP) {
       throw new BadRequestException(
         `This clinic has reached the maximum of ${PENDING_INVITE_CAP} pending invitations. ` +
-        'Resend or wait for existing invites to expire before creating new ones.',
+          'Resend or wait for existing invites to expire before creating new ones.'
       );
     }
 
@@ -275,7 +283,9 @@ export class OnboardingService {
 
     // Check whether the invited email already has a User record (re-invite path).
     const userExists = invite.email
-      ? !!(await this.prisma.user.findUnique({ where: { email: invite.email } }))
+      ? !!(await this.prisma.user.findUnique({
+          where: { email: invite.email },
+        }))
       : false;
 
     // Map internal TenantRole to the user-facing 'admin' | 'staff' value.
@@ -339,16 +349,26 @@ export class OnboardingService {
     });
 
     if (existingUser) {
-      const existingMembership = await this.prisma.userTenantMembership.findUnique({
-        where: { userId_tenantId: { userId: existingUser.id, tenantId: invite.tenantId } },
-      });
+      const existingMembership =
+        await this.prisma.userTenantMembership.findUnique({
+          where: {
+            userId_tenantId: {
+              userId: existingUser.id,
+              tenantId: invite.tenantId,
+            },
+          },
+        });
       if (existingMembership) {
         throw new ConflictException('User is already a member of this clinic.');
       }
 
       await this.prisma.$transaction([
         this.prisma.userTenantMembership.create({
-          data: { userId: existingUser.id, tenantId: invite.tenantId, role: tenantRole },
+          data: {
+            userId: existingUser.id,
+            tenantId: invite.tenantId,
+            role: tenantRole,
+          },
         }),
         this.prisma.tenantInvitation.update({
           where: { token: dto.token },
@@ -361,14 +381,16 @@ export class OnboardingService {
 
     // 3. New user — fullName and password are required.
     if (!dto.fullName || !dto.password) {
-      throw new BadRequestException('fullName and password are required for new users.');
+      throw new BadRequestException(
+        'fullName and password are required for new users.'
+      );
     }
 
     const supabaseUserId = await this.authService.createSupabaseUser(
       email,
       dto.password,
       firstName,
-      lastName ?? '',
+      lastName ?? ''
     );
 
     await this.prisma.$transaction([
@@ -397,7 +419,7 @@ export class OnboardingService {
   }
 
   // ---------------------------------------------------------------------------
-  // Create admin onboarding link — called by Biomet to invite a clinic admin.
+  // Create admin onboarding link — called by KesherIO to invite a clinic admin.
   // Generates a secure random token, stores it, returns the onboarding link.
   // TODO: protect this endpoint with an internal API key before going to prod.
   // ---------------------------------------------------------------------------
@@ -413,7 +435,7 @@ export class OnboardingService {
         type: 'ADMIN',
         clinicName: dto.clinicName,
         clinicEmail: dto.clinicEmail,
-        biometClinicId: dto.biometClinicId ?? null,
+        externalClinicId: dto.externalClinicId ?? null,
         expiresAt,
       },
     });
@@ -460,7 +482,10 @@ export class OnboardingService {
   // Marks the token as used atomically with the DB writes.
   // ---------------------------------------------------------------------------
 
-  async completeAdminOnboarding(dto: CompleteAdminOnboardingDto, logoFile?: Express.Multer.File) {
+  async completeAdminOnboarding(
+    dto: CompleteAdminOnboardingDto,
+    logoFile?: Express.Multer.File
+  ) {
     // 1. Verify token (fail fast before any external calls)
     const record = await this.prisma.onboardingToken.findUnique({
       where: { token: dto.token },
@@ -481,7 +506,7 @@ export class OnboardingService {
       dto.adminEmail,
       dto.password,
       dto.adminFirstName,
-      dto.adminLastName,
+      dto.adminLastName
     );
 
     // 3. Create Tenant + User row + ADMIN membership + mark token used — all in one transaction.
@@ -554,7 +579,10 @@ export class OnboardingService {
     //    tenant is already created and the admin can re-upload from settings.
     if (logoFile) {
       try {
-        const logoUrl = await this.storageService.uploadClinicLogo(tenantId, logoFile);
+        const logoUrl = await this.storageService.uploadClinicLogo(
+          tenantId,
+          logoFile
+        );
         await this.prisma.tenant.update({
           where: { id: tenantId },
           data: { logoUrl },
@@ -564,7 +592,8 @@ export class OnboardingService {
           tenantId,
           userId,
           logoUploadFailed: true as const,
-          message: 'Account created successfully, but logo upload failed. You can upload your logo later from Settings.',
+          message:
+            'Account created successfully, but logo upload failed. You can upload your logo later from Settings.',
         };
       }
     }

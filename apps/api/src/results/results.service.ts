@@ -98,7 +98,7 @@ export class ResultsService {
   }
 
   // ---------------------------------------------------------------------------
-  // Template management (Biomet internal)
+  // Template management (KesherIO internal)
   // ---------------------------------------------------------------------------
 
   /**

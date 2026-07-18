@@ -62,7 +62,7 @@ export class ResultsController {
 
   // ---------------------------------------------------------------------------
   // POST /results/templates
-  // Import (upsert) a result template — Biomet lab internal only.
+  // Import (upsert) a result template — KesherIO lab internal only.
   // ---------------------------------------------------------------------------
 
   @Post('templates')
@@ -72,11 +72,11 @@ export class ResultsController {
   @ApiSecurity('x-internal-api-key')
   @ApiHeader({
     name: 'x-internal-api-key',
-    description: 'Biomet internal API key',
+    description: 'KesherIO internal API key',
     required: true,
   })
   @ApiOperation({
-    summary: 'Import (upsert) a result template — Biomet lab internal only',
+    summary: 'Import (upsert) a result template — KesherIO lab internal only',
   })
   importTemplate(@Body() body: ImportTemplateDto) {
     return this.resultsService.importTemplate(body);
@@ -95,7 +95,7 @@ export class ResultsController {
   @ApiSecurity('x-internal-api-key')
   @ApiHeader({
     name: 'x-internal-api-key',
-    description: 'Biomet internal API key',
+    description: 'KesherIO internal API key',
     required: true,
   })
   @ApiOperation({
@@ -117,7 +117,7 @@ export class ResultsController {
   @ApiSecurity('x-internal-api-key')
   @ApiHeader({
     name: 'x-internal-api-key',
-    description: 'Biomet internal API key',
+    description: 'KesherIO internal API key',
     required: true,
   })
   @ApiOperation({ summary: 'Get a result report by ID — lab internal only' })
@@ -137,7 +137,7 @@ export class ResultsController {
   @ApiSecurity('x-internal-api-key')
   @ApiHeader({
     name: 'x-internal-api-key',
-    description: 'Biomet internal API key',
+    description: 'KesherIO internal API key',
     required: true,
   })
   @ApiOperation({
@@ -160,7 +160,7 @@ export class ResultsController {
   @ApiSecurity('x-internal-api-key')
   @ApiHeader({
     name: 'x-internal-api-key',
-    description: 'Biomet internal API key',
+    description: 'KesherIO internal API key',
     required: true,
   })
   @ApiOperation({ summary: 'Release a result report — lab internal only' })

@@ -15,6 +15,9 @@ interface AuthContextValue {
   loading: boolean;
   labRole: LabRole | null;
   isAdmin: boolean;
+  tenantName: string | null;
+  logoUrl: string | null;
+  refreshTenant: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -24,6 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [labRole, setLabRole] = useState<LabRole | null>(null);
+  const [tenantName, setTenantName] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const fetchLabRole = async (accessToken: string) => {
     try {
@@ -33,6 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!res.ok) return;
       const data = await res.json();
       setLabRole(data.role as LabRole);
+      setTenantName(data.tenantName ?? null);
+      setLogoUrl(data.logoUrl ?? null);
     } catch {
       // role stays null — UI defaults to non-admin
     }
@@ -54,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await fetchLabRole(s.access_token);
         } else {
           setLabRole(null);
+          setTenantName(null);
+          setLogoUrl(null);
         }
       }
     );
@@ -65,6 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const refreshTenant = async () => {
+    if (session?.access_token) {
+      await fetchLabRole(session.access_token);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -73,6 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         labRole,
         isAdmin: labRole === 'ADMIN',
+        tenantName,
+        logoUrl,
+        refreshTenant,
         signOut,
       }}
     >

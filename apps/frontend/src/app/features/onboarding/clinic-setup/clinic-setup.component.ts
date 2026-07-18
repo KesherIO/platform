@@ -1,6 +1,11 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { LanguageService } from '../../../core/services/language.service';
@@ -38,7 +43,7 @@ export class ClinicSetupComponent implements OnInit {
 
   clinicForm!: FormGroup;
 
-  /** Clinic contact email from Biomet token — read-only, not in the form */
+  /** Clinic contact email from Platform token — read-only, not in the form */
   prefillClinicEmail = signal('');
 
   /** Logo file held in memory — uploaded as part of onSubmit, not on file select */
@@ -75,12 +80,21 @@ export class ClinicSetupComponent implements OnInit {
     }
 
     this.clinicForm = this.fb.group({
-      name:               [saved?.name ?? prefillName, [Validators.required, Validators.minLength(2)]],
-      address:            [saved?.address ?? '', [Validators.required]],
-      city:               [saved?.city ?? '', [Validators.required]],
-      telephone:          [saved?.telephone ?? '', [Validators.required]],
-      notificationMethod: [saved?.notificationMethod ?? 'email', [Validators.required]],
-      country:            [saved?.country ?? (this.languageService.currentLang() === 'es' ? 'CO' : '')],
+      name: [
+        saved?.name ?? prefillName,
+        [Validators.required, Validators.minLength(2)],
+      ],
+      address: [saved?.address ?? '', [Validators.required]],
+      city: [saved?.city ?? '', [Validators.required]],
+      telephone: [saved?.telephone ?? '', [Validators.required]],
+      notificationMethod: [
+        saved?.notificationMethod ?? 'email',
+        [Validators.required],
+      ],
+      country: [
+        saved?.country ??
+          (this.languageService.currentLang() === 'es' ? 'CO' : ''),
+      ],
     });
   }
 

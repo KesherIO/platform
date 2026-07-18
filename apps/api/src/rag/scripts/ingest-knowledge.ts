@@ -166,7 +166,7 @@ async function ingest(): Promise<void> {
   const prisma = new PrismaClient();
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  console.log(`\nVet AI — RAG Knowledge Base Ingestion`);
+  console.log(`\nKesherIO — RAG Knowledge Base Ingestion`);
   console.log(`Knowledge base: ${KNOWLEDGE_BASE_DIR}`);
   console.log(`Model: ${EMBEDDING_MODEL} (${EMBEDDING_DIMENSIONS} dims)\n`);
 

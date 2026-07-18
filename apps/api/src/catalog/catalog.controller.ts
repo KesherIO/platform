@@ -51,11 +51,11 @@ export class CatalogController {
   @ApiSecurity('x-internal-api-key')
   @ApiHeader({
     name: 'x-internal-api-key',
-    description: 'Biomet internal API key',
+    description: 'Platform internal API key',
     required: true,
   })
   @ApiOperation({
-    summary: 'Import (upsert) catalog items — Biomet lab internal only',
+    summary: 'Import (upsert) catalog items — Platform lab internal only',
   })
   import(@Body() body: ImportCatalogDto) {
     return this.catalogService.import(body);

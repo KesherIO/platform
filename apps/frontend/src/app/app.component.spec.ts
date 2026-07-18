@@ -16,10 +16,10 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have the 'vet-ai-app' title property`, () => {
+  it(`should have the 'kesherio-app' title property`, () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
-    expect(app.title).toEqual('vet-ai-app');
+    expect(app.title).toEqual('kesherio-app');
   });
 
   it('should render a router-outlet', () => {

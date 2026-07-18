@@ -1,7 +1,7 @@
 {
   "AUTH": {
     "TITLE": "Acceso al Portal de la Clínica",
-    "SUBTITLE": "Desarrollado por Biomet VetAI",
+    "SUBTITLE": "Desarrollado por KesherIO",
     "BODY": "Introduce tus credenciales para continuar",
     "EMAIL_LABEL": "Correo electrónico",
     "EMAIL_PLACEHOLDER": "correo@dominio.com",
@@ -62,7 +62,7 @@
   },
   "WELCOME": {
     "TITLE": "Bienvenido a {{name}} Copilot",
-    "SUBTITLE": "Desarrollado por Biomet VetAI",
+    "SUBTITLE": "Desarrollado por KesherIO",
     "BODY": "Vamos a configurar tu clínica para que puedas empezar a usar Copilot.\nEsto solo tomará unos minutos.",
     "TERMS_PRE": "Al hacer clic en continuar, aceptas nuestros",
     "TERMS_LINK": "Términos de Servicio",
@@ -70,15 +70,15 @@
     "PRIVACY_LINK": "Política de Privacidad",
     "LOADING": "Verificando tu enlace...",
     "INVALID_TITLE": "Enlace de incorporación inválido",
-    "INVALID_BODY": "Este enlace de incorporación no es válido. Por favor solicita un nuevo enlace a Biomet.",
+    "INVALID_BODY": "Este enlace de incorporación no es válido. Por favor solicita un nuevo enlace al administrador.",
     "EXPIRED_TITLE": "Enlace expirado",
-    "EXPIRED_BODY": "Este enlace de incorporación ha expirado. Por favor contacta a Biomet para solicitar uno nuevo.",
+    "EXPIRED_BODY": "Este enlace de incorporación ha expirado. Por favor contacta al administrador para solicitar uno nuevo.",
     "USED_TITLE": "Enlace ya utilizado",
-    "USED_BODY": "Este enlace de incorporación ya fue usado. Si crees que es un error, por favor contacta a Biomet.",
+    "USED_BODY": "Este enlace de incorporación ya fue usado. Si crees que es un error, por favor contacta al administrador.",
     "NOT_FOUND_TITLE": "Enlace no encontrado",
     "NOT_FOUND_BODY": "No pudimos encontrar este enlace de incorporación. Por favor verifica el enlace e intenta de nuevo.",
     "NO_TOKEN_TITLE": "Sin enlace de incorporación",
-    "NO_TOKEN_BODY": "Por favor usa el enlace de incorporación proporcionado por Biomet para configurar tu cuenta de clínica."
+    "NO_TOKEN_BODY": "Por favor usa el enlace de incorporación proporcionado por el administrador para configurar tu cuenta de clínica."
   },
   "CLINIC_SETUP": {
     "TITLE": "Configura tu cuenta de clínica",
@@ -98,7 +98,7 @@
     "COUNTRY_LABEL": "País",
     "COUNTRY_PLACEHOLDER": "ej. Colombia",
     "EMAIL_LABEL": "Correo de la clínica",
-    "EMAIL_READONLY_HINT": "Este correo fue proporcionado por Biomet y no puede modificarse.",
+    "EMAIL_READONLY_HINT": "Este correo fue proporcionado por el administrador y no puede modificarse.",
     "PHONE_LABEL": "Teléfono",
     "PHONE_PLACEHOLDER": "555 555 5555",
     "NOTIFICATION_LABEL": "Método de notificación",
@@ -118,7 +118,7 @@
     "PHONE_PLACEHOLDER": "555 555 5555",
     "EMAIL_LABEL": "Correo electrónico",
     "EMAIL_PLACEHOLDER": "correo@dominio.com",
-    "EMAIL_READONLY_HINT": "Este correo fue proporcionado por Biomet y no puede modificarse.",
+    "EMAIL_READONLY_HINT": "Este correo fue proporcionado por el administrador y no puede modificarse.",
     "PASSWORD_LABEL": "Contraseña",
     "PASSWORD_PLACEHOLDER": "Mín. 10 caracteres",
     "CONFIRM_PASSWORD_LABEL": "Confirmar contraseña",
@@ -171,10 +171,14 @@
     "TAB_CONTACT_LAB": "Laboratorio",
     "COMING_SOON": "Próximamente",
     "CONTACT_LAB": {
-      "TITLE": "Biomet Lab",
       "SUBTITLE": "Tu laboratorio de referencia",
       "WHATSAPP_BTN": "Chatear por WhatsApp",
-      "LOCATION_TITLE": "Ubicación"
+      "LOCATION_TITLE": "Ubicación",
+      "ERROR": "No se pudo cargar la información del laboratorio. Intenta más tarde.",
+      "PHONE_WHATSAPP": "WhatsApp",
+      "PHONE_COMMERCIAL": "Comercial",
+      "PHONE_PERSONAL": "Personal",
+      "PHONE_OTHER": "Otro"
     },
     "CLINIC": {
       "EDIT": "Editar",
@@ -227,9 +231,9 @@
       "COPY_EXISTING": "Copiar enlace existente",
       "ERROR_CAPACITY": "Has alcanzado el máximo de 10 invitaciones pendientes. Espera a que alguna sea aceptada o expire antes de crear una nueva.",
       "ERROR_MEMBER": "Este usuario ya es miembro de la clínica.",
-      "EXISTING_TOGGLE": "Esta persona ya tiene una cuenta en VetAI →",
+      "EXISTING_TOGGLE": "Esta persona ya tiene una cuenta en KesherIO →",
       "EXISTING_TITLE": "Invitar a alguien con cuenta existente",
-      "EXISTING_BODY": "Usa esto si la persona ya tiene una cuenta en VetAI, ya sea de esta clínica u otra. Se unirá sin crear una nueva cuenta.",
+      "EXISTING_BODY": "Usa esto si la persona ya tiene una cuenta en KesherIO, ya sea de esta clínica u otra. Se unirá sin crear una nueva cuenta.",
       "EXISTING_EMAIL_PLACEHOLDER": "equipo@ejemplo.com",
       "EXISTING_SEND": "Enviar invitación",
       "EXISTING_CANCEL": "Cancelar",
@@ -392,7 +396,7 @@
     }
   },
   "BRANDING": {
-    "POWERED_BY": "Desarrollado por Biomet VetAI"
+    "POWERED_BY": "Desarrollado por KesherIO"
   },
   "RESULTS_INBOX": {
     "TITLE": "Resultados",

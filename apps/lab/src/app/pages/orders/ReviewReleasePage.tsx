@@ -33,14 +33,12 @@ export function ReviewReleasePage() {
       m.supabase.auth.getSession()
     );
     const token = data.session?.access_token ?? '';
-    const tenantId = localStorage.getItem('labTenantId') ?? '';
 
     const res = await fetch(`/api/results/${order.resultReport.id}/release`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        'x-tenant-id': tenantId,
       },
     });
 

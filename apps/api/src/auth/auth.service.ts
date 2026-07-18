@@ -19,7 +19,7 @@ export class AuthService {
   /**
    * Creates a new Supabase Auth user using the Admin API.
    * Sets email_confirm: true so the user can log in immediately without
-   * needing to verify their email — they were already invited by Biomet.
+   * needing to verify their email — they were already invited by KesherIO.
    *
    * Returns the new Supabase user UUID (becomes User.id in our DB).
    */

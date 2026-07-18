@@ -8,7 +8,7 @@ import { routes } from './app.routes';
 import { provideServiceWorker } from '@angular/service-worker';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 
-const LANG_KEY = 'vetai_lang';
+const LANG_KEY = 'kesherio_lang';
 
 function initTranslations(translate: TranslateService) {
   return () => {
@@ -34,7 +34,7 @@ export const appConfig: ApplicationConfig = {
     },
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
-      registrationStrategy: 'registerWhenStable:30000'
-    })
-  ]
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
+  ],
 };

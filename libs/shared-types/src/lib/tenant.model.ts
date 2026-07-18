@@ -1,4 +1,4 @@
-export type TenantType = 'CLINIC' | 'LAB' | 'VETAI';
+export type TenantType = 'CLINIC' | 'LAB' | 'PLATFORM';
 
 export interface Tenant {
   id: string;

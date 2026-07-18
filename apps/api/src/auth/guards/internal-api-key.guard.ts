@@ -1,9 +1,14 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 
 /**
- * Guards endpoints that are intended for internal Biomet use only.
+ * Guards endpoints that are intended for internal KesherIO use only.
  * Requires the request to include the `x-internal-api-key` header matching
  * the INTERNAL_API_KEY environment variable.
  *

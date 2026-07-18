@@ -12,7 +12,13 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiHeader } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiConsumes,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { OnboardingService } from './onboarding.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
@@ -109,9 +115,9 @@ export class OnboardingController {
 
   /**
    * Internal — requires x-internal-api-key header (INTERNAL_API_KEY env var).
-   * Called by Biomet to create a secure onboarding link for a new clinic admin.
+   * Called by KesherIO to create a secure onboarding link for a new clinic admin.
    *
-   * Input: { clinicName, clinicEmail, biometClinicId? }
+   * Input: { clinicName, clinicEmail, externalClinicId? }
    * Output: { token, onboardingLink: "/onboarding/welcome?token=<hex>" }
    */
   @Post('admin-link')
@@ -119,11 +125,11 @@ export class OnboardingController {
   @UseGuards(InternalApiKeyGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Create an ADMIN onboarding link (Biomet internal use)',
+    summary: 'Create an ADMIN onboarding link (KesherIO internal use)',
   })
   @ApiHeader({
     name: 'x-internal-api-key',
-    description: 'Internal API key for Biomet-only endpoints',
+    description: 'Internal API key for KesherIO-only endpoints',
     required: true,
   })
   createAdminLink(@Body() body: CreateAdminLinkDto) {

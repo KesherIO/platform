@@ -15,7 +15,7 @@ import type {
 
 /**
  * Guards lab-only endpoints. Works like TenantGuard but additionally verifies
- * that the resolved tenant has type LAB or VETAI — clinic users are rejected
+ * that the resolved tenant has type LAB or PLATFORM — clinic users are rejected
  * even if they somehow know a lab tenant ID.
  */
 @Injectable()
@@ -36,15 +36,25 @@ export class LabTenantGuard implements CanActivate {
     if (tenantId) {
       membership = await this.prisma.userTenantMembership.findUnique({
         where: { userId_tenantId: { userId: user.id, tenantId } },
-        select: { role: true, tenant: { select: { id: true, type: true } } },
+        select: {
+          role: true,
+          tenant: {
+            select: { id: true, name: true, logoUrl: true, type: true },
+          },
+        },
       });
     } else {
       membership = await this.prisma.userTenantMembership.findFirst({
         where: {
           userId: user.id,
-          tenant: { type: { in: ['LAB', 'VETAI'] } },
+          tenant: { type: { in: ['LAB', 'PLATFORM'] } },
         },
-        select: { role: true, tenant: { select: { id: true, type: true } } },
+        select: {
+          role: true,
+          tenant: {
+            select: { id: true, name: true, logoUrl: true, type: true },
+          },
+        },
         orderBy: { createdAt: 'asc' },
       });
     }
@@ -57,7 +67,7 @@ export class LabTenantGuard implements CanActivate {
 
     if (
       membership.tenant.type !== 'LAB' &&
-      membership.tenant.type !== 'VETAI'
+      membership.tenant.type !== 'PLATFORM'
     ) {
       throw new ForbiddenException(
         'This endpoint is restricted to laboratory tenants.'
@@ -66,6 +76,8 @@ export class LabTenantGuard implements CanActivate {
 
     const tenantContext: TenantContext = {
       tenantId: membership.tenant.id,
+      tenantName: membership.tenant.name,
+      tenantLogoUrl: membership.tenant.logoUrl,
       role: membership.role as TenantRole,
     };
     request.tenant = tenantContext;

@@ -110,4 +110,11 @@ export class TenantsController {
     const role = body.role === 'admin' ? TenantRole.ADMIN : TenantRole.VET;
     return this.tenantsService.updateStaffRole(tenant.tenantId, userId, role);
   }
+
+  @Get(':id/lab-contact')
+  @UseGuards(TenantGuard)
+  @ApiOperation({ summary: "Get the clinic's connected lab contact info" })
+  getLabContact(@CurrentTenant() tenant: TenantContext) {
+    return this.tenantsService.getLabContact(tenant.tenantId);
+  }
 }
