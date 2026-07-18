@@ -5,21 +5,24 @@
 ```
 vet-ai/
   apps/
-    frontend/          ← Angular 21 PWA
-    api/               ← NestJS REST API
+    frontend/          ← Angular 21 PWA (clinic-facing: vets create cases, order tests, view results)
+    lab/               ← React 19 + Vite (lab-staff-facing: orders queue, result entry/release, settings)
+    api/               ← NestJS REST API + MCP server (shared backend for both frontends)
   libs/
-    shared-types/      ← shared DTOs and interfaces (@vet-ai/shared-types)
+    shared-types/      ← shared DTOs and interfaces (@vet-ai/shared-types) — used by frontend + api, NOT lab (lab keeps its own local types, see below)
 ```
 
 ## Tech Stack
 
 - **Frontend**: Angular 21 (standalone components), Tailwind CSS, `@ngx-translate/core` v17, Angular Signals, RxJS, PWA
-- **API**: NestJS 11, TypeScript
-- **Shared**: `@vet-ai/shared-types` — all models/DTOs live here, imported by both apps
-- **Database** (TODO): PostgreSQL + Prisma
-- **Auth** (TODO): Supabase or Auth0, JWT
-- **Queue** (TODO): Redis + BullMQ
-- **Tests**: Vitest (frontend), Jest (api)
+- **Lab portal**: React 19 + Vite, `react-router-dom`, Tailwind CSS, `react-i18next` — no state library (local `useState`/`useEffect` + one `AuthContext`)
+- **API**: NestJS 11, TypeScript, Prisma + PostgreSQL (with pgvector), MCP server (`@modelcontextprotocol/sdk`) at `/api/mcp`
+- **Shared**: `@vet-ai/shared-types` — all models/DTOs live here, imported by `frontend` and `api` (not `lab`)
+- **Database**: PostgreSQL + Prisma — live, see `apps/api/prisma/schema.prisma`
+- **Auth**: Supabase (JWT verified against Supabase's live JWKS endpoint, ES256) — live. Login happens client-side against Supabase in both `frontend` and `lab`; this API has no login endpoint, only JWT verification
+- **RAG**: OpenAI embeddings + pgvector similarity search over a knowledge base (`apps/api/src/rag/`) — live
+- **Queue** (TODO): Redis + BullMQ — not implemented yet
+- **Tests**: Vitest (`frontend`, `lab`), Jest (`api`)
 
 ## Shared Types
 
@@ -89,6 +92,36 @@ Reusable UI lives in `apps/frontend/src/app/shared/components/`. Before creating
 - All API calls are currently mocked with `of()` + delay — marked with `// TODO: Replace with actual API call`
 - Use `LanguageService` (not `TranslateService` directly) to switch languages
 
+## Lab Portal (apps/lab)
+
+React 19 + Vite app for lab staff (not documented here until 2026-07-18 — verify
+against the actual code if something below seems off, this section is newer than
+the rest of the file).
+
+### Conventions
+
+- Domain types live in **one file**, `apps/lab/src/app/types/lab.types.ts` — no
+  inline type definitions in components (explicit rule in that file's header comment)
+- Components are function components in a single `.tsx` file each (no separate
+  template/style files, no co-located `.spec.tsx` convention established yet) —
+  `PascalCase.tsx`, e.g. `apps/lab/src/app/shared/components/StatusBadge.tsx`
+- Pages live in `apps/lab/src/app/pages/<feature>/`, shared/reusable components in
+  `apps/lab/src/app/shared/components/`
+- No state management library — local `useState`/`useEffect` per component, plus one
+  global `AuthContext` (`apps/lab/src/app/auth/AuthContext.tsx`) for the authenticated
+  user/tenant
+- API calls go through `apps/lab/src/app/shared/api/labApi.ts` — a small
+  `get`/`patch`/`post`/`del` fetch wrapper that attaches the Supabase JWT
+  (`Authorization: Bearer <token>`) on every request. Add new backend calls as new
+  methods on the `labApi` object, grouped by feature (e.g. `labApi.assistant.*`),
+  not as ad-hoc `fetch()` calls in components
+- Styling: Tailwind utility classes only, dark theme (`bg-gray-950/900`,
+  `border-gray-800`), same `cyan`/`purple` accent colors as `apps/frontend`
+- i18n: `react-i18next`, keys in `apps/lab/src/assets/i18n/en.json` and `es.json` —
+  same "no hardcoded strings" rule as the Angular frontend
+- Dev server runs on `http://localhost:4201` (Vite proxies `/api` to the NestJS API
+  on `http://localhost:3000`)
+
 ## API (apps/api)
 
 ### NestJS Conventions
@@ -105,15 +138,21 @@ Reusable UI lives in `apps/frontend/src/app/shared/components/`. Before creating
 
 ## Testing
 
-Every component, service, controller must have a `.spec.ts`. Minimum coverage:
+For `frontend` (Angular) and `api` (NestJS): every component, service, controller
+must have a `.spec.ts`. Minimum coverage:
 
 - Creates without error
 - Key public methods return expected shapes
 - Spies verify service calls with correct arguments
 
+For `lab` (React): no per-component test convention is established yet (only a
+single app-level smoke test exists as of 2026-07-18) — don't assume the same
+one-spec-per-component rule applies there unless asked to add it.
+
 ## File Naming
 
 - Angular components: `kebab-case.component.{ts,html,scss,spec.ts}`
+- React components (`apps/lab`): `PascalCase.tsx`, single file per component
 - NestJS files: `kebab-case.{module,controller,service}.ts`
 - Models: `kebab-case.model.ts` in `libs/shared-types/src/lib/`
 
@@ -130,6 +169,12 @@ npx nx serve frontend        # dev server (http://localhost:4200)
 npx nx test frontend         # unit tests
 npx nx build frontend        # production build
 npx nx lint frontend         # ESLint
+
+# Lab portal
+npx nx serve lab             # dev server (http://localhost:4201)
+npx nx test lab              # unit tests
+npx nx build lab             # production build
+npx nx lint lab              # ESLint
 
 # API
 npx nx serve api             # dev server (http://localhost:3000)

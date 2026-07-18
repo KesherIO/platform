@@ -1,13 +1,39 @@
-# New Nx Repository
+# Vet AI
+
+A multi-tenant veterinary lab platform, built as an Nx monorepo.
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+## Apps
+
+| App        | Path            | Stack                         | Description                                                                                                            |
+| ---------- | --------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `frontend` | `apps/frontend` | Angular 21 (standalone, PWA)  | Clinic-facing app — vets create cases, order lab tests, view results.                                                  |
+| `lab`      | `apps/lab`      | React 19 + Vite               | Lab-staff-facing portal — orders queue, result entry/release, lab settings, team management.                           |
+| `api`      | `apps/api`      | NestJS 11 + Prisma/PostgreSQL | Shared REST API for both frontends, plus a remote MCP server (`/api/mcp`) exposing lab-order and knowledge-base tools. |
+
+## Shared libraries
+
+- `libs/shared-types` (`@vet-ai/shared-types`) — shared DTOs/models used by `frontend` and `api`. Note: `lab` does **not** import from this lib — it keeps its own local domain types in `apps/lab/src/app/types/lab.types.ts`.
+
+## Running the apps
+
+```sh
+npx nx serve frontend   # http://localhost:4200
+npx nx serve lab        # http://localhost:4201
+npx nx serve api        # http://localhost:3000/api (Swagger at /api/docs)
+```
+
+Auth for both frontends is via Supabase; `api` verifies the resulting JWT (no login endpoint lives in this API).
+
+---
 
 [Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/js?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+
 ## Finish your Nx platform setup
 
 🚀 [Finish setting up your workspace](https://cloud.nx.app/connect/yGvrLDWXca) to get faster builds with remote caching, distributed task execution, and self-healing CI. [Learn more about Nx Cloud](https://nx.dev/ci/intro/why-nx-cloud).
+
 ## Generate a library
 
 ```sh
