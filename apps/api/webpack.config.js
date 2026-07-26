@@ -9,22 +9,6 @@ module.exports = {
       devtoolModuleFilenameTemplate: '[absolute-resource-path]',
     }),
   },
-  externals: [
-    function ({ request }, callback) {
-      if (request && request.startsWith('@vet-ai/')) {
-        return callback();
-      }
-      if (
-        request &&
-        !request.startsWith('.') &&
-        !request.startsWith('/') &&
-        !request.startsWith('@nx/')
-      ) {
-        return callback(null, 'commonjs ' + request);
-      }
-      callback();
-    },
-  ],
   plugins: [
     new NxAppWebpackPlugin({
       target: 'node',

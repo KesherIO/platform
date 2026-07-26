@@ -26,6 +26,8 @@ WORKDIR /app
 
 COPY --from=build /app/apps/api/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/libs/shared-types/dist ./node_modules/@vet-ai/shared-types/dist
+COPY --from=build /app/libs/shared-types/package.json ./node_modules/@vet-ai/shared-types/package.json
 
 EXPOSE 3000
 
