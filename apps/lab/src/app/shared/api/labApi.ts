@@ -1,4 +1,9 @@
 import { supabase } from '../../auth/supabase';
+import type {
+  LabOrderSummary,
+  PaginatedResponse,
+  LabOrdersQuery,
+} from '../../types/lab.types';
 
 async function authHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession();
@@ -45,8 +50,17 @@ async function del(path: string): Promise<void> {
 
 export const labApi = {
   orders: {
-    list: (status?: string) =>
-      get<unknown[]>(`lab/orders${status ? `?status=${status}` : ''}`),
+    list: (params?: LabOrdersQuery) => {
+      const sp = new URLSearchParams();
+      if (params?.status) sp.set('status', params.status);
+      if (params?.search) sp.set('search', params.search);
+      if (params?.page) sp.set('page', String(params.page));
+      if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
+      const qs = sp.toString();
+      return get<PaginatedResponse<LabOrderSummary>>(
+        `lab/orders${qs ? `?${qs}` : ''}`
+      );
+    },
     getById: (id: string) => get<unknown>(`lab/orders/${id}`),
     updateStatus: (id: string, status: string) =>
       patch<unknown>(`lab/orders/${id}/status`, { status }),

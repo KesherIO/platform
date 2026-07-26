@@ -5,7 +5,13 @@
     "saving": "Guardando...",
     "saved": "Guardado correctamente",
     "error_loading": "Error cargando",
-    "orders": "órdenes"
+    "orders": "órdenes",
+    "showing": "Mostrando",
+    "of": "de",
+    "results": "resultados",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "no_results": "No se encontraron resultados"
   },
   "auth": {
     "title": "Kesher IO Technologies",
@@ -69,6 +75,8 @@
     "empty": "No hay órdenes con este filtro.",
     "error": "Error cargando órdenes:",
     "owner": "Propietario:",
+    "search_placeholder": "Buscar por paciente, clínica o número de orden...",
+    "search_clear": "Borrar búsqueda",
     "filter": {
       "all": "Todos",
       "received": "Recibidos",

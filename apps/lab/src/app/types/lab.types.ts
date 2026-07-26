@@ -141,3 +141,18 @@ export interface LabContactInfo {
   mapLat: number | null;
   mapLng: number | null;
 }
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface LabOrdersQuery {
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}

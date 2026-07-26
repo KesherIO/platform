@@ -28,6 +28,7 @@ import { UpsertLaboratoryProfileDto } from './dto/upsert-laboratory-profile.dto'
 import { UpdateLabContactDto } from './dto/update-lab-contact.dto';
 import { CreateLabUserDto } from './dto/create-lab-user.dto';
 import { UpdateLabUserRoleDto } from './dto/update-lab-user-role.dto';
+import { ListLabOrdersDto } from './dto/list-lab-orders.dto';
 
 @Controller('lab')
 export class LabController {
@@ -66,14 +67,14 @@ export class LabController {
     };
   }
 
-  // GET /api/lab/orders?status=RECEIVED_BY_LAB
+  // GET /api/lab/orders?status=RECEIVED_BY_LAB&search=luna&page=1&pageSize=20
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Get('orders')
   getOrders(
     @CurrentTenant() tenant: TenantContext,
-    @Query('status') status?: string
+    @Query() query: ListLabOrdersDto
   ) {
-    return this.labService.getLabOrders(tenant.tenantId, status);
+    return this.labService.getLabOrders(tenant.tenantId, query);
   }
 
   // GET /api/lab/orders/:id

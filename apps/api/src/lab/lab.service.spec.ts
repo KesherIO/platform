@@ -42,6 +42,7 @@ describe('LabService', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+        count: jest.fn(),
       },
       orderedTest: {
         findFirst: jest.fn(),
@@ -70,14 +71,18 @@ describe('LabService', () => {
   describe('getLabOrders', () => {
     it('returns formatted orders for the lab tenant', async () => {
       (prisma.order.findMany as jest.Mock).mockResolvedValue([mockOrder]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(1);
 
-      const result = await service.getLabOrders(LAB_TENANT_ID);
+      const result = await service.getLabOrders(LAB_TENANT_ID, {});
 
       expect(prisma.order.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { labTenantId: LAB_TENANT_ID } })
+        expect.objectContaining({
+          where: { AND: [{ labTenantId: LAB_TENANT_ID }] },
+        })
       );
-      expect(result[0].clinicName).toBe('Clínica Veterinaria Demo');
-      expect(result[0].patientName).toBe('Max');
+      expect(result.data[0].clinicName).toBe('Clínica Veterinaria Demo');
+      expect(result.data[0].patientName).toBe('Max');
+      expect(result.total).toBe(1);
     });
   });
 
