@@ -7,6 +7,7 @@ import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import type { ListLabOrdersDto } from './dto/list-lab-orders.dto';
 
 // Valid status transitions for orders handled by the lab
 const LAB_STATUS_TRANSITIONS: Record<string, OrderStatus[]> = {
@@ -27,30 +28,56 @@ export class LabService {
   // Orders queue
   // ---------------------------------------------------------------------------
 
-  async getLabOrders(labTenantId: string, status?: string) {
-    const where = status
-      ? { labTenantId, status: status as OrderStatus }
-      : { labTenantId };
+  async getLabOrders(labTenantId: string, query: ListLabOrdersDto) {
+    const { status, search, page = 1, pageSize = 20 } = query;
 
-    const orders = await this.prisma.order.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        case: {
-          select: {
-            patientName: true,
-            patientSpecies: true,
-            ownerName: true,
+    const conditions: Record<string, unknown>[] = [
+      { labTenantId, ...(status && { status: status as OrderStatus }) },
+    ];
+
+    if (search) {
+      conditions.push({
+        OR: [
+          { requisitionNumber: { contains: search, mode: 'insensitive' } },
+          { case: { patientName: { contains: search, mode: 'insensitive' } } },
+          { tenant: { name: { contains: search, mode: 'insensitive' } } },
+        ],
+      });
+    }
+
+    const where = { AND: conditions };
+    const skip = (page - 1) * pageSize;
+
+    const [orders, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        include: {
+          case: {
+            select: {
+              patientName: true,
+              patientSpecies: true,
+              ownerName: true,
+            },
+          },
+          tenant: { select: { name: true } },
+          orderedTests: {
+            orderBy: { createdAt: 'asc' },
           },
         },
-        tenant: { select: { name: true } },
-        orderedTests: {
-          orderBy: { createdAt: 'asc' },
-        },
-      },
-    });
+      }),
+      this.prisma.order.count({ where }),
+    ]);
 
-    return orders.map((o) => this.formatLabOrder(o));
+    return {
+      data: orders.map((o) => this.formatLabOrder(o)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async getLabOrderById(labTenantId: string, orderId: string) {
