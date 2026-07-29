@@ -26,6 +26,7 @@ export function OrdersQueuePage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [filtering, setFiltering] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const FILTER_TABS = [
@@ -37,7 +38,8 @@ export function OrdersQueuePage() {
 
   useEffect(() => {
     let ignore = false;
-    setLoading(true);
+    if (orders.length === 0) setLoading(true);
+    setFiltering(true);
     setError(null);
     labApi.orders
       .list({
@@ -57,7 +59,10 @@ export function OrdersQueuePage() {
         setError(err.message);
       })
       .finally(() => {
-        if (!ignore) setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+          setFiltering(false);
+        }
       });
     return () => {
       ignore = true;
@@ -103,9 +108,27 @@ export function OrdersQueuePage() {
         ))}
       </div>
 
-      {loading && (
-        <div className="flex items-center justify-center py-20">
-          <div className="h-6 w-6 animate-spin rounded-full border-4 border-cyan border-t-transparent" />
+      {loading && orders.length === 0 && (
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
+            >
+              <div className="space-y-2">
+                <div className="h-3 w-24 animate-pulse rounded bg-gray-800" />
+                <div className="h-4 w-40 animate-pulse rounded bg-gray-700" />
+                <div className="h-3 w-32 animate-pulse rounded bg-gray-800" />
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="space-y-2 text-right">
+                  <div className="ml-auto h-3 w-28 animate-pulse rounded bg-gray-800" />
+                  <div className="ml-auto h-3 w-16 animate-pulse rounded bg-gray-800" />
+                </div>
+                <div className="h-6 w-20 animate-pulse rounded-full bg-gray-700" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -121,8 +144,12 @@ export function OrdersQueuePage() {
         </div>
       )}
 
-      {!loading && !error && orders.length > 0 && (
-        <>
+      {!error && orders.length > 0 && (
+        <div
+          className={`transition-opacity ${
+            filtering ? 'opacity-60' : 'opacity-100'
+          }`}
+        >
           <div className="space-y-2">
             {orders.map((order) => (
               <Link
@@ -175,7 +202,7 @@ export function OrdersQueuePage() {
             pageSize={PAGE_SIZE}
             onPageChange={setPage}
           />
-        </>
+        </div>
       )}
     </div>
   );

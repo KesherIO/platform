@@ -7,9 +7,18 @@ export function Layout() {
   const { t } = useTranslation();
 
   const NAV_ITEMS = [
-    { to: '/orders', label: t('nav.orders_queue'), icon: '🧪' },
-    { to: '/settings/users', label: t('nav.team'), icon: '👥' },
-    { to: '/settings/laboratory', label: t('nav.settings'), icon: '⚙️' },
+    {
+      to: '/orders',
+      label: t('nav.orders_queue'),
+      icon: 'fa-solid fa-flask-vial',
+    },
+    { to: '/clients', label: t('nav.clients'), icon: 'fa-solid fa-building' },
+    { to: '/settings/users', label: t('nav.team'), icon: 'fa-solid fa-users' },
+    {
+      to: '/settings/laboratory',
+      label: t('nav.settings'),
+      icon: 'fa-solid fa-gear',
+    },
   ];
 
   return (
@@ -41,7 +50,7 @@ export function Layout() {
                 }`
               }
             >
-              <span>{item.icon}</span>
+              <i className={`${item.icon} w-4 text-center text-sm`} />
               {item.label}
             </NavLink>
           ))}

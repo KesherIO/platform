@@ -39,6 +39,7 @@
     "brand": "Kesher IO",
     "lab_label": "Laboratory",
     "orders_queue": "Orders queue",
+    "clients": "Clients",
     "team": "Team",
     "settings": "Settings",
     "sign_out": "Sign out"
@@ -182,6 +183,111 @@
     "remove_signer": "Remove",
     "no_signers": "No signers configured yet. Add one to appear on report footers."
   },
+  "clients": {
+    "title": "Clients",
+    "subtitle": "client organizations",
+    "add_client": "Add client",
+    "empty": "No clients yet. Add your first client to get started.",
+    "error": "Error loading clients.",
+    "search_placeholder": "Search by name or email...",
+    "filter": {
+      "all": "All",
+      "pending": "Pending",
+      "active": "Active",
+      "suspended": "Suspended"
+    },
+    "status": {
+      "PENDING": "Pending onboarding",
+      "ACTIVE": "Active",
+      "SUSPENDED": "Suspended"
+    },
+    "type": {
+      "VETERINARY_CLINIC": "Veterinary clinic",
+      "INDEPENDENT_VET": "Independent vet",
+      "BREEDER": "Breeder",
+      "FARM": "Farm",
+      "SHELTER": "Shelter",
+      "RESEARCH_ORGANIZATION": "Research org",
+      "INDIVIDUAL": "Individual",
+      "OTHER": "Other"
+    },
+    "columns": {
+      "name": "Name",
+      "type": "Type",
+      "contact": "Contact",
+      "users": "Users",
+      "orders": "Orders",
+      "status": "Status",
+      "created": "Created"
+    },
+    "form": {
+      "title": "Add new client",
+      "name": "Client name",
+      "name_placeholder": "e.g. Happy Paws Clinic",
+      "client_type": "Client type",
+      "client_type_placeholder": "Select type",
+      "contact_name": "Primary contact name",
+      "contact_name_placeholder": "e.g. Dr. Jane Smith",
+      "contact_email": "Primary contact email",
+      "contact_email_placeholder": "e.g. contact@clinic.com",
+      "phone": "Phone number",
+      "phone_placeholder": "e.g. +1 555 555 555",
+      "address": "Address",
+      "address_placeholder": "Street address, city, country",
+      "cancel": "Cancel",
+      "close": "Close",
+      "submit": "Create client",
+      "submitting": "Creating..."
+    },
+    "invitation": {
+      "title": "Invitation link",
+      "generated": "Onboarding link generated successfully!",
+      "description": "Share this link with the client. They will use it to set up their account.",
+      "copy_link": "Copy link",
+      "copy_message": "Copy invitation message",
+      "copied": "Copied!",
+      "link_label": "Onboarding link",
+      "expires": "Expires",
+      "status_active": "Active invitation",
+      "status_accepted": "Accepted",
+      "status_revoked": "Revoked",
+      "status_expired": "Expired",
+      "no_invitation": "No invitation sent yet.",
+      "regenerate": "Regenerate link",
+      "revoke": "Revoke link",
+      "confirm_revoke": "Revoke this invitation link? The client will no longer be able to use it to onboard.",
+      "confirm_regenerate": "Generate a new invitation link? This will revoke the current one.",
+      "message_template": "Hello! You've been invited to join {{labName}} on KesherIO. Use this link to set up your account: {{link}}"
+    },
+    "detail": {
+      "title": "Client details",
+      "info": "Client information",
+      "lab_connection": "Connected laboratory",
+      "users_title": "Client users",
+      "no_users": "No users yet. The client admin will be created when they accept the invitation.",
+      "orders_title": "Recent orders",
+      "no_orders": "No orders from this client yet.",
+      "edit": "Edit",
+      "save": "Save",
+      "saving": "Saving...",
+      "suspend": "Suspend client",
+      "reactivate": "Reactivate client",
+      "delete": "Delete client",
+      "confirm_suspend": "Suspend {{name}}? Their users will not be able to create new cases or orders.",
+      "confirm_delete": "Delete {{name}}? This cannot be undone. Only clients with no orders can be deleted.",
+      "back": "← Clients"
+    },
+    "errors": {
+      "create": "Error creating client:",
+      "update": "Error updating client:",
+      "suspend": "Error suspending client:",
+      "reactivate": "Error reactivating client:",
+      "delete": "Error deleting client:",
+      "regenerate": "Error regenerating invitation:",
+      "revoke": "Error revoking invitation:",
+      "load_detail": "Error loading client details."
+    }
+  },
   "team": {
     "title": "Team",
     "members": "members",
@@ -204,6 +310,9 @@
       "submit": "Add member",
       "submitting": "Adding..."
     },
+    "edit": "Edit",
+    "save": "Save",
+    "saving": "Saving...",
     "remove": {
       "button": "Remove",
       "confirm": "Remove {{name}} from the lab? They will lose access immediately."
@@ -211,6 +320,7 @@
     "errors": {
       "load": "Error loading team members.",
       "create": "Error adding user:",
+      "update": "Error updating user:",
       "remove": "Error removing user:"
     }
   }

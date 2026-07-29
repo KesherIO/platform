@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { LabController } from './lab.controller';
 import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
+import { LabClientsService } from './lab-clients.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('LabController', () => {
@@ -33,11 +34,30 @@ describe('LabController', () => {
       removeMember: jest.fn().mockResolvedValue(undefined),
     };
 
+    const clientsServiceMock: Partial<jest.Mocked<LabClientsService>> = {
+      listClients: jest.fn().mockResolvedValue({
+        data: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 0,
+      }),
+      getClientDetail: jest.fn().mockResolvedValue({}),
+      createClient: jest.fn().mockResolvedValue({}),
+      updateClient: jest.fn().mockResolvedValue({}),
+      suspendClient: jest.fn().mockResolvedValue(undefined),
+      reactivateClient: jest.fn().mockResolvedValue(undefined),
+      regenerateInvitation: jest.fn().mockResolvedValue({}),
+      revokeInvitation: jest.fn().mockResolvedValue({}),
+      deleteClient: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LabController],
       providers: [
         { provide: LabService, useValue: serviceMock },
         { provide: LabUsersService, useValue: usersServiceMock },
+        { provide: LabClientsService, useValue: clientsServiceMock },
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('test-key') },

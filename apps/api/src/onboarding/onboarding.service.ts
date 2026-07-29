@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { StorageService } from '../storage/storage.service';
 import { TenantRole } from '@prisma/client';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomBytes, randomUUID, createHash } from 'crypto';
 import {
   SaveStaffProfileDto,
   GenerateInviteDto,
@@ -452,9 +452,14 @@ export class OnboardingService {
   // ---------------------------------------------------------------------------
 
   async verifyOnboardingToken(token: string) {
-    const record = await this.prisma.onboardingToken.findUnique({
-      where: { token },
-    });
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const record =
+      (await this.prisma.onboardingToken.findFirst({
+        where: { tokenHash },
+      })) ??
+      (await this.prisma.onboardingToken.findUnique({
+        where: { token },
+      }));
 
     if (!record) {
       return { valid: false as const, reason: 'not_found' as const };
@@ -462,6 +467,10 @@ export class OnboardingService {
 
     if (record.used) {
       return { valid: false as const, reason: 'used' as const };
+    }
+
+    if (record.revokedAt) {
+      return { valid: false as const, reason: 'revoked' as const };
     }
 
     if (record.expiresAt < new Date()) {
@@ -487,15 +496,23 @@ export class OnboardingService {
     logoFile?: Express.Multer.File
   ) {
     // 1. Verify token (fail fast before any external calls)
-    const record = await this.prisma.onboardingToken.findUnique({
-      where: { token: dto.token },
-    });
+    const tokenHash = createHash('sha256').update(dto.token).digest('hex');
+    const record =
+      (await this.prisma.onboardingToken.findFirst({
+        where: { tokenHash },
+      })) ??
+      (await this.prisma.onboardingToken.findUnique({
+        where: { token: dto.token },
+      }));
 
     if (!record) {
       throw new NotFoundException('Onboarding token not found');
     }
     if (record.used) {
       throw new ConflictException('This onboarding link has already been used');
+    }
+    if (record.revokedAt) {
+      throw new BadRequestException('This onboarding link has been revoked');
     }
     if (record.expiresAt < new Date()) {
       throw new BadRequestException('This onboarding link has expired');
@@ -535,6 +552,8 @@ export class OnboardingService {
             email: dto.clinicEmail,
             phone: dto.clinicPhone,
             notificationMethod: dto.notificationMethod,
+            clientType: record.clientType ?? undefined,
+            clientStatus: 'ACTIVE',
             ...(dto.country ? { country: dto.country } : {}),
           },
         });
@@ -560,9 +579,21 @@ export class OnboardingService {
 
         // Mark token as used
         await tx.onboardingToken.update({
-          where: { token: dto.token },
+          where: { id: record.id },
           data: { used: true, usedAt: new Date() },
         });
+
+        // Create lab connection if this invitation was created by a lab
+        if (record.laboratoryId) {
+          await tx.clinicLabConnection.create({
+            data: {
+              clinicId: tenant.id,
+              labId: record.laboratoryId,
+              isDefault: true,
+              isActive: true,
+            },
+          });
+        }
 
         return { tenantId: tenant.id, userId: supabaseUserId };
       }));

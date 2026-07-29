@@ -120,6 +120,23 @@ enum TenantType {
   PLATFORM  // KesherIO platform tenant (singleton)
 }
 
+enum ClientType {
+  VETERINARY_CLINIC
+  INDEPENDENT_VET
+  BREEDER
+  FARM
+  SHELTER
+  RESEARCH_ORGANIZATION
+  INDIVIDUAL
+  OTHER
+}
+
+enum ClientStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
 /// Status of a single ordered test within a lab order.
 enum OrderedTestStatus {
   PENDING      // received, not yet started
@@ -140,11 +157,14 @@ enum ResultEntryMethod {
 // ---------------------------------------------------------------------------
 
 model Tenant {
-  id                 String     @id @default(cuid())
+  id                 String       @id @default(cuid())
   name               String
-  type               TenantType @default(CLINIC)
-  slug               String     @unique
+  type               TenantType   @default(CLINIC)
+  slug               String       @unique
+  clientType         ClientType?
+  clientStatus       ClientStatus?
   // Contact & clinic details — collected during onboarding clinic-setup step
+  primaryContactName String?
   address            String?
   city               String?
   email              String?
@@ -229,17 +249,23 @@ model TenantInvitation {
 /// On completion, the backend creates the Supabase user, Tenant, and ADMIN membership.
 model OnboardingToken {
   id              String              @id @default(cuid())
-  token           String              @unique
+  token           String?             @unique  // DEPRECATED — kept for backward compat with old rows
+  tokenHash       String?             @unique  // SHA-256 hex of the raw token (new rows use this)
   type            OnboardingTokenType @default(ADMIN)
   clinicName      String
   clinicEmail     String              // contact email for the clinic (Tenant.email)
+  clientType      ClientType?
   externalClinicId String?             // optional external reference from the platform
+  laboratoryId    String?              // lab tenant that created this invitation
   expiresAt       DateTime
   used            Boolean             @default(false)
   usedAt          DateTime?
+  revokedAt       DateTime?
+  createdByUserId String?
   createdAt       DateTime            @default(now())
 
   @@index([token])
+  @@index([tokenHash])
   @@map("onboarding_tokens")
 }
 

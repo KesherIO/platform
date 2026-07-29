@@ -11,6 +11,8 @@ import { ResultEntryPage } from './pages/orders/ResultEntryPage';
 import { ReviewReleasePage } from './pages/orders/ReviewReleasePage';
 import { LaboratorySettingsPage } from './pages/settings/LaboratorySettingsPage';
 import { TeamPage } from './pages/settings/TeamPage';
+import { ClientsPage } from './pages/clients/ClientsPage';
+import { ClientDetailPage } from './pages/clients/ClientDetailPage';
 
 export function App() {
   return (
@@ -38,6 +40,8 @@ export function App() {
             path="/orders/:orderId/review"
             element={<ReviewReleasePage />}
           />
+          <Route path="/clients" element={<ClientsPage />} />
+          <Route path="/clients/:id" element={<ClientDetailPage />} />
           <Route
             path="/settings/laboratory"
             element={<LaboratorySettingsPage />}
