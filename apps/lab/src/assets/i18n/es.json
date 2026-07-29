@@ -39,6 +39,7 @@
     "brand": "KesherIO",
     "lab_label": "Laboratorio",
     "orders_queue": "Cola de órdenes",
+    "clients": "Clientes",
     "team": "Equipo",
     "settings": "Configuración",
     "sign_out": "Cerrar sesión"
@@ -182,6 +183,111 @@
     "remove_signer": "Eliminar",
     "no_signers": "No hay firmantes configurados. Agrega uno para que aparezca en los reportes."
   },
+  "clients": {
+    "title": "Clientes",
+    "subtitle": "organizaciones cliente",
+    "add_client": "Agregar cliente",
+    "empty": "Aún no hay clientes. Agrega tu primer cliente para comenzar.",
+    "error": "Error cargando clientes.",
+    "search_placeholder": "Buscar por nombre o correo...",
+    "filter": {
+      "all": "Todos",
+      "pending": "Pendientes",
+      "active": "Activos",
+      "suspended": "Suspendidos"
+    },
+    "status": {
+      "PENDING": "Pendiente de registro",
+      "ACTIVE": "Activo",
+      "SUSPENDED": "Suspendido"
+    },
+    "type": {
+      "VETERINARY_CLINIC": "Clínica veterinaria",
+      "INDEPENDENT_VET": "Veterinario independiente",
+      "BREEDER": "Criadero",
+      "FARM": "Granja",
+      "SHELTER": "Refugio",
+      "RESEARCH_ORGANIZATION": "Org. de investigación",
+      "INDIVIDUAL": "Individual",
+      "OTHER": "Otro"
+    },
+    "columns": {
+      "name": "Nombre",
+      "type": "Tipo",
+      "contact": "Contacto",
+      "users": "Usuarios",
+      "orders": "Órdenes",
+      "status": "Estado",
+      "created": "Creado"
+    },
+    "form": {
+      "title": "Agregar nuevo cliente",
+      "name": "Nombre del cliente",
+      "name_placeholder": "ej. Clínica Feliz Mascota",
+      "client_type": "Tipo de cliente",
+      "client_type_placeholder": "Seleccionar tipo",
+      "contact_name": "Nombre del contacto principal",
+      "contact_name_placeholder": "ej. Dra. María García",
+      "contact_email": "Correo del contacto principal",
+      "contact_email_placeholder": "ej. contacto@clinica.com",
+      "phone": "Teléfono",
+      "phone_placeholder": "ej. +57 300 555 5555",
+      "address": "Dirección",
+      "address_placeholder": "Dirección, ciudad, país",
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "submit": "Crear cliente",
+      "submitting": "Creando..."
+    },
+    "invitation": {
+      "title": "Enlace de invitación",
+      "generated": "¡Enlace de registro generado correctamente!",
+      "description": "Comparte este enlace con el cliente. Lo usará para configurar su cuenta.",
+      "copy_link": "Copiar enlace",
+      "copy_message": "Copiar mensaje de invitación",
+      "copied": "¡Copiado!",
+      "link_label": "Enlace de registro",
+      "expires": "Expira",
+      "status_active": "Invitación activa",
+      "status_accepted": "Aceptada",
+      "status_revoked": "Revocada",
+      "status_expired": "Expirada",
+      "no_invitation": "No se ha enviado invitación aún.",
+      "regenerate": "Regenerar enlace",
+      "revoke": "Revocar enlace",
+      "confirm_revoke": "¿Revocar este enlace de invitación? El cliente ya no podrá usarlo para registrarse.",
+      "confirm_regenerate": "¿Generar un nuevo enlace de invitación? El enlace actual será revocado.",
+      "message_template": "¡Hola! Has sido invitado a unirte a {{labName}} en KesherIO. Usa este enlace para configurar tu cuenta: {{link}}"
+    },
+    "detail": {
+      "title": "Detalles del cliente",
+      "info": "Información del cliente",
+      "lab_connection": "Laboratorio conectado",
+      "users_title": "Usuarios del cliente",
+      "no_users": "Aún no hay usuarios. El administrador del cliente se creará cuando acepte la invitación.",
+      "orders_title": "Órdenes recientes",
+      "no_orders": "Aún no hay órdenes de este cliente.",
+      "edit": "Editar",
+      "save": "Guardar",
+      "saving": "Guardando...",
+      "suspend": "Suspender cliente",
+      "reactivate": "Reactivar cliente",
+      "delete": "Eliminar cliente",
+      "confirm_suspend": "¿Suspender a {{name}}? Sus usuarios no podrán crear nuevos casos ni órdenes.",
+      "confirm_delete": "¿Eliminar a {{name}}? Esta acción no se puede deshacer. Solo se pueden eliminar clientes sin órdenes.",
+      "back": "← Clientes"
+    },
+    "errors": {
+      "create": "Error al crear cliente:",
+      "update": "Error al actualizar cliente:",
+      "suspend": "Error al suspender cliente:",
+      "reactivate": "Error al reactivar cliente:",
+      "delete": "Error al eliminar cliente:",
+      "regenerate": "Error al regenerar invitación:",
+      "revoke": "Error al revocar invitación:",
+      "load_detail": "Error cargando detalles del cliente."
+    }
+  },
   "team": {
     "title": "Equipo",
     "members": "miembros",
@@ -204,6 +310,9 @@
       "submit": "Agregar miembro",
       "submitting": "Agregando..."
     },
+    "edit": "Editar",
+    "save": "Guardar",
+    "saving": "Guardando...",
     "remove": {
       "button": "Eliminar",
       "confirm": "¿Eliminar a {{name}} del laboratorio? Perderá el acceso inmediatamente."
@@ -211,6 +320,7 @@
     "errors": {
       "load": "Error cargando el equipo.",
       "create": "Error al agregar el usuario:",
+      "update": "Error al actualizar el usuario:",
       "remove": "Error al eliminar el usuario:"
     }
   }

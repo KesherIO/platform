@@ -8,6 +8,7 @@ import { TenantRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import type { CreateLabUserDto } from './dto/create-lab-user.dto';
+import type { UpdateLabUserDto } from './dto/update-lab-user.dto';
 
 @Injectable()
 export class LabUsersService {
@@ -131,6 +132,50 @@ export class LabUsersService {
       await this.auth.deleteSupabaseUser(supabaseId);
       throw err;
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Update user info
+  // ---------------------------------------------------------------------------
+
+  async updateUser(labTenantId: string, userId: string, dto: UpdateLabUserDto) {
+    const membership = await this.prisma.userTenantMembership.findUnique({
+      where: { userId_tenantId: { userId, tenantId: labTenantId } },
+    });
+    if (!membership)
+      throw new NotFoundException('User is not a member of this lab.');
+
+    if (dto.email) {
+      const existing = await this.prisma.user.findFirst({
+        where: { email: dto.email, NOT: { id: userId } },
+      });
+      if (existing)
+        throw new ConflictException('A user with this email already exists.');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.firstName !== undefined && { firstName: dto.firstName }),
+        ...(dto.lastName !== undefined && { lastName: dto.lastName }),
+        ...(dto.email !== undefined && { email: dto.email }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    return {
+      userId: updated.id,
+      email: updated.email,
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+      role: membership.role,
+    };
   }
 
   // ---------------------------------------------------------------------------

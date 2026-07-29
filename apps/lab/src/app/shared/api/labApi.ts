@@ -3,6 +3,10 @@ import type {
   LabOrderSummary,
   PaginatedResponse,
   LabOrdersQuery,
+  ClientOrganization,
+  ClientDetail,
+  ClientsQuery,
+  CreateClientResponse,
 } from '../../types/lab.types';
 
 async function authHeaders(): Promise<HeadersInit> {
@@ -84,6 +88,33 @@ export const labApi = {
     create: (data: Record<string, unknown>) => post<unknown>('lab/users', data),
     updateRole: (userId: string, role: string) =>
       patch<unknown>(`lab/users/${userId}/role`, { role }),
+    update: (userId: string, data: Record<string, unknown>) =>
+      patch<unknown>(`lab/users/${userId}`, data),
     remove: (userId: string) => del(`lab/users/${userId}`),
+  },
+  clients: {
+    list: (params?: ClientsQuery) => {
+      const sp = new URLSearchParams();
+      if (params?.status) sp.set('status', params.status);
+      if (params?.search) sp.set('search', params.search);
+      if (params?.page) sp.set('page', String(params.page));
+      if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
+      const qs = sp.toString();
+      return get<PaginatedResponse<ClientOrganization>>(
+        `lab/clients${qs ? `?${qs}` : ''}`
+      );
+    },
+    getById: (id: string) => get<ClientDetail>(`lab/clients/${id}`),
+    create: (data: Record<string, unknown>) =>
+      post<CreateClientResponse>('lab/clients', data),
+    update: (id: string, data: Record<string, unknown>) =>
+      patch<unknown>(`lab/clients/${id}`, data),
+    suspend: (id: string) => post<unknown>(`lab/clients/${id}/suspend`),
+    reactivate: (id: string) => post<unknown>(`lab/clients/${id}/reactivate`),
+    regenerateInvitation: (id: string) =>
+      post<CreateClientResponse>(`lab/clients/${id}/invitation/regenerate`),
+    revokeInvitation: (id: string) =>
+      post<unknown>(`lab/clients/${id}/invitation/revoke`),
+    remove: (id: string) => del(`lab/clients/${id}`),
   },
 };

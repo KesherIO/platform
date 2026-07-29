@@ -19,6 +19,12 @@ interface CreateForm {
   role: LabRole;
 }
 
+interface EditForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 const EMPTY_FORM: CreateForm = {
   firstName: '',
   lastName: '',
@@ -40,8 +46,17 @@ export function TeamPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const loadMembers = () => {
-    setLoading(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({
+    firstName: '',
+    lastName: '',
+    email: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadMembers = (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     setError(null);
     labApi.users
       .list()
@@ -62,7 +77,7 @@ export function TeamPage() {
       await labApi.users.create(form as unknown as Record<string, unknown>);
       setShowForm(false);
       setForm(EMPTY_FORM);
-      loadMembers();
+      loadMembers(false);
     } catch (err) {
       setFormError(`${t('team.errors.create')} ${(err as Error).message}`);
     } finally {
@@ -79,8 +94,7 @@ export function TeamPage() {
         )
       );
     } catch {
-      // role change failed — reload to show correct state
-      loadMembers();
+      loadMembers(false);
     }
   };
 
@@ -94,6 +108,31 @@ export function TeamPage() {
       setMembers((prev) => prev.filter((m) => m.userId !== member.userId));
     } catch (err) {
       alert(`${t('team.errors.remove')} ${(err as Error).message}`);
+    }
+  };
+
+  const startEditing = (member: LabMember) => {
+    setEditForm({
+      firstName: member.firstName ?? '',
+      lastName: member.lastName ?? '',
+      email: member.email,
+    });
+    setEditingId(member.userId);
+    setActionError(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    try {
+      setSaving(true);
+      setActionError(null);
+      await labApi.users.update(editingId, editForm);
+      setEditingId(null);
+      loadMembers(false);
+    } catch (err) {
+      setActionError(`${t('team.errors.update')} ${(err as Error).message}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -235,10 +274,33 @@ export function TeamPage() {
         </div>
       )}
 
-      {/* Members list */}
+      {actionError && (
+        <div className="mb-4 rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-300">
+          {actionError}
+        </div>
+      )}
+
+      {/* Members list — skeleton */}
       {loading && (
-        <div className="flex items-center justify-center py-16">
-          <div className="h-6 w-6 animate-spin rounded-full border-4 border-cyan border-t-transparent" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-9 w-9 animate-pulse rounded-full bg-gray-700" />
+                <div className="space-y-2">
+                  <div className="h-4 w-32 animate-pulse rounded bg-gray-700" />
+                  <div className="h-3 w-44 animate-pulse rounded bg-gray-800" />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-6 w-20 animate-pulse rounded-full bg-gray-700" />
+                <div className="h-7 w-16 animate-pulse rounded-lg bg-gray-800" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -256,6 +318,7 @@ export function TeamPage() {
         <div className="space-y-2">
           {members.map((member) => {
             const isMe = member.userId === user?.id;
+            const isEditing = editingId === member.userId;
             const displayName =
               [member.firstName, member.lastName].filter(Boolean).join(' ') ||
               member.email;
@@ -263,59 +326,139 @@ export function TeamPage() {
             return (
               <div
                 key={member.userId}
-                className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
+                className="rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-700 text-sm font-semibold text-white">
-                    {(member.firstName?.[0] ?? member.email[0]).toUpperCase()}
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs text-gray-500">
+                          {t('team.form.first_name')}
+                        </label>
+                        <input
+                          value={editForm.firstName}
+                          onChange={(e) =>
+                            setEditForm((f) => ({
+                              ...f,
+                              firstName: e.target.value,
+                            }))
+                          }
+                          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-gray-500">
+                          {t('team.form.last_name')}
+                        </label>
+                        <input
+                          value={editForm.lastName}
+                          onChange={(e) =>
+                            setEditForm((f) => ({
+                              ...f,
+                              lastName: e.target.value,
+                            }))
+                          }
+                          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-500">
+                        {t('team.form.email')}
+                      </label>
+                      <input
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, email: e.target.value }))
+                        }
+                        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSaveEdit}
+                        disabled={saving}
+                        className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
+                      >
+                        {saving ? t('team.saving') : t('team.save')}
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        disabled={saving}
+                        className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+                      >
+                        {t('team.form.cancel')}
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">
-                      {displayName}
-                      {isMe && (
-                        <span className="ml-2 text-xs text-gray-500">
-                          ({t('team.you')})
-                        </span>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-700 text-sm font-semibold text-white">
+                        {(
+                          member.firstName?.[0] ?? member.email[0]
+                        ).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">
+                          {displayName}
+                          {isMe && (
+                            <span className="ml-2 text-xs text-gray-500">
+                              ({t('team.you')})
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-400">{member.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {!isMe && isAdmin && (
+                        <>
+                          <button
+                            onClick={() => startEditing(member)}
+                            className="rounded-lg p-1.5 text-cyan hover:bg-gray-800"
+                            title={t('team.edit')}
+                          >
+                            <i className="fa-solid fa-pen text-sm" />
+                          </button>
+                          <button
+                            onClick={() => handleRemove(member)}
+                            className="rounded-lg p-1.5 text-red-400 hover:bg-red-900/20"
+                            title={t('team.remove.button')}
+                          >
+                            <i className="fa-solid fa-trash-can text-sm" />
+                          </button>
+                        </>
                       )}
-                    </p>
-                    <p className="text-xs text-gray-400">{member.email}</p>
+
+                      {isMe || !isAdmin ? (
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${
+                            ROLE_COLORS[member.role]
+                          }`}
+                        >
+                          {t(`team.roles.${member.role}`)}
+                        </span>
+                      ) : (
+                        <select
+                          value={member.role}
+                          onChange={(e) =>
+                            handleRoleChange(member.userId, e.target.value)
+                          }
+                          className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white focus:border-cyan focus:outline-none"
+                        >
+                          {ROLES.map((r) => (
+                            <option key={r} value={r}>
+                              {t(`team.roles.${r}`)}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {isMe || !isAdmin ? (
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        ROLE_COLORS[member.role]
-                      }`}
-                    >
-                      {t(`team.roles.${member.role}`)}
-                    </span>
-                  ) : (
-                    <select
-                      value={member.role}
-                      onChange={(e) =>
-                        handleRoleChange(member.userId, e.target.value)
-                      }
-                      className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white focus:border-cyan focus:outline-none"
-                    >
-                      {ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {t(`team.roles.${r}`)}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  {!isMe && isAdmin && (
-                    <button
-                      onClick={() => handleRemove(member)}
-                      className="rounded-lg border border-red-900/50 px-3 py-1.5 text-xs text-red-400 hover:bg-red-900/20"
-                    >
-                      {t('team.remove.button')}
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
             );
           })}

@@ -22,19 +22,25 @@ import { TenantRole } from '@vet-ai/shared-types';
 import type { TenantContext, AuthenticatedUser } from '@vet-ai/shared-types';
 import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
+import { LabClientsService } from './lab-clients.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import { UpsertLaboratoryProfileDto } from './dto/upsert-laboratory-profile.dto';
 import { UpdateLabContactDto } from './dto/update-lab-contact.dto';
 import { CreateLabUserDto } from './dto/create-lab-user.dto';
 import { UpdateLabUserRoleDto } from './dto/update-lab-user-role.dto';
+import { UpdateLabUserDto } from './dto/update-lab-user.dto';
 import { ListLabOrdersDto } from './dto/list-lab-orders.dto';
+import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
+import { ListClientsDto } from './dto/list-clients.dto';
 
 @Controller('lab')
 export class LabController {
   constructor(
     private readonly labService: LabService,
-    private readonly labUsersService: LabUsersService
+    private readonly labUsersService: LabUsersService,
+    private readonly labClientsService: LabClientsService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -193,6 +199,18 @@ export class LabController {
     );
   }
 
+  // PATCH /api/lab/users/:userId
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Patch('users/:userId')
+  updateUser(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateLabUserDto
+  ) {
+    return this.labUsersService.updateUser(tenant.tenantId, userId, dto);
+  }
+
   // DELETE /api/lab/users/:userId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Roles(TenantRole.ADMIN)
@@ -204,5 +222,119 @@ export class LabController {
     @Param('userId') userId: string
   ) {
     return this.labUsersService.removeMember(tenant.tenantId, userId, user.id);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Client management — ADMIN only
+  // ---------------------------------------------------------------------------
+
+  // GET /api/lab/clients?status=ACTIVE&search=acme&page=1&pageSize=20
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Get('clients')
+  listClients(
+    @CurrentTenant() tenant: TenantContext,
+    @Query() query: ListClientsDto
+  ) {
+    return this.labClientsService.listClients(tenant.tenantId, query);
+  }
+
+  // GET /api/lab/clients/:id
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Get('clients/:id')
+  getClientDetail(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.labClientsService.getClientDetail(tenant.tenantId, id);
+  }
+
+  // POST /api/lab/clients
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Post('clients')
+  @HttpCode(HttpStatus.CREATED)
+  createClient(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateClientDto
+  ) {
+    return this.labClientsService.createClient(tenant.tenantId, dto, user.id);
+  }
+
+  // PATCH /api/lab/clients/:id
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Patch('clients/:id')
+  updateClient(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateClientDto
+  ) {
+    return this.labClientsService.updateClient(tenant.tenantId, id, dto);
+  }
+
+  // POST /api/lab/clients/:id/suspend
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Post('clients/:id/suspend')
+  @HttpCode(HttpStatus.OK)
+  suspendClient(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.labClientsService.suspendClient(tenant.tenantId, id);
+  }
+
+  // POST /api/lab/clients/:id/reactivate
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Post('clients/:id/reactivate')
+  @HttpCode(HttpStatus.OK)
+  reactivateClient(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.labClientsService.reactivateClient(tenant.tenantId, id);
+  }
+
+  // POST /api/lab/clients/:id/invitation/regenerate
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Post('clients/:id/invitation/regenerate')
+  regenerateInvitation(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string
+  ) {
+    return this.labClientsService.regenerateInvitation(
+      tenant.tenantId,
+      id,
+      user.id
+    );
+  }
+
+  // POST /api/lab/clients/:id/invitation/revoke
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Post('clients/:id/invitation/revoke')
+  revokeInvitation(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.labClientsService.revokeInvitation(tenant.tenantId, id);
+  }
+
+  // DELETE /api/lab/clients/:id
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN)
+  @Delete('clients/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteClient(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.labClientsService.deleteClient(tenant.tenantId, id);
   }
 }

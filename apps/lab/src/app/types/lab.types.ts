@@ -156,3 +156,93 @@ export interface LabOrdersQuery {
   page?: number;
   pageSize?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Client management
+// ---------------------------------------------------------------------------
+
+export type ClientType =
+  | 'VETERINARY_CLINIC'
+  | 'INDEPENDENT_VET'
+  | 'BREEDER'
+  | 'FARM'
+  | 'SHELTER'
+  | 'RESEARCH_ORGANIZATION'
+  | 'INDIVIDUAL'
+  | 'OTHER';
+
+export type ClientStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED';
+
+export interface ClientOrganization {
+  id: string;
+  name: string;
+  clientType: ClientType | null;
+  status: ClientStatus;
+  primaryContactName: string | null;
+  primaryContactEmail: string | null;
+  phone: string | null;
+  address: string | null;
+  userCount: number;
+  orderCount: number;
+  createdAt: string;
+}
+
+export interface ClientUser {
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+  joinedAt: string;
+}
+
+export interface ClientOrder {
+  id: string;
+  requisitionNumber: string;
+  status: OrderStatus;
+  priority: Priority;
+  patientName: string;
+  patientSpecies: string;
+  createdAt: string;
+}
+
+export interface ClientInvitation {
+  id: string;
+  email: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  used: boolean;
+  createdAt: string;
+}
+
+export interface ClientDetail extends ClientOrganization {
+  updatedAt: string;
+  laboratoryName: string | null;
+  users: ClientUser[];
+  recentOrders: ClientOrder[];
+  invitation: ClientInvitation | null;
+}
+
+export interface CreateClientForm {
+  name: string;
+  clientType: ClientType;
+  primaryContactName: string;
+  primaryContactEmail: string;
+  phone: string;
+  address: string;
+}
+
+export interface CreateClientResponse {
+  clientId: string;
+  onboardingToken: string;
+  onboardingLink: string;
+  expiresAt: string;
+}
+
+export interface ClientsQuery {
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
