@@ -6,6 +6,15 @@
     <base href="/" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- TODO: once `lab` has a deploy target (Vercel/other), add real HTTP response
+         headers there: `Content-Security-Policy: frame-ancestors 'self'` and
+         `X-Frame-Options: SAMEORIGIN`. Both are ignored when set via <meta>, so
+         until then this app has no clickjacking protection (see vercel.json for
+         how `frontend` does it). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="stylesheet" href="/src/styles.scss" />
     <link

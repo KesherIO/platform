@@ -1,6 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { json } from 'express';
+import helmet from 'helmet';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
 
@@ -10,6 +11,21 @@ async function bootstrap() {
   app.setGlobalPrefix(globalPrefix);
 
   app.use(json({ limit: '5mb' }));
+
+  // Swagger UI (served under this same app) needs inline scripts/styles to render.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'"],
+        },
+      },
+    })
+  );
 
   // ── Swagger ──────────────────────────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()

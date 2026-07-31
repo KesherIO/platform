@@ -103,6 +103,7 @@
     "axios": "^1.6.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.4",
+    "helmet": "^8.3.0",
     "i18next": "^24.2.3",
     "openai": "^6.38.0",
     "react": "^19.0.0",
