@@ -5,16 +5,12 @@ import {
   computed,
   OnInit,
   HostListener,
-  DestroyRef,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { take } from 'rxjs';
 import { CaseModel, CaseStatus, PatientSpecies } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
-import { AuthService } from '../../../core/services/auth.service';
-import { BottomNavComponent } from '../../../shared/components/bottom-nav/bottom-nav.component';
 import { CaseCardComponent } from './components/case-card/case-card.component';
 import {
   CasesFilterBarComponent,
@@ -27,7 +23,6 @@ import {
   imports: [
     RouterLink,
     TranslatePipe,
-    BottomNavComponent,
     CaseCardComponent,
     CasesFilterBarComponent,
   ],
@@ -36,19 +31,15 @@ import {
 })
 export class CasesListComponent implements OnInit {
   private casesService = inject(CasesService);
-  private authService = inject(AuthService);
-  private destroyRef = inject(DestroyRef);
 
   @HostListener('document:click')
   onDocumentClick(): void {
-    this.menuOpen.set(false);
     this.openMenuId.set(null);
   }
 
   loading = signal(true);
   error = signal<string | null>(null);
   allCases = signal<CaseModel[]>([]);
-  menuOpen = signal(false);
   openMenuId = signal<string | null>(null);
 
   search = signal('');
@@ -89,33 +80,6 @@ export class CasesListComponent implements OnInit {
     });
   });
 
-  tenantLogoUrl = computed(() => {
-    const me = this.authService.me();
-    return me?.tenants?.[0]?.logoUrl ?? 'assets/icons/default_logo.png';
-  });
-
-  tenantName = computed(() => {
-    const me = this.authService.me();
-    return me?.tenants?.[0]?.name ?? 'LabX Copilot';
-  });
-
-  userInitial = computed(() => {
-    const me = this.authService.me();
-    if (!me) return '?';
-    return (me.user.firstName?.[0] ?? me.user.email[0]).toUpperCase();
-  });
-
-  userDisplayName = computed(() => {
-    const me = this.authService.me();
-    if (!me) return '';
-    return (
-      [me.user.firstName, me.user.lastName].filter(Boolean).join(' ') ||
-      me.user.email
-    );
-  });
-
-  userEmail = computed(() => this.authService.me()?.user.email ?? '');
-
   ngOnInit(): void {
     this.casesService
       .listCases()
@@ -150,12 +114,5 @@ export class CasesListComponent implements OnInit {
       .subscribe(() => {
         this.allCases.update((cases) => cases.filter((c) => c.id !== id));
       });
-  }
-
-  signOut(): void {
-    this.authService
-      .signOut()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe();
   }
 }

@@ -2,7 +2,6 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
-import { BottomNavComponent } from '../../../shared/components/bottom-nav/bottom-nav.component';
 import { ClinicSettingsComponent } from '../clinic/clinic-settings.component';
 import { StaffSettingsComponent } from '../staff/staff-settings.component';
 import { ProfileSettingsComponent } from '../profile/profile-settings.component';
@@ -15,7 +14,6 @@ type SettingsTab = 'clinic' | 'staff' | 'profile' | 'contact-lab';
   standalone: true,
   imports: [
     TranslatePipe,
-    BottomNavComponent,
     ClinicSettingsComponent,
     StaffSettingsComponent,
     ProfileSettingsComponent,

@@ -3,10 +3,8 @@ import { CasesListComponent } from './cases-list.component';
 import { TranslateModule } from '@ngx-translate/core';
 import { RouterTestingModule } from '@angular/router/testing';
 import { CasesService } from '../shared/services/cases.service';
-import { AuthService } from '../../../core/services/auth.service';
 import { of, throwError } from 'rxjs';
 import { CaseStatus, PatientSpecies, AgeUnit } from '@vet-ai/shared-types';
-import { signal } from '@angular/core';
 
 const MOCK_CASES = [
   {
@@ -50,31 +48,18 @@ const MOCK_CASES = [
   },
 ];
 
-const MOCK_ME = {
-  user: { firstName: 'Karina', lastName: 'Martinez', email: 'k@test.com' },
-  memberships: [],
-  tenants: [{ id: 't1', name: 'VetClinic', logoUrl: 'logo.png' }],
-  onboardingCompleted: true,
-  activeTenantId: 't1',
-};
-
 describe('CasesListComponent', () => {
   let fixture: ComponentFixture<CasesListComponent>;
   let component: CasesListComponent;
   let casesServiceSpy: {
     listCases: ReturnType<typeof vi.fn>;
-    signOut?: ReturnType<typeof vi.fn>;
-  };
-  let authServiceSpy: {
-    me: ReturnType<typeof signal>;
-    signOut: ReturnType<typeof vi.fn>;
+    deleteCase: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
-    casesServiceSpy = { listCases: vi.fn().mockReturnValue(of(MOCK_CASES)) };
-    authServiceSpy = {
-      me: signal(MOCK_ME),
-      signOut: vi.fn().mockReturnValue(of(null)),
+    casesServiceSpy = {
+      listCases: vi.fn().mockReturnValue(of(MOCK_CASES)),
+      deleteCase: vi.fn().mockReturnValue(of(null)),
     };
 
     await TestBed.configureTestingModule({
@@ -85,7 +70,6 @@ describe('CasesListComponent', () => {
       ],
       providers: [
         { provide: CasesService, useValue: casesServiceSpy },
-        { provide: AuthService, useValue: authServiceSpy },
       ],
     }).compileComponents();
 
@@ -242,65 +226,9 @@ describe('CasesListComponent', () => {
     expect(component.openMenuId()).toBeNull();
   });
 
-  it('menuOpen starts as false', () => {
-    expect(component.menuOpen()).toBe(false);
-  });
-
-  it('onDocumentClick closes avatar menu and card menus', () => {
-    component.menuOpen.set(true);
+  it('onDocumentClick closes card menus', () => {
     component.openMenuId.set('c1');
     component.onDocumentClick();
-    expect(component.menuOpen()).toBe(false);
     expect(component.openMenuId()).toBeNull();
-  });
-
-  // ── auth computed values ──────────────────────────────────────────────────
-
-  it('userInitial returns first letter of firstName', () => {
-    expect(component.userInitial()).toBe('K');
-  });
-
-  it('userInitial falls back to email when no firstName', () => {
-    authServiceSpy.me.set({ ...MOCK_ME, user: { email: 'test@example.com' } });
-    expect(component.userInitial()).toBe('T');
-  });
-
-  it('userInitial returns ? when not logged in', () => {
-    authServiceSpy.me.set(null);
-    expect(component.userInitial()).toBe('?');
-  });
-
-  it('userDisplayName returns full name', () => {
-    expect(component.userDisplayName()).toBe('Karina Martinez');
-  });
-
-  it('userDisplayName falls back to email when no name', () => {
-    authServiceSpy.me.set({ ...MOCK_ME, user: { email: 'test@example.com' } });
-    expect(component.userDisplayName()).toBe('test@example.com');
-  });
-
-  it('tenantName returns tenant name', () => {
-    expect(component.tenantName()).toBe('VetClinic');
-  });
-
-  it('tenantName returns fallback when no tenants', () => {
-    authServiceSpy.me.set({ ...MOCK_ME, tenants: [] });
-    expect(component.tenantName()).toBe('LabX Copilot');
-  });
-
-  it('tenantLogoUrl returns tenant logo', () => {
-    expect(component.tenantLogoUrl()).toBe('logo.png');
-  });
-
-  it('tenantLogoUrl returns default logo when no tenants', () => {
-    authServiceSpy.me.set({ ...MOCK_ME, tenants: [] });
-    expect(component.tenantLogoUrl()).toBe('assets/icons/default_logo.png');
-  });
-
-  // ── signOut ───────────────────────────────────────────────────────────────
-
-  it('signOut calls authService.signOut', () => {
-    component.signOut();
-    expect(authServiceSpy.signOut).toHaveBeenCalledOnce();
   });
 });

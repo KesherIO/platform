@@ -15,9 +15,6 @@ class StaffSettingsStub {}
 @Component({ selector: 'app-profile-settings', standalone: true, template: '' })
 class ProfileSettingsStub {}
 
-@Component({ selector: 'app-bottom-nav', standalone: true, template: '' })
-class BottomNavStub {}
-
 const MOCK_ME_ADMIN = {
   user: { firstName: 'Karina', lastName: 'Martinez', email: 'k@test.com' },
   tenants: [{ id: 't1' }],
@@ -56,7 +53,6 @@ describe('SettingsShellComponent', () => {
             ClinicSettingsStub,
             StaffSettingsStub,
             ProfileSettingsStub,
-            BottomNavStub,
           ],
         },
       })

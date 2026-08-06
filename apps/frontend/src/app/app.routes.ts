@@ -2,17 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard, noAuthGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
-  // Root → redirect to dashboard (authGuard will catch unauthenticated users).
-  {
-    path: '',
-    redirectTo: '/dashboard',
-    pathMatch: 'full',
-  },
-
   // Auth callback must come BEFORE the 'auth' parent route.
-  // Angular matches routes in order; if 'auth' comes first, its noAuthGuard fires
-  // for /auth/callback (treating the recovery session as a normal login) and
-  // redirects to dashboard before the component can render the set-password form.
   {
     path: 'auth/callback',
     loadComponent: () =>
@@ -29,8 +19,7 @@ export const routes: Routes = [
       import('./features/auth/auth.routes').then((m) => m.AUTH_ROUTES),
   },
 
-  // Onboarding — public. Users arrive here before they have credentials.
-  // Access is controlled by the KesherIO-generated tenantId or invite token in the URL.
+  // Onboarding — public.
   {
     path: 'onboarding',
     loadChildren: () =>
@@ -39,39 +28,49 @@ export const routes: Routes = [
       ),
   },
 
-  // Dashboard and app pages — requires authentication + onboarding complete.
+  // Authenticated app — wrapped in the responsive shell (sidebar on desktop, bottom nav on mobile).
   {
-    path: 'dashboard',
-    canActivate: [authGuard],
-    loadChildren: () =>
-      import('./features/dashboard/dashboard.routes').then(
-        (m) => m.DASHBOARD_ROUTES
-      ),
-  },
-
-  {
-    path: 'cases',
-    canActivate: [authGuard],
-    loadChildren: () =>
-      import('./features/cases/cases.routes').then((m) => m.CASES_ROUTES),
-  },
-
-  {
-    path: 'results',
+    path: '',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/results/results.component').then(
-        (m) => m.ResultsComponent
+      import('./shared/components/app-shell/app-shell.component').then(
+        (m) => m.AppShellComponent
       ),
-  },
-
-  {
-    path: 'settings',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import(
-        './features/settings/settings-shell/settings-shell.component'
-      ).then((m) => m.SettingsShellComponent),
+    children: [
+      {
+        path: '',
+        redirectTo: 'dashboard',
+        pathMatch: 'full',
+      },
+      {
+        path: 'dashboard',
+        loadChildren: () =>
+          import('./features/dashboard/dashboard.routes').then(
+            (m) => m.DASHBOARD_ROUTES
+          ),
+      },
+      {
+        path: 'cases',
+        loadChildren: () =>
+          import('./features/cases/cases.routes').then(
+            (m) => m.CASES_ROUTES
+          ),
+      },
+      {
+        path: 'results',
+        loadComponent: () =>
+          import('./features/results/results.component').then(
+            (m) => m.ResultsComponent
+          ),
+      },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import(
+            './features/settings/settings-shell/settings-shell.component'
+          ).then((m) => m.SettingsShellComponent),
+      },
+    ],
   },
 
   // Catch-all.
