@@ -120,6 +120,11 @@ export class LabService {
 
     if (!order) throw new NotFoundException('Order not found.');
 
+    if (order.orderedTests.length === 0) {
+      await this.initOrderedTests(labTenantId, orderId);
+      return this.getLabOrderById(labTenantId, orderId);
+    }
+
     return order;
   }
 
@@ -234,6 +239,64 @@ export class LabService {
         }),
         ...timestamps,
       },
+    });
+  }
+
+  async receiveOrderedTest(labTenantId: string, orderedTestId: string) {
+    const test = await this.prisma.orderedTest.findFirst({
+      where: { id: orderedTestId, order: { labTenantId } },
+      include: { order: { select: { id: true, status: true } } },
+    });
+    if (!test) throw new NotFoundException('Ordered test not found.');
+    if (test.receivedAt) return test;
+
+    const now = new Date();
+    const updated = await this.prisma.orderedTest.update({
+      where: { id: orderedTestId },
+      data: { receivedAt: now },
+    });
+
+    await this.maybeTransitionToReceived(test.order.id, test.order.status, now);
+    return updated;
+  }
+
+  async receiveAllOrderedTests(labTenantId: string, orderId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, labTenantId },
+      select: { id: true, status: true },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+
+    const now = new Date();
+    await this.prisma.orderedTest.updateMany({
+      where: { orderId, receivedAt: null },
+      data: { receivedAt: now },
+    });
+
+    await this.maybeTransitionToReceived(orderId, order.status, now);
+
+    return this.prisma.orderedTest.findMany({
+      where: { orderId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  private async maybeTransitionToReceived(
+    orderId: string,
+    currentStatus: string,
+    now: Date
+  ) {
+    const preReceiveStatuses = ['PENDING', 'READY_FOR_PICKUP', 'COLLECTED'];
+    if (!preReceiveStatuses.includes(currentStatus)) return;
+
+    const unreceived = await this.prisma.orderedTest.count({
+      where: { orderId, receivedAt: null },
+    });
+    if (unreceived > 0) return;
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'RECEIVED_BY_LAB', receivedByLabAt: now },
     });
   }
 

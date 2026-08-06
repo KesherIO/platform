@@ -22,6 +22,7 @@ async function bootstrap() {
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", 'data:', 'https:'],
           connectSrc: ["'self'"],
+          frameSrc: ["'self'", 'https://www.openstreetmap.org'],
         },
       },
     })

@@ -48,6 +48,9 @@ function makePrismaMock() {
         .fn()
         .mockResolvedValue([{ catalogItem: MOCK_CATALOG_ITEM }]),
     },
+    clinicLabConnection: {
+      findFirst: jest.fn().mockResolvedValue({ labId: 'lab-tenant-1' }),
+    },
     counter: {
       upsert: jest.fn().mockResolvedValue({ name: 'ORDER_SEQ', value: 1 }),
     },

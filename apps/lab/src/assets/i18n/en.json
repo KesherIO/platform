@@ -86,9 +86,13 @@
     },
     "actions": {
       "mark_received": "Mark as received",
+      "mark_all_received": "Mark all as received",
+      "mark_received_single": "Mark received",
       "start_processing": "Start processing",
       "mark_completed": "Mark as completed"
-    }
+    },
+    "created": "Created",
+    "received": "Received"
   },
   "workspace": {
     "back": "← Orders queue",
@@ -99,7 +103,11 @@
     "init_tests": "Initialize tests",
     "review_release": "Review & release",
     "tests_init_hint": "Tests are initialized when the sample is received.",
-    "enter_results": "Enter results"
+    "enter_results": "Enter results",
+    "sample_received": "Received",
+    "sample_pending": "Pending sample",
+    "timeline": "Timeline",
+    "completed": "Completed"
   },
   "result_entry": {
     "back": "← Back to order",

@@ -68,12 +68,15 @@ export const labApi = {
     getById: (id: string) => get<unknown>(`lab/orders/${id}`),
     updateStatus: (id: string, status: string) =>
       patch<unknown>(`lab/orders/${id}/status`, { status }),
+    receiveAll: (id: string) => post<unknown[]>(`lab/orders/${id}/receive-all`),
     initOrderedTests: (id: string) =>
       post<unknown[]>(`lab/orders/${id}/ordered-tests`),
   },
   orderedTests: {
     update: (testId: string, data: Record<string, unknown>) =>
       patch<unknown>(`lab/ordered-tests/${testId}`, data),
+    receive: (testId: string) =>
+      patch<unknown>(`lab/ordered-tests/${testId}/receive`, {}),
   },
   settings: {
     getProfile: () => get<unknown>('lab/settings/laboratory'),

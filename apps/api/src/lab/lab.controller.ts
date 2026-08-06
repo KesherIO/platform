@@ -125,6 +125,27 @@ export class LabController {
     return this.labService.updateOrderedTest(tenant.tenantId, testId, dto);
   }
 
+  // PATCH /api/lab/ordered-tests/:testId/receive
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Patch('ordered-tests/:testId/receive')
+  receiveOrderedTest(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('testId') testId: string
+  ) {
+    return this.labService.receiveOrderedTest(tenant.tenantId, testId);
+  }
+
+  // POST /api/lab/orders/:id/receive-all
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Post('orders/:id/receive-all')
+  @HttpCode(HttpStatus.OK)
+  receiveAllOrderedTests(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.labService.receiveAllOrderedTests(tenant.tenantId, id);
+  }
+
   // GET /api/lab/settings/laboratory
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Get('settings/laboratory')

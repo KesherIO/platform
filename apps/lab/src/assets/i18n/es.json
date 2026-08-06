@@ -86,9 +86,13 @@
     },
     "actions": {
       "mark_received": "Marcar como recibido",
+      "mark_all_received": "Marcar todas como recibidas",
+      "mark_received_single": "Marcar recibida",
       "start_processing": "Iniciar procesamiento",
       "mark_completed": "Marcar como completado"
-    }
+    },
+    "created": "Creada",
+    "received": "Recibida"
   },
   "workspace": {
     "back": "← Ordenes",
@@ -99,7 +103,11 @@
     "init_tests": "Inicializar exámenes",
     "review_release": "Revisar y liberar",
     "tests_init_hint": "Los exámenes se inicializan al recibir la muestra.",
-    "enter_results": "Ingresar resultados"
+    "enter_results": "Ingresar resultados",
+    "sample_received": "Recibida",
+    "sample_pending": "Pendiente de muestra",
+    "timeline": "Cronología",
+    "completed": "Completada"
   },
   "result_entry": {
     "back": "← Regresar a la orden",

@@ -5,17 +5,21 @@ import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { LabOrderDetail } from '../../types/lab.types';
 
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 const STATUS_TRANSITIONS: Record<string, { labelKey: string; next: string }[]> =
   {
-    PENDING: [
-      { labelKey: 'orders.actions.mark_received', next: 'RECEIVED_BY_LAB' },
-    ],
-    READY_FOR_PICKUP: [
-      { labelKey: 'orders.actions.mark_received', next: 'RECEIVED_BY_LAB' },
-    ],
-    COLLECTED: [
-      { labelKey: 'orders.actions.mark_received', next: 'RECEIVED_BY_LAB' },
-    ],
+    PENDING: [],
+    READY_FOR_PICKUP: [],
+    COLLECTED: [],
     RECEIVED_BY_LAB: [
       { labelKey: 'orders.actions.start_processing', next: 'PROCESSING' },
     ],
@@ -33,6 +37,8 @@ export function OrderWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [transitioning, setTransitioning] = useState(false);
+  const [receivingTestId, setReceivingTestId] = useState<string | null>(null);
+  const [receivingAll, setReceivingAll] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -55,6 +61,27 @@ export function OrderWorkspacePage() {
     if (!orderId) return;
     await labApi.orders.initOrderedTests(orderId);
     await loadOrder();
+  };
+
+  const receiveTest = async (testId: string) => {
+    setReceivingTestId(testId);
+    try {
+      await labApi.orderedTests.receive(testId);
+      await loadOrder();
+    } finally {
+      setReceivingTestId(null);
+    }
+  };
+
+  const receiveAll = async () => {
+    if (!orderId) return;
+    setReceivingAll(true);
+    try {
+      await labApi.orders.receiveAll(orderId);
+      await loadOrder();
+    } finally {
+      setReceivingAll(false);
+    }
   };
 
   const transition = async (next: string) => {
@@ -87,6 +114,11 @@ export function OrderWorkspacePage() {
   const transitions = STATUS_TRANSITIONS[order.status] ?? [];
   const hasTests = order.orderedTests.length > 0;
   const c = order.case;
+  const isPreReceived = ['PENDING', 'READY_FOR_PICKUP', 'COLLECTED'].includes(
+    order.status
+  );
+  const unreceived = order.orderedTests.filter((t) => !t.receivedAt);
+  const hasUnreceived = unreceived.length > 0;
 
   return (
     <div className="p-6">
@@ -136,10 +168,42 @@ export function OrderWorkspacePage() {
             <h2 className="mb-3 text-sm font-semibold text-gray-300">
               {t('workspace.clinic')}
             </h2>
-            <p className="text-sm text-white">{order.clinicName}</p>
+            <p className="text-sm text-white">{order.tenant.name}</p>
+            {order.tenant.email && (
+              <p className="mt-1 text-sm text-gray-400">{order.tenant.email}</p>
+            )}
+            {order.tenant.phone && (
+              <p className="text-sm text-gray-400">{order.tenant.phone}</p>
+            )}
             {order.clinicNotes && (
               <p className="mt-2 text-sm text-gray-400">{order.clinicNotes}</p>
             )}
+          </section>
+
+          <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+            <h2 className="mb-3 text-sm font-semibold text-gray-300">
+              {t('workspace.timeline')}
+            </h2>
+            <div className="space-y-1.5 text-sm">
+              <p className="text-gray-400">
+                <span className="text-gray-500">{t('orders.created')}:</span>{' '}
+                {formatTimestamp(order.createdAt)}
+              </p>
+              {order.receivedByLabAt && (
+                <p className="text-gray-400">
+                  <span className="text-gray-500">{t('orders.received')}:</span>{' '}
+                  {formatTimestamp(order.receivedByLabAt)}
+                </p>
+              )}
+              {order.completedAt && (
+                <p className="text-gray-400">
+                  <span className="text-gray-500">
+                    {t('workspace.completed')}:
+                  </span>{' '}
+                  {formatTimestamp(order.completedAt)}
+                </p>
+              )}
+            </div>
           </section>
 
           {c.symptoms && (
@@ -173,22 +237,33 @@ export function OrderWorkspacePage() {
             <h2 className="text-sm font-semibold text-gray-300">
               {t('workspace.ordered_tests')}
             </h2>
-            {!hasTests && order.status !== 'PENDING' && (
-              <button
-                onClick={initTests}
-                className="rounded-lg border border-cyan/50 px-3 py-1.5 text-xs text-cyan hover:bg-cyan/10"
-              >
-                {t('workspace.init_tests')}
-              </button>
-            )}
-            {hasTests && order.resultReport && (
-              <Link
-                to={`/orders/${order.id}/review`}
-                className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-              >
-                {t('workspace.review_release')}
-              </Link>
-            )}
+            <div className="flex items-center gap-2">
+              {isPreReceived && hasTests && hasUnreceived && (
+                <button
+                  onClick={receiveAll}
+                  disabled={receivingAll}
+                  className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
+                >
+                  {receivingAll ? '...' : t('orders.actions.mark_all_received')}
+                </button>
+              )}
+              {!hasTests && order.status !== 'PENDING' && (
+                <button
+                  onClick={initTests}
+                  className="rounded-lg border border-cyan/50 px-3 py-1.5 text-xs text-cyan hover:bg-cyan/10"
+                >
+                  {t('workspace.init_tests')}
+                </button>
+              )}
+              {hasTests && order.resultReport && (
+                <Link
+                  to={`/orders/${order.id}/review`}
+                  className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                >
+                  {t('workspace.review_release')}
+                </Link>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -209,8 +284,42 @@ export function OrderWorkspacePage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
+                    {test.receivedAt ? (
+                      <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+                        <svg
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        {t('workspace.sample_received')} ·{' '}
+                        {formatTimestamp(test.receivedAt)}
+                      </span>
+                    ) : isPreReceived ? (
+                      <button
+                        onClick={() => receiveTest(test.id)}
+                        disabled={receivingTestId === test.id || receivingAll}
+                        className="rounded-lg border border-cyan/50 px-3 py-1.5 text-xs text-cyan hover:bg-cyan/10 disabled:opacity-50"
+                      >
+                        {receivingTestId === test.id
+                          ? '...'
+                          : t('orders.actions.mark_received_single')}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-yellow-500">
+                        {t('workspace.sample_pending')}
+                      </span>
+                    )}
                     <StatusBadge status={test.status} size="sm" />
-                    {test.status !== 'COMPLETED' &&
+                    {test.receivedAt &&
+                      test.status !== 'COMPLETED' &&
                       test.status !== 'CANCELLED' && (
                         <Link
                           to={`/orders/${order.id}/tests/${test.id}/results`}
