@@ -68,9 +68,7 @@ describe('CasesListComponent', () => {
         TranslateModule.forRoot(),
         RouterTestingModule,
       ],
-      providers: [
-        { provide: CasesService, useValue: casesServiceSpy },
-      ],
+      providers: [{ provide: CasesService, useValue: casesServiceSpy }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(CasesListComponent);

@@ -52,9 +52,7 @@ export const routes: Routes = [
       {
         path: 'cases',
         loadChildren: () =>
-          import('./features/cases/cases.routes').then(
-            (m) => m.CASES_ROUTES
-          ),
+          import('./features/cases/cases.routes').then((m) => m.CASES_ROUTES),
       },
       {
         path: 'results',

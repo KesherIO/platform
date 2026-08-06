@@ -40,8 +40,8 @@ export class AppShellComponent {
     return firstName ? `${firstName} ${lastName ?? ''}`.trim() : me.user.email;
   });
 
-  readonly userInitial = computed(() =>
-    this.userDisplayName().charAt(0).toUpperCase() || '?'
+  readonly userInitial = computed(
+    () => this.userDisplayName().charAt(0).toUpperCase() || '?'
   );
 
   readonly userEmail = computed(() => this.auth.me()?.user.email ?? '');
