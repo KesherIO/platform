@@ -4,19 +4,16 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import { CaseModel, CaseStatus } from '@vet-ai/shared-types';
 import { CasesService } from '../cases/shared/services/cases.service';
-import { AuthService } from '../../core/services/auth.service';
-import { BottomNavComponent } from '../../shared/components/bottom-nav/bottom-nav.component';
 
 @Component({
   selector: 'app-results',
   standalone: true,
-  imports: [TranslatePipe, BottomNavComponent],
+  imports: [TranslatePipe],
   templateUrl: './results.component.html',
   styleUrl: './results.component.scss',
 })
 export class ResultsComponent implements OnInit {
   private casesService = inject(CasesService);
-  private authService = inject(AuthService);
   private router = inject(Router);
 
   loading = signal(true);
@@ -31,11 +28,6 @@ export class ResultsComponent implements OnInit {
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       )
   );
-
-  clinicName = computed(() => {
-    const me = this.authService.me();
-    return me?.tenants?.[0]?.name ?? '';
-  });
 
   ngOnInit(): void {
     this.casesService

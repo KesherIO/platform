@@ -1,51 +1,4 @@
-<div class="h-screen bg-white flex flex-col">
-  <!-- App bar -->
-  <header
-    class="relative bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3 shrink-0"
-  >
-    <img
-      [src]="tenantLogoUrl()"
-      [alt]="tenantName()"
-      class="h-8 w-8 rounded-lg object-cover flex-shrink-0"
-    />
-    <span class="text-sm font-semibold text-gray-800 flex-1 truncate">{{
-      tenantName()
-    }}</span>
-
-    <!-- Avatar button -->
-    <button
-      type="button"
-      (click)="menuOpen.set(!menuOpen()); $event.stopPropagation()"
-      class="h-8 w-8 rounded-full avatar-gradient flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-    >
-      {{ userInitial() }}
-    </button>
-
-    <!-- Dropdown menu -->
-    @if (menuOpen()) {
-    <div
-      role="presentation"
-      class="absolute top-full right-4 mt-2 w-56 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden"
-      (click)="$event.stopPropagation()"
-      (keydown)="$event.stopPropagation()"
-    >
-      <div class="px-4 py-3 border-b border-gray-100">
-        <p class="text-sm font-semibold text-gray-900 truncate">
-          {{ userDisplayName() }}
-        </p>
-        <p class="text-xs text-gray-400 truncate mt-0.5">{{ userEmail() }}</p>
-      </div>
-      <button
-        type="button"
-        (click)="signOut()"
-        class="w-full text-left px-4 py-3 text-sm text-red-500 font-medium hover:bg-red-50 transition-colors"
-      >
-        {{ 'AUTH.SIGN_OUT' | translate }}
-      </button>
-    </div>
-    }
-  </header>
-
+<div class="h-full bg-white flex flex-col">
   <!-- Page title -->
   <div class="px-4 pt-4 pb-2 shrink-0">
     <h1 class="text-2xl font-bold text-gray-900">
@@ -104,6 +57,4 @@
     </div>
     }
   </main>
-
-  <app-bottom-nav />
 </div>

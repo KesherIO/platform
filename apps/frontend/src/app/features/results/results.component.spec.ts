@@ -6,7 +6,6 @@ import { vi } from 'vitest';
 import { TranslateModule } from '@ngx-translate/core';
 import { ResultsComponent } from './results.component';
 import { CasesService } from '../cases/shared/services/cases.service';
-import { AuthService } from '../../core/services/auth.service';
 import { CaseStatus, PatientSpecies, AgeUnit } from '@vet-ai/shared-types';
 
 const mockCases = [
@@ -55,10 +54,6 @@ describe('ResultsComponent', () => {
         {
           provide: CasesService,
           useValue: { listCases: () => of(mockCases) },
-        },
-        {
-          provide: AuthService,
-          useValue: { me: () => ({ tenants: [{ name: 'Test Clinic' }] }) },
         },
       ],
     }).compileComponents();

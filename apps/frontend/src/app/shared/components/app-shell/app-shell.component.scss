@@ -1,0 +1,8 @@
+.avatar-gradient {
+  background: linear-gradient(135deg, #06d6a0, #a65af4, #000000, #66e0e5);
+  background-size: 300% 300%;
+}
+
+.bottom-nav-safe {
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+}
