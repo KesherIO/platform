@@ -756,6 +756,7 @@ model OrderedTest {
   assignedUserId String?  // lab technician responsible for this test
   instrumentId   String?  // analyzer / instrument used (future integration anchor)
 
+  receivedAt  DateTime?
   startedAt   DateTime?
   completedAt DateTime?
   cancelledAt DateTime?

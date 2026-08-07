@@ -126,7 +126,10 @@ export function TeamPage() {
     try {
       setSaving(true);
       setActionError(null);
-      await labApi.users.update(editingId, editForm);
+      await labApi.users.update(
+        editingId,
+        editForm as unknown as Record<string, unknown>
+      );
       setEditingId(null);
       loadMembers(false);
     } catch (err) {

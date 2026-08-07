@@ -18,7 +18,7 @@ export class LoginComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly form = this.fb.group({
-    email:    ['', [Validators.required, Validators.email]],
+    email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]],
   });
 
@@ -30,6 +30,11 @@ export class LoginComponent {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly resetSent = signal(false);
+  readonly showPassword = signal(false);
+
+  toggleShowPassword(): void {
+    this.showPassword.update((v) => !v);
+  }
 
   showReset(): void {
     this.view.set('reset');
@@ -50,7 +55,8 @@ export class LoginComponent {
 
     const { email, password } = this.form.getRawValue();
 
-    this.auth.signInWithPassword(email!, password!)
+    this.auth
+      .signInWithPassword(email!, password!)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.loading.set(false),
@@ -69,7 +75,8 @@ export class LoginComponent {
 
     const { email } = this.resetForm.getRawValue();
 
-    this.auth.resetPassword(email!)
+    this.auth
+      .resetPassword(email!)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {

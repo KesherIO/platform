@@ -25,6 +25,11 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
  * JWT is identity-only. Tenant context always comes from the request and is
  * verified against UserTenantMembership in the DB.
  *
+ * Also verifies the resolved tenant has type CLINIC — mirrors LabTenantGuard,
+ * which rejects tenants that aren't LAB/PLATFORM. Without this, a user whose
+ * only membership is to a LAB/PLATFORM tenant could pass its id as
+ * x-tenant-id and be treated as a clinic member of it.
+ *
  * Apply at controller or route level — NOT globally — because some routes
  * (e.g. /auth/me, /invitations/accept) do not require an active tenant.
  *
@@ -53,12 +58,21 @@ export class TenantGuard implements CanActivate {
 
     const membership = await this.prisma.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId: user.id, tenantId } },
-      select: { role: true, tenant: { select: { name: true, logoUrl: true } } },
+      select: {
+        role: true,
+        tenant: { select: { name: true, logoUrl: true, type: true } },
+      },
     });
 
     if (!membership) {
       throw new ForbiddenException(
         'You are not a member of the requested tenant.'
+      );
+    }
+
+    if (membership.tenant.type !== 'CLINIC') {
+      throw new ForbiddenException(
+        'This endpoint is restricted to clinic tenants.'
       );
     }
 

@@ -38,6 +38,7 @@ export interface OrderedTest {
   entryMethod: ResultEntryMethod;
   assignedUserId: string | null;
   instrumentId: string | null;
+  receivedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
   cancelledAt: string | null;

@@ -15,6 +15,16 @@ const PRIORITY_COLORS: Record<string, string> = {
   ROUTINE: 'text-gray-400',
 };
 
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function OrdersQueuePage() {
   const { t } = useTranslation();
   const [orders, setOrders] = useState<LabOrderSummary[]>([]);
@@ -174,11 +184,20 @@ export function OrdersQueuePage() {
                   <p className="text-sm text-gray-400">
                     {t('orders.owner')} {order.ownerName}
                   </p>
+                  <p className="text-xs text-gray-500">{order.clinicName}</p>
                 </div>
 
                 <div className="flex items-center gap-4 text-right">
                   <div>
-                    <p className="text-xs text-gray-500">{order.clinicName}</p>
+                    <p className="text-xs text-gray-500">
+                      {t('orders.created')} {formatTimestamp(order.createdAt)}
+                    </p>
+                    {order.receivedByLabAt && (
+                      <p className="text-xs text-gray-500">
+                        {t('orders.received')}{' '}
+                        {formatTimestamp(order.receivedByLabAt)}
+                      </p>
+                    )}
                     <p
                       className={`mt-0.5 text-xs font-semibold ${
                         PRIORITY_COLORS[order.priority] ?? ''
@@ -189,7 +208,7 @@ export function OrdersQueuePage() {
                       })}
                     </p>
                   </div>
-                  <StatusBadge status={order.status} />
+                  <StatusBadge status={order.status} size="sm" />
                 </div>
               </Link>
             ))}

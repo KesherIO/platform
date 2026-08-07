@@ -7,7 +7,7 @@ import { useAuth } from './AuthContext';
 type View = 'login' | 'reset';
 
 export function LoginPage() {
-  const { session } = useAuth();
+  const { session, loading: authLoading, accessDenied } = useAuth();
   const { t } = useTranslation();
   const [view, setView] = useState<View>('login');
   const [email, setEmail] = useState('');
@@ -15,8 +15,12 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  if (session) return <Navigate to="/orders" replace />;
+  // Wait for the lab-role check to settle before redirecting — session is
+  // set before that check finishes, and a clinic-only account must never
+  // reach the lab shell, even for one render.
+  if (session && !authLoading) return <Navigate to="/orders" replace />;
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,9 +66,24 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
+          <div className="mx-auto mb-6 flex h-32 w-32 items-center justify-center overflow-hidden rounded-2xl border border-gray-800 bg-gradient-to-br from-gray-900 to-gray-800">
+            <img
+              src="/icon-128x128.png"
+              alt="KesherIO"
+              className="h-24 w-24 object-contain"
+            />
+          </div>
           <h1 className="text-2xl font-bold text-white">{t('auth.title')}</h1>
-          <p className="mt-1 text-sm text-gray-400">{t('auth.subtitle')}</p>
+          <p className="mt-1 text-sm font-semibold text-gray-300">
+            {t('auth.subtitle')}
+          </p>
         </div>
+
+        {accessDenied && (
+          <p className="mb-4 rounded-lg bg-red-900/40 px-4 py-2 text-sm text-red-300">
+            {t('auth.no_lab_access')}
+          </p>
+        )}
 
         {view === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
@@ -93,15 +112,33 @@ export function LoginPage() {
               >
                 {t('auth.password')}
               </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-2.5 text-white placeholder-gray-500 focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-2.5 pr-10 text-white placeholder-gray-500 focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white"
+                  aria-label={
+                    showPassword
+                      ? t('auth.hide_password')
+                      : t('auth.show_password')
+                  }
+                >
+                  <i
+                    className={`fa-solid ${
+                      showPassword ? 'fa-eye-slash' : 'fa-eye'
+                    } text-sm`}
+                  />
+                </button>
+              </div>
             </div>
 
             {error && (

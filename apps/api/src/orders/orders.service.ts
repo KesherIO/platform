@@ -65,7 +65,14 @@ export class OrdersService {
       })
     );
 
-    // 4 — Create order + requisition number atomically
+    // 4 — Resolve the lab that processes this clinic's orders
+    const labConnection = await this.prisma.clinicLabConnection.findFirst({
+      where: { clinicId: tenantId, isActive: true },
+      orderBy: { isDefault: 'desc' },
+      select: { labId: true },
+    });
+
+    // 5 — Create order + requisition number atomically
     const order = await this.prisma.$transaction(async (tx) => {
       // Atomic counter increment — safe under concurrent requests
       const counter = await tx.counter.upsert({
@@ -85,6 +92,7 @@ export class OrdersService {
           requisitionNumber,
           caseId,
           tenantId,
+          labTenantId: labConnection?.labId ?? null,
           status: 'PENDING',
           priority: body.priority ?? 'ROUTINE',
           orderedItems: orderedItems as object[],

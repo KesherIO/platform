@@ -7,6 +7,8 @@
     "EMAIL_PLACEHOLDER": "correo@dominio.com",
     "PASSWORD_LABEL": "Contraseña",
     "PASSWORD_PLACEHOLDER": "••••••••",
+    "SHOW_PASSWORD": "Mostrar contraseña",
+    "HIDE_PASSWORD": "Ocultar contraseña",
     "BUTTON_LOGIN": "Iniciar sesión",
     "FORGOT_PASSWORD": "¿Olvidaste tu contraseña?",
     "RESET_SENT": "Revisa tu bandeja de entrada — te enviamos un enlace para restablecer tu contraseña.",

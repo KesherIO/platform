@@ -16,6 +16,20 @@ A multi-tenant veterinary lab platform, built as an Nx monorepo.
 
 - `libs/shared-types` (`@vet-ai/shared-types`) — shared DTOs/models used by `frontend` and `api`. Note: `lab` does **not** import from this lib — it keeps its own local domain types in `apps/lab/src/app/types/lab.types.ts`.
 
+## Multi-tenancy model
+
+Every account is scoped to one or more `Tenant` rows via a `UserTenantMembership` (a user can belong to more than one tenant, each with its own role). A tenant's `type` (`apps/api/prisma/schema.prisma`, `TenantType` enum) says what kind of organization it is:
+
+| `type`     | Meaning                                                                    | Served by       |
+| ---------- | -------------------------------------------------------------------------- | --------------- |
+| `CLINIC`   | A veterinary clinic — creates cases, orders lab tests, views results.      | `apps/frontend` |
+| `LAB`      | An external reference laboratory — processes orders, manages test reports. | `apps/lab`      |
+| `PLATFORM` | The KesherIO platform tenant itself (singleton).                           | `apps/lab`      |
+
+A `ClinicLabConnection` row links a specific `CLINIC` tenant to the `LAB`/`PLATFORM` tenant that processes its orders. Nothing in the schema stops one `User` from holding memberships in tenants of different types at once (e.g. a lab technician account and a clinic account).
+
+**Known gap:** `GET /auth/me` (consumed by `apps/frontend`) does not filter a user's memberships by `tenant.type`, and the clinic-side `TenantGuard` doesn't verify the resolved tenant is `type: CLINIC` — unlike `LabTenantGuard`, which explicitly rejects tenants that aren't `LAB`/`PLATFORM`. In practice, a user whose _only_ membership is to a `LAB`/`PLATFORM` tenant can still log into `apps/frontend` and be shown that tenant as if it were their clinic, with no warning. Don't assume the clinic app is showing clinic data just because it loaded — check the account's actual tenant memberships first.
+
 ## Running the apps
 
 ```sh

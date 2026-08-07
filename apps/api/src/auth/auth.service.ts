@@ -113,12 +113,15 @@ export class AuthService {
   }
 
   /**
-   * Returns the full user profile with all tenant memberships.
-   * Used by the /auth/me endpoint.
+   * Returns the full user profile with CLINIC tenant memberships only.
+   * Used by the /auth/me endpoint — apps/frontend is clinic-only, so any
+   * LAB/PLATFORM memberships the user also happens to hold are filtered out
+   * here. Otherwise a lab-only account would be shown a lab tenant as if it
+   * were their clinic (see LabTenantGuard for the mirrored check on the lab side).
    *
-   * onboardingCompleted: true when the user has at least one tenant membership
+   * onboardingCompleted: true when the user has at least one CLINIC membership
    *   AND that tenant has a name set (clinic-setup was completed).
-   * activeTenantId: the first tenant the user belongs to, or null if none yet.
+   * activeTenantId: the first CLINIC tenant the user belongs to, or null if none yet.
    */
   async updateMe(
     userId: string,
@@ -168,16 +171,19 @@ export class AuthService {
       },
     });
 
-    const tenants = user.memberships.map((m) => m.tenant);
+    const clinicMemberships = user.memberships.filter(
+      (m) => m.tenant.type === 'CLINIC'
+    );
+    const tenants = clinicMemberships.map((m) => m.tenant);
 
-    // Onboarding is complete when the user belongs to a tenant AND the tenant
-    // has a real name (i.e. the clinic-setup step was finished).
+    // Onboarding is complete when the user belongs to a CLINIC tenant AND
+    // that tenant has a real name (i.e. the clinic-setup step was finished).
     const onboardingCompleted =
-      user.memberships.length > 0 &&
+      clinicMemberships.length > 0 &&
       !!user.firstName &&
       tenants[0]?.name != null;
 
-    // The active tenant is the earliest one the user joined.
+    // The active tenant is the earliest CLINIC tenant the user joined.
     const activeTenantId = tenants[0]?.id ?? null;
 
     return {
@@ -189,7 +195,7 @@ export class AuthService {
         phone: user.phone,
         createdAt: user.createdAt,
       },
-      memberships: user.memberships,
+      memberships: clinicMemberships,
       tenants,
       onboardingCompleted,
       activeTenantId,

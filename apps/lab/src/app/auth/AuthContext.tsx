@@ -17,6 +17,7 @@ interface AuthContextValue {
   isAdmin: boolean;
   tenantName: string | null;
   logoUrl: string | null;
+  accessDenied: boolean;
   refreshTenant: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -29,19 +30,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [labRole, setLabRole] = useState<LabRole | null>(null);
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
+
+  // Account has no LAB/PLATFORM tenant membership — the lab portal is not
+  // for clinic users. Clear the session immediately (don't wait on the
+  // network signOut() call) so ProtectedRoute/LoginPage never treat this
+  // account as logged in, even for one render.
+  const denyLabAccess = () => {
+    setAccessDenied(true);
+    setSession(null);
+    setLabRole(null);
+    setTenantName(null);
+    setLogoUrl(null);
+    void supabase.auth.signOut();
+  };
 
   const fetchLabRole = async (accessToken: string) => {
     try {
       const res = await fetch('/api/lab/me', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+      if (res.status === 403) {
+        denyLabAccess();
+        return;
+      }
       if (!res.ok) return;
       const data = await res.json();
+      setAccessDenied(false);
       setLabRole(data.role as LabRole);
       setTenantName(data.tenantName ?? null);
       setLogoUrl(data.logoUrl ?? null);
     } catch {
-      // role stays null — UI defaults to non-admin
+      // network error — role stays null, UI defaults to non-admin
     }
   };
 
@@ -56,6 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, s) => {
+        // loading gates both ProtectedRoute and LoginPage's redirect — keep it
+        // true until the lab-role check settles, not just until session is set.
+        setLoading(true);
         setSession(s);
         if (s?.access_token) {
           await fetchLabRole(s.access_token);
@@ -64,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTenantName(null);
           setLogoUrl(null);
         }
+        setLoading(false);
       }
     );
 
@@ -90,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: labRole === 'ADMIN',
         tenantName,
         logoUrl,
+        accessDenied,
         refreshTenant,
         signOut,
       }}

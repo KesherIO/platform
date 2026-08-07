@@ -13,30 +13,30 @@ const prisma = new PrismaClient();
 
 async function main() {
   // 1. Create (or find) the KesherIO lab tenant
-  let platform = await prisma.tenant.findFirst({
-    where: { type: 'PLATFORM' },
+  let lab = await prisma.tenant.findFirst({
+    where: { type: 'LAB' },
   });
 
-  if (!platform) {
-    platform = await prisma.tenant.create({
+  if (!lab) {
+    lab = await prisma.tenant.create({
       data: {
         name: 'KesherIO Laboratorio',
         slug: 'kesherio-lab',
-        type: 'PLATFORM',
+        type: 'LAB',
         email: 'lab@kesherio.com',
         country: 'CO',
       },
     });
-    console.log('Created KesherIO lab tenant:', platform.id);
+    console.log('Created KesherIO lab tenant:', lab.id);
   } else {
-    console.log('KesherIO lab tenant already exists:', platform.id);
+    console.log('KesherIO lab tenant already exists:', lab.id);
   }
 
   // 2. Create default LaboratoryProfile for KesherIO
   await prisma.laboratoryProfile.upsert({
-    where: { tenantId: platform.id },
+    where: { tenantId: lab.id },
     create: {
-      tenantId: platform.id,
+      tenantId: lab.id,
       directorName: 'Director Técnico KesherIO',
       defaultObservations: 'Resultado emitido por KesherIO Laboratorio.',
       updatedAt: new Date(),
@@ -48,10 +48,10 @@ async function main() {
   // 3. Assign all existing orders to KesherIO lab (backfill labTenantId)
   const updated = await prisma.order.updateMany({
     where: { labTenantId: null },
-    data: { labTenantId: platform.id },
+    data: { labTenantId: lab.id },
   });
   console.log(
-    `Backfilled ${updated.count} orders with labTenantId = ${platform.id}`
+    `Backfilled ${updated.count} orders with labTenantId = ${lab.id}`
   );
 
   // 4. Create ClinicLabConnection for all clinic tenants
@@ -63,10 +63,10 @@ async function main() {
   let connected = 0;
   for (const clinic of clinics) {
     await prisma.clinicLabConnection.upsert({
-      where: { clinicId_labId: { clinicId: clinic.id, labId: platform.id } },
+      where: { clinicId_labId: { clinicId: clinic.id, labId: lab.id } },
       create: {
         clinicId: clinic.id,
-        labId: platform.id,
+        labId: lab.id,
         isDefault: true,
         isActive: true,
         updatedAt: new Date(),
@@ -77,7 +77,7 @@ async function main() {
   }
   console.log(`Connected ${connected} clinic(s) to KesherIO lab`);
   console.log('\nKesherIO lab tenant ID:');
-  console.log(platform.id);
+  console.log(lab.id);
 }
 
 main()
