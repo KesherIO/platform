@@ -14,10 +14,13 @@
     "no_results": "No se encontraron resultados"
   },
   "auth": {
-    "title": "Kesher IO Technologies",
-    "subtitle": "Portal de laboratorio",
+    "title": "Acceso al Portal de Laboratorio",
+    "subtitle": "Desarrollado por KesherIO",
     "email": "Correo electrónico",
     "password": "Contraseña",
+    "show_password": "Mostrar contraseña",
+    "hide_password": "Ocultar contraseña",
+    "no_lab_access": "Esta cuenta no tiene acceso a ningún laboratorio.",
     "login": "Iniciar sesión",
     "logging_in": "Iniciando sesión...",
     "forgot_password": "¿Olvidaste tu contraseña?",

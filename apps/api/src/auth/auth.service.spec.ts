@@ -29,6 +29,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
           id: 'tenant-1',
           name: 'City Vet',
           slug: 'city-vet',
+          type: 'CLINIC',
           email: 'info@cityvet.com',
           phone: null,
           address: null,
@@ -141,6 +142,37 @@ describe('AuthService', () => {
       const result = await service.getMe('user-1');
 
       expect(result.activeTenantId).toBeNull();
+    });
+
+    it('excludes LAB/PLATFORM memberships from tenants, memberships, and activeTenantId', async () => {
+      prisma.user.findUniqueOrThrow.mockResolvedValue(
+        makeUser({
+          memberships: [
+            {
+              role: 'TECHNICIAN',
+              createdAt: new Date('2024-01-01'),
+              tenant: {
+                id: 'lab-1',
+                name: 'Ramat Gan Laboratory',
+                slug: 'biomet-lab',
+                type: 'LAB',
+                email: null,
+                phone: null,
+                address: null,
+                logoUrl: null,
+                primaryColor: null,
+              },
+            },
+          ],
+        })
+      );
+
+      const result = await service.getMe('user-1');
+
+      expect(result.tenants).toHaveLength(0);
+      expect(result.memberships).toHaveLength(0);
+      expect(result.activeTenantId).toBeNull();
+      expect(result.onboardingCompleted).toBe(false);
     });
   });
 

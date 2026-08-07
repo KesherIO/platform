@@ -14,10 +14,13 @@
     "no_results": "No results found"
   },
   "auth": {
-    "title": "KesherIO Technologies",
-    "subtitle": "Laboratory portal",
+    "title": "Laboratory Portal Sign in",
+    "subtitle": "Powered by KesherIO",
     "email": "Email",
     "password": "Password",
+    "show_password": "Show password",
+    "hide_password": "Hide password",
+    "no_lab_access": "This account doesn't have access to any laboratory.",
     "login": "Sign in",
     "logging_in": "Signing in...",
     "forgot_password": "Forgot password?",
