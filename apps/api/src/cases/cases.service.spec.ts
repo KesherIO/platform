@@ -66,6 +66,9 @@ function makePrismaMock() {
     catalogItem: {
       findMany: jest.fn().mockResolvedValue([]),
     },
+    clinicLabConnection: {
+      findFirst: jest.fn().mockResolvedValue({ labId: 'lab-1' }),
+    },
     $transaction: jest
       .fn()
       .mockImplementation((cb: (tx: typeof mock) => Promise<unknown>) =>
@@ -458,6 +461,43 @@ describe('CasesService', () => {
           selectedCatalogItemIds: ['item-1', 'item-invalid'],
         })
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it("scopes the validation to the clinic's own connected lab", async () => {
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
+      prisma.case.findFirstOrThrow.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        labId: 'lab-1',
+      });
+      prisma.catalogItem.findMany.mockResolvedValue([{ id: 'item-1' }]);
+
+      await service.selectCatalogItems('tenant-1', 'case-1', {
+        selectedCatalogItemIds: ['item-1'],
+      });
+
+      expect(prisma.catalogItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ labTenantId: 'lab-1' }),
+        })
+      );
+    });
+
+    it('rejects everything when the clinic has no connected lab', async () => {
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ status: CaseStatus.OPEN })
+      );
+      prisma.clinicLabConnection.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.selectCatalogItems('tenant-1', 'case-1', {
+          selectedCatalogItemIds: ['item-1'],
+        })
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.catalogItem.findMany).not.toHaveBeenCalled();
     });
 
     it('throws BadRequestException when status is ORDERED', async () => {

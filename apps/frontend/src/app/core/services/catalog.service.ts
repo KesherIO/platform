@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, tap } from 'rxjs';
 import { CatalogItemModel } from '@vet-ai/shared-types';
+import { AuthService } from './auth.service';
 
 export const MOCK_CATALOG_ITEMS: CatalogItemModel[] = [
   // Tests
@@ -200,13 +201,20 @@ export const MOCK_CATALOG_ITEMS: CatalogItemModel[] = [
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
   private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
 
   catalog = signal<CatalogItemModel[] | null>(null);
+
+  private get tenantHeaders() {
+    const me = this.auth.me();
+    const tenantId = me?.activeTenantId ?? me?.tenants[0]?.id ?? '';
+    return { headers: { 'x-tenant-id': tenantId } };
+  }
 
   loadCatalog(): Observable<CatalogItemModel[]> {
     if (this.catalog()) return of(this.catalog()!);
     return this.http
-      .get<CatalogItemModel[]>('/api/catalog')
+      .get<CatalogItemModel[]>('/api/catalog', this.tenantHeaders)
       .pipe(tap((items) => this.catalog.set(items)));
   }
 }

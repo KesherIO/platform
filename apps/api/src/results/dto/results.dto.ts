@@ -143,6 +143,11 @@ export class ImportTemplateSectionDto {
 }
 
 export class ImportTemplateDto {
+  @ApiProperty({ description: 'Which lab the linked catalog item belongs to' })
+  @IsString()
+  @IsNotEmpty()
+  labTenantId!: string;
+
   @ApiProperty({
     example: 'CBC',
     description: 'Catalog item code to link this template to',

@@ -1,23 +1,45 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  ClipboardList,
+  FlaskConical,
+  Handshake,
+  Users,
+  Settings as SettingsIcon,
+} from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 
+const ICON_SIZE = 18;
+const ICON_STROKE_WIDTH = 2;
+
 export function Layout() {
-  const { user, tenantName, logoUrl, signOut } = useAuth();
+  const { user, tenantName, logoUrl, isAdmin, signOut } = useAuth();
   const { t } = useTranslation();
 
   const NAV_ITEMS = [
     {
       to: '/orders',
       label: t('nav.orders_queue'),
-      icon: 'fa-solid fa-flask-vial',
+      icon: ClipboardList,
     },
-    { to: '/clients', label: t('nav.clients'), icon: 'fa-solid fa-building' },
-    { to: '/settings/users', label: t('nav.team'), icon: 'fa-solid fa-users' },
+    // Catalog management is admin-only server-side (LabTenantGuard +
+    // @Roles(ADMIN) on every /catalog admin route) — hide the tab entirely
+    // for non-admins rather than showing a page that 403s on load.
+    ...(isAdmin
+      ? [
+          {
+            to: '/catalog',
+            label: t('nav.catalog'),
+            icon: FlaskConical,
+          },
+        ]
+      : []),
+    { to: '/clients', label: t('nav.clients'), icon: Handshake },
+    { to: '/settings/users', label: t('nav.team'), icon: Users },
     {
       to: '/settings/laboratory',
       label: t('nav.settings'),
-      icon: 'fa-solid fa-gear',
+      icon: SettingsIcon,
     },
   ];
 
@@ -50,7 +72,11 @@ export function Layout() {
                 }`
               }
             >
-              <i className={`${item.icon} w-4 text-center text-sm`} />
+              <item.icon
+                size={ICON_SIZE}
+                strokeWidth={ICON_STROKE_WIDTH}
+                className="shrink-0"
+              />
               {item.label}
             </NavLink>
           ))}

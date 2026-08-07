@@ -60,9 +60,13 @@ export class TriageService {
 
   async analyze(
     patient: PatientContext,
-    symptoms: string
+    symptoms: string,
+    clinicTenantId: string
   ): Promise<TriageResultModel> {
-    const catalogItems = await this.catalogService.findAll(false);
+    const catalogItems = await this.catalogService.findAll(
+      clinicTenantId,
+      false
+    );
     const catalogJson = JSON.stringify(
       catalogItems.map((i) => ({
         id: i.id,

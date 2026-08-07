@@ -105,6 +105,7 @@
     "class-validator": "^0.14.4",
     "helmet": "^8.3.0",
     "i18next": "^24.2.3",
+    "lucide-react": "^1.30.0",
     "openai": "^6.38.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
