@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -80,7 +80,46 @@ export class LabService {
     };
   }
 
-  async getLabOrderById(labTenantId: string, orderId: string) {
+  async getLabOrderById(
+    labTenantId: string,
+    orderId: string
+  ): Promise<
+    Prisma.OrderGetPayload<{
+      include: {
+        case: {
+          select: {
+            patientName: true;
+            patientSpecies: true;
+            patientSex: true;
+            patientBreed: true;
+            patientAge: true;
+            patientAgeUnit: true;
+            patientWeight: true;
+            ownerName: true;
+            ownerPhone: true;
+            symptoms: true;
+          };
+        };
+        tenant: { select: { name: true; email: true; phone: true } };
+        orderedTests: {
+          orderBy: { createdAt: 'asc' };
+          include: {
+            catalogItem: {
+              select: { id: true; code: true; name: true; kind: true };
+            };
+          };
+        };
+        resultReport: {
+          select: {
+            id: true;
+            status: true;
+            observations: true;
+            releasedAt: true;
+          };
+        };
+      };
+    }>
+  > {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, labTenantId },
       include: {
