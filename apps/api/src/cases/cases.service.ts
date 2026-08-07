@@ -190,14 +190,25 @@ export class CasesService {
       'Catalog items can only be selected in OPEN or TRIAGED status.'
     );
 
-    // Validate all IDs exist in the global catalog and are active
-    const validItems = await this.prisma.catalogItem.findMany({
-      where: {
-        id: { in: body.selectedCatalogItemIds },
-        active: true,
-      },
-      select: { id: true },
+    // Validate all IDs exist, are active, and belong to this clinic's own
+    // connected lab — a catalog is per-lab now, so an id from another lab's
+    // catalog must be rejected even if it happens to be active there.
+    const labConnection = await this.prisma.clinicLabConnection.findFirst({
+      where: { clinicId: tenantId, isActive: true },
+      orderBy: { isDefault: 'desc' },
+      select: { labId: true },
     });
+
+    const validItems = labConnection
+      ? await this.prisma.catalogItem.findMany({
+          where: {
+            id: { in: body.selectedCatalogItemIds },
+            active: true,
+            labTenantId: labConnection.labId,
+          },
+          select: { id: true },
+        })
+      : [];
 
     if (validItems.length !== body.selectedCatalogItemIds.length) {
       throw new BadRequestException(
@@ -254,7 +265,8 @@ export class CasesService {
         ageUnit: c.patientAgeUnit,
         weight: c.patientWeight,
       },
-      c.symptoms
+      c.symptoms,
+      tenantId
     );
 
     return this.prisma.case.update({

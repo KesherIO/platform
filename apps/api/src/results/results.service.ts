@@ -107,8 +107,8 @@ export class ResultsService {
    * fully replaced and the version is incremented.
    */
   async importTemplate(dto: ImportTemplateDto): Promise<ResultTemplateModel> {
-    const catalogItem = await this.prisma.catalogItem.findUnique({
-      where: { code: dto.catalogItemCode },
+    const catalogItem = await this.prisma.catalogItem.findFirst({
+      where: { code: dto.catalogItemCode, labTenantId: dto.labTenantId },
       select: { id: true },
     });
     if (!catalogItem) {

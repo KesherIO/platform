@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Ban, Trash2, XCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
+import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { ClientDetailSkeleton } from './ClientSkeletons';
 import { ClientInfoCard } from './ClientInfoCard';
 import { ClientInvitationCard } from './ClientInvitationCard';
@@ -25,6 +27,7 @@ export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAdmin, tenantName } = useAuth();
+  const confirm = useConfirm();
 
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,11 +52,17 @@ export function ClientDetailPage() {
 
   const handleSuspend = async () => {
     if (!client || !id) return;
-    if (!confirm(t('clients.detail.confirm_suspend', { name: client.name })))
-      return;
     try {
       setActionError(null);
-      await labApi.clients.suspend(id);
+      const confirmed = await confirm({
+        title: t('clients.detail.confirm_suspend_title'),
+        message: t('clients.detail.confirm_suspend', { name: client.name }),
+        confirmLabel: t('clients.detail.suspend'),
+        variant: 'destructive',
+        icon: Ban,
+        onConfirm: () => labApi.clients.suspend(id),
+      });
+      if (!confirmed) return;
       loadClient(false);
     } catch (err) {
       setActionError(
@@ -77,11 +86,21 @@ export function ClientDetailPage() {
 
   const handleRegenerate = async () => {
     if (!id) return;
-    if (!confirm(t('clients.invitation.confirm_regenerate'))) return;
     try {
       setActionError(null);
-      const res = await labApi.clients.regenerateInvitation(id);
-      setNewLink(res);
+      let response: CreateClientResponse | undefined;
+      const confirmed = await confirm({
+        title: t('clients.invitation.confirm_regenerate_title'),
+        message: t('clients.invitation.confirm_regenerate'),
+        confirmLabel: t('clients.invitation.regenerate'),
+        variant: 'warning',
+        icon: RefreshCw,
+        onConfirm: async () => {
+          response = await labApi.clients.regenerateInvitation(id);
+        },
+      });
+      if (!confirmed) return;
+      if (response) setNewLink(response);
       loadClient(false);
     } catch (err) {
       setActionError(
@@ -92,11 +111,20 @@ export function ClientDetailPage() {
 
   const handleRevoke = async () => {
     if (!id) return;
-    if (!confirm(t('clients.invitation.confirm_revoke'))) return;
     try {
       setActionError(null);
-      setNewLink(null);
-      await labApi.clients.revokeInvitation(id);
+      const confirmed = await confirm({
+        title: t('clients.invitation.confirm_revoke_title'),
+        message: t('clients.invitation.confirm_revoke'),
+        confirmLabel: t('clients.invitation.revoke'),
+        variant: 'destructive',
+        icon: XCircle,
+        onConfirm: async () => {
+          setNewLink(null);
+          await labApi.clients.revokeInvitation(id);
+        },
+      });
+      if (!confirmed) return;
       loadClient(false);
     } catch (err) {
       setActionError(`${t('clients.errors.revoke')} ${(err as Error).message}`);
@@ -105,11 +133,17 @@ export function ClientDetailPage() {
 
   const handleDelete = async () => {
     if (!client || !id) return;
-    if (!confirm(t('clients.detail.confirm_delete', { name: client.name })))
-      return;
     try {
       setActionError(null);
-      await labApi.clients.remove(id);
+      const confirmed = await confirm({
+        title: t('clients.detail.confirm_delete_title'),
+        message: t('clients.detail.confirm_delete', { name: client.name }),
+        confirmLabel: t('clients.detail.delete'),
+        variant: 'destructive',
+        icon: Trash2,
+        onConfirm: () => labApi.clients.remove(id),
+      });
+      if (!confirmed) return;
       navigate('/clients');
     } catch (err) {
       setActionError(`${t('clients.errors.delete')} ${(err as Error).message}`);

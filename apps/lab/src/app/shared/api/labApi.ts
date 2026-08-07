@@ -7,6 +7,9 @@ import type {
   ClientDetail,
   ClientsQuery,
   CreateClientResponse,
+  CatalogItem,
+  CatalogQuery,
+  CatalogListResponse,
 } from '../../types/lab.types';
 
 async function authHeaders(): Promise<HeadersInit> {
@@ -119,5 +122,26 @@ export const labApi = {
     revokeInvitation: (id: string) =>
       post<unknown>(`lab/clients/${id}/invitation/revoke`),
     remove: (id: string) => del(`lab/clients/${id}`),
+  },
+  catalog: {
+    list: (params?: CatalogQuery) => {
+      const sp = new URLSearchParams();
+      if (params?.search) sp.set('search', params.search);
+      if (params?.kind) sp.set('kind', params.kind);
+      if (params?.page) sp.set('page', String(params.page));
+      if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
+      const qs = sp.toString();
+      return get<CatalogListResponse>(`catalog/admin${qs ? `?${qs}` : ''}`);
+    },
+    // All active items in this lab's own catalog, unpaginated — used by the
+    // PACKAGE component picker (filter to kind === 'TEST' client-side).
+    listActive: () =>
+      get<PaginatedResponse<CatalogItem>>('catalog/admin?pageSize=200'),
+    create: (data: Record<string, unknown>) =>
+      post<CatalogItem>('catalog', data),
+    update: (id: string, data: Record<string, unknown>) =>
+      patch<CatalogItem>(`catalog/${id}`, data),
+    enable: (id: string) => post<CatalogItem>(`catalog/${id}/enable`),
+    disable: (id: string) => post<CatalogItem>(`catalog/${id}/disable`),
   },
 };

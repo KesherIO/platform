@@ -188,6 +188,7 @@ model Tenant {
   laboratoryProfile  LaboratoryProfile?
   clinicConnections  ClinicLabConnection[] @relation("ClinicConnections")
   labConnections     ClinicLabConnection[] @relation("LabConnections")
+  labCatalogItems    CatalogItem[]         @relation("LabCatalog")
 
   @@map("tenants")
 }
@@ -328,13 +329,15 @@ model Case {
 // ---------------------------------------------------------------------------
 
 /// Single table for tests and packages, distinguished by kind.
-/// Global — owned by the lab, shared across all tenants (clinics).
+/// Owned by one lab (labTenantId) — shared across all of that lab's connected
+/// clinics, but isolated from every other lab's catalog.
 /// Tests: code, category, turnaroundHours.
 /// Packages: description + component tests via CatalogItemComposition.
 model CatalogItem {
   id              String          @id @default(cuid())
+  labTenantId     String
   kind            CatalogItemKind
-  code            String?         @unique // TEST only — lab code (e.g. "CBC"); globally unique
+  code            String?         // TEST only — lab code (e.g. "CBC"); unique within the lab's catalog
   name            String
   description     String?         // PACKAGE only
   category        String?         // TEST only
@@ -345,12 +348,14 @@ model CatalogItem {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  labTenant        Tenant                   @relation("LabCatalog", fields: [labTenantId], references: [id], onDelete: Cascade)
   components       CatalogItemComposition[] @relation("PackageComponents")
   packages         CatalogItemComposition[] @relation("ComponentPackages")
   caseCatalogItems CaseCatalogItem[]
   resultTemplates  ResultTemplate[]
   orderedTests     OrderedTest[]
 
+  @@unique([labTenantId, code])
   @@index([kind])
   @@map("catalog_items")
 }

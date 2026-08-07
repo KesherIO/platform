@@ -3,12 +3,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
+import { useToast } from '../../shared/components/ToastProvider';
 import type { LabOrderDetail } from '../../types/lab.types';
 
 export function ReviewReleasePage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const toast = useToast();
   const [order, setOrder] = useState<LabOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,7 +45,7 @@ export function ReviewReleasePage() {
     });
 
     if (!res.ok) {
-      alert(`${t('review.release_error')} ${await res.text()}`);
+      toast.error(`${t('review.release_error')} ${await res.text()}`);
       return;
     }
 

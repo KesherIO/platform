@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
+import { ToastProvider } from './shared/components/ToastProvider';
+import { ConfirmDialogProvider } from './shared/components/ConfirmDialogProvider';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { LoginPage } from './auth/LoginPage';
 import { AuthCallbackPage } from './auth/AuthCallbackPage';
@@ -13,45 +15,51 @@ import { LaboratorySettingsPage } from './pages/settings/LaboratorySettingsPage'
 import { TeamPage } from './pages/settings/TeamPage';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { ClientDetailPage } from './pages/clients/ClientDetailPage';
+import { CatalogPage } from './pages/catalog/CatalogPage';
 
 export function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <ToastProvider>
+      <ConfirmDialogProvider>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="/orders" replace />} />
-          <Route path="/orders" element={<OrdersQueuePage />} />
-          <Route path="/orders/:orderId" element={<OrderWorkspacePage />} />
-          <Route
-            path="/orders/:orderId/tests/:testId/results"
-            element={<ResultEntryPage />}
-          />
-          <Route
-            path="/orders/:orderId/review"
-            element={<ReviewReleasePage />}
-          />
-          <Route path="/clients" element={<ClientsPage />} />
-          <Route path="/clients/:id" element={<ClientDetailPage />} />
-          <Route
-            path="/settings/laboratory"
-            element={<LaboratorySettingsPage />}
-          />
-          <Route path="/settings/users" element={<TeamPage />} />
-        </Route>
+            <Route
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/orders" replace />} />
+              <Route path="/orders" element={<OrdersQueuePage />} />
+              <Route path="/orders/:orderId" element={<OrderWorkspacePage />} />
+              <Route
+                path="/orders/:orderId/tests/:testId/results"
+                element={<ResultEntryPage />}
+              />
+              <Route
+                path="/orders/:orderId/review"
+                element={<ReviewReleasePage />}
+              />
+              <Route path="/clients" element={<ClientsPage />} />
+              <Route path="/clients/:id" element={<ClientDetailPage />} />
+              <Route path="/catalog" element={<CatalogPage />} />
+              <Route
+                path="/settings/laboratory"
+                element={<LaboratorySettingsPage />}
+              />
+              <Route path="/settings/users" element={<TeamPage />} />
+            </Route>
 
-        <Route path="*" element={<Navigate to="/orders" replace />} />
-      </Routes>
-    </AuthProvider>
+            <Route path="*" element={<Navigate to="/orders" replace />} />
+          </Routes>
+        </AuthProvider>
+      </ConfirmDialogProvider>
+    </ToastProvider>
   );
 }
 

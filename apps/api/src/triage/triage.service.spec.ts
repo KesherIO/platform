@@ -91,10 +91,11 @@ describe('TriageService', () => {
         ageUnit: AgeUnit.YEARS,
         weight: 28,
       },
-      'Vomiting and lethargy for 2 days'
+      'Vomiting and lethargy for 2 days',
+      'clinic-1'
     );
 
-    expect(catalogService.findAll).toHaveBeenCalledWith(false);
+    expect(catalogService.findAll).toHaveBeenCalledWith('clinic-1', false);
     expect(result.diagnoses).toHaveLength(3);
     expect(result.suggestedCatalogItemIds).toEqual(['id-cbc', 'id-bmp']);
   });
@@ -121,7 +122,8 @@ describe('TriageService', () => {
 
     const result = await service.analyze(
       { species: PatientSpecies.CAT },
-      'Sneezing'
+      'Sneezing',
+      'clinic-1'
     );
 
     expect(result.suggestedCatalogItemIds).toEqual(['id-cbc']);

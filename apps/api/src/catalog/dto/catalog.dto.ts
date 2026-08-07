@@ -7,6 +7,9 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Max,
+  MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -82,6 +85,11 @@ export class ImportCatalogItemDto {
 }
 
 export class ImportCatalogDto {
+  @ApiProperty({ description: 'Which lab this catalog import belongs to' })
+  @IsString()
+  @IsNotEmpty()
+  labTenantId!: string;
+
   @ApiProperty({ type: [ImportCatalogItemDto] })
   @IsArray()
   @ValidateNested({ each: true })
@@ -98,4 +106,135 @@ export class ImportCatalogDto {
   @IsOptional()
   @IsBoolean()
   replace?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Admin CRUD (lab-scoped — see LabTenantGuard on the controller routes)
+// ---------------------------------------------------------------------------
+
+export class ListCatalogAdminDto {
+  @IsString()
+  @MaxLength(100)
+  @IsOptional()
+  search?: string;
+
+  @ApiPropertyOptional({ enum: CatalogItemKindDto })
+  @IsOptional()
+  @IsEnum(CatalogItemKindDto)
+  kind?: CatalogItemKindDto;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  page?: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  @IsOptional()
+  pageSize?: number;
+}
+
+export class CreateCatalogItemDto {
+  @ApiProperty({ enum: CatalogItemKindDto })
+  @IsEnum(CatalogItemKindDto)
+  kind!: CatalogItemKindDto;
+
+  @ApiProperty({ example: 'Complete Blood Count' })
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'CBC' })
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @ApiPropertyOptional({ example: 'Hematology' })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ example: 4 })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  turnaroundHours?: number;
+
+  @ApiPropertyOptional({ enum: ResultTypeDto, example: ResultTypeDto.NUMERIC })
+  @IsOptional()
+  @IsEnum(ResultTypeDto)
+  resultType?: ResultTypeDto;
+
+  @ApiPropertyOptional({ example: 'mg/dL' })
+  @IsOptional()
+  @IsString()
+  unit?: string;
+
+  @ApiPropertyOptional({ example: 'Comprehensive annual wellness screening' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'PACKAGE only — ids of constituent tests (must belong to the same lab)',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  componentIds?: string[];
+}
+
+export class UpdateCatalogItemDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  turnaroundHours?: number;
+
+  @ApiPropertyOptional({ enum: ResultTypeDto })
+  @IsOptional()
+  @IsEnum(ResultTypeDto)
+  resultType?: ResultTypeDto;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  unit?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'PACKAGE only — ids of constituent tests (must belong to the same lab). ' +
+      'Omit to leave composition unchanged; pass [] to clear it.',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  componentIds?: string[];
 }

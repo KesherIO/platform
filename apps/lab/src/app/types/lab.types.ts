@@ -247,3 +247,39 @@ export interface ClientsQuery {
   page?: number;
   pageSize?: number;
 }
+
+export type CatalogItemKind = 'TEST' | 'PACKAGE';
+export type ResultType = 'NUMERIC' | 'TEXT' | 'POSITIVE_NEGATIVE';
+
+export interface CatalogItem {
+  id: string;
+  kind: CatalogItemKind;
+  name: string;
+  code?: string;
+  description?: string;
+  category?: string;
+  turnaroundHours?: number;
+  resultType?: ResultType;
+  unit?: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  components?: CatalogItem[]; // PACKAGE only — constituent tests
+}
+
+export interface CatalogQuery {
+  search?: string;
+  kind?: CatalogItemKind;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CatalogCounts {
+  all: number;
+  TEST: number;
+  PACKAGE: number;
+}
+
+export interface CatalogListResponse extends PaginatedResponse<CatalogItem> {
+  counts: CatalogCounts;
+}

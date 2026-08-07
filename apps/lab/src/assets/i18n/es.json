@@ -11,7 +11,10 @@
     "results": "resultados",
     "previous": "Anterior",
     "next": "Siguiente",
-    "no_results": "No se encontraron resultados"
+    "no_results": "No se encontraron resultados",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "dismiss": "Descartar"
   },
   "auth": {
     "title": "Acceso al Portal de Laboratorio",
@@ -42,6 +45,7 @@
     "brand": "KesherIO",
     "lab_label": "Laboratorio",
     "orders_queue": "Cola de órdenes",
+    "catalog": "Catálogo",
     "clients": "Clientes",
     "team": "Equipo",
     "settings": "Configuración",
@@ -194,6 +198,84 @@
     "remove_signer": "Eliminar",
     "no_signers": "No hay firmantes configurados. Agrega uno para que aparezca en los reportes."
   },
+  "catalog": {
+    "title": "Catálogo",
+    "subtitle": "elementos del catálogo",
+    "create": "Crear",
+    "empty": "Aún no hay elementos en el catálogo. Crea tu primera prueba o paquete para empezar.",
+    "no_matches": "Ningún elemento del catálogo coincide con tu búsqueda y filtro.",
+    "error": "Error al cargar el catálogo.",
+    "guidelines": {
+      "label": "Guía del catálogo",
+      "title": "Guía del catálogo",
+      "items": [
+        "El código debe ser único y debe mantenerse estable una vez que el elemento esté en uso.",
+        "Usa nombres claros y específicos.",
+        "Los paquetes solo pueden contener pruebas (TEST) existentes.",
+        "Prefiere deshabilitar elementos en lugar de eliminarlos — esto mantiene válidos los casos y órdenes históricos.",
+        "El tipo de resultado y la unidad describen cómo se representa el resultado de la prueba.",
+        "Los cambios en el catálogo pueden afectar la solicitud de pruebas y las sugerencias de la IA."
+      ]
+    },
+    "disable_title": "¿Deshabilitar elemento del catálogo?",
+    "disable_confirm": "Las clínicas no podrán solicitar \"{{name}}\" hasta que se vuelva a habilitar.",
+    "actions": {
+      "edit": "Editar elemento",
+      "disable": "Deshabilitar elemento",
+      "enable": "Habilitar elemento"
+    },
+    "filter": {
+      "all": "Todos",
+      "tests": "Pruebas",
+      "packages": "Paquetes"
+    },
+    "search_placeholder": "Buscar por nombre...",
+    "kind": {
+      "TEST": "Prueba",
+      "PACKAGE": "Paquete"
+    },
+    "status": {
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
+    "result_type": {
+      "NUMERIC": "Numérico",
+      "TEXT": "Texto",
+      "POSITIVE_NEGATIVE": "Positivo / Negativo"
+    },
+    "columns": {
+      "created": "Creado",
+      "updated": "Actualizado"
+    },
+    "form": {
+      "create_title": "Crear elemento del catálogo",
+      "edit_title": "Editar elemento del catálogo",
+      "kind": "Tipo",
+      "name": "Nombre",
+      "code": "Código",
+      "code_hint": "Identificador único usado por integraciones y la IA. Evita cambiarlo una vez que el elemento esté en uso.",
+      "code_hint_locked": "El código no se puede cambiar después de crearlo — lo usan las integraciones y la IA, y cambiarlo podría afectar casos y órdenes históricos.",
+      "category": "Categoría",
+      "turnaround_hours": "Tiempo de entrega (horas)",
+      "result_type": "Tipo de resultado",
+      "result_type_none": "Sin estructura",
+      "unit": "Unidad",
+      "unit_placeholder": "p. ej. mg/dL",
+      "description": "Descripción",
+      "components": "Pruebas componentes",
+      "components_hint": "Selecciona las pruebas individuales incluidas en este paquete.",
+      "no_tests": "Aún no hay pruebas activas disponibles.",
+      "cancel": "Cancelar",
+      "submit": "Guardar",
+      "submitting": "Guardando..."
+    },
+    "errors": {
+      "create": "No se pudo crear el elemento del catálogo.",
+      "update": "No se pudo actualizar el elemento del catálogo.",
+      "disable": "No se pudo deshabilitar el elemento del catálogo.",
+      "enable": "No se pudo habilitar el elemento del catálogo."
+    }
+  },
   "clients": {
     "title": "Clientes",
     "subtitle": "organizaciones cliente",
@@ -266,8 +348,10 @@
       "no_invitation": "No se ha enviado invitación aún.",
       "regenerate": "Regenerar enlace",
       "revoke": "Revocar enlace",
-      "confirm_revoke": "¿Revocar este enlace de invitación? El cliente ya no podrá usarlo para registrarse.",
-      "confirm_regenerate": "¿Generar un nuevo enlace de invitación? El enlace actual será revocado.",
+      "confirm_revoke_title": "¿Revocar enlace de invitación?",
+      "confirm_revoke": "El cliente ya no podrá usarlo para registrarse.",
+      "confirm_regenerate_title": "¿Generar un nuevo enlace de invitación?",
+      "confirm_regenerate": "El enlace actual será revocado.",
       "message_template": "¡Hola! Has sido invitado a unirte a {{labName}} en KesherIO. Usa este enlace para configurar tu cuenta: {{link}}"
     },
     "detail": {
@@ -284,7 +368,9 @@
       "suspend": "Suspender cliente",
       "reactivate": "Reactivar cliente",
       "delete": "Eliminar cliente",
-      "confirm_suspend": "¿Suspender a {{name}}? Sus usuarios no podrán crear nuevos casos ni órdenes.",
+      "confirm_suspend_title": "¿Suspender cliente?",
+      "confirm_suspend": "Los usuarios de {{name}} no podrán crear nuevos casos ni órdenes.",
+      "confirm_delete_title": "¿Eliminar cliente?",
       "confirm_delete": "¿Eliminar a {{name}}? Esta acción no se puede deshacer. Solo se pueden eliminar clientes sin órdenes.",
       "back": "← Clientes"
     },
@@ -321,11 +407,14 @@
       "submit": "Agregar miembro",
       "submitting": "Agregando..."
     },
-    "edit": "Editar",
     "save": "Guardar",
     "saving": "Guardando...",
+    "actions": {
+      "edit": "Editar usuario",
+      "remove": "Eliminar usuario"
+    },
     "remove": {
-      "button": "Eliminar",
+      "title": "¿Eliminar miembro del equipo?",
       "confirm": "¿Eliminar a {{name}} del laboratorio? Perderá el acceso inmediatamente."
     },
     "errors": {

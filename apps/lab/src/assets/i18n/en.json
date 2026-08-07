@@ -11,7 +11,10 @@
     "results": "results",
     "previous": "Previous",
     "next": "Next",
-    "no_results": "No results found"
+    "no_results": "No results found",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "dismiss": "Dismiss"
   },
   "auth": {
     "title": "Laboratory Portal Sign in",
@@ -42,6 +45,7 @@
     "brand": "Kesher IO",
     "lab_label": "Laboratory",
     "orders_queue": "Orders queue",
+    "catalog": "Catalog",
     "clients": "Clients",
     "team": "Team",
     "settings": "Settings",
@@ -194,6 +198,84 @@
     "remove_signer": "Remove",
     "no_signers": "No signers configured yet. Add one to appear on report footers."
   },
+  "catalog": {
+    "title": "Catalog",
+    "subtitle": "catalog items",
+    "create": "Create",
+    "empty": "No catalog items yet. Create your first test or package to get started.",
+    "no_matches": "No catalog items match your search and filter.",
+    "error": "Error loading the catalog.",
+    "search_placeholder": "Search by name...",
+    "guidelines": {
+      "label": "Catalog guidelines",
+      "title": "Catalog guidelines",
+      "items": [
+        "Code must be unique and should stay stable once the item is in use.",
+        "Use clear, specific names.",
+        "Packages must contain existing TEST items.",
+        "Prefer disabling items instead of deleting them — this keeps historical cases and orders valid.",
+        "Result type and unit describe how the test result is represented.",
+        "Catalog changes can affect ordering and AI test suggestions."
+      ]
+    },
+    "disable_title": "Disable catalog item?",
+    "disable_confirm": "Clinics won't be able to order \"{{name}}\" until it is enabled again.",
+    "actions": {
+      "edit": "Edit item",
+      "disable": "Disable item",
+      "enable": "Enable item"
+    },
+    "filter": {
+      "all": "All",
+      "tests": "Tests",
+      "packages": "Packages"
+    },
+    "kind": {
+      "TEST": "Test",
+      "PACKAGE": "Package"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "result_type": {
+      "NUMERIC": "Numeric",
+      "TEXT": "Text",
+      "POSITIVE_NEGATIVE": "Positive / Negative"
+    },
+    "columns": {
+      "created": "Created",
+      "updated": "Updated"
+    },
+    "form": {
+      "create_title": "Create catalog item",
+      "edit_title": "Edit catalog item",
+      "kind": "Kind",
+      "name": "Name",
+      "code": "Code",
+      "code_hint": "Unique identifier used by integrations and AI. Avoid changing it after the item is in use.",
+      "code_hint_locked": "Code can't be changed after creation — it's used by integrations and AI, and changing it could break historical cases and orders.",
+      "category": "Category",
+      "turnaround_hours": "Turnaround (hours)",
+      "result_type": "Result type",
+      "result_type_none": "Unstructured",
+      "unit": "Unit",
+      "unit_placeholder": "e.g. mg/dL",
+      "description": "Description",
+      "components": "Component tests",
+      "components_hint": "Select the individual tests included in this package.",
+      "no_tests": "No active tests available yet.",
+      "cancel": "Cancel",
+      "submit": "Save",
+      "submitting": "Saving..."
+    },
+    "errors": {
+      "create": "Couldn't create the catalog item.",
+      "update": "Couldn't update the catalog item.",
+      "disable": "Couldn't disable the catalog item.",
+      "enable": "Couldn't enable the catalog item."
+    }
+  },
   "clients": {
     "title": "Clients",
     "subtitle": "client organizations",
@@ -266,8 +348,10 @@
       "no_invitation": "No invitation sent yet.",
       "regenerate": "Regenerate link",
       "revoke": "Revoke link",
-      "confirm_revoke": "Revoke this invitation link? The client will no longer be able to use it to onboard.",
-      "confirm_regenerate": "Generate a new invitation link? This will revoke the current one.",
+      "confirm_revoke_title": "Revoke invitation link?",
+      "confirm_revoke": "The client will no longer be able to use it to onboard.",
+      "confirm_regenerate_title": "Generate a new invitation link?",
+      "confirm_regenerate": "This will revoke the current one.",
       "message_template": "Hello! You've been invited to join {{labName}} on KesherIO. Use this link to set up your account: {{link}}"
     },
     "detail": {
@@ -284,7 +368,9 @@
       "suspend": "Suspend client",
       "reactivate": "Reactivate client",
       "delete": "Delete client",
-      "confirm_suspend": "Suspend {{name}}? Their users will not be able to create new cases or orders.",
+      "confirm_suspend_title": "Suspend client?",
+      "confirm_suspend": "{{name}}'s users will not be able to create new cases or orders.",
+      "confirm_delete_title": "Delete client?",
       "confirm_delete": "Delete {{name}}? This cannot be undone. Only clients with no orders can be deleted.",
       "back": "← Clients"
     },
@@ -321,11 +407,14 @@
       "submit": "Add member",
       "submitting": "Adding..."
     },
-    "edit": "Edit",
     "save": "Save",
     "saving": "Saving...",
+    "actions": {
+      "edit": "Edit user",
+      "remove": "Remove user"
+    },
     "remove": {
-      "button": "Remove",
+      "title": "Remove team member?",
       "confirm": "Remove {{name}} from the lab? They will lose access immediately."
     },
     "errors": {

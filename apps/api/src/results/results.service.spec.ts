@@ -141,7 +141,7 @@ function makeAnalyte(overrides: Record<string, unknown> = {}) {
 
 function makePrismaMock() {
   const mock = {
-    catalogItem: { findUnique: jest.fn() },
+    catalogItem: { findFirst: jest.fn() },
     resultTemplate: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
@@ -220,6 +220,7 @@ describe('ResultsService', () => {
 
   describe('importTemplate', () => {
     const dto: ImportTemplateDto = {
+      labTenantId: 'lab-1',
       catalogItemCode: 'CBC',
       species: 'DOG' as ImportTemplateDto['species'],
       title: 'Hemograma Canino Adulto',
@@ -247,7 +248,7 @@ describe('ResultsService', () => {
     };
 
     it('creates a new template when none exists', async () => {
-      prisma.catalogItem.findUnique.mockResolvedValue(CATALOG_ITEM);
+      prisma.catalogItem.findFirst.mockResolvedValue(CATALOG_ITEM);
       prisma.resultTemplate.findFirst.mockResolvedValue(null);
       prisma.resultTemplate.create.mockResolvedValue({ id: 'tmpl-1' });
       prisma.resultTemplateSection.create.mockResolvedValue({ id: 'sec-1' });
@@ -270,7 +271,7 @@ describe('ResultsService', () => {
     });
 
     it('increments version and replaces content when template already exists', async () => {
-      prisma.catalogItem.findUnique.mockResolvedValue(CATALOG_ITEM);
+      prisma.catalogItem.findFirst.mockResolvedValue(CATALOG_ITEM);
       prisma.resultTemplate.findFirst.mockResolvedValue({ id: 'tmpl-1' });
       prisma.resultTemplateAnalyte.deleteMany.mockResolvedValue({});
       prisma.resultTemplateSection.deleteMany.mockResolvedValue({});
@@ -295,7 +296,7 @@ describe('ResultsService', () => {
     });
 
     it('throws NotFoundException when catalogItemCode is not found', async () => {
-      prisma.catalogItem.findUnique.mockResolvedValue(null);
+      prisma.catalogItem.findFirst.mockResolvedValue(null);
 
       await expect(service.importTemplate(dto)).rejects.toThrow(
         NotFoundException

@@ -1,7 +1,11 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
+import { IconActionButton } from '../../shared/components/IconActionButton';
+import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
+import { useToast } from '../../shared/components/ToastProvider';
 import type { LabMember, LabRole } from '../../types/lab.types';
 
 const ROLES: LabRole[] = ['ADMIN', 'TECHNICIAN'];
@@ -36,6 +40,8 @@ const EMPTY_FORM: CreateForm = {
 export function TeamPage() {
   const { t } = useTranslation();
   const { user, isAdmin } = useAuth();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [members, setMembers] = useState<LabMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,12 +108,19 @@ export function TeamPage() {
     const name =
       [member.firstName, member.lastName].filter(Boolean).join(' ') ||
       member.email;
-    if (!confirm(t('team.remove.confirm', { name }))) return;
     try {
-      await labApi.users.remove(member.userId);
+      const confirmed = await confirm({
+        title: t('team.remove.title'),
+        message: t('team.remove.confirm', { name }),
+        confirmLabel: t('team.actions.remove'),
+        variant: 'destructive',
+        icon: Trash2,
+        onConfirm: () => labApi.users.remove(member.userId),
+      });
+      if (!confirmed) return;
       setMembers((prev) => prev.filter((m) => m.userId !== member.userId));
     } catch (err) {
-      alert(`${t('team.errors.remove')} ${(err as Error).message}`);
+      toast.error(`${t('team.errors.remove')} ${(err as Error).message}`);
     }
   };
 
@@ -419,20 +432,18 @@ export function TeamPage() {
                     <div className="flex items-center gap-3">
                       {!isMe && isAdmin && (
                         <>
-                          <button
+                          <IconActionButton
+                            icon={Pencil}
+                            label={t('team.actions.edit')}
                             onClick={() => startEditing(member)}
-                            className="rounded-lg p-1.5 text-cyan hover:bg-gray-800"
-                            title={t('team.edit')}
-                          >
-                            <i className="fa-solid fa-pen text-sm" />
-                          </button>
-                          <button
+                            variant="neutral"
+                          />
+                          <IconActionButton
+                            icon={Trash2}
+                            label={t('team.actions.remove')}
                             onClick={() => handleRemove(member)}
-                            className="rounded-lg p-1.5 text-red-400 hover:bg-red-900/20"
-                            title={t('team.remove.button')}
-                          >
-                            <i className="fa-solid fa-trash-can text-sm" />
-                          </button>
+                            variant="danger"
+                          />
                         </>
                       )}
 
