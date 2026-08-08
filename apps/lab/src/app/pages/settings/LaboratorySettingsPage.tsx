@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n/i18n';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
+import { COMMON_TIMEZONES } from '../../shared/timezones';
 import type {
   LaboratoryProfile,
   LabContactInfo,
@@ -27,6 +28,7 @@ const EMPTY_CONTACT: LabContactInfo = {
   phoneNumbers: [],
   mapLat: null,
   mapLng: null,
+  timezone: 'UTC',
 };
 
 const PHONE_LABELS = ['whatsapp', 'commercial', 'personal', 'other'] as const;
@@ -471,6 +473,28 @@ export function LaboratorySettingsPage() {
                 placeholder={t('settings.address_placeholder')}
                 className={inputClass}
               />
+            </div>
+
+            {/* Timezone */}
+            <div>
+              <label className={labelClass}>{t('settings.timezone')}</label>
+              <select
+                value={contactInfo.timezone}
+                disabled={!isAdmin}
+                onChange={(e) =>
+                  setContactInfo({ ...contactInfo, timezone: e.target.value })
+                }
+                className={inputClass}
+              >
+                {COMMON_TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                {t('settings.timezone_hint')}
+              </p>
             </div>
 
             {/* Map coordinates */}

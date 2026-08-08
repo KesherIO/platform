@@ -1,0 +1,26 @@
+// A curated subset of IANA timezone names — enough coverage for a lab's
+// physical location without shipping the full ~400-entry tz database.
+export const COMMON_TIMEZONES = [
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Mexico_City',
+  'America/Bogota',
+  'America/Lima',
+  'America/Santiago',
+  'America/Sao_Paulo',
+  'America/Buenos_Aires',
+  'Europe/London',
+  'Europe/Madrid',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Africa/Johannesburg',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+];

@@ -6,13 +6,18 @@ import { labApi } from '../../shared/api/labApi';
 import { IconActionButton } from '../../shared/components/IconActionButton';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
-import type { LabMember, LabRole } from '../../types/lab.types';
+import {
+  WeeklyScheduleEditor,
+  makeEmptySchedule,
+} from '../../shared/components/WeeklyScheduleEditor';
+import type { LabMember, LabRole, WeeklySchedule } from '../../types/lab.types';
 
-const ROLES: LabRole[] = ['ADMIN', 'TECHNICIAN'];
+const ROLES: LabRole[] = ['ADMIN', 'TECHNICIAN', 'MESSENGER'];
 
 const ROLE_COLORS: Record<LabRole, string> = {
   ADMIN: 'bg-purple/20 text-purple',
   TECHNICIAN: 'bg-cyan/20 text-cyan',
+  MESSENGER: 'bg-orange-900/30 text-orange-300',
 };
 
 interface CreateForm {
@@ -21,12 +26,14 @@ interface CreateForm {
   email: string;
   password: string;
   role: LabRole;
+  schedule: WeeklySchedule;
 }
 
 interface EditForm {
   firstName: string;
   lastName: string;
   email: string;
+  schedule: WeeklySchedule;
 }
 
 const EMPTY_FORM: CreateForm = {
@@ -35,6 +42,7 @@ const EMPTY_FORM: CreateForm = {
   email: '',
   password: '',
   role: 'TECHNICIAN',
+  schedule: makeEmptySchedule(),
 };
 
 export function TeamPage() {
@@ -57,6 +65,7 @@ export function TeamPage() {
     firstName: '',
     lastName: '',
     email: '',
+    schedule: makeEmptySchedule(),
   });
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -80,7 +89,9 @@ export function TeamPage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      await labApi.users.create(form as unknown as Record<string, unknown>);
+      const { schedule, ...rest } = form;
+      const payload = form.role === 'MESSENGER' ? { ...rest, schedule } : rest;
+      await labApi.users.create(payload as unknown as Record<string, unknown>);
       setShowForm(false);
       setForm(EMPTY_FORM);
       loadMembers(false);
@@ -129,19 +140,22 @@ export function TeamPage() {
       firstName: member.firstName ?? '',
       lastName: member.lastName ?? '',
       email: member.email,
+      schedule: member.schedule ?? makeEmptySchedule(),
     });
     setEditingId(member.userId);
     setActionError(null);
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = async (role: LabRole) => {
     if (!editingId) return;
     try {
       setSaving(true);
       setActionError(null);
+      const { schedule, ...rest } = editForm;
+      const payload = role === 'MESSENGER' ? { ...rest, schedule } : rest;
       await labApi.users.update(
         editingId,
-        editForm as unknown as Record<string, unknown>
+        payload as unknown as Record<string, unknown>
       );
       setEditingId(null);
       loadMembers(false);
@@ -260,6 +274,18 @@ export function TeamPage() {
                 ))}
               </select>
             </div>
+
+            {form.role === 'MESSENGER' && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-400">
+                  {t('team.schedule.title')}
+                </label>
+                <WeeklyScheduleEditor
+                  value={form.schedule}
+                  onChange={(schedule) => setForm({ ...form, schedule })}
+                />
+              </div>
+            )}
 
             {formError && (
               <p className="rounded-lg bg-red-900/30 px-3 py-2 text-xs text-red-300">
@@ -391,9 +417,22 @@ export function TeamPage() {
                         className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
                       />
                     </div>
+                    {member.role === 'MESSENGER' && (
+                      <div>
+                        <label className="mb-1 block text-xs text-gray-500">
+                          {t('team.schedule.title')}
+                        </label>
+                        <WeeklyScheduleEditor
+                          value={editForm.schedule}
+                          onChange={(schedule) =>
+                            setEditForm((f) => ({ ...f, schedule }))
+                          }
+                        />
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <button
-                        onClick={handleSaveEdit}
+                        onClick={() => handleSaveEdit(member.role)}
                         disabled={saving}
                         className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
                       >
@@ -430,6 +469,20 @@ export function TeamPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
+                      {member.role === 'MESSENGER' && (
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            member.isCurrentlyScheduled
+                              ? 'bg-emerald-900/30 text-emerald-300'
+                              : 'bg-gray-800 text-gray-500'
+                          }`}
+                        >
+                          {member.isCurrentlyScheduled
+                            ? t('team.schedule.in_schedule')
+                            : t('team.schedule.off_schedule')}
+                        </span>
+                      )}
+
                       {!isMe && isAdmin && (
                         <>
                           <IconActionButton

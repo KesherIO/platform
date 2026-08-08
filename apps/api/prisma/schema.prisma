@@ -20,6 +20,42 @@ enum TenantRole {
   VET
   TECHNICIAN
   RECEPTIONIST
+  MESSENGER
+}
+
+enum DeliveryMethod {
+  LAB_PICKUP
+  CLIENT_DELIVERY
+}
+
+enum PickupStatus {
+  REQUESTED
+  ASSIGNED
+  NOTIFIED
+  ACCEPTED
+  COLLECTED
+  IN_TRANSIT
+  RECEIVED_AT_LAB
+  CANCELLED
+  FAILED
+}
+
+enum TimelineEventType {
+  ORDER_CREATED
+  PICKUP_REQUESTED
+  PICKUP_ASSIGNED
+  NOTIFICATION_SENT
+  NOTIFICATION_FAILED
+  PICKUP_ACCEPTED
+  SAMPLE_COLLECTED
+  IN_TRANSIT
+  RECEIVED_AT_LAB
+  PICKUP_CANCELLED
+  PICKUP_FAILED
+  PROBLEM_REPORTED
+  PROCESSING_STARTED
+  RESULTS_COMPLETED
+  REPORT_RELEASED
 }
 
 enum OnboardingTokenType {
@@ -172,11 +208,20 @@ model Tenant {
   phoneNumbers       Json?    // [{label: "WhatsApp", number: "+1 555…"}, …]
   country            String?
   notificationMethod String?  // 'email' | 'sms'
+  timezone           String   @default("UTC") // IANA name, e.g. "America/Bogota" — used to evaluate messenger schedules
   // Branding — optional, populated via future branding/settings step
   logoUrl            String?  // URL to uploaded logo in storage (never store file data here)
   primaryColor       String?
   mapLat             Float?
   mapLng             Float?
+  // Sample collection settings — snapshotted onto each Pickup at creation time
+  pickupEnabled         Boolean         @default(false)
+  defaultDeliveryMethod DeliveryMethod?
+  pickupAddress         String?
+  pickupContactName     String?
+  pickupContactPhone    String?
+  collectionHours       String?
+  pickupInstructions    String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -189,6 +234,8 @@ model Tenant {
   clinicConnections  ClinicLabConnection[] @relation("ClinicConnections")
   labConnections     ClinicLabConnection[] @relation("LabConnections")
   labCatalogItems    CatalogItem[]         @relation("LabCatalog")
+  labPickups         Pickup[]              @relation("LabPickups")
+  clinicPickups      Pickup[]              @relation("ClinicPickups")
 
   @@map("tenants")
 }
@@ -206,6 +253,8 @@ model User {
   sentInvitations TenantInvitation[]
   createdCases    Case[]
   assignedTests   OrderedTest[]
+  pickupsAsMessenger Pickup[]            @relation("MessengerPickups")
+  pushSubscriptions  PushSubscription[]
 
   @@map("users")
 }
@@ -214,6 +263,11 @@ model UserTenantMembership {
   userId    String
   tenantId  String
   role      TenantRole
+  /// MESSENGER-only: recurring weekly availability, e.g.
+  /// { MONDAY: {start:"09:00", end:"17:00"}, ..., SUNDAY: null }.
+  /// Informational for now — displayed and used to sort the assign-messenger
+  /// list; does not block or exclude manual assignment outside these hours.
+  schedule  Json?
   createdAt DateTime   @default(now())
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -410,6 +464,7 @@ model Order {
   labTenantId         String?       // which lab processes this order (null = platform direct for MVP seed)
   status              OrderStatus   @default(PENDING)
   priority            OrderPriority @default(ROUTINE)
+  deliveryMethod      DeliveryMethod?
 
   /// JSON snapshot: Array<{ catalogItemId, code, name, kind, category?, turnaroundHours? }>
   orderedItems        Json
@@ -435,6 +490,8 @@ model Order {
   labTenant    Tenant?       @relation("LabOrders", fields: [labTenantId], references: [id])
   resultReport ResultReport?
   orderedTests OrderedTest[]
+  pickup         Pickup?
+  timelineEvents TimelineEvent[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -777,4 +834,91 @@ model OrderedTest {
   @@index([catalogItemId])
   @@index([assignedUserId])
   @@map("ordered_tests")
+}
+
+// ---------------------------------------------------------------------------
+// Sample Collection & Pickup Workflow
+// ---------------------------------------------------------------------------
+
+/// Tracks the courier lifecycle for a LAB_PICKUP order, separate from Order.status.
+/// One pickup per order — created automatically when the order's deliveryMethod is
+/// LAB_PICKUP and the clinic has an active lab connection.
+model Pickup {
+  id             String        @id @default(cuid())
+  orderId        String        @unique
+  labTenantId    String
+  clinicTenantId String
+  status         PickupStatus  @default(REQUESTED)
+  priority       OrderPriority @default(ROUTINE)
+
+  // Snapshot of the clinic's collection settings at request time
+  pickupAddress       String?
+  pickupContactName   String?
+  pickupContactPhone  String?
+  pickupInstructions  String?
+  requestedPickupTime DateTime?
+
+  messengerId String? // User with MESSENGER role in labTenantId
+  assignedAt  DateTime?
+
+  // Web Push notification bookkeeping — no channel field, there's only one channel
+  notifiedAt       DateTime?
+  notifyFailReason String?
+
+  acceptedAt  DateTime?
+  collectedAt DateTime?
+  receivedAt  DateTime?
+  cancelledAt DateTime?
+  failedAt    DateTime?
+  failReason  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  labTenant      Tenant          @relation("LabPickups", fields: [labTenantId], references: [id])
+  clinicTenant   Tenant          @relation("ClinicPickups", fields: [clinicTenantId], references: [id])
+  messenger      User?           @relation("MessengerPickups", fields: [messengerId], references: [id])
+  timelineEvents TimelineEvent[]
+
+  @@index([labTenantId, status])
+  @@index([messengerId, status])
+  @@map("pickups")
+}
+
+/// A single audit/history entry rendered as the order's structured timeline —
+/// replaces the ad-hoc "created / received / completed" timestamp display.
+model TimelineEvent {
+  id          String            @id @default(cuid())
+  orderId     String
+  pickupId    String?
+  eventType   TimelineEventType
+  actorId     String?
+  actorName   String?
+  description String
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+
+  order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  pickup Pickup? @relation(fields: [pickupId], references: [id])
+
+  @@index([orderId, createdAt])
+  @@map("timeline_events")
+}
+
+/// A Web Push subscription for one browser/device of a lab user (typically a
+/// MESSENGER). A user may have several — one per device/browser they've enabled
+/// notifications on.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

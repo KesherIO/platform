@@ -88,7 +88,10 @@ describe('OrderComponent', () => {
     const fixture = TestBed.createComponent(OrderComponent);
     fixture.detectChanges();
     fixture.componentInstance.generateRequisition();
-    expect(casesServiceSpy.createOrder).toHaveBeenCalledWith('c2');
+    expect(casesServiceSpy.createOrder).toHaveBeenCalledWith(
+      'c2',
+      'LAB_PICKUP'
+    );
     expect(routerSpy.navigate).toHaveBeenCalledWith(
       ['/cases', 'c2', 'order', 'success'],
       expect.objectContaining({

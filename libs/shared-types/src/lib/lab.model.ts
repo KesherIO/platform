@@ -77,6 +77,7 @@ export interface LabOrderModel {
   labTenantId: string | null;
   status: string;
   priority: string;
+  deliveryMethod: string | null;
   orderedItems: unknown[];
   orderedTests: OrderedTestModel[];
   clinicNotes: string | null;
@@ -89,6 +90,7 @@ export interface LabOrderModel {
   ownerName: string;
   createdAt: Date;
   updatedAt: Date;
+  collectedAt: Date | null;
   receivedByLabAt: Date | null;
   completedAt: Date | null;
 }

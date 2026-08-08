@@ -11,6 +11,14 @@ const STATUS_COLORS: Record<string, string> = {
   IN_PROGRESS: 'bg-orange-400/15 text-orange-300',
   DRAFT: 'bg-yellow-400/15 text-yellow-300',
   RELEASED: 'bg-green-400/15 text-green-300',
+  // Pickup statuses
+  REQUESTED: 'bg-yellow-400/15 text-yellow-300',
+  ASSIGNED: 'bg-blue-400/15 text-blue-300',
+  NOTIFIED: 'bg-indigo-400/15 text-indigo-300',
+  ACCEPTED: 'bg-cyan/15 text-cyan',
+  IN_TRANSIT: 'bg-orange-400/15 text-orange-300',
+  RECEIVED_AT_LAB: 'bg-green-400/15 text-green-300',
+  FAILED: 'bg-red-400/15 text-red-300',
 };
 
 interface StatusBadgeProps {

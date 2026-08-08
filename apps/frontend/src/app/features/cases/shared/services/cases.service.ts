@@ -154,12 +154,13 @@ export class CasesService {
   }
 
   createOrder(
-    id: string
+    id: string,
+    deliveryMethod?: 'LAB_PICKUP' | 'CLIENT_DELIVERY'
   ): Observable<{ orderId: string; requisitionUrl: string }> {
     return this.http
       .post<{ id: string; requisitionNumber: string; requisitionUrl: string }>(
         `/api/cases/${id}/order`,
-        {},
+        { deliveryMethod },
         this.tenantHeaders
       )
       .pipe(

@@ -10,6 +10,7 @@ import { ClientInfoCard } from './ClientInfoCard';
 import { ClientInvitationCard } from './ClientInvitationCard';
 import { ClientUsersCard } from './ClientUsersCard';
 import { ClientOrdersCard } from './ClientOrdersCard';
+import { ClientCollectionSettingsCard } from './ClientCollectionSettingsCard';
 import type {
   ClientDetail,
   ClientStatus,
@@ -257,6 +258,13 @@ export function ClientDetailPage() {
         <ClientUsersCard users={client.users} />
 
         <ClientOrdersCard orders={client.recentOrders} />
+
+        <ClientCollectionSettingsCard
+          client={client}
+          isAdmin={isAdmin}
+          onUpdated={() => loadClient(false)}
+          onError={setActionError}
+        />
       </div>
     </div>
   );

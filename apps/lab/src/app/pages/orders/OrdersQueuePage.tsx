@@ -5,7 +5,15 @@ import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { SearchInput } from '../../shared/components/SearchInput';
 import { Pagination } from '../../shared/components/Pagination';
+import { DateRangeFilter } from '../../shared/components/DateRangeFilter';
 import type { LabOrderSummary } from '../../types/lab.types';
+
+// Shared sizing so status tabs and the date-range control share one height.
+const TOOLBAR_TAB =
+  'flex h-9 items-center rounded-lg border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950';
+const TOOLBAR_TAB_ACTIVE = 'border-cyan/30 bg-cyan/10 text-cyan';
+const TOOLBAR_TAB_INACTIVE =
+  'border-gray-800 text-gray-400 hover:bg-gray-800 hover:text-white';
 
 const PAGE_SIZE = 20;
 
@@ -31,6 +39,8 @@ export function OrdersQueuePage() {
   const [activeFilter, setActiveFilter] = useState<string | undefined>(
     undefined
   );
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -41,6 +51,11 @@ export function OrdersQueuePage() {
 
   const FILTER_TABS = [
     { label: t('orders.filter.all'), value: undefined },
+    {
+      label: t('orders.filter.awaiting_sample'),
+      value: 'PENDING,READY_FOR_PICKUP',
+    },
+    { label: t('orders.filter.in_transit'), value: 'COLLECTED' },
     { label: t('orders.filter.received'), value: 'RECEIVED_BY_LAB' },
     { label: t('orders.filter.processing'), value: 'PROCESSING' },
     { label: t('orders.filter.completed'), value: 'COMPLETED' },
@@ -55,6 +70,8 @@ export function OrdersQueuePage() {
       .list({
         status: activeFilter,
         search: search || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
         page,
         pageSize: PAGE_SIZE,
       })
@@ -77,7 +94,7 @@ export function OrdersQueuePage() {
     return () => {
       ignore = true;
     };
-  }, [activeFilter, search, page]);
+  }, [activeFilter, search, dateFrom, dateTo, page]);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
@@ -88,6 +105,17 @@ export function OrdersQueuePage() {
     setActiveFilter(status);
     setPage(1);
   };
+
+  const handleDateRangeChange = (range: {
+    dateFrom: string;
+    dateTo: string;
+  }) => {
+    setDateFrom(range.dateFrom);
+    setDateTo(range.dateTo);
+    setPage(1);
+  };
+
+  const hasDateFilter = Boolean(dateFrom || dateTo);
 
   return (
     <div className="p-6">
@@ -102,20 +130,31 @@ export function OrdersQueuePage() {
         <SearchInput value={search} onChange={handleSearchChange} />
       </div>
 
-      <div className="mb-4 flex gap-2">
-        {FILTER_TABS.map((tab) => (
-          <button
-            key={tab.label}
-            onClick={() => handleFilterChange(tab.value)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-              activeFilter === tab.value
-                ? 'bg-cyan/10 text-cyan'
-                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {FILTER_TABS.map((tab) => (
+            <button
+              key={tab.label}
+              onClick={() => handleFilterChange(tab.value)}
+              className={`${TOOLBAR_TAB} ${
+                activeFilter === tab.value
+                  ? TOOLBAR_TAB_ACTIVE
+                  : TOOLBAR_TAB_INACTIVE
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <DateRangeFilter
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onChange={handleDateRangeChange}
+            label={t('orders.date_range')}
+          />
+        </div>
       </div>
 
       {loading && orders.length === 0 && (
@@ -150,7 +189,7 @@ export function OrdersQueuePage() {
 
       {!loading && !error && orders.length === 0 && (
         <div className="py-16 text-center text-gray-500">
-          {search ? t('common.no_results') : t('orders.empty')}
+          {search || hasDateFilter ? t('common.no_results') : t('orders.empty')}
         </div>
       )}
 

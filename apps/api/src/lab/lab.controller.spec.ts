@@ -4,6 +4,7 @@ import { LabController } from './lab.controller';
 import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
+import { PickupService } from './pickup.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('LabController', () => {
@@ -52,12 +53,35 @@ describe('LabController', () => {
       deleteClient: jest.fn().mockResolvedValue(undefined),
     };
 
+    const pickupServiceMock: Partial<jest.Mocked<PickupService>> = {
+      listPickups: jest.fn().mockResolvedValue({
+        data: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 0,
+      }),
+      getMyPickups: jest.fn().mockResolvedValue([]),
+      getPickupById: jest.fn().mockResolvedValue({}),
+      assignMessenger: jest.fn().mockResolvedValue({}),
+      confirmReceived: jest.fn().mockResolvedValue({}),
+      cancelPickup: jest.fn().mockResolvedValue({}),
+      acceptPickup: jest.fn().mockResolvedValue({}),
+      markCollected: jest.fn().mockResolvedValue({}),
+      reportProblem: jest.fn().mockResolvedValue({ reported: true }),
+      getAvailableMessengers: jest.fn().mockResolvedValue([]),
+      savePushSubscription: jest.fn().mockResolvedValue({ saved: true }),
+      removePushSubscription: jest.fn().mockResolvedValue({ removed: true }),
+      getTimelineForOrder: jest.fn().mockResolvedValue([]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LabController],
       providers: [
         { provide: LabService, useValue: serviceMock },
         { provide: LabUsersService, useValue: usersServiceMock },
         { provide: LabClientsService, useValue: clientsServiceMock },
+        { provide: PickupService, useValue: pickupServiceMock },
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('test-key') },

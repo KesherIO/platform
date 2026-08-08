@@ -1,11 +1,12 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { take } from 'rxjs';
-import { CaseModel, CaseStatus } from '@vet-ai/shared-types';
+import { CaseModel, CaseStatus, DeliveryMethod } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
 import { CaseWizardLayoutComponent } from '../shared/components/case-wizard-layout/case-wizard-layout.component';
-import { ButtonComponent } from '../../../shared/components';
+import { ButtonComponent, ToggleComponent } from '../../../shared/components';
 import { SelectedTestsChipsComponent } from './components/selected-tests-chips/selected-tests-chips.component';
 
 @Component({
@@ -13,9 +14,11 @@ import { SelectedTestsChipsComponent } from './components/selected-tests-chips/s
   standalone: true,
   imports: [
     RouterLink,
+    FormsModule,
     TranslatePipe,
     CaseWizardLayoutComponent,
     ButtonComponent,
+    ToggleComponent,
     SelectedTestsChipsComponent,
   ],
   templateUrl: './order.component.html',
@@ -30,6 +33,12 @@ export class OrderComponent implements OnInit {
   sending = signal(false);
   cancelling = signal(false);
   case = signal<CaseModel | null>(null);
+  deliveryMethod = signal<DeliveryMethod>('LAB_PICKUP');
+
+  deliveryMethodOptions = [
+    { label: 'CASES.ORDER.DELIVERY_CLIENT', value: 'CLIENT_DELIVERY' },
+    { label: 'CASES.ORDER.DELIVERY_LAB_PICKUP', value: 'LAB_PICKUP' },
+  ];
 
   selectedItems = computed(() => this.case()?.selectedCatalogItems ?? []);
   caseId = computed(() => this.route.snapshot.paramMap.get('id') ?? '');
@@ -68,11 +77,15 @@ export class OrderComponent implements OnInit {
       });
   }
 
+  onDeliveryMethodChange(value: string): void {
+    this.deliveryMethod.set(value as DeliveryMethod);
+  }
+
   generateRequisition(): void {
     if (this.sending()) return;
     this.sending.set(true);
     this.casesService
-      .createOrder(this.caseId())
+      .createOrder(this.caseId(), this.deliveryMethod())
       .pipe(take(1))
       .subscribe({
         next: (result) => {

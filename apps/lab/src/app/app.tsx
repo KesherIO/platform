@@ -16,6 +16,8 @@ import { TeamPage } from './pages/settings/TeamPage';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { ClientDetailPage } from './pages/clients/ClientDetailPage';
 import { CatalogPage } from './pages/catalog/CatalogPage';
+import { CollectionsPage } from './pages/collections/CollectionsPage';
+import { MyPickupsPage } from './pages/pickups/MyPickupsPage';
 
 export function App() {
   return (
@@ -48,6 +50,8 @@ export function App() {
               <Route path="/clients" element={<ClientsPage />} />
               <Route path="/clients/:id" element={<ClientDetailPage />} />
               <Route path="/catalog" element={<CatalogPage />} />
+              <Route path="/collections" element={<CollectionsPage />} />
+              <Route path="/my-pickups" element={<MyPickupsPage />} />
               <Route
                 path="/settings/laboratory"
                 element={<LaboratorySettingsPage />}

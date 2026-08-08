@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ClientType, ClientStatus } from '@prisma/client';
+import { ClientType, ClientStatus, DeliveryMethod } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
 import type { CreateClientDto } from './dto/create-client.dto';
 import type { UpdateClientDto } from './dto/update-client.dto';
@@ -125,6 +125,13 @@ export class LabClientsService {
         address: true,
         createdAt: true,
         updatedAt: true,
+        pickupEnabled: true,
+        defaultDeliveryMethod: true,
+        pickupAddress: true,
+        pickupContactName: true,
+        pickupContactPhone: true,
+        collectionHours: true,
+        pickupInstructions: true,
         _count: { select: { orders: true } },
         memberships: {
           include: {
@@ -188,6 +195,13 @@ export class LabClientsService {
       updatedAt: client.updatedAt,
       orderCount: client._count.orders,
       laboratoryName: lab?.name ?? null,
+      pickupEnabled: client.pickupEnabled,
+      defaultDeliveryMethod: client.defaultDeliveryMethod,
+      pickupAddress: client.pickupAddress,
+      pickupContactName: client.pickupContactName,
+      pickupContactPhone: client.pickupContactPhone,
+      collectionHours: client.collectionHours,
+      pickupInstructions: client.pickupInstructions,
       users: client.memberships.map((m) => ({
         userId: m.userId,
         email: m.user.email,
@@ -471,6 +485,58 @@ export class LabClientsService {
         where: { tenantId: clientTenantId },
       });
       await tx.tenant.delete({ where: { id: clientTenantId } });
+    });
+  }
+
+  async updateCollectionSettings(
+    labTenantId: string,
+    clientTenantId: string,
+    dto: {
+      pickupEnabled?: boolean;
+      defaultDeliveryMethod?: string;
+      pickupAddress?: string;
+      pickupContactName?: string;
+      pickupContactPhone?: string;
+      collectionHours?: string;
+      pickupInstructions?: string;
+    }
+  ) {
+    await this.verifyLabClientConnection(labTenantId, clientTenantId);
+
+    return this.prisma.tenant.update({
+      where: { id: clientTenantId },
+      data: {
+        ...(dto.pickupEnabled !== undefined && {
+          pickupEnabled: dto.pickupEnabled,
+        }),
+        ...(dto.defaultDeliveryMethod !== undefined && {
+          defaultDeliveryMethod: dto.defaultDeliveryMethod as DeliveryMethod,
+        }),
+        ...(dto.pickupAddress !== undefined && {
+          pickupAddress: dto.pickupAddress,
+        }),
+        ...(dto.pickupContactName !== undefined && {
+          pickupContactName: dto.pickupContactName,
+        }),
+        ...(dto.pickupContactPhone !== undefined && {
+          pickupContactPhone: dto.pickupContactPhone,
+        }),
+        ...(dto.collectionHours !== undefined && {
+          collectionHours: dto.collectionHours,
+        }),
+        ...(dto.pickupInstructions !== undefined && {
+          pickupInstructions: dto.pickupInstructions,
+        }),
+      },
+      select: {
+        pickupEnabled: true,
+        defaultDeliveryMethod: true,
+        pickupAddress: true,
+        pickupContactName: true,
+        pickupContactPhone: true,
+        collectionHours: true,
+        pickupInstructions: true,
+      },
     });
   }
 

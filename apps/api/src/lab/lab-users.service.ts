@@ -4,11 +4,16 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { TenantRole } from '@prisma/client';
+import { TenantRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import type { CreateLabUserDto } from './dto/create-lab-user.dto';
 import type { UpdateLabUserDto } from './dto/update-lab-user.dto';
+import {
+  validateWeeklySchedule,
+  isWithinSchedule,
+  type WeeklySchedule,
+} from './messenger-schedule.util';
 
 @Injectable()
 export class LabUsersService {
@@ -38,30 +43,41 @@ export class LabUsersService {
   // ---------------------------------------------------------------------------
 
   async getLabMembers(labTenantId: string) {
-    const memberships = await this.prisma.userTenantMembership.findMany({
-      where: { tenantId: labTenantId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            createdAt: true,
+    const [memberships, tenant] = await Promise.all([
+      this.prisma.userTenantMembership.findMany({
+        where: { tenantId: labTenantId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              createdAt: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.tenant.findUniqueOrThrow({
+        where: { id: labTenantId },
+        select: { timezone: true },
+      }),
+    ]);
 
-    return memberships.map((m) => ({
-      userId: m.userId,
-      role: m.role,
-      joinedAt: m.createdAt,
-      email: m.user.email,
-      firstName: m.user.firstName,
-      lastName: m.user.lastName,
-    }));
+    return memberships.map((m) => {
+      const schedule = m.schedule as WeeklySchedule | null;
+      return {
+        userId: m.userId,
+        role: m.role,
+        joinedAt: m.createdAt,
+        email: m.user.email,
+        firstName: m.user.firstName,
+        lastName: m.user.lastName,
+        schedule,
+        isCurrentlyScheduled: isWithinSchedule(schedule, tenant.timezone),
+      };
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -69,6 +85,9 @@ export class LabUsersService {
   // ---------------------------------------------------------------------------
 
   async createLabUser(labTenantId: string, dto: CreateLabUserDto) {
+    const schedule =
+      dto.schedule !== undefined ? validateWeeklySchedule(dto.schedule) : null;
+
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -113,6 +132,9 @@ export class LabUsersService {
             userId: supabaseId,
             tenantId: labTenantId,
             role: dto.role as TenantRole,
+            ...(schedule && {
+              schedule: schedule as unknown as Prisma.InputJsonValue,
+            }),
           },
         });
 
@@ -169,12 +191,27 @@ export class LabUsersService {
       },
     });
 
+    let schedule = membership.schedule as WeeklySchedule | null;
+    if (dto.schedule !== undefined) {
+      schedule =
+        dto.schedule === null ? null : validateWeeklySchedule(dto.schedule);
+      await this.prisma.userTenantMembership.update({
+        where: { userId_tenantId: { userId, tenantId: labTenantId } },
+        data: {
+          schedule: schedule
+            ? (schedule as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
+        },
+      });
+    }
+
     return {
       userId: updated.id,
       email: updated.email,
       firstName: updated.firstName,
       lastName: updated.lastName,
       role: membership.role,
+      schedule,
     };
   }
 

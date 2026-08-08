@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { LabUsersService } from './lab-users.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -40,6 +41,9 @@ describe('LabUsersService', () => {
         update: jest.fn(),
         delete: jest.fn(),
       },
+      tenant: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
+      },
       $transaction: jest.fn((fn: (tx: any) => Promise<any>) => fn(prisma)),
     };
 
@@ -70,6 +74,7 @@ describe('LabUsersService', () => {
           userId: USER_ID,
           role: 'TECHNICIAN',
           createdAt: new Date('2026-07-01'),
+          schedule: null,
           user: {
             id: USER_ID,
             email: 'tech@lab.com',
@@ -86,6 +91,41 @@ describe('LabUsersService', () => {
       expect(result[0].email).toBe('tech@lab.com');
       expect(result[0].role).toBe('TECHNICIAN');
       expect(result[0].firstName).toBe('Jane');
+      expect(result[0].schedule).toBeNull();
+      expect(result[0].isCurrentlyScheduled).toBe(false);
+    });
+
+    it('marks a messenger as currently scheduled using the lab timezone', async () => {
+      prisma.tenant.findUniqueOrThrow.mockResolvedValue({
+        timezone: 'America/New_York',
+      });
+      prisma.userTenantMembership.findMany.mockResolvedValue([
+        {
+          userId: USER_ID,
+          role: 'MESSENGER',
+          createdAt: new Date('2026-07-01'),
+          schedule: {
+            MONDAY: { start: '00:00', end: '23:59' },
+            TUESDAY: { start: '00:00', end: '23:59' },
+            WEDNESDAY: { start: '00:00', end: '23:59' },
+            THURSDAY: { start: '00:00', end: '23:59' },
+            FRIDAY: { start: '00:00', end: '23:59' },
+            SATURDAY: { start: '00:00', end: '23:59' },
+            SUNDAY: { start: '00:00', end: '23:59' },
+          },
+          user: {
+            id: USER_ID,
+            email: 'messenger@lab.com',
+            firstName: 'Sam',
+            lastName: 'Courier',
+            createdAt: new Date(),
+          },
+        },
+      ]);
+
+      const result = await service.getLabMembers(LAB_ID);
+
+      expect(result[0].isCurrentlyScheduled).toBe(true);
     });
   });
 
@@ -183,6 +223,50 @@ describe('LabUsersService', () => {
       await service.updateUser(LAB_ID, USER_ID, { firstName: 'Updated' });
 
       expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('validates and persists a valid weekly schedule', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+      prisma.user.update.mockResolvedValue({
+        id: USER_ID,
+        email: mockMembership.userId,
+        firstName: 'Sam',
+        lastName: 'Courier',
+      });
+
+      const schedule = {
+        MONDAY: { start: '09:00', end: '17:00' },
+        TUESDAY: null,
+        WEDNESDAY: null,
+        THURSDAY: null,
+        FRIDAY: null,
+        SATURDAY: null,
+        SUNDAY: null,
+      };
+
+      const result = await service.updateUser(LAB_ID, USER_ID, { schedule });
+
+      expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
+        where: { userId_tenantId: { userId: USER_ID, tenantId: LAB_ID } },
+        data: { schedule },
+      });
+      expect(result.schedule).toEqual(schedule);
+    });
+
+    it('rejects a malformed weekly schedule', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+      prisma.user.update.mockResolvedValue({
+        id: USER_ID,
+        email: 'x@lab.com',
+        firstName: 'Sam',
+        lastName: 'Courier',
+      });
+
+      await expect(
+        service.updateUser(LAB_ID, USER_ID, {
+          schedule: { MONDAY: { start: '25:00', end: '17:00' } } as any,
+        })
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

@@ -14,7 +14,12 @@
     "no_results": "No results found",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "apply": "Apply",
+    "clear": "Clear",
+    "date_from": "From",
+    "date_to": "To",
+    "clear_date_range": "Clear date range"
   },
   "auth": {
     "title": "Laboratory Portal Sign in",
@@ -49,7 +54,11 @@
     "clients": "Clients",
     "team": "Team",
     "settings": "Settings",
-    "sign_out": "Sign out"
+    "sign_out": "Sign out",
+    "collections": "Collections",
+    "my_pickups": "My Pickups",
+    "open_menu": "Open menu",
+    "close_menu": "Close menu"
   },
   "status": {
     "PENDING": "Pending",
@@ -61,7 +70,14 @@
     "CANCELLED": "Cancelled",
     "IN_PROGRESS": "In progress",
     "DRAFT": "Draft",
-    "RELEASED": "Released"
+    "RELEASED": "Released",
+    "REQUESTED": "Requested",
+    "ASSIGNED": "Assigned",
+    "NOTIFIED": "Notified",
+    "ACCEPTED": "Accepted",
+    "IN_TRANSIT": "In transit",
+    "RECEIVED_AT_LAB": "Received",
+    "FAILED": "Failed"
   },
   "species": {
     "DOG": "Canine",
@@ -83,10 +99,13 @@
     "empty": "No orders match this filter.",
     "error": "Error loading orders:",
     "owner": "Owner:",
-    "search_placeholder": "Search by patient, clinic, or order number...",
+    "search_placeholder": "Search by patient, clinic, or requisition...",
     "search_clear": "Clear search",
+    "date_range": "Date range",
     "filter": {
       "all": "All",
+      "awaiting_sample": "Awaiting sample",
+      "in_transit": "In transit",
       "received": "Received",
       "processing": "Processing",
       "completed": "Completed"
@@ -168,6 +187,8 @@
     "add_phone": "Add phone number",
     "address": "Address",
     "address_placeholder": "Street address, city, country",
+    "timezone": "Timezone",
+    "timezone_hint": "Used to evaluate messenger schedules and show local pickup times.",
     "location_title": "Location",
     "map_lat": "Latitude",
     "map_lng": "Longitude",
@@ -383,6 +404,20 @@
       "regenerate": "Error regenerating invitation:",
       "revoke": "Error revoking invitation:",
       "load_detail": "Error loading client details."
+    },
+    "collection_settings": {
+      "title": "Collection settings",
+      "pickup_enabled": "Pickup enabled",
+      "default_delivery": "Default delivery method",
+      "pickup_address": "Pickup address",
+      "pickup_contact_name": "Pickup contact name",
+      "pickup_contact_phone": "Pickup contact phone",
+      "collection_hours": "Collection hours",
+      "pickup_instructions": "Special pickup instructions",
+      "saved": "Collection settings saved",
+      "errors": {
+        "save": "Error saving collection settings:"
+      }
     }
   },
   "team": {
@@ -393,7 +428,23 @@
     "you": "you",
     "roles": {
       "ADMIN": "Admin",
-      "TECHNICIAN": "Staff"
+      "TECHNICIAN": "Staff",
+      "MESSENGER": "Messenger"
+    },
+    "schedule": {
+      "title": "Weekly schedule",
+      "to": "to",
+      "in_schedule": "Scheduled now",
+      "off_schedule": "Off schedule",
+      "days": {
+        "MONDAY": "Monday",
+        "TUESDAY": "Tuesday",
+        "WEDNESDAY": "Wednesday",
+        "THURSDAY": "Thursday",
+        "FRIDAY": "Friday",
+        "SATURDAY": "Saturday",
+        "SUNDAY": "Sunday"
+      }
     },
     "form": {
       "title": "Add team member",
@@ -423,5 +474,110 @@
       "update": "Error updating user:",
       "remove": "Error removing user:"
     }
+  },
+  "collections": {
+    "title": "Collections",
+    "history_title": "Collections history",
+    "view_history": "View history",
+    "back_to_queue": "Back to queue",
+    "subtitle": "sample pickups",
+    "empty": "No pickups match this filter.",
+    "search_placeholder": "Search by requisition, clinic, patient, or messenger...",
+    "all_messengers": "All messengers",
+    "clear_messenger": "Clear messenger filter",
+    "date_range": "Date range",
+    "clear_filters": "Clear filters",
+    "filter": {
+      "all": "All",
+      "all_history": "All",
+      "unassigned": "Unassigned",
+      "assigned": "Assigned",
+      "in_transit": "In transit",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "unassigned": "Unassigned",
+    "assign": "Assign messenger",
+    "confirm_received": "Confirm received",
+    "waiting_since": "Waiting",
+    "contact": "Contact",
+    "address": "Address",
+    "messenger": "Messenger",
+    "requested_time": "Requested by",
+    "patient": "Patient",
+    "no_messengers": "No messengers available. Add team members with Messenger role in",
+    "assign_title": "Assign messenger",
+    "assign_subtitle": "Select a messenger for this pickup",
+    "active_pickups": "active pickups",
+    "assign_confirm": "Assign",
+    "assigning": "Assigning...",
+    "assigned_success": "Messenger assigned successfully",
+    "received_success": "Sample receipt confirmed",
+    "cancel_title": "Cancel pickup?",
+    "cancel_confirm": "This will cancel the pickup request.",
+    "errors": {
+      "load": "Error loading pickups.",
+      "assign": "Error assigning messenger:",
+      "received": "Error confirming receipt:",
+      "cancel": "Error cancelling pickup:"
+    }
+  },
+  "timeline": {
+    "title": "Timeline",
+    "ORDER_CREATED": "Order created",
+    "PICKUP_REQUESTED": "Lab pickup requested",
+    "PICKUP_ASSIGNED": "Assigned to {{messenger}}",
+    "NOTIFICATION_SENT": "Push notification sent",
+    "NOTIFICATION_FAILED": "Push notification could not be delivered",
+    "PICKUP_ACCEPTED": "Pickup accepted",
+    "SAMPLE_COLLECTED": "Sample collected",
+    "IN_TRANSIT": "Sample in transit",
+    "RECEIVED_AT_LAB": "Sample received at laboratory",
+    "PICKUP_CANCELLED": "Pickup cancelled",
+    "PICKUP_FAILED": "Pickup failed",
+    "PROBLEM_REPORTED": "Problem reported: {{reason}}",
+    "PROCESSING_STARTED": "Processing started",
+    "RESULTS_COMPLETED": "Results completed",
+    "REPORT_RELEASED": "Report released"
+  },
+  "pickup": {
+    "status": "Pickup status",
+    "assigned_messenger": "Assigned messenger",
+    "delivery_method": "Delivery method",
+    "LAB_PICKUP": "Lab pickup",
+    "CLIENT_DELIVERY": "Client delivery"
+  },
+  "my_pickups": {
+    "empty": "No pickups assigned to you right now.",
+    "history_title": "Pickup history",
+    "history_empty": "No completed pickups yet.",
+    "view_history": "View history",
+    "back_to_active": "Back to active",
+    "cancelled": "Pickup cancelled.",
+    "clinic": "Clinic",
+    "address": "Pickup address",
+    "open_maps": "Open in Maps",
+    "contact": "Contact",
+    "requisition": "Requisition",
+    "priority": "Priority",
+    "requested_time": "Requested pickup time",
+    "instructions": "Sample handling instructions",
+    "accept": "Accept pickup",
+    "accepting": "Accepting...",
+    "collected": "Sample collected",
+    "collecting": "Confirming...",
+    "collected_confirm_title": "Confirm sample collected?",
+    "collected_confirm_message": "This confirms you have physically picked up the sample from the clinic.",
+    "report_problem": "Report a problem",
+    "problem_reasons": {
+      "CLINIC_CLOSED": "Clinic closed",
+      "SAMPLE_NOT_READY": "Sample not ready",
+      "INCORRECT_ADDRESS": "Incorrect address",
+      "UNABLE_TO_CONTACT": "Unable to contact clinic",
+      "OTHER": "Other"
+    },
+    "problem_submitted": "Problem reported to the laboratory.",
+    "waiting_for_receipt": "Sample collected. Waiting for laboratory confirmation.",
+    "completed": "Pickup completed. Sample received by laboratory."
   }
 }

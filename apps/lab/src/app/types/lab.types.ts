@@ -18,6 +18,26 @@ export type OrderedTestStatus =
 export type ResultEntryMethod = 'MANUAL' | 'INSTRUMENT' | 'IMPORTED';
 export type ReportStatus = 'DRAFT' | 'RELEASED';
 export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
+
+export type DeliveryMethod = 'LAB_PICKUP' | 'CLIENT_DELIVERY';
+
+export type PickupStatus =
+  | 'REQUESTED'
+  | 'ASSIGNED'
+  | 'NOTIFIED'
+  | 'ACCEPTED'
+  | 'COLLECTED'
+  | 'IN_TRANSIT'
+  | 'RECEIVED_AT_LAB'
+  | 'CANCELLED'
+  | 'FAILED';
+
+export type PickupProblemReason =
+  | 'CLINIC_CLOSED'
+  | 'SAMPLE_NOT_READY'
+  | 'INCORRECT_ADDRESS'
+  | 'UNABLE_TO_CONTACT'
+  | 'OTHER';
 export type Species =
   | 'DOG'
   | 'CAT'
@@ -73,6 +93,7 @@ export interface LabOrderSummary {
   labTenantId: string | null;
   status: OrderStatus;
   priority: Priority;
+  deliveryMethod: DeliveryMethod | null;
   orderedTests: OrderedTest[];
   clinicNotes: string | null;
   labNotes: string | null;
@@ -83,17 +104,59 @@ export interface LabOrderSummary {
   ownerName: string;
   createdAt: string;
   updatedAt: string;
+  collectedAt: string | null;
   receivedByLabAt: string | null;
   completedAt: string | null;
+}
+
+export interface OrderPickupInfo {
+  id: string;
+  status: PickupStatus;
+  priority: Priority;
+  pickupAddress: string | null;
+  pickupContactName: string | null;
+  pickupContactPhone: string | null;
+  pickupInstructions: string | null;
+  requestedPickupTime: string | null;
+  messengerId: string | null;
+  messenger: {
+    firstName: string | null;
+    lastName: string | null;
+    phone: string | null;
+  } | null;
+  assignedAt: string | null;
+  notifiedAt: string | null;
+  acceptedAt: string | null;
+  collectedAt: string | null;
+  receivedAt: string | null;
+  cancelledAt: string | null;
+  failReason: string | null;
 }
 
 export interface LabOrderDetail extends LabOrderSummary {
   case: PatientCase;
   tenant: { name: string; email: string | null; phone: string | null };
   resultReport: ResultReport | null;
+  pickup: OrderPickupInfo | null;
 }
 
-export type LabRole = 'ADMIN' | 'TECHNICIAN';
+export type LabRole = 'ADMIN' | 'TECHNICIAN' | 'MESSENGER';
+
+export const WEEKDAYS = [
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+  'SUNDAY',
+] as const;
+
+export type Weekday = (typeof WEEKDAYS)[number];
+
+export type DayRange = { start: string; end: string } | null;
+
+export type WeeklySchedule = Record<Weekday, DayRange>;
 
 export interface LabMember {
   userId: string;
@@ -102,6 +165,8 @@ export interface LabMember {
   lastName: string | null;
   role: LabRole;
   joinedAt: string;
+  schedule: WeeklySchedule | null;
+  isCurrentlyScheduled: boolean;
 }
 
 export interface LaboratoryProfile {
@@ -141,6 +206,7 @@ export interface LabContactInfo {
   phoneNumbers: LabPhoneNumber[];
   mapLat: number | null;
   mapLng: number | null;
+  timezone: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -154,6 +220,8 @@ export interface PaginatedResponse<T> {
 export interface LabOrdersQuery {
   status?: string;
   search?: string;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   pageSize?: number;
 }
@@ -217,7 +285,7 @@ export interface ClientInvitation {
   createdAt: string;
 }
 
-export interface ClientDetail extends ClientOrganization {
+export interface ClientDetail extends ClientOrganization, CollectionSettings {
   updatedAt: string;
   laboratoryName: string | null;
   users: ClientUser[];
@@ -282,4 +350,73 @@ export interface CatalogCounts {
 
 export interface CatalogListResponse extends PaginatedResponse<CatalogItem> {
   counts: CatalogCounts;
+}
+
+// ---------------------------------------------------------------------------
+// Sample collection & pickup workflow
+// ---------------------------------------------------------------------------
+
+export interface PickupSummary {
+  id: string;
+  orderId: string;
+  requisitionNumber: string | null;
+  patientName: string | null;
+  clinicName: string | null;
+  status: PickupStatus;
+  priority: Priority;
+  pickupAddress: string | null;
+  pickupContactName: string | null;
+  pickupContactPhone: string | null;
+  pickupInstructions: string | null;
+  requestedPickupTime: string | null;
+  messengerId: string | null;
+  messengerName: string | null;
+  messengerPhone: string | null;
+  assignedAt: string | null;
+  notifiedAt: string | null;
+  acceptedAt: string | null;
+  collectedAt: string | null;
+  receivedAt: string | null;
+  cancelledAt: string | null;
+  failReason: string | null;
+  createdAt: string;
+}
+
+export interface TimelineEvent {
+  id: string;
+  eventType: string;
+  actorName: string | null;
+  description: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface MessengerInfo {
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  activePickupCount: number;
+  schedule: WeeklySchedule | null;
+  isCurrentlyScheduled: boolean;
+}
+
+export interface CollectionsQuery {
+  status?: string;
+  search?: string;
+  messengerId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CollectionSettings {
+  pickupEnabled: boolean;
+  defaultDeliveryMethod: DeliveryMethod | null;
+  pickupAddress: string | null;
+  pickupContactName: string | null;
+  pickupContactPhone: string | null;
+  collectionHours: string | null;
+  pickupInstructions: string | null;
 }
