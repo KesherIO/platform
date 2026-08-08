@@ -46,4 +46,5 @@ export interface TenantContext {
   tenantName: string;
   tenantLogoUrl: string | null;
   role: TenantRole;
+  canPerformPickups: boolean;
 }

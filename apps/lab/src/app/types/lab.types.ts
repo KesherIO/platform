@@ -166,6 +166,7 @@ export interface LabMember {
   role: LabRole;
   joinedAt: string;
   schedule: WeeklySchedule | null;
+  canPerformPickups: boolean;
   isCurrentlyScheduled: boolean;
 }
 
@@ -396,6 +397,7 @@ export interface MessengerInfo {
   firstName: string | null;
   lastName: string | null;
   phone: string | null;
+  role: LabRole;
   activePickupCount: number;
   schedule: WeeklySchedule | null;
   isCurrentlyScheduled: boolean;

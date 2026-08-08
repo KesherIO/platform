@@ -267,8 +267,12 @@ model UserTenantMembership {
   /// { MONDAY: {start:"09:00", end:"17:00"}, ..., SUNDAY: null }.
   /// Informational for now — displayed and used to sort the assign-messenger
   /// list; does not block or exclude manual assignment outside these hours.
-  schedule  Json?
-  createdAt DateTime   @default(now())
+  schedule          Json?
+  /// When true, non-MESSENGER users (ADMIN, TECHNICIAN) can be assigned
+  /// pickups, appear in the messenger list, access My Pickups, and receive
+  /// push notifications. Ignored for MESSENGER role (intrinsic capability).
+  canPerformPickups Boolean  @default(false)
+  createdAt         DateTime @default(now())
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)

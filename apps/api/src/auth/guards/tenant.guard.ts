@@ -81,6 +81,7 @@ export class TenantGuard implements CanActivate {
       tenantName: membership.tenant.name,
       tenantLogoUrl: membership.tenant.logoUrl,
       role: membership.role as TenantRole,
+      canPerformPickups: false,
     };
     request.tenant = tenantContext;
 

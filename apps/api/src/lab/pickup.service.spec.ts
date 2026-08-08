@@ -216,16 +216,44 @@ describe('PickupService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('rejects assignment when the target user is not a MESSENGER', async () => {
+    it('rejects assignment when the target user is not authorized for pickups', async () => {
       prisma.pickup.findFirst.mockResolvedValue(makePickup());
       prisma.userTenantMembership.findUnique.mockResolvedValue({
         role: 'TECHNICIAN',
+        canPerformPickups: false,
         user: { firstName: 'Sam', lastName: 'Courier' },
       });
 
       await expect(
         service.assignMessenger(LAB_ID, PICKUP_ID, MESSENGER_ID, ADMIN_ID)
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('accepts assignment when the target user is a TECHNICIAN with canPerformPickups', async () => {
+      prisma.pickup.findFirst.mockResolvedValue(makePickup());
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        role: 'TECHNICIAN',
+        canPerformPickups: true,
+        user: { firstName: 'Sam', lastName: 'Tech' },
+      });
+      prisma.order.findUnique.mockResolvedValue({
+        requisitionNumber: 'REQ-2026-000002',
+      });
+      pushService.sendToUser.mockResolvedValue(true);
+      prisma.pickup.update.mockResolvedValue(
+        makePickup({ status: 'NOTIFIED' })
+      );
+
+      await service.assignMessenger(LAB_ID, PICKUP_ID, OTHER_USER_ID, ADMIN_ID);
+
+      expect(prisma.pickup.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            messengerId: OTHER_USER_ID,
+            status: 'ASSIGNED',
+          }),
+        })
+      );
     });
 
     it('throws NotFoundException when the pickup does not belong to this lab', async () => {

@@ -14,7 +14,9 @@ describe('LabController', () => {
   const tenant = {
     tenantId: 'lab-1',
     tenantName: 'Test Lab',
+    tenantLogoUrl: null,
     role: 'ADMIN' as const,
+    canPerformPickups: false,
   };
 
   beforeEach(async () => {
@@ -99,6 +101,21 @@ describe('LabController', () => {
 
   it('creates without error', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('getMe returns role, tenant info, and canPerformPickups', () => {
+    const result = controller.getMe(tenant);
+    expect(result).toEqual({
+      role: 'ADMIN',
+      tenantName: 'Test Lab',
+      logoUrl: null,
+      canPerformPickups: false,
+    });
+  });
+
+  it('getMe returns canPerformPickups true when set', () => {
+    const result = controller.getMe({ ...tenant, canPerformPickups: true });
+    expect(result.canPerformPickups).toBe(true);
   });
 
   it('getOrders calls service with tenantId and status', async () => {

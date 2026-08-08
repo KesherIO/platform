@@ -38,6 +38,7 @@ export class LabTenantGuard implements CanActivate {
         where: { userId_tenantId: { userId: user.id, tenantId } },
         select: {
           role: true,
+          canPerformPickups: true,
           tenant: {
             select: { id: true, name: true, logoUrl: true, type: true },
           },
@@ -51,6 +52,7 @@ export class LabTenantGuard implements CanActivate {
         },
         select: {
           role: true,
+          canPerformPickups: true,
           tenant: {
             select: { id: true, name: true, logoUrl: true, type: true },
           },
@@ -79,6 +81,7 @@ export class LabTenantGuard implements CanActivate {
       tenantName: membership.tenant.name,
       tenantLogoUrl: membership.tenant.logoUrl,
       role: membership.role as TenantRole,
+      canPerformPickups: membership.canPerformPickups,
     };
     request.tenant = tenantContext;
 

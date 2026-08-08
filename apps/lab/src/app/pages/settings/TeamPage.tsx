@@ -27,6 +27,7 @@ interface CreateForm {
   password: string;
   role: LabRole;
   schedule: WeeklySchedule;
+  canPerformPickups: boolean;
 }
 
 interface EditForm {
@@ -34,6 +35,7 @@ interface EditForm {
   lastName: string;
   email: string;
   schedule: WeeklySchedule;
+  canPerformPickups: boolean;
 }
 
 const EMPTY_FORM: CreateForm = {
@@ -43,11 +45,12 @@ const EMPTY_FORM: CreateForm = {
   password: '',
   role: 'TECHNICIAN',
   schedule: makeEmptySchedule(),
+  canPerformPickups: false,
 };
 
 export function TeamPage() {
   const { t } = useTranslation();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, refreshTenant } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
 
@@ -66,6 +69,7 @@ export function TeamPage() {
     lastName: '',
     email: '',
     schedule: makeEmptySchedule(),
+    canPerformPickups: false,
   });
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -89,8 +93,11 @@ export function TeamPage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      const { schedule, ...rest } = form;
-      const payload = form.role === 'MESSENGER' ? { ...rest, schedule } : rest;
+      const { schedule, canPerformPickups, ...rest } = form;
+      const payload =
+        form.role === 'MESSENGER'
+          ? { ...rest, schedule }
+          : { ...rest, ...(canPerformPickups && { canPerformPickups: true }) };
       await labApi.users.create(payload as unknown as Record<string, unknown>);
       setShowForm(false);
       setForm(EMPTY_FORM);
@@ -141,6 +148,7 @@ export function TeamPage() {
       lastName: member.lastName ?? '',
       email: member.email,
       schedule: member.schedule ?? makeEmptySchedule(),
+      canPerformPickups: member.canPerformPickups,
     });
     setEditingId(member.userId);
     setActionError(null);
@@ -151,12 +159,16 @@ export function TeamPage() {
     try {
       setSaving(true);
       setActionError(null);
-      const { schedule, ...rest } = editForm;
-      const payload = role === 'MESSENGER' ? { ...rest, schedule } : rest;
+      const { schedule, canPerformPickups, ...rest } = editForm;
+      const payload =
+        role === 'MESSENGER'
+          ? { ...rest, schedule }
+          : { ...rest, canPerformPickups };
       await labApi.users.update(
         editingId,
         payload as unknown as Record<string, unknown>
       );
+      if (editingId === user?.id) await refreshTenant();
       setEditingId(null);
       loadMembers(false);
     } catch (err) {
@@ -262,9 +274,16 @@ export function TeamPage() {
               </label>
               <select
                 value={form.role}
-                onChange={(e) =>
-                  setForm({ ...form, role: e.target.value as LabRole })
-                }
+                onChange={(e) => {
+                  const newRole = e.target.value as LabRole;
+                  setForm({
+                    ...form,
+                    role: newRole,
+                    ...(newRole === 'MESSENGER' && {
+                      canPerformPickups: false,
+                    }),
+                  });
+                }}
                 className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
               >
                 {ROLES.map((r) => (
@@ -285,6 +304,20 @@ export function TeamPage() {
                   onChange={(schedule) => setForm({ ...form, schedule })}
                 />
               </div>
+            )}
+
+            {form.role !== 'MESSENGER' && (
+              <label className="flex items-center gap-2 text-sm text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={form.canPerformPickups}
+                  onChange={(e) =>
+                    setForm({ ...form, canPerformPickups: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-cyan accent-cyan"
+                />
+                {t('team.form.can_perform_pickups')}
+              </label>
             )}
 
             {formError && (
@@ -430,6 +463,22 @@ export function TeamPage() {
                         />
                       </div>
                     )}
+                    {member.role !== 'MESSENGER' && (
+                      <label className="flex items-center gap-2 text-sm text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={editForm.canPerformPickups}
+                          onChange={(e) =>
+                            setEditForm((f) => ({
+                              ...f,
+                              canPerformPickups: e.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-cyan accent-cyan"
+                        />
+                        {t('team.form.can_perform_pickups')}
+                      </label>
+                    )}
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleSaveEdit(member.role)}
@@ -483,7 +532,14 @@ export function TeamPage() {
                         </span>
                       )}
 
-                      {!isMe && isAdmin && (
+                      {member.canPerformPickups &&
+                        member.role !== 'MESSENGER' && (
+                          <span className="rounded-full bg-orange-900/30 px-2.5 py-0.5 text-xs font-medium text-orange-300">
+                            {t('team.can_perform_pickups_badge')}
+                          </span>
+                        )}
+
+                      {isAdmin && (
                         <>
                           <IconActionButton
                             icon={Pencil}
@@ -491,12 +547,14 @@ export function TeamPage() {
                             onClick={() => startEditing(member)}
                             variant="neutral"
                           />
-                          <IconActionButton
-                            icon={Trash2}
-                            label={t('team.actions.remove')}
-                            onClick={() => handleRemove(member)}
-                            variant="danger"
-                          />
+                          {!isMe && (
+                            <IconActionButton
+                              icon={Trash2}
+                              label={t('team.actions.remove')}
+                              onClick={() => handleRemove(member)}
+                              variant="danger"
+                            />
+                          )}
                         </>
                       )}
 
