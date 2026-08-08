@@ -78,6 +78,7 @@ export class LabController {
       role: tenant.role,
       tenantName: tenant.tenantName,
       logoUrl: tenant.tenantLogoUrl,
+      canPerformPickups: tenant.canPerformPickups,
     };
   }
 

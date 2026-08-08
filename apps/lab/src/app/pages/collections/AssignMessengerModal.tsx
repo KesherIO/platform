@@ -90,6 +90,7 @@ export function AssignMessengerModal({
               const name =
                 [m.firstName, m.lastName].filter(Boolean).join(' ') ||
                 'Messenger';
+              const isMessengerRole = m.role === 'MESSENGER';
               return (
                 <button
                   key={m.userId}
@@ -100,17 +101,23 @@ export function AssignMessengerModal({
                   <div>
                     <p className="flex items-center gap-2 text-sm font-medium text-white">
                       {name}
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          m.isCurrentlyScheduled
-                            ? 'bg-emerald-900/30 text-emerald-300'
-                            : 'bg-gray-800 text-gray-500'
-                        }`}
-                      >
-                        {m.isCurrentlyScheduled
-                          ? t('team.schedule.in_schedule')
-                          : t('team.schedule.off_schedule')}
-                      </span>
+                      {isMessengerRole ? (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            m.isCurrentlyScheduled
+                              ? 'bg-emerald-900/30 text-emerald-300'
+                              : 'bg-gray-800 text-gray-500'
+                          }`}
+                        >
+                          {m.isCurrentlyScheduled
+                            ? t('team.schedule.in_schedule')
+                            : t('team.schedule.off_schedule')}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-gray-800 px-2 py-0.5 text-[10px] font-medium text-gray-400">
+                          {t(`team.roles.${m.role}`)}
+                        </span>
+                      )}
                     </p>
                     {m.phone && (
                       <p className="text-xs text-gray-500">{m.phone}</p>

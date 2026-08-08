@@ -17,6 +17,8 @@ const mockMembership = {
   userId: USER_ID,
   tenantId: LAB_ID,
   role: 'TECHNICIAN',
+  canPerformPickups: false,
+  schedule: null,
   createdAt: new Date('2026-07-01'),
 };
 
@@ -73,6 +75,7 @@ describe('LabUsersService', () => {
         {
           userId: USER_ID,
           role: 'TECHNICIAN',
+          canPerformPickups: false,
           createdAt: new Date('2026-07-01'),
           schedule: null,
           user: {
@@ -92,6 +95,7 @@ describe('LabUsersService', () => {
       expect(result[0].role).toBe('TECHNICIAN');
       expect(result[0].firstName).toBe('Jane');
       expect(result[0].schedule).toBeNull();
+      expect(result[0].canPerformPickups).toBe(false);
       expect(result[0].isCurrentlyScheduled).toBe(false);
     });
 
@@ -103,6 +107,7 @@ describe('LabUsersService', () => {
         {
           userId: USER_ID,
           role: 'MESSENGER',
+          canPerformPickups: false,
           createdAt: new Date('2026-07-01'),
           schedule: {
             MONDAY: { start: '00:00', end: '23:59' },
@@ -156,6 +161,45 @@ describe('LabUsersService', () => {
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { role: 'ADMIN' },
+        })
+      );
+    });
+
+    it('clears canPerformPickups when changing role to MESSENGER', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        ...mockMembership,
+        canPerformPickups: true,
+      });
+      prisma.userTenantMembership.update.mockResolvedValue({
+        ...mockMembership,
+        role: 'MESSENGER',
+        canPerformPickups: false,
+      });
+
+      await service.updateRole(LAB_ID, USER_ID, 'MESSENGER', ADMIN_ID);
+
+      expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { role: 'MESSENGER', canPerformPickups: false },
+        })
+      );
+    });
+
+    it('clears canPerformPickups when changing role from MESSENGER', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        ...mockMembership,
+        role: 'MESSENGER',
+      });
+      prisma.userTenantMembership.update.mockResolvedValue({
+        ...mockMembership,
+        role: 'TECHNICIAN',
+      });
+
+      await service.updateRole(LAB_ID, USER_ID, 'TECHNICIAN', ADMIN_ID);
+
+      expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { role: 'TECHNICIAN', canPerformPickups: false },
         })
       );
     });
@@ -267,6 +311,49 @@ describe('LabUsersService', () => {
           schedule: { MONDAY: { start: '25:00', end: '17:00' } } as any,
         })
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('persists canPerformPickups for a non-MESSENGER user', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+      prisma.user.update.mockResolvedValue({
+        id: USER_ID,
+        email: 'tech@lab.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+      });
+
+      const result = await service.updateUser(LAB_ID, USER_ID, {
+        canPerformPickups: true,
+      } as any);
+
+      expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
+        where: { userId_tenantId: { userId: USER_ID, tenantId: LAB_ID } },
+        data: { canPerformPickups: true },
+      });
+      expect(result.canPerformPickups).toBe(true);
+    });
+
+    it('ignores canPerformPickups for a MESSENGER user', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        ...mockMembership,
+        role: 'MESSENGER',
+      });
+      prisma.user.update.mockResolvedValue({
+        id: USER_ID,
+        email: 'msg@lab.com',
+        firstName: 'Sam',
+        lastName: 'Courier',
+      });
+
+      const result = await service.updateUser(LAB_ID, USER_ID, {
+        canPerformPickups: true,
+      } as any);
+
+      expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
+        where: { userId_tenantId: { userId: USER_ID, tenantId: LAB_ID } },
+        data: { canPerformPickups: false },
+      });
+      expect(result.canPerformPickups).toBe(false);
     });
   });
 

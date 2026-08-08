@@ -21,7 +21,15 @@ const POLL_MS = 60_000;
 const MESSENGER_HOME = '/my-pickups';
 
 export function Layout() {
-  const { user, tenantName, logoUrl, isAdmin, labRole, signOut } = useAuth();
+  const {
+    user,
+    tenantName,
+    logoUrl,
+    isAdmin,
+    labRole,
+    canPerformPickups,
+    signOut,
+  } = useAuth();
   const { t } = useTranslation();
   const location = useLocation();
   const [unassignedCount, setUnassignedCount] = useState(0);
@@ -51,7 +59,7 @@ export function Layout() {
   }, [isMessenger]);
 
   useEffect(() => {
-    if (!isMessenger) return; // only messengers have their own pickup queue
+    if (!canPerformPickups) return;
 
     let ignore = false;
     const poll = () => {
@@ -72,7 +80,7 @@ export function Layout() {
       ignore = true;
       clearInterval(interval);
     };
-  }, [isMessenger]);
+  }, [canPerformPickups]);
 
   // Close the mobile drawer whenever the route changes (e.g. after tapping a
   // nav link) rather than leaving it open over the newly-loaded page.
@@ -119,6 +127,16 @@ export function Layout() {
           icon: Truck,
           badge: unassignedCount > 0 ? unassignedCount : undefined,
         },
+        ...(canPerformPickups
+          ? [
+              {
+                to: '/my-pickups',
+                label: t('nav.my_pickups'),
+                icon: Package,
+                badge: unacceptedCount > 0 ? unacceptedCount : undefined,
+              },
+            ]
+          : []),
         { to: '/clients', label: t('nav.clients'), icon: Handshake },
         { to: '/settings/users', label: t('nav.team'), icon: Users },
         {

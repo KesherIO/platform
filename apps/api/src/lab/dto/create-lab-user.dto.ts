@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsObject,
@@ -28,4 +29,8 @@ export class CreateLabUserDto {
   @IsObject()
   @IsOptional()
   schedule?: Record<string, { start: string; end: string } | null>;
+
+  @IsBoolean()
+  @IsOptional()
+  canPerformPickups?: boolean;
 }

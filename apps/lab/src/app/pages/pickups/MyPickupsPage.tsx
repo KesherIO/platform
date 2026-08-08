@@ -33,11 +33,11 @@ function formatTimestamp(iso: string | null): string {
 
 export function MyPickupsPage() {
   const { t } = useTranslation();
-  const { labRole } = useAuth();
+  const { canPerformPickups } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
 
-  usePushSubscription(labRole === 'MESSENGER');
+  usePushSubscription(canPerformPickups);
 
   const [pickups, setPickups] = useState<PickupSummary[]>([]);
   const [historyMode, setHistoryMode] = useState(false);

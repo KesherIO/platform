@@ -15,6 +15,7 @@ interface AuthContextValue {
   loading: boolean;
   labRole: LabRole | null;
   isAdmin: boolean;
+  canPerformPickups: boolean;
   tenantName: string | null;
   logoUrl: string | null;
   accessDenied: boolean;
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [labRole, setLabRole] = useState<LabRole | null>(null);
+  const [canPerformPickupsFlag, setCanPerformPickupsFlag] = useState(false);
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessDenied(true);
     setSession(null);
     setLabRole(null);
+    setCanPerformPickupsFlag(false);
     setTenantName(null);
     setLogoUrl(null);
     void supabase.auth.signOut();
@@ -58,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       setAccessDenied(false);
       setLabRole(data.role as LabRole);
+      setCanPerformPickupsFlag(data.canPerformPickups ?? false);
       setTenantName(data.tenantName ?? null);
       setLogoUrl(data.logoUrl ?? null);
     } catch {
@@ -84,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await fetchLabRole(s.access_token);
         } else {
           setLabRole(null);
+          setCanPerformPickupsFlag(false);
           setTenantName(null);
           setLogoUrl(null);
         }
@@ -112,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         labRole,
         isAdmin: labRole === 'ADMIN',
+        canPerformPickups: labRole === 'MESSENGER' || canPerformPickupsFlag,
         tenantName,
         logoUrl,
         accessDenied,

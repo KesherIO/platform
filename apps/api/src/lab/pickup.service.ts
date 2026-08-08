@@ -135,9 +135,13 @@ export class PickupService {
       },
       include: { user: { select: { firstName: true, lastName: true } } },
     });
-    if (!membership || membership.role !== TenantRole.MESSENGER) {
+    if (
+      !membership ||
+      (membership.role !== TenantRole.MESSENGER &&
+        !membership.canPerformPickups)
+    ) {
       throw new BadRequestException(
-        'Target user does not have the Messenger role in this lab.'
+        'Target user is not authorized to perform pickups.'
       );
     }
 
@@ -522,7 +526,10 @@ export class PickupService {
   async getAvailableMessengers(labTenantId: string) {
     const [memberships, tenant] = await Promise.all([
       this.prisma.userTenantMembership.findMany({
-        where: { tenantId: labTenantId, role: TenantRole.MESSENGER },
+        where: {
+          tenantId: labTenantId,
+          OR: [{ role: TenantRole.MESSENGER }, { canPerformPickups: true }],
+        },
         include: {
           user: {
             select: { id: true, firstName: true, lastName: true, phone: true },
@@ -550,15 +557,21 @@ export class PickupService {
 
     return memberships
       .map((m) => {
-        const schedule = m.schedule as WeeklySchedule | null;
+        const isMessengerRole = m.role === TenantRole.MESSENGER;
+        const schedule = isMessengerRole
+          ? (m.schedule as WeeklySchedule | null)
+          : null;
         return {
           userId: m.user.id,
           firstName: m.user.firstName,
           lastName: m.user.lastName,
           phone: m.user.phone,
+          role: m.role,
           activePickupCount: countByMessenger.get(m.user.id) ?? 0,
           schedule,
-          isCurrentlyScheduled: isWithinSchedule(schedule, tenant.timezone),
+          isCurrentlyScheduled: isMessengerRole
+            ? isWithinSchedule(schedule, tenant.timezone)
+            : true,
         };
       })
       .sort(

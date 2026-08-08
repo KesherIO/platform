@@ -75,6 +75,7 @@ export class LabUsersService {
         firstName: m.user.firstName,
         lastName: m.user.lastName,
         schedule,
+        canPerformPickups: m.canPerformPickups,
         isCurrentlyScheduled: isWithinSchedule(schedule, tenant.timezone),
       };
     });
@@ -135,6 +136,8 @@ export class LabUsersService {
             ...(schedule && {
               schedule: schedule as unknown as Prisma.InputJsonValue,
             }),
+            ...(dto.canPerformPickups &&
+              dto.role !== 'MESSENGER' && { canPerformPickups: true }),
           },
         });
 
@@ -148,6 +151,7 @@ export class LabUsersService {
         lastName: result.user.lastName,
         role: result.membership.role,
         joinedAt: result.membership.createdAt,
+        canPerformPickups: result.membership.canPerformPickups,
       };
     } catch (err) {
       // Compensate — remove the Supabase user so we don't leave orphaned auth accounts
@@ -192,16 +196,30 @@ export class LabUsersService {
     });
 
     let schedule = membership.schedule as WeeklySchedule | null;
+    let { canPerformPickups } = membership;
+
+    const membershipUpdates: Record<string, unknown> = {};
+
     if (dto.schedule !== undefined) {
       schedule =
         dto.schedule === null ? null : validateWeeklySchedule(dto.schedule);
+      membershipUpdates.schedule = schedule
+        ? (schedule as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull;
+    }
+
+    if (dto.canPerformPickups !== undefined) {
+      canPerformPickups =
+        membership.role === TenantRole.MESSENGER
+          ? false
+          : dto.canPerformPickups;
+      membershipUpdates.canPerformPickups = canPerformPickups;
+    }
+
+    if (Object.keys(membershipUpdates).length > 0) {
       await this.prisma.userTenantMembership.update({
         where: { userId_tenantId: { userId, tenantId: labTenantId } },
-        data: {
-          schedule: schedule
-            ? (schedule as unknown as Prisma.InputJsonValue)
-            : Prisma.DbNull,
-        },
+        data: membershipUpdates,
       });
     }
 
@@ -212,6 +230,7 @@ export class LabUsersService {
       lastName: updated.lastName,
       role: membership.role,
       schedule,
+      canPerformPickups,
     };
   }
 
@@ -237,7 +256,12 @@ export class LabUsersService {
 
     return this.prisma.userTenantMembership.update({
       where: { userId_tenantId: { userId, tenantId: labTenantId } },
-      data: { role: role as TenantRole },
+      data: {
+        role: role as TenantRole,
+        ...(role === 'MESSENGER' || membership.role === TenantRole.MESSENGER
+          ? { canPerformPickups: false }
+          : {}),
+      },
     });
   }
 

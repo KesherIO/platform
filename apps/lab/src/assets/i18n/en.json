@@ -456,8 +456,10 @@
       "role": "Role",
       "cancel": "Cancel",
       "submit": "Add member",
-      "submitting": "Adding..."
+      "submitting": "Adding...",
+      "can_perform_pickups": "This team member can perform sample pickups"
     },
+    "can_perform_pickups_badge": "Pickups",
     "save": "Save",
     "saving": "Saving...",
     "actions": {

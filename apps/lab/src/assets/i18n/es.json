@@ -456,8 +456,10 @@
       "role": "Rol",
       "cancel": "Cancelar",
       "submit": "Agregar miembro",
-      "submitting": "Agregando..."
+      "submitting": "Agregando...",
+      "can_perform_pickups": "Este miembro del equipo puede realizar recolecciones de muestras"
     },
+    "can_perform_pickups_badge": "Recolecciones",
     "save": "Guardar",
     "saving": "Guardando...",
     "actions": {
