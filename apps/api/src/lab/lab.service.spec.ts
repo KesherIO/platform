@@ -53,6 +53,9 @@ describe('LabService', () => {
         findUnique: jest.fn(),
         upsert: jest.fn(),
       },
+      tenant: {
+        findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
+      },
       $transaction: jest.fn(),
     };
 
@@ -73,16 +76,155 @@ describe('LabService', () => {
       (prisma.order.findMany as jest.Mock).mockResolvedValue([mockOrder]);
       (prisma.order.count as jest.Mock).mockResolvedValue(1);
 
-      const result = await service.getLabOrders(LAB_TENANT_ID, {});
+      const result = await service.getLabOrders(LAB_TENANT_ID, {
+        status: 'RECEIVED_BY_LAB',
+      });
 
       expect(prisma.order.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { AND: [{ labTenantId: LAB_TENANT_ID }] },
+          where: {
+            AND: [{ labTenantId: LAB_TENANT_ID, status: 'RECEIVED_BY_LAB' }],
+          },
         })
       );
       expect(result.data[0].clinicName).toBe('Clínica Veterinaria Demo');
       expect(result.data[0].patientName).toBe('Max');
       expect(result.total).toBe(1);
+    });
+
+    it('defaults "All" (no status, no date range) to unresolved orders plus completed today', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(0);
+
+      await service.getLabOrders(LAB_TENANT_ID, {});
+
+      expect(prisma.tenant.findUniqueOrThrow).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: LAB_TENANT_ID } })
+      );
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              {
+                labTenantId: LAB_TENANT_ID,
+                OR: [
+                  { status: { not: 'COMPLETED' } },
+                  {
+                    status: 'COMPLETED',
+                    completedAt: { gte: expect.any(Date) },
+                  },
+                ],
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    it('defaults the Completed tab to the last 7 days when no date range is given', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(0);
+
+      await service.getLabOrders(LAB_TENANT_ID, { status: 'COMPLETED' });
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              {
+                labTenantId: LAB_TENANT_ID,
+                status: 'COMPLETED',
+                createdAt: { gte: expect.any(Date) },
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    it('shows every order in a non-Completed status regardless of age', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(0);
+
+      await service.getLabOrders(LAB_TENANT_ID, { status: 'PROCESSING' });
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [{ labTenantId: LAB_TENANT_ID, status: 'PROCESSING' }],
+          },
+        })
+      );
+    });
+
+    it('applies an explicit date range to "All", surfacing historical completed orders too', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(0);
+
+      await service.getLabOrders(LAB_TENANT_ID, {
+        dateFrom: '2026-08-01',
+        dateTo: '2026-08-08',
+      });
+
+      expect(prisma.tenant.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              {
+                labTenantId: LAB_TENANT_ID,
+                createdAt: {
+                  gte: new Date('2026-08-01'),
+                  lte: new Date('2026-08-08T23:59:59.999Z'),
+                },
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    it('applies an explicit date range on top of a selected status, overriding the default lookback', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(0);
+
+      await service.getLabOrders(LAB_TENANT_ID, {
+        status: 'COMPLETED',
+        dateFrom: '2026-01-01',
+        dateTo: '2026-01-31',
+      });
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              {
+                labTenantId: LAB_TENANT_ID,
+                status: 'COMPLETED',
+                createdAt: {
+                  gte: new Date('2026-01-01'),
+                  lte: new Date('2026-01-31T23:59:59.999Z'),
+                },
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    it('searches by requisition, patient name, or clinic name', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(0);
+
+      await service.getLabOrders(LAB_TENANT_ID, { search: 'Luna' });
+
+      const where = (prisma.order.findMany as jest.Mock).mock.calls[0][0].where;
+      const searchCondition = where.AND[1];
+      expect(searchCondition.OR).toEqual([
+        { requisitionNumber: { contains: 'Luna', mode: 'insensitive' } },
+        { case: { patientName: { contains: 'Luna', mode: 'insensitive' } } },
+        { tenant: { name: { contains: 'Luna', mode: 'insensitive' } } },
+      ]);
     });
   });
 

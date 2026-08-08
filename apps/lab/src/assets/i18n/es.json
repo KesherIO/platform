@@ -14,7 +14,12 @@
     "no_results": "No se encontraron resultados",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
-    "dismiss": "Descartar"
+    "dismiss": "Descartar",
+    "apply": "Aplicar",
+    "clear": "Limpiar",
+    "date_from": "Desde",
+    "date_to": "Hasta",
+    "clear_date_range": "Limpiar rango de fechas"
   },
   "auth": {
     "title": "Acceso al Portal de Laboratorio",
@@ -49,7 +54,11 @@
     "clients": "Clientes",
     "team": "Equipo",
     "settings": "Configuración",
-    "sign_out": "Cerrar sesión"
+    "sign_out": "Cerrar sesión",
+    "collections": "Recolecciones",
+    "my_pickups": "Mis Recolecciones",
+    "open_menu": "Abrir menú",
+    "close_menu": "Cerrar menú"
   },
   "status": {
     "PENDING": "Pendiente",
@@ -61,7 +70,14 @@
     "CANCELLED": "Cancelado",
     "IN_PROGRESS": "En proceso",
     "DRAFT": "Borrador",
-    "RELEASED": "Liberado"
+    "RELEASED": "Liberado",
+    "REQUESTED": "Solicitado",
+    "ASSIGNED": "Asignado",
+    "NOTIFIED": "Notificado",
+    "ACCEPTED": "Aceptado",
+    "IN_TRANSIT": "En tránsito",
+    "RECEIVED_AT_LAB": "Recibido",
+    "FAILED": "Fallido"
   },
   "species": {
     "DOG": "Canino",
@@ -83,10 +99,13 @@
     "empty": "No hay órdenes con este filtro.",
     "error": "Error cargando órdenes:",
     "owner": "Propietario:",
-    "search_placeholder": "Buscar por paciente, clínica o número de orden...",
+    "search_placeholder": "Buscar por paciente, clínica o requisición...",
     "search_clear": "Borrar búsqueda",
+    "date_range": "Rango de fechas",
     "filter": {
       "all": "Todos",
+      "awaiting_sample": "Esperando muestra",
+      "in_transit": "En tránsito",
       "received": "Recibidos",
       "processing": "En proceso",
       "completed": "Completados"
@@ -168,6 +187,8 @@
     "add_phone": "Agregar teléfono",
     "address": "Dirección",
     "address_placeholder": "Dirección, ciudad, país",
+    "timezone": "Zona horaria",
+    "timezone_hint": "Se usa para evaluar los horarios de los mensajeros y mostrar horas locales de recolección.",
     "location_title": "Ubicación",
     "map_lat": "Latitud",
     "map_lng": "Longitud",
@@ -383,6 +404,20 @@
       "regenerate": "Error al regenerar invitación:",
       "revoke": "Error al revocar invitación:",
       "load_detail": "Error cargando detalles del cliente."
+    },
+    "collection_settings": {
+      "title": "Configuración de recolección",
+      "pickup_enabled": "Recolección habilitada",
+      "default_delivery": "Método de entrega predeterminado",
+      "pickup_address": "Dirección de recolección",
+      "pickup_contact_name": "Nombre de contacto para recolección",
+      "pickup_contact_phone": "Teléfono de contacto para recolección",
+      "collection_hours": "Horario de recolección",
+      "pickup_instructions": "Instrucciones especiales de recolección",
+      "saved": "Configuración de recolección guardada",
+      "errors": {
+        "save": "Error al guardar la configuración de recolección:"
+      }
     }
   },
   "team": {
@@ -393,7 +428,23 @@
     "you": "tú",
     "roles": {
       "ADMIN": "Administrador",
-      "TECHNICIAN": "Personal"
+      "TECHNICIAN": "Personal",
+      "MESSENGER": "Mensajero"
+    },
+    "schedule": {
+      "title": "Horario semanal",
+      "to": "a",
+      "in_schedule": "En horario",
+      "off_schedule": "Fuera de horario",
+      "days": {
+        "MONDAY": "Lunes",
+        "TUESDAY": "Martes",
+        "WEDNESDAY": "Miércoles",
+        "THURSDAY": "Jueves",
+        "FRIDAY": "Viernes",
+        "SATURDAY": "Sábado",
+        "SUNDAY": "Domingo"
+      }
     },
     "form": {
       "title": "Agregar miembro al equipo",
@@ -423,5 +474,110 @@
       "update": "Error al actualizar el usuario:",
       "remove": "Error al eliminar el usuario:"
     }
+  },
+  "collections": {
+    "title": "Recolecciones",
+    "history_title": "Historial de recolecciones",
+    "view_history": "Ver historial",
+    "back_to_queue": "Volver a la cola",
+    "subtitle": "recolecciones de muestras",
+    "empty": "No hay recolecciones que coincidan con este filtro.",
+    "search_placeholder": "Buscar por requisición, clínica, paciente o mensajero...",
+    "all_messengers": "Todos los mensajeros",
+    "clear_messenger": "Limpiar filtro de mensajero",
+    "date_range": "Rango de fechas",
+    "clear_filters": "Limpiar filtros",
+    "filter": {
+      "all": "Todas",
+      "all_history": "Todas",
+      "unassigned": "Sin asignar",
+      "assigned": "Asignadas",
+      "in_transit": "En tránsito",
+      "delivered": "Entregadas",
+      "cancelled": "Canceladas"
+    },
+    "unassigned": "Sin asignar",
+    "assign": "Asignar mensajero",
+    "confirm_received": "Confirmar recepción",
+    "waiting_since": "Esperando",
+    "contact": "Contacto",
+    "address": "Dirección",
+    "messenger": "Mensajero",
+    "requested_time": "Solicitado para",
+    "patient": "Paciente",
+    "no_messengers": "No hay mensajeros disponibles. Agrega miembros del equipo con el rol de Mensajero en",
+    "assign_title": "Asignar mensajero",
+    "assign_subtitle": "Selecciona un mensajero para esta recolección",
+    "active_pickups": "recolecciones activas",
+    "assign_confirm": "Asignar",
+    "assigning": "Asignando...",
+    "assigned_success": "Mensajero asignado correctamente",
+    "received_success": "Recepción de muestra confirmada",
+    "cancel_title": "¿Cancelar recolección?",
+    "cancel_confirm": "Esto cancelará la solicitud de recolección.",
+    "errors": {
+      "load": "Error cargando recolecciones.",
+      "assign": "Error al asignar mensajero:",
+      "received": "Error al confirmar recepción:",
+      "cancel": "Error al cancelar recolección:"
+    }
+  },
+  "timeline": {
+    "title": "Cronología",
+    "ORDER_CREATED": "Orden creada",
+    "PICKUP_REQUESTED": "Recolección solicitada",
+    "PICKUP_ASSIGNED": "Asignado a {{messenger}}",
+    "NOTIFICATION_SENT": "Notificación push enviada",
+    "NOTIFICATION_FAILED": "No se pudo enviar la notificación push",
+    "PICKUP_ACCEPTED": "Recolección aceptada",
+    "SAMPLE_COLLECTED": "Muestra recolectada",
+    "IN_TRANSIT": "Muestra en tránsito",
+    "RECEIVED_AT_LAB": "Muestra recibida en el laboratorio",
+    "PICKUP_CANCELLED": "Recolección cancelada",
+    "PICKUP_FAILED": "Recolección fallida",
+    "PROBLEM_REPORTED": "Problema reportado: {{reason}}",
+    "PROCESSING_STARTED": "Procesamiento iniciado",
+    "RESULTS_COMPLETED": "Resultados completados",
+    "REPORT_RELEASED": "Informe liberado"
+  },
+  "pickup": {
+    "status": "Estado de recolección",
+    "assigned_messenger": "Mensajero asignado",
+    "delivery_method": "Método de entrega",
+    "LAB_PICKUP": "Recolección por laboratorio",
+    "CLIENT_DELIVERY": "Entrega por el cliente"
+  },
+  "my_pickups": {
+    "empty": "No tienes recolecciones asignadas por ahora.",
+    "history_title": "Historial de recolecciones",
+    "history_empty": "Aún no hay recolecciones completadas.",
+    "view_history": "Ver historial",
+    "back_to_active": "Volver a activas",
+    "cancelled": "Recolección cancelada.",
+    "clinic": "Clínica",
+    "address": "Dirección de recolección",
+    "open_maps": "Abrir en Maps",
+    "contact": "Contacto",
+    "requisition": "Requisición",
+    "priority": "Prioridad",
+    "requested_time": "Hora solicitada de recolección",
+    "instructions": "Instrucciones de manejo de la muestra",
+    "accept": "Aceptar recolección",
+    "accepting": "Aceptando...",
+    "collected": "Muestra recolectada",
+    "collecting": "Confirmando...",
+    "collected_confirm_title": "¿Confirmar muestra recolectada?",
+    "collected_confirm_message": "Esto confirma que has recogido físicamente la muestra de la clínica.",
+    "report_problem": "Reportar un problema",
+    "problem_reasons": {
+      "CLINIC_CLOSED": "Clínica cerrada",
+      "SAMPLE_NOT_READY": "Muestra no lista",
+      "INCORRECT_ADDRESS": "Dirección incorrecta",
+      "UNABLE_TO_CONTACT": "No se pudo contactar a la clínica",
+      "OTHER": "Otro"
+    },
+    "problem_submitted": "Problema reportado al laboratorio.",
+    "waiting_for_receipt": "Muestra recolectada. Esperando confirmación del laboratorio.",
+    "completed": "Recolección completada. Muestra recibida por el laboratorio."
   }
 }

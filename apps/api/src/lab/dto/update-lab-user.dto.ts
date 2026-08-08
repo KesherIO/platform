@@ -1,4 +1,10 @@
-import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsObject,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class UpdateLabUserDto {
   @IsString()
@@ -19,4 +25,9 @@ export class UpdateLabUserDto {
   @IsOptional()
   @MaxLength(50)
   phone?: string;
+
+  /** MESSENGER only — recurring weekly availability. Shape validated in the service. */
+  @IsObject()
+  @IsOptional()
+  schedule?: Record<string, { start: string; end: string } | null>;
 }

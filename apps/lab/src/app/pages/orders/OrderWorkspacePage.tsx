@@ -3,7 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { LabOrderDetail } from '../../types/lab.types';
+import type { LabOrderDetail, TimelineEvent } from '../../types/lab.types';
+
+const TECHNICAL_EVENT_TYPES = new Set([
+  'NOTIFICATION_SENT',
+  'NOTIFICATION_FAILED',
+]);
 
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
@@ -39,6 +44,8 @@ export function OrderWorkspacePage() {
   const [transitioning, setTransitioning] = useState(false);
   const [receivingTestId, setReceivingTestId] = useState<string | null>(null);
   const [receivingAll, setReceivingAll] = useState(false);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [confirmingReceived, setConfirmingReceived] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -53,9 +60,31 @@ export function OrderWorkspacePage() {
     }
   }, [orderId]);
 
+  const loadTimeline = useCallback(async () => {
+    if (!orderId) return;
+    try {
+      const events = await labApi.timeline.forOrder(orderId);
+      setTimeline(events);
+    } catch {
+      // timeline is supplementary — a failed fetch shouldn't block the page
+    }
+  }, [orderId]);
+
   useEffect(() => {
     loadOrder();
-  }, [loadOrder]);
+    loadTimeline();
+  }, [loadOrder, loadTimeline]);
+
+  const confirmPickupReceived = async () => {
+    if (!order?.pickup) return;
+    setConfirmingReceived(true);
+    try {
+      await labApi.pickups.received(order.pickup.id);
+      await Promise.all([loadOrder(), loadTimeline()]);
+    } finally {
+      setConfirmingReceived(false);
+    }
+  };
 
   const initTests = async () => {
     if (!orderId) return;
@@ -180,30 +209,132 @@ export function OrderWorkspacePage() {
             )}
           </section>
 
+          {order.pickup && (
+            <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-300">
+                  {t('pickup.status')}
+                </h2>
+                <StatusBadge status={order.pickup.status} size="sm" />
+              </div>
+              <div className="space-y-1.5 text-sm">
+                {order.pickup.messenger && (
+                  <p className="text-gray-400">
+                    <span className="text-gray-500">
+                      {t('pickup.assigned_messenger')}:
+                    </span>{' '}
+                    {[
+                      order.pickup.messenger.firstName,
+                      order.pickup.messenger.lastName,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    {order.pickup.messenger.phone
+                      ? ` · ${order.pickup.messenger.phone}`
+                      : ''}
+                  </p>
+                )}
+                {order.pickup.assignedAt && (
+                  <p className="text-gray-400">
+                    <span className="text-gray-500">
+                      {t('orders.created')}:
+                    </span>{' '}
+                    {formatTimestamp(order.pickup.assignedAt)}
+                  </p>
+                )}
+                {order.pickup.acceptedAt && (
+                  <p className="text-gray-400">
+                    <span className="text-gray-500">
+                      {t('timeline.PICKUP_ACCEPTED')}:
+                    </span>{' '}
+                    {formatTimestamp(order.pickup.acceptedAt)}
+                  </p>
+                )}
+                {order.pickup.collectedAt && (
+                  <p className="text-gray-400">
+                    <span className="text-gray-500">
+                      {t('timeline.SAMPLE_COLLECTED')}:
+                    </span>{' '}
+                    {formatTimestamp(order.pickup.collectedAt)}
+                  </p>
+                )}
+                {order.pickup.receivedAt && (
+                  <p className="text-gray-400">
+                    <span className="text-gray-500">
+                      {t('timeline.RECEIVED_AT_LAB')}:
+                    </span>{' '}
+                    {formatTimestamp(order.pickup.receivedAt)}
+                  </p>
+                )}
+              </div>
+              {order.pickup.status === 'IN_TRANSIT' && (
+                <button
+                  onClick={confirmPickupReceived}
+                  disabled={confirmingReceived}
+                  className="mt-3 w-full rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
+                >
+                  {confirmingReceived
+                    ? '...'
+                    : t('collections.confirm_received')}
+                </button>
+              )}
+            </section>
+          )}
+
           <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
             <h2 className="mb-3 text-sm font-semibold text-gray-300">
-              {t('workspace.timeline')}
+              {t('timeline.title')}
             </h2>
-            <div className="space-y-1.5 text-sm">
-              <p className="text-gray-400">
+            {timeline.length === 0 ? (
+              <p className="text-sm text-gray-500">
                 <span className="text-gray-500">{t('orders.created')}:</span>{' '}
                 {formatTimestamp(order.createdAt)}
               </p>
-              {order.receivedByLabAt && (
-                <p className="text-gray-400">
-                  <span className="text-gray-500">{t('orders.received')}:</span>{' '}
-                  {formatTimestamp(order.receivedByLabAt)}
-                </p>
-              )}
-              {order.completedAt && (
-                <p className="text-gray-400">
-                  <span className="text-gray-500">
-                    {t('workspace.completed')}:
-                  </span>{' '}
-                  {formatTimestamp(order.completedAt)}
-                </p>
-              )}
-            </div>
+            ) : (
+              <div className="space-y-2.5">
+                {timeline.map((event) => {
+                  const technical = TECHNICAL_EVENT_TYPES.has(event.eventType);
+                  const rawReason = (event.metadata as { reason?: string })
+                    ?.reason;
+                  const reason = rawReason
+                    ? t(`my_pickups.problem_reasons.${rawReason}`, {
+                        defaultValue: rawReason,
+                      })
+                    : undefined;
+                  return (
+                    <div key={event.id} className="flex items-start gap-2">
+                      <span
+                        className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                          technical ? 'bg-gray-600' : 'bg-cyan'
+                        }`}
+                      />
+                      <div>
+                        <p
+                          className={
+                            technical
+                              ? 'text-xs text-gray-500'
+                              : 'text-sm text-gray-300'
+                          }
+                        >
+                          {t(`timeline.${event.eventType}`, {
+                            defaultValue: event.description,
+                            messenger: (
+                              event.metadata as { messengerName?: string }
+                            )?.messengerName,
+                            reason,
+                            channel: 'push',
+                          })}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {event.actorName ? `${event.actorName} · ` : ''}
+                          {formatTimestamp(event.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
           {c.symptoms && (

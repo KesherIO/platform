@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PickupService } from '../lab/pickup.service';
 import { CaseStatus } from '@prisma/client';
 
 const MOCK_CASE = {
@@ -28,6 +29,7 @@ const MOCK_ORDER = {
   requisitionNumber: 'REQ-2026-000001',
   status: 'PENDING',
   priority: 'ROUTINE',
+  deliveryMethod: null,
   orderedItems: [],
   clinicNotes: null,
   createdAt: new Date(),
@@ -54,6 +56,17 @@ function makePrismaMock() {
     counter: {
       upsert: jest.fn().mockResolvedValue({ name: 'ORDER_SEQ', value: 1 }),
     },
+    timelineEvent: {
+      create: jest.fn().mockResolvedValue({}),
+    },
+    tenant: {
+      findUniqueOrThrow: jest.fn().mockResolvedValue({
+        pickupAddress: null,
+        pickupContactName: null,
+        pickupContactPhone: null,
+        pickupInstructions: null,
+      }),
+    },
     $transaction: jest
       .fn()
       .mockImplementation(
@@ -66,11 +79,17 @@ function makePrismaMock() {
 describe('OrdersService', () => {
   let service: OrdersService;
   let prisma: ReturnType<typeof makePrismaMock>;
+  let pickupService: { createPickup: jest.Mock };
 
   beforeEach(async () => {
     prisma = makePrismaMock();
+    pickupService = { createPickup: jest.fn().mockResolvedValue({}) };
     const module = await Test.createTestingModule({
-      providers: [OrdersService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        OrdersService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: PickupService, useValue: pickupService },
+      ],
     }).compile();
     service = module.get(OrdersService);
   });

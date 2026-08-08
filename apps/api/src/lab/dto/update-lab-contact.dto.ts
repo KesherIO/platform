@@ -49,4 +49,8 @@ export class UpdateLabContactDto {
   @IsNumber()
   @IsOptional()
   mapLng?: number;
+
+  @IsString()
+  @IsOptional()
+  timezone?: string;
 }

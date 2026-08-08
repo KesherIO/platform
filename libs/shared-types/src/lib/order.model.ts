@@ -7,6 +7,8 @@ export type OrderStatus =
   | 'COMPLETED'
   | 'CANCELLED';
 
+import type { DeliveryMethod } from './pickup.model.js';
+
 export type OrderPriority = 'ROUTINE' | 'URGENT' | 'STAT';
 
 export interface OrderedItem {
@@ -26,6 +28,7 @@ export interface OrderModel {
   labTenantId: string | null;
   status: OrderStatus;
   priority: OrderPriority;
+  deliveryMethod?: DeliveryMethod;
   orderedItems: OrderedItem[];
   clinicNotes?: string;
   labNotes?: string;

@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { LabModule } from '../lab/lab.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, LabModule],
   controllers: [OrdersController],
   providers: [OrdersService],
   exports: [OrdersService], // exported so CasesModule can inject it

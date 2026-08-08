@@ -8,6 +8,7 @@ export enum TenantRole {
   VET = 'VET',
   TECHNICIAN = 'TECHNICIAN',
   RECEPTIONIST = 'RECEPTIONIST',
+  MESSENGER = 'MESSENGER',
 }
 
 /**

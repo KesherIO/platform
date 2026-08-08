@@ -5,9 +5,17 @@ import {
 } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildDateRangeFilter,
+  startOfTodayInTimezone,
+} from './date-range.util';
 import type { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import type { ListLabOrdersDto } from './dto/list-lab-orders.dto';
+
+// Default lookback window for the Completed tab when no explicit date range
+// is picked — recent completions, not the full all-time archive.
+const COMPLETED_DEFAULT_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Valid status transitions for orders handled by the lab
 const LAB_STATUS_TRANSITIONS: Record<string, OrderStatus[]> = {
@@ -29,11 +37,44 @@ export class LabService {
   // ---------------------------------------------------------------------------
 
   async getLabOrders(labTenantId: string, query: ListLabOrdersDto) {
-    const { status, search, page = 1, pageSize = 20 } = query;
+    const { status, search, dateFrom, dateTo, page = 1, pageSize = 20 } = query;
+    const statuses = status?.split(',') as OrderStatus[] | undefined;
+    const explicitRange = buildDateRangeFilter(dateFrom, dateTo);
 
-    const conditions: Record<string, unknown>[] = [
-      { labTenantId, ...(status && { status: status as OrderStatus }) },
-    ];
+    const baseCondition: Record<string, unknown> = { labTenantId };
+
+    if (explicitRange) {
+      // An explicit date range always wins, applied to whatever status scope
+      // was selected — including "All", which can then surface historical
+      // completed orders too.
+      if (statuses) {
+        baseCondition.status =
+          statuses.length === 1 ? statuses[0] : { in: statuses };
+      }
+      baseCondition.createdAt = explicitRange;
+    } else if (!statuses) {
+      // Default "All" — operational view: every unresolved order regardless
+      // of age, plus orders completed today (lab timezone), so completed
+      // orders don't pile up in the daily queue indefinitely.
+      const startOfToday = await this.startOfTodayForLab(labTenantId);
+      baseCondition.OR = [
+        { status: { not: 'COMPLETED' } },
+        { status: 'COMPLETED', completedAt: { gte: startOfToday } },
+      ];
+    } else if (statuses.length === 1 && statuses[0] === 'COMPLETED') {
+      // Default "Completed" tab — recent completions only.
+      baseCondition.status = 'COMPLETED';
+      baseCondition.createdAt = {
+        gte: new Date(Date.now() - COMPLETED_DEFAULT_LOOKBACK_MS),
+      };
+    } else {
+      // Awaiting sample / In transit / Received / Processing — every order
+      // in that status regardless of age.
+      baseCondition.status =
+        statuses.length === 1 ? statuses[0] : { in: statuses };
+    }
+
+    const conditions: Record<string, unknown>[] = [baseCondition];
 
     if (search) {
       conditions.push({
@@ -117,6 +158,13 @@ export class LabService {
             releasedAt: true;
           };
         };
+        pickup: {
+          include: {
+            messenger: {
+              select: { firstName: true; lastName: true; phone: true };
+            };
+          };
+        };
       };
     }>
   > {
@@ -152,6 +200,13 @@ export class LabService {
             status: true,
             observations: true,
             releasedAt: true,
+          },
+        },
+        pickup: {
+          include: {
+            messenger: {
+              select: { firstName: true, lastName: true, phone: true },
+            },
           },
         },
       },
@@ -423,6 +478,7 @@ export class LabService {
         phoneNumbers: true,
         mapLat: true,
         mapLng: true,
+        timezone: true,
       },
     });
   }
@@ -438,8 +494,19 @@ export class LabService {
       phoneNumbers?: { label: string; number: string }[];
       mapLat?: number;
       mapLng?: number;
+      timezone?: string;
     }
   ) {
+    if (data.timezone !== undefined) {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: data.timezone });
+      } catch {
+        throw new BadRequestException(
+          `"${data.timezone}" is not a valid IANA timezone name.`
+        );
+      }
+    }
+
     return this.prisma.tenant.update({
       where: { id: labTenantId },
       data,
@@ -452,6 +519,7 @@ export class LabService {
         phoneNumbers: true,
         mapLat: true,
         mapLng: true,
+        timezone: true,
       },
     });
   }
@@ -459,6 +527,14 @@ export class LabService {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  private async startOfTodayForLab(labTenantId: string): Promise<Date> {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: labTenantId },
+      select: { timezone: true },
+    });
+    return startOfTodayInTimezone(tenant.timezone);
+  }
 
   private formatLabOrder(order: {
     id: string;
@@ -468,6 +544,7 @@ export class LabService {
     labTenantId: string | null;
     status: string;
     priority: string;
+    deliveryMethod: string | null;
     orderedItems: unknown;
     clinicNotes: string | null;
     labNotes: string | null;
@@ -475,6 +552,7 @@ export class LabService {
     sampleNotes: string | null;
     createdAt: Date;
     updatedAt: Date;
+    collectedAt: Date | null;
     receivedByLabAt: Date | null;
     completedAt: Date | null;
     tenant: { name: string };
@@ -490,6 +568,7 @@ export class LabService {
       labTenantId: order.labTenantId,
       status: order.status,
       priority: order.priority,
+      deliveryMethod: order.deliveryMethod,
       orderedItems: order.orderedItems,
       orderedTests: order.orderedTests,
       clinicNotes: order.clinicNotes,
@@ -501,6 +580,7 @@ export class LabService {
       ownerName: order.case.ownerName,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
+      collectedAt: order.collectedAt,
       receivedByLabAt: order.receivedByLabAt,
       completedAt: order.completedAt,
     };

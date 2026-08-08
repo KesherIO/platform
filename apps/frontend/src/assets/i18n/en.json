@@ -383,7 +383,10 @@
       "CANCEL": "Cancel",
       "READ_ONLY_NOTICE": "This order has already been sent.",
       "CANCELLED_NOTICE": "This case has been cancelled.",
-      "CANCEL_CASE": "Cancel Case"
+      "CANCEL_CASE": "Cancel Case",
+      "DELIVERY_METHOD_LABEL": "How will the sample get to the lab?",
+      "DELIVERY_CLIENT": "I'll deliver it",
+      "DELIVERY_LAB_PICKUP": "Lab pickup"
     },
     "ORDER_SUCCESS": {
       "TITLE": "Order Sent!",

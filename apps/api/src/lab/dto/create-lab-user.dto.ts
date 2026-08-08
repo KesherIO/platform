@@ -1,4 +1,11 @@
-import { IsEmail, IsEnum, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class CreateLabUserDto {
   @IsEmail()
@@ -14,6 +21,11 @@ export class CreateLabUserDto {
   @IsString()
   lastName!: string;
 
-  @IsEnum(['ADMIN', 'TECHNICIAN'])
+  @IsEnum(['ADMIN', 'TECHNICIAN', 'MESSENGER'])
   role!: string;
+
+  /** MESSENGER only — recurring weekly availability. Shape validated in the service. */
+  @IsObject()
+  @IsOptional()
+  schedule?: Record<string, { start: string; end: string } | null>;
 }

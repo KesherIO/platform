@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { CaseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PickupService } from '../lab/pickup.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
 
@@ -14,7 +15,10 @@ const ORDERABLE_STATUSES: CaseStatus[] = [CaseStatus.OPEN, CaseStatus.TRIAGED];
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pickupService: PickupService
+  ) {}
 
   // ---------------------------------------------------------------------------
   // POST /cases/:id/order
@@ -95,6 +99,7 @@ export class OrdersService {
           labTenantId: labConnection?.labId ?? null,
           status: 'PENDING',
           priority: body.priority ?? 'ROUTINE',
+          deliveryMethod: body.deliveryMethod ?? null,
           orderedItems: orderedItems as object[],
           clinicNotes: body.clinicNotes ?? null,
         },
@@ -110,8 +115,37 @@ export class OrdersService {
         },
       });
 
+      await tx.timelineEvent.create({
+        data: {
+          orderId: newOrder.id,
+          eventType: 'ORDER_CREATED',
+          description: 'Order created.',
+        },
+      });
+
       return newOrder;
     });
+
+    // Skip pickup creation if there's no lab connected to this clinic — the
+    // order still gets created, just without a courier workflow attached.
+    if (body.deliveryMethod === 'LAB_PICKUP' && labConnection?.labId) {
+      const clinicTenant = await this.prisma.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: {
+          pickupAddress: true,
+          pickupContactName: true,
+          pickupContactPhone: true,
+          pickupInstructions: true,
+        },
+      });
+      await this.pickupService.createPickup(
+        order.id,
+        labConnection.labId,
+        tenantId,
+        clinicTenant,
+        order.priority
+      );
+    }
 
     return this.formatOrder(order);
   }
@@ -125,6 +159,7 @@ export class OrdersService {
     requisitionNumber: string;
     status: string;
     priority: string;
+    deliveryMethod: string | null;
     orderedItems: unknown;
     clinicNotes: string | null;
     createdAt: Date;
@@ -134,6 +169,7 @@ export class OrdersService {
       requisitionNumber: order.requisitionNumber,
       status: order.status,
       priority: order.priority,
+      deliveryMethod: order.deliveryMethod ?? undefined,
       orderedItems: order.orderedItems as OrderedItem[],
       clinicNotes: order.clinicNotes ?? undefined,
       requisitionUrl: `/api/orders/${order.id}/requisition`,
