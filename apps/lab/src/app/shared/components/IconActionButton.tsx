@@ -10,16 +10,10 @@ interface IconActionButtonProps {
 }
 
 const VARIANT_CLASSES: Record<'neutral' | 'danger', string> = {
-  neutral: 'text-cyan hover:bg-cyan/10',
-  danger: 'text-gray-400 hover:bg-red-500/10 hover:text-red-400',
+  neutral: 'text-gray-400 hover:text-cyan hover:bg-cyan/10',
+  danger: 'text-gray-400 hover:text-amber-400 hover:bg-amber-400/10',
 };
 
-/**
- * Standardized row-action icon button — 18px Lucide icon, 36x36 min hit
- * area, tooltip + aria-label from the same `label`, visible keyboard-focus
- * ring. `variant="danger"` stays neutral gray until hover/focus so
- * destructive actions don't read as "already dangerous" at rest.
- */
 export function IconActionButton({
   icon: Icon,
   label,
@@ -34,7 +28,7 @@ export function IconActionButton({
         onClick={onClick}
         disabled={disabled}
         aria-label={label}
-        className={`flex h-9 w-9 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-40 ${VARIANT_CLASSES[variant]}`}
+        className={`flex h-10 w-10 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-40 ${VARIANT_CLASSES[variant]}`}
       >
         <Icon size={18} strokeWidth={2} />
       </button>

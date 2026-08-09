@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { LabOrderDetail, TimelineEvent } from '../../types/lab.types';
 
 const TECHNICAL_EVENT_TYPES = new Set([
   'NOTIFICATION_SENT',
@@ -38,49 +38,44 @@ const STATUS_TRANSITIONS: Record<string, { labelKey: string; next: string }[]> =
 export function OrderWorkspacePage() {
   const { orderId } = useParams<{ orderId: string }>();
   const { t } = useTranslation();
-  const [order, setOrder] = useState<LabOrderDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [transitioning, setTransitioning] = useState(false);
   const [receivingTestId, setReceivingTestId] = useState<string | null>(null);
   const [receivingAll, setReceivingAll] = useState(false);
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [confirmingReceived, setConfirmingReceived] = useState(false);
 
-  const loadOrder = useCallback(async () => {
-    if (!orderId) return;
-    setLoading(true);
-    try {
-      const data = await labApi.orders.getById(orderId);
-      setOrder(data as LabOrderDetail);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [orderId]);
+  const {
+    data: order,
+    isLoading: loading,
+    error: orderError,
+  } = useQuery({
+    queryKey: ['order', orderId],
+    queryFn: () =>
+      labApi.orders.getById(orderId!) as Promise<
+        import('../../types/lab.types').LabOrderDetail
+      >,
+    enabled: !!orderId,
+  });
 
-  const loadTimeline = useCallback(async () => {
-    if (!orderId) return;
-    try {
-      const events = await labApi.timeline.forOrder(orderId);
-      setTimeline(events);
-    } catch {
-      // timeline is supplementary — a failed fetch shouldn't block the page
-    }
-  }, [orderId]);
+  const { data: timeline = [] } = useQuery({
+    queryKey: ['timeline', orderId],
+    queryFn: () => labApi.timeline.forOrder(orderId!),
+    enabled: !!orderId,
+  });
 
-  useEffect(() => {
-    loadOrder();
-    loadTimeline();
-  }, [loadOrder, loadTimeline]);
+  const error = orderError ? (orderError as Error).message : null;
+
+  const invalidateOrder = () => {
+    queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+    queryClient.invalidateQueries({ queryKey: ['timeline', orderId] });
+  };
 
   const confirmPickupReceived = async () => {
     if (!order?.pickup) return;
     setConfirmingReceived(true);
     try {
       await labApi.pickups.received(order.pickup.id);
-      await Promise.all([loadOrder(), loadTimeline()]);
+      invalidateOrder();
     } finally {
       setConfirmingReceived(false);
     }
@@ -89,14 +84,14 @@ export function OrderWorkspacePage() {
   const initTests = async () => {
     if (!orderId) return;
     await labApi.orders.initOrderedTests(orderId);
-    await loadOrder();
+    invalidateOrder();
   };
 
   const receiveTest = async (testId: string) => {
     setReceivingTestId(testId);
     try {
       await labApi.orderedTests.receive(testId);
-      await loadOrder();
+      invalidateOrder();
     } finally {
       setReceivingTestId(null);
     }
@@ -107,7 +102,7 @@ export function OrderWorkspacePage() {
     setReceivingAll(true);
     try {
       await labApi.orders.receiveAll(orderId);
-      await loadOrder();
+      invalidateOrder();
     } finally {
       setReceivingAll(false);
     }
@@ -118,7 +113,7 @@ export function OrderWorkspacePage() {
     setTransitioning(true);
     try {
       await labApi.orders.updateStatus(orderId, next);
-      await loadOrder();
+      invalidateOrder();
     } finally {
       setTransitioning(false);
     }

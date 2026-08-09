@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PackageCheck, AlertTriangle, History, ArrowLeft } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import { usePushSubscription } from './usePushSubscription';
-import type { PickupSummary, PickupProblemReason } from '../../types/lab.types';
+import type { PickupProblemReason } from '../../types/lab.types';
 
 const HISTORY_STATUSES = 'RECEIVED_AT_LAB,CANCELLED,FAILED';
 
@@ -36,56 +37,45 @@ export function MyPickupsPage() {
   const { canPerformPickups } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   usePushSubscription(canPerformPickups);
 
-  const [pickups, setPickups] = useState<PickupSummary[]>([]);
   const [historyMode, setHistoryMode] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [problemPickupId, setProblemPickupId] = useState<string | null>(null);
   const [problemReason, setProblemReason] =
     useState<PickupProblemReason>('CLINIC_CLOSED');
   const [problemDetails, setProblemDetails] = useState('');
 
-  const load = useCallback(
-    (showSpinner = true) => {
-      if (showSpinner) setLoading(true);
-      setError(null);
-      labApi.pickups
-        .myPickups(historyMode ? { status: HISTORY_STATUSES } : undefined)
-        .then(setPickups)
-        .catch((err: Error) => setError(err.message))
-        .finally(() => setLoading(false));
-    },
-    [historyMode]
-  );
+  const queryKey = [
+    'my-pickups',
+    { status: historyMode ? HISTORY_STATUSES : undefined },
+  ];
 
-  // New assignments/status changes can arrive while this page is already
-  // open (e.g. admin assigns another pickup, or Pedro accepted on another
-  // device) — poll so the list doesn't go stale relative to the nav badge,
-  // which polls independently in Layout. History view is static, no need
-  // to poll it.
-  useEffect(() => {
-    load();
-    if (historyMode) return;
-    const interval = setInterval(() => load(false), POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') load(false);
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [load, historyMode]);
+  const {
+    data: pickups = [],
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
+    queryKey,
+    queryFn: () =>
+      labApi.pickups.myPickups(
+        historyMode ? { status: HISTORY_STATUSES } : undefined
+      ),
+    refetchInterval: historyMode ? false : POLL_MS,
+  });
+
+  const error = queryError ? (queryError as Error).message : null;
+
+  const invalidateMyPickups = () =>
+    queryClient.invalidateQueries({ queryKey: ['my-pickups'] });
 
   const handleAccept = async (id: string) => {
     setBusyId(id);
     try {
       await labApi.pickups.accept(id);
-      load(false);
+      invalidateMyPickups();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -105,7 +95,7 @@ export function MyPickupsPage() {
           await labApi.pickups.collected(id);
         },
       });
-      if (confirmed) load(false);
+      if (confirmed) invalidateMyPickups();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -126,7 +116,7 @@ export function MyPickupsPage() {
       setProblemPickupId(null);
       setProblemDetails('');
       setProblemReason('CLINIC_CLOSED');
-      load(false);
+      invalidateMyPickups();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {

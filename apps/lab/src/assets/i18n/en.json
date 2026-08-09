@@ -242,9 +242,9 @@
     "disable_title": "Disable catalog item?",
     "disable_confirm": "Clinics won't be able to order \"{{name}}\" until it is enabled again.",
     "actions": {
-      "edit": "Edit item",
-      "disable": "Disable item",
-      "enable": "Enable item"
+      "edit": "Edit catalog item",
+      "disable": "Disable catalog item",
+      "enable": "Enable catalog item"
     },
     "filter": {
       "all": "All",
@@ -459,7 +459,7 @@
       "submitting": "Adding...",
       "can_perform_pickups": "This team member can perform sample pickups"
     },
-    "can_perform_pickups_badge": "Pickups",
+    "can_perform_pickups_badge": "Pickup access",
     "save": "Save",
     "saving": "Saving...",
     "actions": {

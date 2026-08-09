@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
 } from 'react';
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
   // Account has no LAB/PLATFORM tenant membership — the lab portal is not
   // for clinic users. Clear the session immediately (don't wait on the
@@ -73,17 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       if (data.session?.access_token) {
+        currentUserIdRef.current = data.session.user.id;
         await fetchLabRole(data.session.access_token);
       }
       setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, s) => {
-        // loading gates both ProtectedRoute and LoginPage's redirect — keep it
-        // true until the lab-role check settles, not just until session is set.
+      async (event, s) => {
+        const newUserId = s?.user?.id ?? null;
+        const isSameUser =
+          newUserId != null && newUserId === currentUserIdRef.current;
+
+        if (isSameUser && event !== 'SIGNED_OUT') {
+          setSession(s);
+          return;
+        }
+
         setLoading(true);
         setSession(s);
+        currentUserIdRef.current = newUserId;
         if (s?.access_token) {
           await fetchLabRole(s.access_token);
         } else {

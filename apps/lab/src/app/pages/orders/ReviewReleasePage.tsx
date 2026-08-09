@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { useToast } from '../../shared/components/ToastProvider';
@@ -11,23 +11,12 @@ export function ReviewReleasePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const toast = useToast();
-  const [order, setOrder] = useState<LabOrderDetail | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const loadOrder = useCallback(async () => {
-    if (!orderId) return;
-    setLoading(true);
-    try {
-      const data = await labApi.orders.getById(orderId);
-      setOrder(data as LabOrderDetail);
-    } finally {
-      setLoading(false);
-    }
-  }, [orderId]);
-
-  useEffect(() => {
-    loadOrder();
-  }, [loadOrder]);
+  const { data: order, isLoading: loading } = useQuery({
+    queryKey: ['order', orderId],
+    queryFn: () => labApi.orders.getById(orderId!) as Promise<LabOrderDetail>,
+    enabled: !!orderId,
+  });
 
   const releaseReport = async () => {
     if (!order?.resultReport?.id) return;

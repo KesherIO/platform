@@ -1,14 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { SearchInput } from '../../shared/components/SearchInput';
 import { Pagination } from '../../shared/components/Pagination';
 import { DateRangeFilter } from '../../shared/components/DateRangeFilter';
-import type { LabOrderSummary } from '../../types/lab.types';
 
-// Shared sizing so status tabs and the date-range control share one height.
 const TOOLBAR_TAB =
   'flex h-9 items-center rounded-lg border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950';
 const TOOLBAR_TAB_ACTIVE = 'border-cyan/30 bg-cyan/10 text-cyan';
@@ -35,7 +34,6 @@ function formatTimestamp(iso: string): string {
 
 export function OrdersQueuePage() {
   const { t } = useTranslation();
-  const [orders, setOrders] = useState<LabOrderSummary[]>([]);
   const [activeFilter, setActiveFilter] = useState<string | undefined>(
     undefined
   );
@@ -43,11 +41,26 @@ export function OrdersQueuePage() {
   const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [filtering, setFiltering] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: [
+      'orders',
+      { status: activeFilter, search, dateFrom, dateTo, page },
+    ],
+    queryFn: () =>
+      labApi.orders.list({
+        status: activeFilter,
+        search: search || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+      }),
+  });
+
+  const orders = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
 
   const FILTER_TABS = [
     { label: t('orders.filter.all'), value: undefined },
@@ -60,41 +73,6 @@ export function OrdersQueuePage() {
     { label: t('orders.filter.processing'), value: 'PROCESSING' },
     { label: t('orders.filter.completed'), value: 'COMPLETED' },
   ];
-
-  useEffect(() => {
-    let ignore = false;
-    if (orders.length === 0) setLoading(true);
-    setFiltering(true);
-    setError(null);
-    labApi.orders
-      .list({
-        status: activeFilter,
-        search: search || undefined,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
-        page,
-        pageSize: PAGE_SIZE,
-      })
-      .then((res) => {
-        if (ignore) return;
-        setOrders(res.data);
-        setTotal(res.total);
-        setTotalPages(res.totalPages);
-      })
-      .catch((err: Error) => {
-        if (ignore) return;
-        setError(err.message);
-      })
-      .finally(() => {
-        if (!ignore) {
-          setLoading(false);
-          setFiltering(false);
-        }
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [activeFilter, search, dateFrom, dateTo, page]);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
@@ -157,7 +135,7 @@ export function OrdersQueuePage() {
         </div>
       </div>
 
-      {loading && orders.length === 0 && (
+      {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
@@ -183,11 +161,11 @@ export function OrdersQueuePage() {
 
       {error && (
         <div className="rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-300">
-          {t('orders.error')} {error}
+          {t('orders.error')} {(error as Error).message}
         </div>
       )}
 
-      {!loading && !error && orders.length === 0 && (
+      {!isLoading && !error && orders.length === 0 && (
         <div className="py-16 text-center text-gray-500">
           {search || hasDateFilter ? t('common.no_results') : t('orders.empty')}
         </div>
@@ -196,7 +174,7 @@ export function OrdersQueuePage() {
       {!error && orders.length > 0 && (
         <div
           className={`transition-opacity ${
-            filtering ? 'opacity-60' : 'opacity-100'
+            isFetching ? 'opacity-60' : 'opacity-100'
           }`}
         >
           <div className="space-y-2">

@@ -133,28 +133,84 @@
       </a>
     </nav>
 
-    <!-- User info + sign out -->
-    <div class="border-t border-gray-100 px-4 py-4">
-      <div class="flex items-center gap-3">
+    <!-- User info + menu -->
+    <div class="relative border-t border-gray-100 px-4 py-4">
+      <button
+        type="button"
+        (click)="menuOpen.set(!menuOpen())"
+        class="w-full flex items-center gap-3 rounded-xl hover:bg-gray-50 transition-colors p-1 -m-1"
+      >
         <div
           class="h-9 w-9 rounded-full avatar-gradient flex items-center justify-center text-white text-xs font-bold shrink-0"
         >
           {{ userInitial() }}
         </div>
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-0 text-left">
           <p class="text-sm font-medium text-gray-900 truncate">
             {{ userDisplayName() }}
           </p>
           <p class="text-xs text-gray-400 truncate">{{ userEmail() }}</p>
         </div>
-      </div>
+        <svg
+          class="w-4 h-4 text-gray-400 shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M8 9l4-4 4 4m0 6l-4 4-4-4"
+          />
+        </svg>
+      </button>
+
+      @if (menuOpen()) {
       <button
         type="button"
-        (click)="signOut()"
-        class="w-full mt-3 text-left text-sm text-red-500 font-medium hover:text-red-600 transition-colors"
+        aria-label="Close menu"
+        class="fixed inset-0 z-40 cursor-default bg-transparent border-0 p-0 m-0"
+        (click)="menuOpen.set(false)"
+      ></button>
+
+      <div
+        class="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden"
       >
-        {{ 'AUTH.SIGN_OUT' | translate }}
-      </button>
+        <a
+          routerLink="/settings"
+          (click)="menuOpen.set(false)"
+          class="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+        >
+          <svg
+            class="w-4 h-4 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </svg>
+          {{ 'NAV.SETTINGS' | translate }}
+        </a>
+        <button
+          type="button"
+          (click)="signOut()"
+          class="w-full text-left px-4 py-3 text-sm text-red-500 font-medium hover:bg-red-50 transition-colors border-t border-gray-100"
+        >
+          {{ 'AUTH.SIGN_OUT' | translate }}
+        </button>
+      </div>
+      }
     </div>
   </aside>
 
