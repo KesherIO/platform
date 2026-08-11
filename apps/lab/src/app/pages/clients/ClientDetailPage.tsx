@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Ban, Trash2, XCircle, RefreshCw } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
@@ -11,11 +12,7 @@ import { ClientInvitationCard } from './ClientInvitationCard';
 import { ClientUsersCard } from './ClientUsersCard';
 import { ClientOrdersCard } from './ClientOrdersCard';
 import { ClientCollectionSettingsCard } from './ClientCollectionSettingsCard';
-import type {
-  ClientDetail,
-  ClientStatus,
-  CreateClientResponse,
-} from '../../types/lab.types';
+import type { ClientStatus, CreateClientResponse } from '../../types/lab.types';
 
 const STATUS_COLORS: Record<ClientStatus, string> = {
   PENDING: 'bg-yellow-900/30 text-yellow-300',
@@ -29,27 +26,24 @@ export function ClientDetailPage() {
   const navigate = useNavigate();
   const { isAdmin, tenantName } = useAuth();
   const confirm = useConfirm();
+  const queryClient = useQueryClient();
 
-  const [client, setClient] = useState<ClientDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: client,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['client', id],
+    queryFn: () => labApi.clients.getById(id!),
+    enabled: !!id,
+  });
+
+  const error = queryError ? t('clients.errors.load_detail') : null;
   const [actionError, setActionError] = useState<string | null>(null);
   const [newLink, setNewLink] = useState<CreateClientResponse | null>(null);
 
-  const loadClient = (showSpinner = true) => {
-    if (!id) return;
-    if (showSpinner) setLoading(true);
-    setError(null);
-    labApi.clients
-      .getById(id)
-      .then((data) => setClient(data))
-      .catch(() => setError(t('clients.errors.load_detail')))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    loadClient();
-  }, [id]);
+  const invalidateClient = () =>
+    queryClient.invalidateQueries({ queryKey: ['client', id] });
 
   const handleSuspend = async () => {
     if (!client || !id) return;
@@ -64,7 +58,7 @@ export function ClientDetailPage() {
         onConfirm: () => labApi.clients.suspend(id),
       });
       if (!confirmed) return;
-      loadClient(false);
+      invalidateClient();
     } catch (err) {
       setActionError(
         `${t('clients.errors.suspend')} ${(err as Error).message}`
@@ -77,7 +71,7 @@ export function ClientDetailPage() {
     try {
       setActionError(null);
       await labApi.clients.reactivate(id);
-      loadClient(false);
+      invalidateClient();
     } catch (err) {
       setActionError(
         `${t('clients.errors.reactivate')} ${(err as Error).message}`
@@ -102,7 +96,7 @@ export function ClientDetailPage() {
       });
       if (!confirmed) return;
       if (response) setNewLink(response);
-      loadClient(false);
+      invalidateClient();
     } catch (err) {
       setActionError(
         `${t('clients.errors.regenerate')} ${(err as Error).message}`
@@ -126,7 +120,7 @@ export function ClientDetailPage() {
         },
       });
       if (!confirmed) return;
-      loadClient(false);
+      invalidateClient();
     } catch (err) {
       setActionError(`${t('clients.errors.revoke')} ${(err as Error).message}`);
     }
@@ -240,7 +234,7 @@ export function ClientDetailPage() {
         <ClientInfoCard
           client={client}
           isAdmin={isAdmin}
-          onUpdated={() => loadClient(false)}
+          onUpdated={() => invalidateClient()}
           onError={setActionError}
         />
 
@@ -262,7 +256,7 @@ export function ClientDetailPage() {
         <ClientCollectionSettingsCard
           client={client}
           isAdmin={isAdmin}
-          onUpdated={() => loadClient(false)}
+          onUpdated={() => invalidateClient()}
           onError={setActionError}
         />
       </div>

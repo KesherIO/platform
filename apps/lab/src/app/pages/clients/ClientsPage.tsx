@@ -1,13 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import { SearchInput } from '../../shared/components/SearchInput';
 import { Pagination } from '../../shared/components/Pagination';
 import { AddClientModal } from './AddClientModal';
 import { ClientsListSkeleton } from './ClientSkeletons';
-import type { ClientOrganization, ClientStatus } from '../../types/lab.types';
+import type { ClientStatus } from '../../types/lab.types';
 
 const STATUS_FILTERS: Array<{ key: string; value?: ClientStatus }> = [
   { key: 'all' },
@@ -26,49 +27,29 @@ export function ClientsPage() {
   const { t } = useTranslation();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [clients, setClients] = useState<ClientOrganization[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filtering, setFiltering] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [showAddModal, setShowAddModal] = useState(false);
 
   const pageSize = 20;
 
-  const loadClients = useCallback(
-    (showSpinner = false) => {
-      if (showSpinner) setLoading(true);
-      setFiltering(true);
-      setError(null);
-      labApi.clients
-        .list({
-          status: statusFilter,
-          search: search || undefined,
-          page,
-          pageSize,
-        })
-        .then((res) => {
-          setClients(res.data);
-          setTotal(res.total);
-          setTotalPages(res.totalPages);
-        })
-        .catch(() => setError(t('clients.error')))
-        .finally(() => {
-          setLoading(false);
-          setFiltering(false);
-        });
-    },
-    [statusFilter, search, page, t]
-  );
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: ['clients', { status: statusFilter, search, page }],
+    queryFn: () =>
+      labApi.clients.list({
+        status: statusFilter,
+        search: search || undefined,
+        page,
+        pageSize,
+      }),
+  });
 
-  useEffect(() => {
-    loadClients(clients.length === 0);
-  }, [loadClients]);
+  const clients = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
 
   useEffect(() => {
     setPage(1);
@@ -86,7 +67,7 @@ export function ClientsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-white">{t('clients.title')}</h1>
-          {!loading && (
+          {!isLoading && (
             <p className="mt-0.5 text-sm text-gray-400">
               {total} {t('clients.subtitle')}
             </p>
@@ -129,17 +110,17 @@ export function ClientsPage() {
       </div>
 
       {/* Loading — initial only */}
-      {loading && clients.length === 0 && <ClientsListSkeleton />}
+      {isLoading && <ClientsListSkeleton />}
 
       {/* Error */}
       {error && (
         <div className="rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-300">
-          {error}
+          {t('clients.error')}
         </div>
       )}
 
       {/* Empty */}
-      {!loading && !error && clients.length === 0 && (
+      {!isLoading && !error && clients.length === 0 && (
         <div className="py-16 text-center text-gray-500">
           {t('clients.empty')}
         </div>
@@ -149,7 +130,7 @@ export function ClientsPage() {
       {!error && clients.length > 0 && (
         <div
           className={`transition-opacity ${
-            filtering ? 'opacity-60' : 'opacity-100'
+            isFetching ? 'opacity-60' : 'opacity-100'
           }`}
         >
           <div className="space-y-2">
@@ -215,7 +196,9 @@ export function ClientsPage() {
       {showAddModal && (
         <AddClientModal
           onClose={() => setShowAddModal(false)}
-          onCreated={loadClients}
+          onCreated={() =>
+            queryClient.invalidateQueries({ queryKey: ['clients'] })
+          }
         />
       )}
     </div>

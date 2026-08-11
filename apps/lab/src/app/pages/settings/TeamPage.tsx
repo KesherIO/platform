@@ -1,9 +1,9 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, useRef, FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, MoreVertical } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
-import { IconActionButton } from '../../shared/components/IconActionButton';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import {
@@ -48,15 +48,97 @@ const EMPTY_FORM: CreateForm = {
   canPerformPickups: false,
 };
 
+function RowActionsMenu({
+  onEdit,
+  onRemove,
+  disableRemove,
+  editLabel,
+  removeLabel,
+}: {
+  onEdit: () => void;
+  onRemove: () => void;
+  disableRemove: boolean;
+  editLabel: string;
+  removeLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-800 hover:text-white"
+        aria-label="Actions"
+      >
+        <MoreVertical size={18} strokeWidth={2} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-xl border border-gray-700 bg-gray-900 shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              onEdit();
+              setOpen(false);
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-white"
+          >
+            <Pencil size={15} strokeWidth={2} />
+            {editLabel}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!disableRemove) {
+                onRemove();
+                setOpen(false);
+              }
+            }}
+            disabled={disableRemove}
+            className={`flex w-full items-center gap-2 border-t border-gray-800 px-3 py-2.5 text-sm transition ${
+              disableRemove
+                ? 'cursor-not-allowed text-gray-600'
+                : 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
+            }`}
+          >
+            <Trash2 size={15} strokeWidth={2} />
+            {removeLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TeamPage() {
   const { t } = useTranslation();
   const { user, isAdmin, refreshTenant } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
-  const [members, setMembers] = useState<LabMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: members = [],
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => labApi.users.list() as Promise<LabMember[]>,
+  });
+
+  const error = queryError ? t('team.errors.load') : null;
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
@@ -74,19 +156,8 @@ export function TeamPage() {
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadMembers = (showSpinner = true) => {
-    if (showSpinner) setLoading(true);
-    setError(null);
-    labApi.users
-      .list()
-      .then((data) => setMembers(data as LabMember[]))
-      .catch(() => setError(t('team.errors.load')))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    loadMembers();
-  }, []);
+  const invalidateUsers = () =>
+    queryClient.invalidateQueries({ queryKey: ['users'] });
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -101,7 +172,7 @@ export function TeamPage() {
       await labApi.users.create(payload as unknown as Record<string, unknown>);
       setShowForm(false);
       setForm(EMPTY_FORM);
-      loadMembers(false);
+      invalidateUsers();
     } catch (err) {
       setFormError(`${t('team.errors.create')} ${(err as Error).message}`);
     } finally {
@@ -112,13 +183,9 @@ export function TeamPage() {
   const handleRoleChange = async (userId: string, role: string) => {
     try {
       await labApi.users.updateRole(userId, role);
-      setMembers((prev) =>
-        prev.map((m) =>
-          m.userId === userId ? { ...m, role: role as LabRole } : m
-        )
-      );
+      invalidateUsers();
     } catch {
-      loadMembers(false);
+      invalidateUsers();
     }
   };
 
@@ -136,7 +203,7 @@ export function TeamPage() {
         onConfirm: () => labApi.users.remove(member.userId),
       });
       if (!confirmed) return;
-      setMembers((prev) => prev.filter((m) => m.userId !== member.userId));
+      invalidateUsers();
     } catch (err) {
       toast.error(`${t('team.errors.remove')} ${(err as Error).message}`);
     }
@@ -170,7 +237,7 @@ export function TeamPage() {
       );
       if (editingId === user?.id) await refreshTenant();
       setEditingId(null);
-      loadMembers(false);
+      invalidateUsers();
     } catch (err) {
       setActionError(`${t('team.errors.update')} ${(err as Error).message}`);
     } finally {
@@ -498,14 +565,14 @@ export function TeamPage() {
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-700 text-sm font-semibold text-white">
+                    <div className="flex min-w-0 flex-1 items-center gap-4">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-700 text-sm font-semibold text-white">
                         {(
                           member.firstName?.[0] ?? member.email[0]
                         ).toUpperCase()}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-white">
                           {displayName}
                           {isMe && (
                             <span className="ml-2 text-xs text-gray-500">
@@ -513,73 +580,72 @@ export function TeamPage() {
                             </span>
                           )}
                         </p>
-                        <p className="text-xs text-gray-400">{member.email}</p>
+                        <p className="truncate text-xs text-gray-400">
+                          {member.email}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      {member.role === 'MESSENGER' && (
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            member.isCurrentlyScheduled
-                              ? 'bg-emerald-900/30 text-emerald-300'
-                              : 'bg-gray-800 text-gray-500'
-                          }`}
-                        >
-                          {member.isCurrentlyScheduled
-                            ? t('team.schedule.in_schedule')
-                            : t('team.schedule.off_schedule')}
-                        </span>
-                      )}
-
-                      {member.canPerformPickups &&
-                        member.role !== 'MESSENGER' && (
-                          <span className="rounded-full bg-orange-900/30 px-2.5 py-0.5 text-xs font-medium text-orange-300">
-                            {t('team.can_perform_pickups_badge')}
+                    <div className="flex shrink-0 items-center gap-3">
+                      {/* Status area — fixed width so rows align */}
+                      <div className="flex w-28 justify-end">
+                        {member.role === 'MESSENGER' && (
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                              member.isCurrentlyScheduled
+                                ? 'bg-emerald-900/30 text-emerald-300'
+                                : 'bg-gray-800 text-gray-500'
+                            }`}
+                          >
+                            {member.isCurrentlyScheduled
+                              ? t('team.schedule.in_schedule')
+                              : t('team.schedule.off_schedule')}
                           </span>
                         )}
-
-                      {isAdmin && (
-                        <>
-                          <IconActionButton
-                            icon={Pencil}
-                            label={t('team.actions.edit')}
-                            onClick={() => startEditing(member)}
-                            variant="neutral"
-                          />
-                          {!isMe && (
-                            <IconActionButton
-                              icon={Trash2}
-                              label={t('team.actions.remove')}
-                              onClick={() => handleRemove(member)}
-                              variant="danger"
-                            />
+                        {member.canPerformPickups &&
+                          member.role !== 'MESSENGER' && (
+                            <span className="rounded-full bg-orange-900/30 px-2.5 py-0.5 text-xs font-medium text-orange-300">
+                              {t('team.can_perform_pickups_badge')}
+                            </span>
                           )}
-                        </>
-                      )}
+                      </div>
 
-                      {isMe || !isAdmin ? (
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-medium ${
-                            ROLE_COLORS[member.role]
-                          }`}
-                        >
-                          {t(`team.roles.${member.role}`)}
-                        </span>
-                      ) : (
-                        <select
-                          value={member.role}
-                          onChange={(e) =>
-                            handleRoleChange(member.userId, e.target.value)
-                          }
-                          className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white focus:border-cyan focus:outline-none"
-                        >
-                          {ROLES.map((r) => (
-                            <option key={r} value={r}>
-                              {t(`team.roles.${r}`)}
-                            </option>
-                          ))}
-                        </select>
+                      {/* Role — fixed width */}
+                      <div className="flex w-32 justify-end">
+                        {isMe || !isAdmin ? (
+                          <span
+                            className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${
+                              ROLE_COLORS[member.role]
+                            }`}
+                          >
+                            {t(`team.roles.${member.role}`)}
+                          </span>
+                        ) : (
+                          <select
+                            value={member.role}
+                            onChange={(e) =>
+                              handleRoleChange(member.userId, e.target.value)
+                            }
+                            className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white focus:border-cyan focus:outline-none"
+                          >
+                            {ROLES.map((r) => (
+                              <option key={r} value={r}>
+                                {t(`team.roles.${r}`)}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
+                      {/* Actions menu */}
+                      {isAdmin && (
+                        <RowActionsMenu
+                          onEdit={() => startEditing(member)}
+                          onRemove={() => handleRemove(member)}
+                          disableRemove={isMe}
+                          editLabel={t('team.actions.edit')}
+                          removeLabel={t('team.actions.remove')}
+                        />
                       )}
                     </div>
                   </div>

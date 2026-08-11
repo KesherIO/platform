@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { History, ArrowLeft, ChevronDown, X } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { SearchInput } from '../../shared/components/SearchInput';
@@ -9,7 +10,6 @@ import { Pagination } from '../../shared/components/Pagination';
 import { DateRangeFilter } from '../../shared/components/DateRangeFilter';
 import { useToast } from '../../shared/components/ToastProvider';
 import { AssignMessengerModal } from './AssignMessengerModal';
-import type { MessengerInfo, PickupSummary } from '../../types/lab.types';
 
 // Shared focus-visible ring so every toolbar control gets a keyboard-only
 // focus outline (no ring on mouse click) — matches ConfirmDialog/IconActionButton.
@@ -53,8 +53,7 @@ function formatWaitingSince(iso: string): string {
 export function CollectionsPage() {
   const { t } = useTranslation();
   const toast = useToast();
-  const [pickups, setPickups] = useState<PickupSummary[]>([]);
-  const [messengers, setMessengers] = useState<MessengerInfo[]>([]);
+  const queryClient = useQueryClient();
   const [historyMode, setHistoryMode] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | undefined>(
     undefined
@@ -64,15 +63,49 @@ export function CollectionsPage() {
   const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [filtering, setFiltering] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [assigningPickupId, setAssigningPickupId] = useState<string | null>(
     null
   );
   const [receivingId, setReceivingId] = useState<string | null>(null);
+
+  const {
+    data,
+    isLoading: loading,
+    isFetching: filtering,
+    error: queryError,
+  } = useQuery({
+    queryKey: [
+      'pickups',
+      {
+        status: activeFilter,
+        search,
+        messengerId: messengerFilter,
+        dateFrom,
+        dateTo,
+        page,
+      },
+    ],
+    queryFn: () =>
+      labApi.pickups.list({
+        status: activeFilter,
+        search: search || undefined,
+        messengerId: messengerFilter || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+      }),
+  });
+
+  const pickups = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const error = queryError ? (queryError as Error).message : null;
+
+  const { data: messengers = [] } = useQuery({
+    queryKey: ['messengers'],
+    queryFn: () => labApi.messengers.list(),
+  });
 
   // Active queue tabs rely on the API's default scope (no status = active
   // only) so completed/cancelled pickups never mix into the daily queue.
@@ -109,51 +142,6 @@ export function CollectionsPage() {
     }
     setPage(1);
   };
-
-  const load = useCallback(() => {
-    let ignore = false;
-    if (pickups.length === 0) setLoading(true);
-    setFiltering(true);
-    setError(null);
-    labApi.pickups
-      .list({
-        status: activeFilter,
-        search: search || undefined,
-        messengerId: messengerFilter || undefined,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
-        page,
-        pageSize: PAGE_SIZE,
-      })
-      .then((res) => {
-        if (ignore) return;
-        setPickups(res.data);
-        setTotal(res.total);
-        setTotalPages(res.totalPages);
-      })
-      .catch((err: Error) => {
-        if (ignore) return;
-        setError(err.message);
-      })
-      .finally(() => {
-        if (!ignore) {
-          setLoading(false);
-          setFiltering(false);
-        }
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [activeFilter, search, messengerFilter, dateFrom, dateTo, page]);
-
-  useEffect(() => load(), [load]);
-
-  useEffect(() => {
-    labApi.messengers
-      .list()
-      .then(setMessengers)
-      .catch(() => undefined);
-  }, []);
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
@@ -197,7 +185,7 @@ export function CollectionsPage() {
     try {
       await labApi.pickups.received(pickupId);
       toast.success(t('collections.received_success'));
-      load();
+      queryClient.invalidateQueries({ queryKey: ['pickups'] });
     } catch (err) {
       toast.error(
         `${t('collections.errors.received')} ${(err as Error).message}`
@@ -477,7 +465,7 @@ export function CollectionsPage() {
           onAssigned={() => {
             setAssigningPickupId(null);
             toast.success(t('collections.assigned_success'));
-            load();
+            queryClient.invalidateQueries({ queryKey: ['pickups'] });
           }}
         />
       )}

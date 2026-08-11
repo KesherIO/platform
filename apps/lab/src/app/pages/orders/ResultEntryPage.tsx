@@ -1,36 +1,34 @@
-import { useEffect, useState, useCallback, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
-import type { OrderedTest, LabOrderDetail } from '../../types/lab.types';
+import type { LabOrderDetail } from '../../types/lab.types';
 
 export function ResultEntryPage() {
   const { orderId, testId } = useParams<{ orderId: string; testId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [test, setTest] = useState<OrderedTest | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [entryMethod, setEntryMethod] = useState('MANUAL');
 
-  const loadOrder = useCallback(async () => {
-    if (!orderId) return;
-    setLoading(true);
-    try {
-      const order = (await labApi.orders.getById(orderId)) as LabOrderDetail;
-      const found = order.orderedTests.find((t) => t.id === testId);
-      if (found) {
-        setTest(found);
-        setEntryMethod(found.entryMethod);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [orderId, testId]);
+  const { data: order, isLoading: loading } = useQuery({
+    queryKey: ['order', orderId],
+    queryFn: () => labApi.orders.getById(orderId!) as Promise<LabOrderDetail>,
+    enabled: !!orderId,
+  });
+
+  const test = order?.orderedTests.find((t) => t.id === testId) ?? null;
 
   useEffect(() => {
-    loadOrder();
-  }, [loadOrder]);
+    if (test && test.entryMethod !== 'MANUAL') {
+      setEntryMethod(test.entryMethod);
+    }
+  }, [test]);
+
+  const invalidateOrder = () =>
+    queryClient.invalidateQueries({ queryKey: ['order', orderId] });
 
   const handleStartTest = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,7 +39,7 @@ export function ResultEntryPage() {
         status: 'IN_PROGRESS',
         entryMethod,
       });
-      await loadOrder();
+      invalidateOrder();
     } finally {
       setSaving(false);
     }

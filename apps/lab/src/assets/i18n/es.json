@@ -459,7 +459,7 @@
       "submitting": "Agregando...",
       "can_perform_pickups": "Este miembro del equipo puede realizar recolecciones de muestras"
     },
-    "can_perform_pickups_badge": "Recolecciones",
+    "can_perform_pickups_badge": "Acceso a recolecciones",
     "save": "Guardar",
     "saving": "Guardando...",
     "actions": {

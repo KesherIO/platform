@@ -1,5 +1,6 @@
-import { useEffect, useState, FormEvent, ChangeEvent, useRef } from 'react';
+import { useState, FormEvent, ChangeEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import i18n from '../../i18n/i18n';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
@@ -61,7 +62,6 @@ export function LaboratorySettingsPage() {
   const [profile, setProfile] = useState<LaboratoryProfile>(EMPTY_PROFILE);
   const [contactInfo, setContactInfo] = useState<LabContactInfo>(EMPTY_CONTACT);
   const [signers, setSigners] = useState<LabSigner[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -73,29 +73,31 @@ export function LaboratorySettingsPage() {
     Record<string, string>
   >({});
 
-  useEffect(() => {
-    Promise.all([
-      labApi.settings.getProfile().catch(() => null),
-      labApi.settings.getContactInfo().catch(() => null),
-    ]).then(([profileData, contactData]) => {
-      if (profileData) {
-        const p = profileData as LaboratoryProfile;
-        setProfile(p);
-        if (p.signers) setSigners(p.signers);
-      }
-      if (contactData) {
-        const raw = contactData as Record<string, unknown>;
-        setContactInfo({
-          ...EMPTY_CONTACT,
-          ...raw,
-          phoneNumbers: Array.isArray(raw.phoneNumbers)
-            ? (raw.phoneNumbers as LabPhoneNumber[])
-            : [],
-        });
-      }
-      setLoading(false);
-    });
-  }, []);
+  const { isLoading: loading } = useQuery({
+    queryKey: ['settings-profile-contact'],
+    queryFn: () =>
+      Promise.all([
+        labApi.settings.getProfile().catch(() => null),
+        labApi.settings.getContactInfo().catch(() => null),
+      ]).then(([profileData, contactData]) => {
+        if (profileData) {
+          const p = profileData as LaboratoryProfile;
+          setProfile(p);
+          if (p.signers) setSigners(p.signers);
+        }
+        if (contactData) {
+          const raw = contactData as Record<string, unknown>;
+          setContactInfo({
+            ...EMPTY_CONTACT,
+            ...raw,
+            phoneNumbers: Array.isArray(raw.phoneNumbers)
+              ? (raw.phoneNumbers as LabPhoneNumber[])
+              : [],
+          });
+        }
+        return { profileData, contactData };
+      }),
+  });
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -248,8 +250,57 @@ export function LaboratorySettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-4 border-cyan border-t-transparent" />
+      <div className="p-6">
+        <div className="mb-6 h-7 w-40 animate-pulse rounded bg-gray-700" />
+
+        <div className="max-w-2xl space-y-6">
+          {/* Language skeleton */}
+          <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
+            <div className="mb-3 h-5 w-24 animate-pulse rounded bg-gray-700" />
+            <div className="flex gap-2">
+              <div className="h-10 w-24 animate-pulse rounded-lg bg-gray-800" />
+              <div className="h-10 w-24 animate-pulse rounded-lg bg-gray-800" />
+            </div>
+          </div>
+
+          {/* Contact info skeleton */}
+          <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
+            <div className="mb-1 h-5 w-44 animate-pulse rounded bg-gray-700" />
+            <div className="mb-5 h-4 w-64 animate-pulse rounded bg-gray-800" />
+            <div className="mb-5 flex items-center gap-4">
+              <div className="h-16 w-16 animate-pulse rounded-xl bg-gray-800" />
+              <div className="space-y-1">
+                <div className="h-3 w-32 animate-pulse rounded bg-gray-800" />
+                <div className="h-3 w-20 animate-pulse rounded bg-gray-800" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i}>
+                  <div className="mb-1 h-4 w-24 animate-pulse rounded bg-gray-700" />
+                  <div className="h-10 w-full animate-pulse rounded-lg bg-gray-800" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Profile skeleton */}
+          <div className="rounded-xl border border-gray-800 bg-gray-900 p-5">
+            <div className="mb-5 h-5 w-32 animate-pulse rounded bg-gray-700" />
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i}>
+                  <div className="mb-1 h-4 w-36 animate-pulse rounded bg-gray-700" />
+                  <div className="h-10 w-full animate-pulse rounded-lg bg-gray-800" />
+                </div>
+              ))}
+              <div>
+                <div className="mb-1 h-4 w-36 animate-pulse rounded bg-gray-700" />
+                <div className="h-20 w-full animate-pulse rounded-lg bg-gray-800" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

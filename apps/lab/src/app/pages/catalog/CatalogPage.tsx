@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, CircleOff, CircleCheck } from 'lucide-react';
+import { Pencil, Power } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import { SearchInput } from '../../shared/components/SearchInput';
@@ -45,52 +46,31 @@ export function CatalogPage() {
   const { isAdmin } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
-  const [items, setItems] = useState<CatalogItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filtering, setFiltering] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [kindFilter, setKindFilter] = useState<KindFilter>('ALL');
-  const [counts, setCounts] = useState<CatalogCounts>(EMPTY_COUNTS);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null);
 
   const pageSize = 20;
 
-  const loadCatalog = useCallback(
-    (showSpinner = false) => {
-      if (showSpinner) setLoading(true);
-      setFiltering(true);
-      setError(null);
-      labApi.catalog
-        .list({
-          search: search || undefined,
-          kind: kindFilter === 'ALL' ? undefined : kindFilter,
-          page,
-          pageSize,
-        })
-        .then((res) => {
-          setItems(res.data);
-          setTotal(res.total);
-          setTotalPages(res.totalPages);
-          setCounts(res.counts);
-        })
-        .catch(() => setError(t('catalog.error')))
-        .finally(() => {
-          setLoading(false);
-          setFiltering(false);
-        });
-    },
-    [search, kindFilter, page, t]
-  );
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: ['catalog', { search, kind: kindFilter, page }],
+    queryFn: () =>
+      labApi.catalog.list({
+        search: search || undefined,
+        kind: kindFilter === 'ALL' ? undefined : kindFilter,
+        page,
+        pageSize,
+      }),
+  });
 
-  useEffect(() => {
-    loadCatalog(items.length === 0);
-  }, [loadCatalog]);
+  const items = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+  const counts = data?.counts ?? EMPTY_COUNTS;
 
   useEffect(() => {
     setPage(1);
@@ -111,7 +91,7 @@ export function CatalogPage() {
           message: t('catalog.disable_confirm', { name: item.name }),
           confirmLabel: t('catalog.actions.disable'),
           variant: 'destructive',
-          icon: CircleOff,
+          icon: Power,
           onConfirm: () => labApi.catalog.disable(item.id),
         });
         if (!confirmed) return;
@@ -127,7 +107,11 @@ export function CatalogPage() {
         return;
       }
     }
-    loadCatalog(false);
+    loadCatalog();
+  };
+
+  const loadCatalog = () => {
+    queryClient.invalidateQueries({ queryKey: ['catalog'] });
   };
 
   return (
@@ -140,7 +124,7 @@ export function CatalogPage() {
             </h1>
             <CatalogGuidelines />
           </div>
-          {!loading && (
+          {!isLoading && (
             <p className="mt-0.5 text-sm text-gray-400">
               {total} {t('catalog.subtitle')}
             </p>
@@ -181,7 +165,7 @@ export function CatalogPage() {
         </div>
       </div>
 
-      {loading && items.length === 0 && (
+      {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
@@ -200,11 +184,11 @@ export function CatalogPage() {
 
       {error && (
         <div className="rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-300">
-          {error}
+          {t('catalog.error')}
         </div>
       )}
 
-      {!loading && !error && items.length === 0 && (
+      {!isLoading && !error && items.length === 0 && (
         <div className="py-16 text-center text-gray-500">
           {search || kindFilter !== 'ALL'
             ? t('catalog.no_matches')
@@ -215,7 +199,7 @@ export function CatalogPage() {
       {!error && items.length > 0 && (
         <div
           className={`transition-opacity ${
-            filtering ? 'opacity-60' : 'opacity-100'
+            isFetching ? 'opacity-60' : 'opacity-100'
           }`}
         >
           <div className="space-y-2">
@@ -224,11 +208,11 @@ export function CatalogPage() {
                 key={item.id}
                 className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 text-sm font-medium text-white">
-                    <span>{item.name}</span>
+                    <span className="truncate">{item.name}</span>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
                         KIND_COLORS[item.kind]
                       }`}
                     >
@@ -242,8 +226,8 @@ export function CatalogPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-5">
-                  <div className="text-right">
+                <div className="flex shrink-0 items-center gap-4">
+                  <div className="w-44 text-right">
                     <p className="text-xs text-gray-500">
                       {t('catalog.columns.created')}:{' '}
                       {formatDate(item.createdAt)}
@@ -253,19 +237,21 @@ export function CatalogPage() {
                       {formatDate(item.updatedAt)}
                     </p>
                   </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      STATUS_COLORS[item.active ? 'active' : 'inactive']
-                    }`}
-                  >
-                    {t(
-                      item.active
-                        ? 'catalog.status.active'
-                        : 'catalog.status.inactive'
-                    )}
-                  </span>
+                  <div className="w-20 text-center">
+                    <span
+                      className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${
+                        STATUS_COLORS[item.active ? 'active' : 'inactive']
+                      }`}
+                    >
+                      {t(
+                        item.active
+                          ? 'catalog.status.active'
+                          : 'catalog.status.inactive'
+                      )}
+                    </span>
+                  </div>
                   {isAdmin && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex w-24 items-center justify-end gap-1">
                       <IconActionButton
                         icon={Pencil}
                         label={t('catalog.actions.edit')}
@@ -273,7 +259,7 @@ export function CatalogPage() {
                         variant="neutral"
                       />
                       <IconActionButton
-                        icon={item.active ? CircleOff : CircleCheck}
+                        icon={Power}
                         label={t(
                           item.active
                             ? 'catalog.actions.disable'
@@ -304,7 +290,7 @@ export function CatalogPage() {
           onClose={() => setShowCreateModal(false)}
           onSaved={() => {
             setShowCreateModal(false);
-            loadCatalog(false);
+            loadCatalog();
           }}
         />
       )}
@@ -316,7 +302,7 @@ export function CatalogPage() {
           onClose={() => setEditingItem(null)}
           onSaved={() => {
             setEditingItem(null);
-            loadCatalog(false);
+            loadCatalog();
           }}
         />
       )}
