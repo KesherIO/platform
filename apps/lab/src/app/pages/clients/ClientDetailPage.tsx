@@ -234,7 +234,7 @@ export function ClientDetailPage() {
         <ClientInfoCard
           client={client}
           isAdmin={isAdmin}
-          onUpdated={() => loadClient(false)}
+          onUpdated={() => invalidateClient()}
           onError={setActionError}
         />
 
@@ -256,7 +256,7 @@ export function ClientDetailPage() {
         <ClientCollectionSettingsCard
           client={client}
           isAdmin={isAdmin}
-          onUpdated={() => loadClient(false)}
+          onUpdated={() => invalidateClient()}
           onError={setActionError}
         />
       </div>

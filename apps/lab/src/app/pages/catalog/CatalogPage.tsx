@@ -107,7 +107,7 @@ export function CatalogPage() {
         return;
       }
     }
-    loadCatalog(false);
+    loadCatalog();
   };
 
   const loadCatalog = () => {
