@@ -321,9 +321,8 @@ export class ResultsService {
       where: { id: { in: catalogItemIds } },
       select: { id: true, code: true },
     });
-    const codeById = new Map(catalogItems.map((c) => [c.id, c.code]));
 
-    const uniqueCodes = [...new Set(catalogItems.map((c) => c.code))];
+    const uniqueCodes = [...new Set(catalogItems.map((c) => c.code).filter((code): code is string => code != null))];
 
     const resolvedTemplates = await Promise.all(
       uniqueCodes.map((code) =>
