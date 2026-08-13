@@ -104,6 +104,12 @@ export class LabController {
 
   // PATCH /api/lab/orders/:id/status
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
   @Patch('orders/:id/status')
   updateOrderStatus(
     @CurrentTenant() tenant: TenantContext,
@@ -115,6 +121,12 @@ export class LabController {
 
   // POST /api/lab/orders/:id/ordered-tests
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
   @Post('orders/:id/ordered-tests')
   initOrderedTests(
     @CurrentTenant() tenant: TenantContext,
@@ -125,6 +137,7 @@ export class LabController {
 
   // PATCH /api/lab/ordered-tests/:testId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
   @Patch('ordered-tests/:testId')
   updateOrderedTest(
     @CurrentTenant() tenant: TenantContext,
@@ -136,6 +149,12 @@ export class LabController {
 
   // PATCH /api/lab/ordered-tests/:testId/receive
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
   @Patch('ordered-tests/:testId/receive')
   receiveOrderedTest(
     @CurrentTenant() tenant: TenantContext,
@@ -146,6 +165,12 @@ export class LabController {
 
   // POST /api/lab/orders/:id/receive-all
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
   @Post('orders/:id/receive-all')
   @HttpCode(HttpStatus.OK)
   receiveAllOrderedTests(
@@ -164,6 +189,7 @@ export class LabController {
 
   // PATCH /api/lab/settings/laboratory
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Patch('settings/laboratory')
   upsertLaboratoryProfile(
     @CurrentTenant() tenant: TenantContext,
@@ -181,6 +207,7 @@ export class LabController {
 
   // PATCH /api/lab/settings/contact
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Patch('settings/contact')
   updateLabContact(
     @CurrentTenant() tenant: TenantContext,
@@ -238,7 +265,7 @@ export class LabController {
 
   // POST /api/lab/pickups/:id/assign
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Post('pickups/:id/assign')
   assignMessenger(
     @CurrentTenant() tenant: TenantContext,
@@ -379,7 +406,7 @@ export class LabController {
 
   // POST /api/lab/users
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Post('users')
   createUser(
     @CurrentTenant() tenant: TenantContext,
@@ -390,7 +417,7 @@ export class LabController {
 
   // PATCH /api/lab/users/:userId/role
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Patch('users/:userId/role')
   updateRole(
     @CurrentTenant() tenant: TenantContext,
@@ -408,7 +435,7 @@ export class LabController {
 
   // PATCH /api/lab/users/:userId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Patch('users/:userId')
   updateUser(
     @CurrentTenant() tenant: TenantContext,
@@ -420,7 +447,7 @@ export class LabController {
 
   // DELETE /api/lab/users/:userId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Delete('users/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeMember(
@@ -437,7 +464,7 @@ export class LabController {
 
   // GET /api/lab/clients?status=ACTIVE&search=acme&page=1&pageSize=20
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Get('clients')
   listClients(
     @CurrentTenant() tenant: TenantContext,
@@ -448,7 +475,7 @@ export class LabController {
 
   // GET /api/lab/clients/:id
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Get('clients/:id')
   getClientDetail(
     @CurrentTenant() tenant: TenantContext,
@@ -459,7 +486,7 @@ export class LabController {
 
   // POST /api/lab/clients
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Post('clients')
   @HttpCode(HttpStatus.CREATED)
   createClient(
@@ -472,7 +499,7 @@ export class LabController {
 
   // PATCH /api/lab/clients/:id
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Patch('clients/:id')
   updateClient(
     @CurrentTenant() tenant: TenantContext,
@@ -484,7 +511,7 @@ export class LabController {
 
   // POST /api/lab/clients/:id/suspend
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Post('clients/:id/suspend')
   @HttpCode(HttpStatus.OK)
   suspendClient(
@@ -496,7 +523,7 @@ export class LabController {
 
   // POST /api/lab/clients/:id/reactivate
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Post('clients/:id/reactivate')
   @HttpCode(HttpStatus.OK)
   reactivateClient(
@@ -508,7 +535,7 @@ export class LabController {
 
   // POST /api/lab/clients/:id/invitation/regenerate
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Post('clients/:id/invitation/regenerate')
   regenerateInvitation(
     @CurrentTenant() tenant: TenantContext,
@@ -524,7 +551,7 @@ export class LabController {
 
   // POST /api/lab/clients/:id/invitation/revoke
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Post('clients/:id/invitation/revoke')
   revokeInvitation(
     @CurrentTenant() tenant: TenantContext,
@@ -535,7 +562,7 @@ export class LabController {
 
   // DELETE /api/lab/clients/:id
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Delete('clients/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteClient(
@@ -547,7 +574,7 @@ export class LabController {
 
   // PATCH /api/lab/clients/:id/collection-settings
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Patch('clients/:id/collection-settings')
   updateCollectionSettings(
     @CurrentTenant() tenant: TenantContext,

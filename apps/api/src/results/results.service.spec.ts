@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ResultsService } from './results.service';
+import { TemplateVersionService } from './template-version.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagService } from '../rag/rag.service';
 import type {
@@ -21,26 +22,25 @@ import type {
 
 const CATALOG_ITEM = { id: 'cat-1', code: 'CBC' };
 
-const TEMPLATE = {
-  id: 'tmpl-1',
-  catalogItemId: 'cat-1',
-  species: 'DOG',
-  title: 'Hemograma Canino Adulto',
+const VERSION = {
+  id: 'ver-1',
+  definitionId: 'def-1',
   version: 1,
-  isActive: true,
+  title: 'Hemograma Canino Adulto',
+  status: 'PUBLISHED',
   defaultObservations: null,
+  publishedAt: new Date(),
   createdAt: new Date(),
-  updatedAt: new Date(),
   sections: [
     {
       id: 'sec-1',
-      templateId: 'tmpl-1',
+      versionId: 'ver-1',
       name: 'Serie Roja',
       sortOrder: 1,
       analytes: [
         {
           id: 'ta-1',
-          templateId: 'tmpl-1',
+          versionId: 'ver-1',
           sectionId: 'sec-1',
           code: 'HGB',
           name: 'Hemoglobina',
@@ -50,6 +50,7 @@ const TEMPLATE = {
           options: [],
           sortOrder: 1,
           isHeader: false,
+          formula: null,
           referenceRange: { min: 12.0, max: 18.0, displayText: '12.0 – 18.0' },
         },
       ],
@@ -58,7 +59,7 @@ const TEMPLATE = {
   analytes: [
     {
       id: 'ta-1',
-      templateId: 'tmpl-1',
+      versionId: 'ver-1',
       sectionId: 'sec-1',
       code: 'HGB',
       name: 'Hemoglobina',
@@ -68,9 +69,26 @@ const TEMPLATE = {
       options: [],
       sortOrder: 1,
       isHeader: false,
+      formula: null,
       referenceRange: { min: 12.0, max: 18.0, displayText: '12.0 – 18.0' },
     },
   ],
+};
+
+const DEFINITION = {
+  id: 'def-1',
+  catalogItemCode: 'CBC',
+  species: 'DOG',
+  ageMinWeeks: -1,
+  ageMaxWeeks: -1,
+  scope: 'PLATFORM',
+  labTenantId: null,
+  ownerKey: 'platform',
+  parentDefinitionId: null,
+  activeVersionId: 'ver-1',
+  activeVersion: VERSION,
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 const ORDER = {
@@ -80,7 +98,7 @@ const ORDER = {
   orderedItems: [
     { catalogItemId: 'cat-1', code: 'CBC', name: 'CBC', kind: 'TEST' },
   ],
-  case: { patientSpecies: 'DOG' },
+  case: { patientSpecies: 'DOG', patientAge: null, patientAgeUnit: null },
   createdAt: new Date(),
 };
 
@@ -90,13 +108,15 @@ function makeReport(overrides: Record<string, unknown> = {}) {
     orderId: 'order-1',
     caseId: 'case-1',
     tenantId: 'tenant-1',
-    templateId: 'tmpl-1',
+    templateId: 'ver-1',
     status: 'DRAFT',
     observations: null,
     processedByName: null,
     processedByRole: null,
+    processedByCredentials: null,
     approvedByName: null,
     approvedByRole: null,
+    approvedByCredentials: null,
     signatureUrl: null,
     pdfUrl: null,
     rawPayload: null,
@@ -141,14 +161,18 @@ function makeAnalyte(overrides: Record<string, unknown> = {}) {
 
 function makePrismaMock() {
   const mock = {
-    catalogItem: { findFirst: jest.fn() },
-    resultTemplate: {
-      findFirst: jest.fn(),
+    catalogItem: { findFirst: jest.fn(), findMany: jest.fn() },
+    resultTemplateDefinition: {
       findUnique: jest.fn(),
       findUniqueOrThrow: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+    },
+    resultTemplateVersion: {
+      create: jest.fn(),
+      update: jest.fn(),
+      aggregate: jest.fn(),
     },
     resultTemplateSection: {
       create: jest.fn(),
@@ -183,6 +207,12 @@ function makePrismaMock() {
   return mock;
 }
 
+function makeTemplateVersionServiceMock() {
+  return {
+    resolveTemplate: jest.fn(),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -190,9 +220,11 @@ function makePrismaMock() {
 describe('ResultsService', () => {
   let service: ResultsService;
   let prisma: ReturnType<typeof makePrismaMock>;
+  let templateVersionService: ReturnType<typeof makeTemplateVersionServiceMock>;
 
   beforeEach(async () => {
     prisma = makePrismaMock();
+    templateVersionService = makeTemplateVersionServiceMock();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -205,6 +237,10 @@ describe('ResultsService', () => {
         {
           provide: RagService,
           useValue: { retrieveRelevantChunks: async () => [] },
+        },
+        {
+          provide: TemplateVersionService,
+          useValue: templateVersionService,
         },
       ],
     }).compile();
@@ -247,22 +283,30 @@ describe('ResultsService', () => {
       ],
     };
 
-    it('creates a new template when none exists', async () => {
+    it('creates a new definition when none exists', async () => {
       prisma.catalogItem.findFirst.mockResolvedValue(CATALOG_ITEM);
-      prisma.resultTemplate.findFirst.mockResolvedValue(null);
-      prisma.resultTemplate.create.mockResolvedValue({ id: 'tmpl-1' });
+      prisma.resultTemplateDefinition.findUnique.mockResolvedValue(null);
+      prisma.resultTemplateDefinition.create.mockResolvedValue({ id: 'def-1' });
+      prisma.resultTemplateVersion.aggregate.mockResolvedValue({
+        _max: { version: null },
+      });
+      prisma.resultTemplateVersion.create.mockResolvedValue({ id: 'ver-1' });
       prisma.resultTemplateSection.create.mockResolvedValue({ id: 'sec-1' });
       prisma.resultTemplateAnalyte.create.mockResolvedValue({ id: 'ta-1' });
-      prisma.resultTemplate.findUniqueOrThrow.mockResolvedValue(TEMPLATE);
+      prisma.resultTemplateDefinition.update.mockResolvedValue({});
+      prisma.resultTemplateDefinition.findUniqueOrThrow.mockResolvedValue(
+        DEFINITION
+      );
 
       const result = await service.importTemplate(dto);
 
-      expect(prisma.resultTemplate.create).toHaveBeenCalledWith(
+      expect(prisma.resultTemplateDefinition.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            catalogItemId: 'cat-1',
+            catalogItemCode: 'CBC',
             species: 'DOG',
-            title: 'Hemograma Canino Adulto',
+            scope: 'PLATFORM',
+            ownerKey: 'platform',
           }),
         })
       );
@@ -270,29 +314,33 @@ describe('ResultsService', () => {
       expect(result.sections).toHaveLength(1);
     });
 
-    it('increments version and replaces content when template already exists', async () => {
+    it('archives old version and creates new when definition exists', async () => {
       prisma.catalogItem.findFirst.mockResolvedValue(CATALOG_ITEM);
-      prisma.resultTemplate.findFirst.mockResolvedValue({ id: 'tmpl-1' });
-      prisma.resultTemplateAnalyte.deleteMany.mockResolvedValue({});
-      prisma.resultTemplateSection.deleteMany.mockResolvedValue({});
-      prisma.resultTemplate.update.mockResolvedValue({ id: 'tmpl-1' });
+      prisma.resultTemplateDefinition.findUnique.mockResolvedValue({
+        id: 'def-1',
+        activeVersionId: 'ver-old',
+      });
+      prisma.resultTemplateVersion.update.mockResolvedValue({});
+      prisma.resultTemplateVersion.aggregate.mockResolvedValue({
+        _max: { version: 1 },
+      });
+      prisma.resultTemplateVersion.create.mockResolvedValue({ id: 'ver-2' });
       prisma.resultTemplateSection.create.mockResolvedValue({ id: 'sec-1' });
       prisma.resultTemplateAnalyte.create.mockResolvedValue({ id: 'ta-1' });
-      prisma.resultTemplate.findUniqueOrThrow.mockResolvedValue({
-        ...TEMPLATE,
-        version: 2,
+      prisma.resultTemplateDefinition.update.mockResolvedValue({});
+      prisma.resultTemplateDefinition.findUniqueOrThrow.mockResolvedValue({
+        ...DEFINITION,
+        activeVersion: { ...VERSION, id: 'ver-2', version: 2 },
       });
 
       await service.importTemplate(dto);
 
-      expect(prisma.resultTemplate.update).toHaveBeenCalledWith(
+      expect(prisma.resultTemplateVersion.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ version: { increment: 1 } }),
+          where: { id: 'ver-old' },
+          data: { status: 'ARCHIVED' },
         })
       );
-      expect(prisma.resultTemplateAnalyte.deleteMany).toHaveBeenCalledWith({
-        where: { templateId: 'tmpl-1' },
-      });
     });
 
     it('throws NotFoundException when catalogItemCode is not found', async () => {
@@ -309,11 +357,12 @@ describe('ResultsService', () => {
   describe('createReport', () => {
     const dto: CreateReportDto = { orderId: 'order-1' };
 
-    it('creates a report with analytes from the matching template', async () => {
+    it('creates a report with analytes from the resolved template', async () => {
       prisma.resultReport.findUnique.mockResolvedValue(null);
       prisma.order.findUnique.mockResolvedValue(ORDER);
       prisma.catalogItemComposition.findMany.mockResolvedValue([]);
-      prisma.resultTemplate.findMany.mockResolvedValue([TEMPLATE]);
+      prisma.catalogItem.findMany.mockResolvedValue([CATALOG_ITEM]);
+      templateVersionService.resolveTemplate.mockResolvedValue(DEFINITION);
       prisma.resultReport.create.mockResolvedValue({ id: 'report-1' });
       prisma.resultReportAnalyte.createMany.mockResolvedValue({});
       prisma.resultReport.findUniqueOrThrow.mockResolvedValue(
@@ -358,7 +407,8 @@ describe('ResultsService', () => {
       prisma.resultReport.findUnique.mockResolvedValue(null);
       prisma.order.findUnique.mockResolvedValue(ORDER);
       prisma.catalogItemComposition.findMany.mockResolvedValue([]);
-      prisma.resultTemplate.findMany.mockResolvedValue([]);
+      prisma.catalogItem.findMany.mockResolvedValue([CATALOG_ITEM]);
+      templateVersionService.resolveTemplate.mockResolvedValue(null);
 
       await expect(service.createReport(dto)).rejects.toThrow(
         NotFoundException
@@ -427,7 +477,7 @@ describe('ResultsService', () => {
         makeReport({ status: 'DRAFT', caseId: 'case-1' })
       );
       prisma.resultReportAnalyte.findMany.mockResolvedValue([
-        makeAnalyte({ numericValue: 8.2 }), // below min: 12 → flag L
+        makeAnalyte({ numericValue: 8.2 }),
       ]);
       prisma.resultReportAnalyte.update.mockResolvedValue({});
       prisma.resultReport.update.mockResolvedValue({});
@@ -462,7 +512,7 @@ describe('ResultsService', () => {
 
     it('computes flag H when value is above reference max', async () => {
       prisma.resultReportAnalyte.findMany.mockResolvedValue([
-        makeAnalyte({ numericValue: 22.0 }), // above max: 18 → flag H
+        makeAnalyte({ numericValue: 22.0 }),
       ]);
 
       await service.releaseReport('report-1', dto);
@@ -476,7 +526,7 @@ describe('ResultsService', () => {
 
     it('computes flag N when value is within range', async () => {
       prisma.resultReportAnalyte.findMany.mockResolvedValue([
-        makeAnalyte({ numericValue: 15.2 }), // within 12–18 → flag N
+        makeAnalyte({ numericValue: 15.2 }),
       ]);
 
       await service.releaseReport('report-1', dto);

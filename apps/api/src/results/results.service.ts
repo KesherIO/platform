@@ -15,6 +15,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagService, RetrievedChunk } from '../rag/rag.service';
+import { TemplateVersionService } from './template-version.service';
 import type {
   ResultTemplateModel,
   ResultTemplateSectionModel,
@@ -69,13 +70,13 @@ Rules:
 // Include shapes
 // ---------------------------------------------------------------------------
 
-const TEMPLATE_INCLUDE = {
+const VERSION_INCLUDE = {
   sections: {
     orderBy: { sortOrder: 'asc' as const },
     include: { analytes: { orderBy: { sortOrder: 'asc' as const } } },
   },
   analytes: { orderBy: { sortOrder: 'asc' as const } },
-} satisfies Prisma.ResultTemplateInclude;
+} satisfies Prisma.ResultTemplateVersionInclude;
 
 const REPORT_INCLUDE = {
   analytes: { orderBy: { sortOrder: 'asc' as const } },
@@ -90,7 +91,8 @@ export class ResultsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-    private readonly ragService: RagService
+    private readonly ragService: RagService,
+    private readonly templateVersionService: TemplateVersionService
   ) {
     this.anthropic = new Anthropic({
       apiKey: this.config.getOrThrow<string>('ANTHROPIC_API_KEY'),
@@ -118,59 +120,73 @@ export class ResultsService {
     }
 
     const species = dto.species as unknown as PatientSpecies;
-    const ageMinWeeks = dto.ageMinWeeks ?? null;
-    const ageMaxWeeks = dto.ageMaxWeeks ?? null;
+    const ageMin = dto.ageMinWeeks ?? -1;
+    const ageMax = dto.ageMaxWeeks ?? -1;
 
-    const template = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.resultTemplate.findFirst({
+    const result = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.resultTemplateDefinition.findUnique({
         where: {
-          catalogItemId: catalogItem.id,
-          species,
-          ageMinWeeks,
-          ageMaxWeeks,
+          catalogItemCode_species_ageMinWeeks_ageMaxWeeks_ownerKey: {
+            catalogItemCode: dto.catalogItemCode,
+            species,
+            ageMinWeeks: ageMin,
+            ageMaxWeeks: ageMax,
+            ownerKey: 'platform',
+          },
+        },
+        select: { id: true, activeVersionId: true },
+      });
+
+      let definitionId: string;
+
+      if (existing) {
+        definitionId = existing.id;
+
+        if (existing.activeVersionId) {
+          await tx.resultTemplateVersion.update({
+            where: { id: existing.activeVersionId },
+            data: { status: 'ARCHIVED' },
+          });
+        }
+      } else {
+        const created = await tx.resultTemplateDefinition.create({
+          data: {
+            catalogItemCode: dto.catalogItemCode,
+            species,
+            ageMinWeeks: ageMin,
+            ageMaxWeeks: ageMax,
+            scope: 'PLATFORM',
+            ownerKey: 'platform',
+          },
+          select: { id: true },
+        });
+        definitionId = created.id;
+      }
+
+      const maxVersion = await tx.resultTemplateVersion.aggregate({
+        where: { definitionId },
+        _max: { version: true },
+      });
+      const nextVersion = (maxVersion._max.version ?? 0) + 1;
+
+      const version = await tx.resultTemplateVersion.create({
+        data: {
+          definitionId,
+          version: nextVersion,
+          title: dto.title,
+          status: 'PUBLISHED',
+          publishedAt: new Date(),
+          defaultObservations: dto.defaultObservations ?? null,
         },
         select: { id: true },
       });
 
-      let templateId: string;
-
-      if (existing) {
-        // Replace sections + analytes atomically — analytes first (no cascade on sectionId)
-        await tx.resultTemplateAnalyte.deleteMany({
-          where: { templateId: existing.id },
-        });
-        await tx.resultTemplateSection.deleteMany({
-          where: { templateId: existing.id },
-        });
-        await tx.resultTemplate.update({
-          where: { id: existing.id },
-          data: {
-            title: dto.title,
-            defaultObservations: dto.defaultObservations ?? null,
-            version: { increment: 1 },
-            isActive: true,
-          },
-        });
-        templateId = existing.id;
-      } else {
-        const created = await tx.resultTemplate.create({
-          data: {
-            catalogItemId: catalogItem.id,
-            species,
-            ageMinWeeks,
-            ageMaxWeeks,
-            title: dto.title,
-            defaultObservations: dto.defaultObservations ?? null,
-          },
-          select: { id: true },
-        });
-        templateId = created.id;
-      }
-
       for (const sectionDto of dto.sections) {
-        const section = await tx.resultTemplateSection.create({
+        const section = await (
+          tx as PrismaService
+        ).resultTemplateSection.create({
           data: {
-            templateId,
+            versionId: version.id,
             name: sectionDto.name,
             sortOrder: sectionDto.sortOrder,
           },
@@ -178,9 +194,9 @@ export class ResultsService {
         });
 
         for (const analyteDto of sectionDto.analytes) {
-          await tx.resultTemplateAnalyte.create({
+          await (tx as PrismaService).resultTemplateAnalyte.create({
             data: {
-              templateId,
+              versionId: version.id,
               sectionId: section.id,
               code: analyteDto.code,
               name: analyteDto.name,
@@ -199,31 +215,46 @@ export class ResultsService {
         }
       }
 
-      return tx.resultTemplate.findUniqueOrThrow({
-        where: { id: templateId },
-        include: TEMPLATE_INCLUDE,
+      await tx.resultTemplateDefinition.update({
+        where: { id: definitionId },
+        data: { activeVersionId: version.id },
       });
+
+      const definition = await tx.resultTemplateDefinition.findUniqueOrThrow({
+        where: { id: definitionId },
+        include: {
+          activeVersion: { include: VERSION_INCLUDE },
+        },
+      });
+
+      return definition;
     });
 
-    return this.formatTemplate(template);
+    return this.formatTemplate(result);
   }
 
   async findTemplates(): Promise<ResultTemplateModel[]> {
-    const templates = await this.prisma.resultTemplate.findMany({
-      where: { isActive: true },
-      include: TEMPLATE_INCLUDE,
-      orderBy: [{ species: 'asc' }, { title: 'asc' }],
+    const definitions = await this.prisma.resultTemplateDefinition.findMany({
+      where: { activeVersionId: { not: null } },
+      include: {
+        activeVersion: { include: VERSION_INCLUDE },
+      },
+      orderBy: [{ species: 'asc' }, { catalogItemCode: 'asc' }],
     });
-    return templates.map((t) => this.formatTemplate(t));
+    return definitions.map((d) => this.formatTemplate(d));
   }
 
   async findTemplate(id: string): Promise<ResultTemplateModel> {
-    const template = await this.prisma.resultTemplate.findUnique({
+    const definition = await this.prisma.resultTemplateDefinition.findUnique({
       where: { id },
-      include: TEMPLATE_INCLUDE,
+      include: {
+        activeVersion: { include: VERSION_INCLUDE },
+      },
     });
-    if (!template) throw new NotFoundException('Result template not found.');
-    return this.formatTemplate(template);
+    if (!definition || !definition.activeVersion) {
+      throw new NotFoundException('Result template not found.');
+    }
+    return this.formatTemplate(definition);
   }
 
   // ---------------------------------------------------------------------------
@@ -271,8 +302,6 @@ export class ResultsService {
       order.case.patientAgeUnit
     );
 
-    // Expand packages → component TEST catalog item IDs.
-    // A package has no template of its own; its components do.
     const compositions = await this.prisma.catalogItemComposition.findMany({
       where: { packageId: { in: rawItemIds } },
       select: { packageId: true, componentId: true },
@@ -283,48 +312,38 @@ export class ResultsService {
       if (components.length > 0) {
         components.forEach((c) => expandedIds.add(c.componentId));
       } else {
-        expandedIds.add(id); // already a TEST — keep as-is
+        expandedIds.add(id);
       }
     }
     const catalogItemIds = Array.from(expandedIds);
 
-    const templateRows = await this.prisma.resultTemplate.findMany({
-      where: {
-        catalogItemId: { in: catalogItemIds },
-        species: { in: [species, PatientSpecies.ANY] },
-        isActive: true,
-      },
-      include: TEMPLATE_INCLUDE,
-      orderBy: [{ species: 'asc' }, { title: 'asc' }],
+    const catalogItems = await this.prisma.catalogItem.findMany({
+      where: { id: { in: catalogItemIds } },
+      select: { id: true, code: true },
     });
 
-    // Per catalog item: pick the best template.
-    // Priority: (1) age-specific + species-specific > (2) age-specific + ANY >
-    //           (3) age-agnostic + species-specific > (4) age-agnostic + ANY
-    const templateByCatalogItem = new Map<
-      string,
-      (typeof templateRows)[number]
-    >();
-    for (const t of templateRows) {
-      const ageMatches =
-        patientAgeWeeks == null
-          ? t.ageMinWeeks == null && t.ageMaxWeeks == null // no patient age → only agnostic
-          : (t.ageMinWeeks == null || patientAgeWeeks >= t.ageMinWeeks) &&
-            (t.ageMaxWeeks == null || patientAgeWeeks <= t.ageMaxWeeks);
+    const uniqueCodes = [
+      ...new Set(
+        catalogItems
+          .map((c) => c.code)
+          .filter((code): code is string => code != null)
+      ),
+    ];
 
-      if (!ageMatches) continue;
+    const resolvedTemplates = await Promise.all(
+      uniqueCodes.map((code) =>
+        this.templateVersionService.resolveTemplate(
+          code,
+          order.tenantId,
+          species,
+          patientAgeWeeks
+        )
+      )
+    );
 
-      const existing = templateByCatalogItem.get(t.catalogItemId);
-      if (!existing) {
-        templateByCatalogItem.set(t.catalogItemId, t);
-        continue;
-      }
-
-      const tScore = this.templateScore(t, species);
-      const eScore = this.templateScore(existing, species);
-      if (tScore > eScore) templateByCatalogItem.set(t.catalogItemId, t);
-    }
-    const templates = Array.from(templateByCatalogItem.values());
+    const templates = resolvedTemplates.filter(
+      (t): t is NonNullable<typeof t> => t != null && t.activeVersion != null
+    );
 
     if (templates.length === 0) {
       throw new NotFoundException(
@@ -338,7 +357,7 @@ export class ResultsService {
           orderId: dto.orderId,
           caseId: order.caseId,
           tenantId: order.tenantId,
-          templateId: templates[0].id,
+          templateId: templates[0].activeVersion!.id,
           status: 'DRAFT',
         },
         select: { id: true },
@@ -347,11 +366,12 @@ export class ResultsService {
       const analytesToCreate: Prisma.ResultReportAnalyteCreateManyInput[] = [];
 
       for (const template of templates) {
+        const version = template.activeVersion!;
         const sectionNameById = new Map(
-          template.sections.map((s) => [s.id, s.name])
+          version.sections.map((s) => [s.id, s.name])
         );
 
-        for (const analyte of template.analytes) {
+        for (const analyte of version.analytes) {
           analytesToCreate.push({
             reportId: newReport.id,
             templateAnalyteId: analyte.id,
@@ -716,19 +736,6 @@ export class ResultsService {
     }
   }
 
-  private templateScore(
-    t: {
-      species: PatientSpecies;
-      ageMinWeeks: number | null;
-      ageMaxWeeks: number | null;
-    },
-    patientSpecies: PatientSpecies
-  ): number {
-    const speciesScore = t.species === patientSpecies ? 2 : 0; // ANY = 0
-    const ageScore = t.ageMinWeeks != null || t.ageMaxWeeks != null ? 1 : 0;
-    return speciesScore + ageScore;
-  }
-
   private computeFlag(
     ref: ReferenceRangeSnapshot | null,
     value: number
@@ -811,9 +818,23 @@ export class ResultsService {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private formatTemplate(raw: any): ResultTemplateModel {
+    const version = raw.activeVersion;
+    if (!version) {
+      return {
+        id: raw.id,
+        catalogItemCode: raw.catalogItemCode,
+        species: raw.species,
+        title: 'No active version',
+        version: 0,
+        isActive: false,
+        sections: [],
+        analytes: [],
+      };
+    }
+
     const mapAnalyte = (a: any): ResultTemplateAnalyteModel => ({
       id: a.id,
-      templateId: a.templateId,
+      versionId: a.versionId,
       sectionId: a.sectionId ?? undefined,
       code: a.code,
       name: a.name,
@@ -828,10 +849,10 @@ export class ResultsService {
         (a.referenceRange as unknown as ReferenceRangeSnapshot) ?? undefined,
     });
 
-    const sections: ResultTemplateSectionModel[] = (raw.sections ?? []).map(
+    const sections: ResultTemplateSectionModel[] = (version.sections ?? []).map(
       (s: any) => ({
         id: s.id,
-        templateId: raw.id,
+        versionId: version.id,
         name: s.name,
         sortOrder: s.sortOrder,
         analytes: (s.analytes ?? []).map(mapAnalyte),
@@ -840,16 +861,16 @@ export class ResultsService {
 
     return {
       id: raw.id,
-      catalogItemId: raw.catalogItemId,
+      catalogItemCode: raw.catalogItemCode,
       species: raw.species as ResultTemplateModel['species'],
-      ageMinWeeks: raw.ageMinWeeks ?? undefined,
-      ageMaxWeeks: raw.ageMaxWeeks ?? undefined,
-      title: raw.title,
-      version: raw.version,
-      isActive: raw.isActive,
-      defaultObservations: raw.defaultObservations ?? undefined,
+      ageMinWeeks: raw.ageMinWeeks === -1 ? undefined : raw.ageMinWeeks,
+      ageMaxWeeks: raw.ageMaxWeeks === -1 ? undefined : raw.ageMaxWeeks,
+      title: version.title,
+      version: version.version,
+      isActive: version.status === 'PUBLISHED',
+      defaultObservations: version.defaultObservations ?? undefined,
       sections,
-      analytes: (raw.analytes ?? []).map(mapAnalyte),
+      analytes: (version.analytes ?? []).map(mapAnalyte),
     };
   }
 

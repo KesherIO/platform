@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, OrderedTestSourceType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   buildDateRangeFilter,
@@ -12,6 +12,7 @@ import {
 import type { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import type { ListLabOrdersDto } from './dto/list-lab-orders.dto';
+import type { OrderedItem } from '@vet-ai/shared-types';
 
 // Default lookback window for the Completed tab when no explicit date range
 // is picked — recent completions, not the full all-time archive.
@@ -106,6 +107,7 @@ export class LabService {
           tenant: { select: { name: true } },
           orderedTests: {
             orderBy: { createdAt: 'asc' },
+            include: { sources: true },
           },
         },
       }),
@@ -148,6 +150,7 @@ export class LabService {
             catalogItem: {
               select: { id: true; code: true; name: true; kind: true };
             };
+            sources: true;
           };
         };
         resultReport: {
@@ -192,6 +195,7 @@ export class LabService {
             catalogItem: {
               select: { id: true, code: true, name: true, kind: true },
             },
+            sources: true,
           },
         },
         resultReport: {
@@ -263,6 +267,9 @@ export class LabService {
 
   /**
    * Creates OrderedTest rows from the order's orderedItems JSON snapshot.
+   * Expands PACKAGE items into their component TESTs via CatalogItemComposition.
+   * Deduplicates: a component appearing in multiple packages (or both directly
+   * and via a package) produces one OrderedTest with multiple OrderedTestSource rows.
    * Idempotent — skips if ordered tests already exist for this order.
    */
   async initOrderedTests(labTenantId: string, orderId: string) {
@@ -277,23 +284,107 @@ export class LabService {
     if (!order) throw new NotFoundException('Order not found.');
     if (order.orderedTests.length > 0) return order.orderedTests;
 
-    const items = order.orderedItems as Array<{
-      catalogItemId: string;
-      code: string | null;
-      name: string;
-    }>;
+    const items = order.orderedItems as unknown as OrderedItem[];
+
+    // Collect all package IDs so we can batch-query their components
+    const packageIds = items
+      .filter((i) => i.kind === 'PACKAGE')
+      .map((i) => i.catalogItemId);
+
+    const compositions =
+      packageIds.length > 0
+        ? await this.prisma.catalogItemComposition.findMany({
+            where: { packageId: { in: packageIds } },
+            include: {
+              component: { select: { id: true, code: true, name: true } },
+            },
+          })
+        : [];
+
+    // Map packageId → component catalog items
+    const componentsByPackage = new Map<
+      string,
+      Array<{ id: string; code: string | null; name: string }>
+    >();
+    for (const comp of compositions) {
+      const list = componentsByPackage.get(comp.packageId) ?? [];
+      list.push(comp.component);
+      componentsByPackage.set(comp.packageId, list);
+    }
+
+    // Build a deduplicated map: catalogItemId → { test data, sources[] }
+    const testMap = new Map<
+      string,
+      {
+        catalogItemId: string;
+        catalogItemCode: string | null;
+        catalogItemName: string;
+        sources: Prisma.OrderedTestSourceCreateWithoutOrderedTestInput[];
+      }
+    >();
+
+    const addSource = (
+      catalogItemId: string,
+      catalogItemCode: string | null,
+      catalogItemName: string,
+      source: Prisma.OrderedTestSourceCreateWithoutOrderedTestInput
+    ) => {
+      const existing = testMap.get(catalogItemId);
+      if (existing) {
+        existing.sources.push(source);
+      } else {
+        testMap.set(catalogItemId, {
+          catalogItemId,
+          catalogItemCode,
+          catalogItemName,
+          sources: [source],
+        });
+      }
+    };
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const lineKey = `line-${i}`;
+
+      if (item.kind === 'PACKAGE') {
+        const components = componentsByPackage.get(item.catalogItemId) ?? [];
+        for (const comp of components) {
+          addSource(comp.id, comp.code, comp.name, {
+            originCatalogItem: { connect: { id: item.catalogItemId } },
+            sourceType: OrderedTestSourceType.PACKAGE,
+            originalOrderItemKey: lineKey,
+            originalOrderItemIndex: i,
+            quantity: 1,
+            originCode: item.code ?? null,
+            originName: item.name,
+          });
+        }
+      } else {
+        addSource(item.catalogItemId, item.code, item.name, {
+          originCatalogItem: { connect: { id: item.catalogItemId } },
+          sourceType: OrderedTestSourceType.DIRECT,
+          originalOrderItemKey: lineKey,
+          originalOrderItemIndex: i,
+          quantity: 1,
+          originCode: item.code ?? null,
+          originName: item.name,
+        });
+      }
+    }
 
     const now = new Date();
     return this.prisma.$transaction(
-      items.map((item) =>
+      Array.from(testMap.values()).map((entry) =>
         this.prisma.orderedTest.create({
           data: {
             orderId,
-            catalogItemId: item.catalogItemId,
-            catalogItemCode: item.code ?? null,
-            catalogItemName: item.name,
+            catalogItemId: entry.catalogItemId,
+            catalogItemCode: entry.catalogItemCode ?? null,
+            catalogItemName: entry.catalogItemName,
             updatedAt: now,
+            sources: { create: entry.sources },
           },
+          include: { sources: true },
         })
       )
     );

@@ -11,6 +11,9 @@ import {
   Package,
   Menu,
   X,
+  Cpu,
+  Wrench,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../api/labApi';
@@ -118,6 +121,21 @@ export function Layout() {
                 to: '/catalog',
                 label: t('nav.catalog'),
                 icon: FlaskConical,
+              },
+              {
+                to: '/settings/analyzers',
+                label: t('nav.analyzers'),
+                icon: Cpu,
+              },
+              {
+                to: '/settings/test-config',
+                label: t('nav.test_config'),
+                icon: Wrench,
+              },
+              {
+                to: '/templates',
+                label: t('nav.templates'),
+                icon: FileText,
               },
             ]
           : []),
