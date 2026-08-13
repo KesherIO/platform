@@ -322,7 +322,13 @@ export class ResultsService {
       select: { id: true, code: true },
     });
 
-    const uniqueCodes = [...new Set(catalogItems.map((c) => c.code).filter((code): code is string => code != null))];
+    const uniqueCodes = [
+      ...new Set(
+        catalogItems
+          .map((c) => c.code)
+          .filter((code): code is string => code != null)
+      ),
+    ];
 
     const resolvedTemplates = await Promise.all(
       uniqueCodes.map((code) =>
