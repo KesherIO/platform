@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
+import type { OrderedTest } from '../../types/lab.types';
 
 const TECHNICAL_EVENT_TYPES = new Set([
   'NOTIFICATION_SENT',
@@ -34,6 +35,62 @@ const STATUS_TRANSITIONS: Record<string, { labelKey: string; next: string }[]> =
     COMPLETED: [],
     CANCELLED: [],
   };
+
+type TestGroup =
+  | { kind: 'standalone'; test: OrderedTest }
+  | { kind: 'package'; originName: string; tests: OrderedTest[] };
+
+function buildTestGroups(tests: OrderedTest[]): TestGroup[] {
+  const packageMap = new Map<string, { originName: string; tests: OrderedTest[] }>();
+  const standaloneTests: OrderedTest[] = [];
+
+  for (const test of tests) {
+    const packageSources = test.sources.filter((s) => s.sourceType === 'PACKAGE');
+    if (packageSources.length > 0) {
+      const firstPkg = packageSources[0];
+      const key = firstPkg.originCatalogItemId;
+      const group = packageMap.get(key);
+      if (group) {
+        group.tests.push(test);
+      } else {
+        packageMap.set(key, { originName: firstPkg.originName, tests: [test] });
+      }
+    } else {
+      standaloneTests.push(test);
+    }
+  }
+
+  const groups: TestGroup[] = [];
+  const usedPackageIds = new Set<string>();
+
+  for (const test of tests) {
+    const packageSources = test.sources.filter((s) => s.sourceType === 'PACKAGE');
+    if (packageSources.length > 0) {
+      const key = packageSources[0].originCatalogItemId;
+      if (!usedPackageIds.has(key)) {
+        usedPackageIds.add(key);
+        groups.push({ kind: 'package', ...packageMap.get(key)! });
+      }
+    } else {
+      groups.push({ kind: 'standalone', test });
+    }
+  }
+
+  return groups;
+}
+
+function getAlsoDirectNote(test: OrderedTest): boolean {
+  return (
+    test.sources.some((s) => s.sourceType === 'PACKAGE') &&
+    test.sources.some((s) => s.sourceType === 'DIRECT')
+  );
+}
+
+function getOtherPackageNames(test: OrderedTest, primaryOriginId: string): string[] {
+  return test.sources
+    .filter((s) => s.sourceType === 'PACKAGE' && s.originCatalogItemId !== primaryOriginId)
+    .map((s) => s.originName);
+}
 
 export function OrderWorkspacePage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -119,6 +176,11 @@ export function OrderWorkspacePage() {
     }
   };
 
+  const testGroups = useMemo(
+    () => (order ? buildTestGroups(order.orderedTests) : []),
+    [order]
+  );
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -143,6 +205,55 @@ export function OrderWorkspacePage() {
   );
   const unreceived = order.orderedTests.filter((t) => !t.receivedAt);
   const hasUnreceived = unreceived.length > 0;
+
+  const renderTestActions = (test: OrderedTest) => (
+    <>
+      {test.receivedAt ? (
+        <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          {t('workspace.sample_received')} ·{' '}
+          {formatTimestamp(test.receivedAt)}
+        </span>
+      ) : isPreReceived ? (
+        <button
+          onClick={() => receiveTest(test.id)}
+          disabled={receivingTestId === test.id || receivingAll}
+          className="rounded-lg border border-cyan/50 px-3 py-1.5 text-xs text-cyan hover:bg-cyan/10 disabled:opacity-50"
+        >
+          {receivingTestId === test.id
+            ? '...'
+            : t('orders.actions.mark_received_single')}
+        </button>
+      ) : (
+        <span className="text-xs text-yellow-500">
+          {t('workspace.sample_pending')}
+        </span>
+      )}
+      <StatusBadge status={test.status} size="sm" />
+      {test.receivedAt &&
+        test.status !== 'COMPLETED' &&
+        test.status !== 'CANCELLED' && (
+          <Link
+            to={`/orders/${order.id}/tests/${test.id}/results`}
+            className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
+          >
+            {t('workspace.enter_results')}
+          </Link>
+        )}
+    </>
+  );
 
   return (
     <div className="p-6">
@@ -394,69 +505,84 @@ export function OrderWorkspacePage() {
 
           <div className="space-y-2">
             {hasTests ? (
-              order.orderedTests.map((test) => (
-                <div
-                  key={test.id}
-                  className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-4 py-3"
-                >
-                  <div>
-                    <p className="font-medium text-white">
-                      {test.catalogItemName}
-                    </p>
-                    {test.catalogItemCode && (
-                      <p className="font-mono text-xs text-gray-500">
-                        {test.catalogItemCode}
+              testGroups.map((group) =>
+                group.kind === 'package' ? (
+                  <div
+                    key={`pkg-${group.tests[0].sources.find((s) => s.sourceType === 'PACKAGE')!.originCatalogItemId}`}
+                    className="rounded-xl border border-gray-800 bg-gray-900"
+                  >
+                    <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-2.5">
+                      <span className="text-sm">📦</span>
+                      <span className="text-sm font-semibold text-gray-300">
+                        {group.originName}
+                      </span>
+                      <span className="text-xs text-gray-600">
+                        ({group.tests.length})
+                      </span>
+                    </div>
+                    <div className="divide-y divide-gray-800/50">
+                      {group.tests.map((test) => {
+                        const primaryOriginId = test.sources.find(
+                          (s) => s.sourceType === 'PACKAGE'
+                        )!.originCatalogItemId;
+                        const alsoDirect = getAlsoDirectNote(test);
+                        const otherPkgs = getOtherPackageNames(test, primaryOriginId);
+                        return (
+                          <div
+                            key={test.id}
+                            className="flex items-center justify-between px-4 py-3"
+                          >
+                            <div>
+                              <p className="font-medium text-white">
+                                {test.catalogItemName}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                {test.catalogItemCode && (
+                                  <span className="font-mono text-xs text-gray-500">
+                                    {test.catalogItemCode}
+                                  </span>
+                                )}
+                                {alsoDirect && (
+                                  <span className="text-xs text-cyan/70">
+                                    {t('workspace.also_direct')}
+                                  </span>
+                                )}
+                                {otherPkgs.map((name) => (
+                                  <span key={name} className="text-xs text-gray-500">
+                                    {t('workspace.also_in_package', { name })}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {renderTestActions(test)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={group.test.id}
+                    className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-medium text-white">
+                        {group.test.catalogItemName}
                       </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {test.receivedAt ? (
-                      <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-                        <svg
-                          className="h-3.5 w-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        {t('workspace.sample_received')} ·{' '}
-                        {formatTimestamp(test.receivedAt)}
-                      </span>
-                    ) : isPreReceived ? (
-                      <button
-                        onClick={() => receiveTest(test.id)}
-                        disabled={receivingTestId === test.id || receivingAll}
-                        className="rounded-lg border border-cyan/50 px-3 py-1.5 text-xs text-cyan hover:bg-cyan/10 disabled:opacity-50"
-                      >
-                        {receivingTestId === test.id
-                          ? '...'
-                          : t('orders.actions.mark_received_single')}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-yellow-500">
-                        {t('workspace.sample_pending')}
-                      </span>
-                    )}
-                    <StatusBadge status={test.status} size="sm" />
-                    {test.receivedAt &&
-                      test.status !== 'COMPLETED' &&
-                      test.status !== 'CANCELLED' && (
-                        <Link
-                          to={`/orders/${order.id}/tests/${test.id}/results`}
-                          className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
-                        >
-                          {t('workspace.enter_results')}
-                        </Link>
+                      {group.test.catalogItemCode && (
+                        <p className="font-mono text-xs text-gray-500">
+                          {group.test.catalogItemCode}
+                        </p>
                       )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {renderTestActions(group.test)}
+                    </div>
                   </div>
-                </div>
-              ))
+                )
+              )
             ) : (
               <div className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-8 text-center text-sm text-gray-500">
                 {t('workspace.tests_init_hint')}

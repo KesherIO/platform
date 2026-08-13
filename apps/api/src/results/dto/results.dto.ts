@@ -20,6 +20,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export enum AnalyteValueTypeDto {
   NUMERIC = 'NUMERIC',
   TEXT = 'TEXT',
+  LONG_TEXT = 'LONG_TEXT',
   POSITIVE_NEGATIVE = 'POSITIVE_NEGATIVE',
   SELECT = 'SELECT',
 }

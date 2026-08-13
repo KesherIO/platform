@@ -14,6 +14,10 @@ import type {
   CollectionsQuery,
   MessengerInfo,
   TimelineEvent,
+  Analyzer,
+  LabTestConfiguration,
+  TemplateDefinition,
+  TemplateVersion,
 } from '../../types/lab.types';
 
 async function authHeaders(): Promise<HeadersInit> {
@@ -207,5 +211,43 @@ export const labApi = {
   timeline: {
     forOrder: (orderId: string) =>
       get<TimelineEvent[]>(`lab/orders/${orderId}/timeline`),
+  },
+  analyzers: {
+    list: () => get<Analyzer[]>('lab-config/analyzers'),
+    create: (data: Record<string, unknown>) =>
+      post<Analyzer>('lab-config/analyzers', data),
+    update: (id: string, data: Record<string, unknown>) =>
+      patch<Analyzer>(`lab-config/analyzers/${id}`, data),
+    enable: (id: string) => post<Analyzer>(`lab-config/analyzers/${id}/enable`),
+    disable: (id: string) =>
+      post<Analyzer>(`lab-config/analyzers/${id}/disable`),
+  },
+  testConfigs: {
+    list: () => get<LabTestConfiguration[]>('lab-config/test-configs'),
+    upsert: (data: Record<string, unknown>) =>
+      post<LabTestConfiguration>('lab-config/test-configs', data),
+    remove: (id: string) => del(`lab-config/test-configs/${id}`),
+  },
+  templates: {
+    list: (params?: { catalogItemCode?: string; species?: string }) => {
+      const sp = new URLSearchParams();
+      if (params?.catalogItemCode)
+        sp.set('catalogItemCode', params.catalogItemCode);
+      if (params?.species) sp.set('species', params.species);
+      const qs = sp.toString();
+      return get<TemplateDefinition[]>(`lab/templates${qs ? `?${qs}` : ''}`);
+    },
+    getById: (id: string) => get<TemplateDefinition>(`lab/templates/${id}`),
+    create: (data: Record<string, unknown>) =>
+      post<TemplateDefinition>('lab/templates', data),
+    clone: (id: string) => post<TemplateDefinition>(`lab/templates/${id}/clone`),
+    createDraft: (id: string) =>
+      post<TemplateVersion>(`lab/templates/${id}/draft`),
+    updateDraft: (versionId: string, data: Record<string, unknown>) =>
+      patch<TemplateVersion>(`lab/template-versions/${versionId}`, data),
+    publish: (versionId: string) =>
+      post<TemplateVersion>(`lab/template-versions/${versionId}/publish`),
+    archive: (versionId: string) =>
+      post<TemplateVersion>(`lab/template-versions/${versionId}/archive`),
   },
 };

@@ -49,6 +49,9 @@ describe('LabService', () => {
         create: jest.fn(),
         update: jest.fn(),
       },
+      catalogItemComposition: {
+        findMany: jest.fn(),
+      },
       laboratoryProfile: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
@@ -271,6 +274,402 @@ describe('LabService', () => {
           data: expect.objectContaining({ status: 'PROCESSING' }),
         })
       );
+    });
+  });
+
+  describe('initOrderedTests', () => {
+    it('throws NotFoundException when order is not found', async () => {
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.initOrderedTests(LAB_TENANT_ID, ORDER_ID)
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns early if ordered tests already exist (idempotency)', async () => {
+      const existingTests = [{ id: 'existing-test-1' }];
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({
+        ...mockOrder,
+        orderedTests: existingTests,
+      });
+
+      const result = await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
+
+      expect(result).toBe(existingTests);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('creates one OrderedTest with a DIRECT source for a standalone TEST item', async () => {
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({
+        ...mockOrder,
+        orderedItems: [
+          { catalogItemId: 'cat-1', code: 'CBC', name: 'Hemograma', kind: 'TEST' },
+        ],
+        orderedTests: [],
+      });
+      (prisma.orderedTest.create as jest.Mock).mockResolvedValue({
+        id: 'ot-1',
+        catalogItemId: 'cat-1',
+      });
+      (prisma.$transaction as jest.Mock).mockImplementation((promises) =>
+        Promise.all(promises)
+      );
+
+      await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
+
+      expect(prisma.catalogItemComposition.findMany).not.toHaveBeenCalled();
+      expect(prisma.orderedTest.create).toHaveBeenCalledTimes(1);
+      expect(prisma.orderedTest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            orderId: ORDER_ID,
+            catalogItemId: 'cat-1',
+            catalogItemCode: 'CBC',
+            catalogItemName: 'Hemograma',
+            sources: {
+              create: [
+                expect.objectContaining({
+                  sourceType: 'DIRECT',
+                  originalOrderItemKey: 'line-0',
+                  originalOrderItemIndex: 0,
+                  originCode: 'CBC',
+                  originName: 'Hemograma',
+                }),
+              ],
+            },
+          }),
+          include: { sources: true },
+        })
+      );
+    });
+
+    it('expands a PACKAGE into component OrderedTests with PACKAGE sources', async () => {
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({
+        ...mockOrder,
+        orderedItems: [
+          {
+            catalogItemId: 'pkg-1',
+            code: 'BASIC',
+            name: 'Perfil Básico',
+            kind: 'PACKAGE',
+          },
+        ],
+        orderedTests: [],
+      });
+      (prisma.catalogItemComposition.findMany as jest.Mock).mockResolvedValue([
+        {
+          packageId: 'pkg-1',
+          componentId: 'comp-alb',
+          component: { id: 'comp-alb', code: 'ALB', name: 'Albumina' },
+        },
+        {
+          packageId: 'pkg-1',
+          componentId: 'comp-glu',
+          component: { id: 'comp-glu', code: 'GLU', name: 'Glucosa' },
+        },
+      ]);
+      (prisma.orderedTest.create as jest.Mock).mockResolvedValue({});
+      (prisma.$transaction as jest.Mock).mockImplementation((promises) =>
+        Promise.all(promises)
+      );
+
+      await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
+
+      expect(prisma.catalogItemComposition.findMany).toHaveBeenCalledWith({
+        where: { packageId: { in: ['pkg-1'] } },
+        include: {
+          component: { select: { id: true, code: true, name: true } },
+        },
+      });
+      expect(prisma.orderedTest.create).toHaveBeenCalledTimes(2);
+
+      // ALB — component from the package
+      expect(prisma.orderedTest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            catalogItemId: 'comp-alb',
+            catalogItemCode: 'ALB',
+            catalogItemName: 'Albumina',
+            sources: {
+              create: [
+                expect.objectContaining({
+                  sourceType: 'PACKAGE',
+                  originalOrderItemKey: 'line-0',
+                  originCode: 'BASIC',
+                  originName: 'Perfil Básico',
+                }),
+              ],
+            },
+          }),
+        })
+      );
+
+      // GLU — component from the package
+      expect(prisma.orderedTest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            catalogItemId: 'comp-glu',
+            catalogItemCode: 'GLU',
+            catalogItemName: 'Glucosa',
+            sources: {
+              create: [
+                expect.objectContaining({
+                  sourceType: 'PACKAGE',
+                  originName: 'Perfil Básico',
+                }),
+              ],
+            },
+          }),
+        })
+      );
+    });
+
+    it('deduplicates when a component test is also ordered directly', async () => {
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({
+        ...mockOrder,
+        orderedItems: [
+          {
+            catalogItemId: 'pkg-1',
+            code: 'BASIC',
+            name: 'Perfil Básico',
+            kind: 'PACKAGE',
+          },
+          {
+            catalogItemId: 'comp-crea',
+            code: 'CREA',
+            name: 'Creatinina',
+            kind: 'TEST',
+          },
+        ],
+        orderedTests: [],
+      });
+      (prisma.catalogItemComposition.findMany as jest.Mock).mockResolvedValue([
+        {
+          packageId: 'pkg-1',
+          componentId: 'comp-alb',
+          component: { id: 'comp-alb', code: 'ALB', name: 'Albumina' },
+        },
+        {
+          packageId: 'pkg-1',
+          componentId: 'comp-crea',
+          component: { id: 'comp-crea', code: 'CREA', name: 'Creatinina' },
+        },
+      ]);
+      (prisma.orderedTest.create as jest.Mock).mockResolvedValue({});
+      (prisma.$transaction as jest.Mock).mockImplementation((promises) =>
+        Promise.all(promises)
+      );
+
+      await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
+
+      // ALB (from package only) + CREA (deduplicated: package + direct) = 2 OrderedTests
+      expect(prisma.orderedTest.create).toHaveBeenCalledTimes(2);
+
+      // CREA should have two sources: PACKAGE from Perfil Básico + DIRECT
+      expect(prisma.orderedTest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            catalogItemId: 'comp-crea',
+            catalogItemName: 'Creatinina',
+            sources: {
+              create: [
+                expect.objectContaining({
+                  sourceType: 'PACKAGE',
+                  originalOrderItemKey: 'line-0',
+                  originName: 'Perfil Básico',
+                }),
+                expect.objectContaining({
+                  sourceType: 'DIRECT',
+                  originalOrderItemKey: 'line-1',
+                  originName: 'Creatinina',
+                }),
+              ],
+            },
+          }),
+        })
+      );
+    });
+
+    it('handles mixed packages and standalone tests preserving correct line indices', async () => {
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({
+        ...mockOrder,
+        orderedItems: [
+          { catalogItemId: 'cat-cbc', code: 'CBC', name: 'Hemograma', kind: 'TEST' },
+          {
+            catalogItemId: 'pkg-1',
+            code: 'BASIC',
+            name: 'Perfil Básico',
+            kind: 'PACKAGE',
+          },
+          { catalogItemId: 'cat-uri', code: 'URI', name: 'Urianálisis', kind: 'TEST' },
+        ],
+        orderedTests: [],
+      });
+      (prisma.catalogItemComposition.findMany as jest.Mock).mockResolvedValue([
+        {
+          packageId: 'pkg-1',
+          componentId: 'comp-alb',
+          component: { id: 'comp-alb', code: 'ALB', name: 'Albumina' },
+        },
+      ]);
+      (prisma.orderedTest.create as jest.Mock).mockResolvedValue({});
+      (prisma.$transaction as jest.Mock).mockImplementation((promises) =>
+        Promise.all(promises)
+      );
+
+      await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
+
+      // CBC (line-0, DIRECT) + ALB (line-1, PACKAGE) + URI (line-2, DIRECT) = 3 tests
+      expect(prisma.orderedTest.create).toHaveBeenCalledTimes(3);
+
+      // CBC — standalone at index 0
+      expect(prisma.orderedTest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            catalogItemId: 'cat-cbc',
+            sources: {
+              create: [
+                expect.objectContaining({
+                  sourceType: 'DIRECT',
+                  originalOrderItemKey: 'line-0',
+                  originalOrderItemIndex: 0,
+                }),
+              ],
+            },
+          }),
+        })
+      );
+
+      // ALB — from package at index 1
+      expect(prisma.orderedTest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            catalogItemId: 'comp-alb',
+            sources: {
+              create: [
+                expect.objectContaining({
+                  sourceType: 'PACKAGE',
+                  originalOrderItemKey: 'line-1',
+                  originalOrderItemIndex: 1,
+                }),
+              ],
+            },
+          }),
+        })
+      );
+
+      // URI — standalone at index 2
+      expect(prisma.orderedTest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            catalogItemId: 'cat-uri',
+            sources: {
+              create: [
+                expect.objectContaining({
+                  sourceType: 'DIRECT',
+                  originalOrderItemKey: 'line-2',
+                  originalOrderItemIndex: 2,
+                }),
+              ],
+            },
+          }),
+        })
+      );
+    });
+
+    it('deduplicates a component that appears in two different packages', async () => {
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({
+        ...mockOrder,
+        orderedItems: [
+          {
+            catalogItemId: 'pkg-renal',
+            code: 'RENAL',
+            name: 'Perfil Renal',
+            kind: 'PACKAGE',
+          },
+          {
+            catalogItemId: 'pkg-hepatic',
+            code: 'HEPATIC',
+            name: 'Perfil Hepático',
+            kind: 'PACKAGE',
+          },
+        ],
+        orderedTests: [],
+      });
+      (prisma.catalogItemComposition.findMany as jest.Mock).mockResolvedValue([
+        {
+          packageId: 'pkg-renal',
+          componentId: 'comp-crea',
+          component: { id: 'comp-crea', code: 'CREA', name: 'Creatinina' },
+        },
+        {
+          packageId: 'pkg-renal',
+          componentId: 'comp-bun',
+          component: { id: 'comp-bun', code: 'BUN', name: 'BUN' },
+        },
+        {
+          packageId: 'pkg-hepatic',
+          componentId: 'comp-alt',
+          component: { id: 'comp-alt', code: 'ALT', name: 'ALT' },
+        },
+        {
+          packageId: 'pkg-hepatic',
+          componentId: 'comp-crea',
+          component: { id: 'comp-crea', code: 'CREA', name: 'Creatinina' },
+        },
+      ]);
+      (prisma.orderedTest.create as jest.Mock).mockResolvedValue({});
+      (prisma.$transaction as jest.Mock).mockImplementation((promises) =>
+        Promise.all(promises)
+      );
+
+      await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
+
+      // CREA (deduped), BUN, ALT = 3 OrderedTests (not 4)
+      expect(prisma.orderedTest.create).toHaveBeenCalledTimes(3);
+
+      // CREA should have two PACKAGE sources
+      expect(prisma.orderedTest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            catalogItemId: 'comp-crea',
+            sources: {
+              create: [
+                expect.objectContaining({
+                  sourceType: 'PACKAGE',
+                  originalOrderItemKey: 'line-0',
+                  originName: 'Perfil Renal',
+                }),
+                expect.objectContaining({
+                  sourceType: 'PACKAGE',
+                  originalOrderItemKey: 'line-1',
+                  originName: 'Perfil Hepático',
+                }),
+              ],
+            },
+          }),
+        })
+      );
+    });
+
+    it('skips composition query when no packages are ordered', async () => {
+      (prisma.order.findFirst as jest.Mock).mockResolvedValue({
+        ...mockOrder,
+        orderedItems: [
+          { catalogItemId: 'cat-1', code: 'CBC', name: 'Hemograma', kind: 'TEST' },
+          { catalogItemId: 'cat-2', code: 'URI', name: 'Urianálisis', kind: 'TEST' },
+        ],
+        orderedTests: [],
+      });
+      (prisma.orderedTest.create as jest.Mock).mockResolvedValue({});
+      (prisma.$transaction as jest.Mock).mockImplementation((promises) =>
+        Promise.all(promises)
+      );
+
+      await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
+
+      expect(prisma.catalogItemComposition.findMany).not.toHaveBeenCalled();
+      expect(prisma.orderedTest.create).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -13,11 +13,15 @@ import { ResultEntryPage } from './pages/orders/ResultEntryPage';
 import { ReviewReleasePage } from './pages/orders/ReviewReleasePage';
 import { LaboratorySettingsPage } from './pages/settings/LaboratorySettingsPage';
 import { TeamPage } from './pages/settings/TeamPage';
+import { AnalyzersPage } from './pages/settings/AnalyzersPage';
+import { TestConfigPage } from './pages/settings/TestConfigPage';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { ClientDetailPage } from './pages/clients/ClientDetailPage';
 import { CatalogPage } from './pages/catalog/CatalogPage';
 import { CollectionsPage } from './pages/collections/CollectionsPage';
 import { MyPickupsPage } from './pages/pickups/MyPickupsPage';
+import { TemplateManagementPage } from './pages/templates/TemplateManagementPage';
+import { TemplateBuilderPage } from './pages/templates/TemplateBuilderPage';
 
 export function App() {
   return (
@@ -57,6 +61,19 @@ export function App() {
                 element={<LaboratorySettingsPage />}
               />
               <Route path="/settings/users" element={<TeamPage />} />
+              <Route
+                path="/settings/analyzers"
+                element={<AnalyzersPage />}
+              />
+              <Route
+                path="/settings/test-config"
+                element={<TestConfigPage />}
+              />
+              <Route path="/templates" element={<TemplateManagementPage />} />
+              <Route
+                path="/templates/:definitionId/versions/:versionId/edit"
+                element={<TemplateBuilderPage />}
+              />
             </Route>
 
             <Route path="*" element={<Navigate to="/orders" replace />} />

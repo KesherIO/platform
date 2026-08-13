@@ -131,6 +131,7 @@ enum OrderPriority {
 enum AnalyteValueType {
   NUMERIC            // number + unit + ref range → auto-flag H/L/N
   TEXT               // single-line string (culture report, microscopy)
+  LONG_TEXT          // multi-line textarea (pathology narratives)
   POSITIVE_NEGATIVE  // boolean rendered as Positivo / Negativo
   SELECT             // fixed option list stored in options[]
 }
@@ -188,6 +189,45 @@ enum ResultEntryMethod {
   IMPORTED    // CSV / HL7 file import
 }
 
+/// Whether an OrderedTest originated from a direct order line or a package expansion.
+enum OrderedTestSourceType {
+  DIRECT  // test ordered as a standalone line item
+  PACKAGE // test derived from a package expansion
+}
+
+enum Department {
+  HEMATOLOGY
+  CHEMISTRY
+  URINALYSIS
+  PARASITOLOGY
+  SEROLOGY
+  ENDOCRINOLOGY
+  MICROBIOLOGY
+  OTHER
+}
+
+enum ProcessingMethod {
+  MANUAL
+  ANALYZER
+}
+
+enum ResultEntrySource {
+  MANUAL_ENTRY
+  FILE_IMPORT
+  DIRECT_INTEGRATION
+}
+
+enum TemplateScope {
+  PLATFORM
+  LABORATORY
+}
+
+enum TemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 // ---------------------------------------------------------------------------
 // Auth / Multi-tenancy
 // ---------------------------------------------------------------------------
@@ -236,6 +276,9 @@ model Tenant {
   labCatalogItems    CatalogItem[]         @relation("LabCatalog")
   labPickups         Pickup[]              @relation("LabPickups")
   clinicPickups      Pickup[]              @relation("ClinicPickups")
+  labAnalyzers       Analyzer[]            @relation("LabAnalyzers")
+  labTestConfigs     LabTestConfiguration[] @relation("LabTestConfigs")
+  labTemplateDefinitions ResultTemplateDefinition[] @relation("LabTemplateDefinitions")
 
   @@map("tenants")
 }
@@ -410,8 +453,9 @@ model CatalogItem {
   components       CatalogItemComposition[] @relation("PackageComponents")
   packages         CatalogItemComposition[] @relation("ComponentPackages")
   caseCatalogItems CaseCatalogItem[]
-  resultTemplates  ResultTemplate[]
   orderedTests     OrderedTest[]
+  orderedTestSources OrderedTestSource[] @relation("SourceOriginCatalogItem")
+  labTestConfigurations LabTestConfiguration[]
 
   @@unique([labTenantId, code])
   @@index([kind])
@@ -505,72 +549,96 @@ model Order {
 }
 
 // ---------------------------------------------------------------------------
-// Result Templates (global, platform-owned — no tenantId)
+// Result Template Sections & Analytes (now owned by ResultTemplateVersion)
 // ---------------------------------------------------------------------------
 
-/// Defines the structure of a lab report for a given test + species + age range.
-/// ageMinWeeks / ageMaxWeeks are inclusive bounds (null = no limit).
-/// createReport picks the most specific matching template for the patient's age;
-/// falls back to the age-agnostic template (both null) if no range matches.
-/// Global — created and managed by KesherIO, shared across all tenants.
-model ResultTemplate {
-  id            String         @id @default(cuid())
-  catalogItemId String
-  species       PatientSpecies
-  ageMinWeeks   Int?           // null = no lower bound (e.g. adult template)
-  ageMaxWeeks   Int?           // null = no upper bound
-  title         String         // "Hemograma Canino — 4 Semanas"
-  version       Int            @default(1)
-  isActive      Boolean        @default(true)
-  defaultObservations String?  // prefilled lab note shown at bottom of report
-
-  catalogItem CatalogItem             @relation(fields: [catalogItemId], references: [id])
-  sections    ResultTemplateSection[]
-  analytes    ResultTemplateAnalyte[]
-
-  @@unique([catalogItemId, species, ageMinWeeks, ageMaxWeeks])
-  @@map("result_templates")
-}
-
-/// Named group of analytes within a template (e.g. "Serie Roja", "Examen Macroscópico").
+/// Named group of analytes within a template version (e.g. "Serie Roja", "Examen Macroscópico").
 model ResultTemplateSection {
-  id         String @id @default(cuid())
-  templateId String
-  name       String
-  sortOrder  Int
+  id        String  @id @default(cuid())
+  versionId String
+  name      String
+  sortOrder Int
 
-  template ResultTemplate          @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version  ResultTemplateVersion   @relation("VersionSections", fields: [versionId], references: [id], onDelete: Cascade)
   analytes ResultTemplateAnalyte[]
 
   @@map("result_template_sections")
 }
 
-/// One row in a result template — defines what the lab tech fills in.
+/// One row in a result template version — defines what the lab tech fills in.
 /// referenceRange JSON shape for MVP: { min?: number, max?: number, displayText: string }
-/// Deferred: tiered ranges, age-specific, sex-specific.
 model ResultTemplateAnalyte {
-  id         String           @id @default(cuid())
-  templateId String
-  sectionId  String?          // null = template has no sections
-  code       String           // stable semantic key: "WBC", "HGB" — AI + machine import anchor
-  name       String           // display name: "Recuento total de leucocitos (WBC)"
-  technique  String?          // "Impedancia eléctrica"
-  valueType  AnalyteValueType
-  unit       String?          // "10^3/µL" — null for qualitative analytes
-  options    String[]         // SELECT only — valid option values
-  sortOrder  Int
-  isHeader   Boolean          @default(false) // bold label row — no value input, no flag
-  formula    String?          // e.g. "([HCT]*10)/[RBC]" — computed on frontend, read-only input
+  id        String           @id @default(cuid())
+  versionId String
+  sectionId String?          // null = template has no sections
+  code      String           // stable semantic key: "WBC", "HGB" — AI + machine import anchor
+  name      String           // display name: "Recuento total de leucocitos (WBC)"
+  technique String?          // "Impedancia eléctrica"
+  valueType AnalyteValueType
+  unit      String?          // "10^3/µL" — null for qualitative analytes
+  options   String[]         // SELECT only — valid option values
+  sortOrder Int
+  isHeader  Boolean          @default(false) // bold label row — no value input, no flag
+  formula   String?          // e.g. "([HCT]*10)/[RBC]" — computed on frontend, read-only input
 
   /// MVP shape: { min?: number, max?: number, displayText: string }
-  /// Extend later with: { tiers: [{label, max}], ageMinMonths, ageMaxMonths, sex }
   referenceRange Json?
 
-  template       ResultTemplate         @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  section        ResultTemplateSection? @relation(fields: [sectionId], references: [id])
+  version        ResultTemplateVersion   @relation("VersionAnalytes", fields: [versionId], references: [id], onDelete: Cascade)
+  section        ResultTemplateSection?  @relation(fields: [sectionId], references: [id])
   reportAnalytes ResultReportAnalyte[]
 
   @@map("result_template_analytes")
+}
+
+// ---------------------------------------------------------------------------
+// Template Versioning (Definition + Version replaces old ResultTemplate)
+// ---------------------------------------------------------------------------
+
+model ResultTemplateDefinition {
+  id                 String         @id @default(cuid())
+  catalogItemCode    String
+  species            PatientSpecies
+  ageMinWeeks        Int            @default(-1)
+  ageMaxWeeks        Int            @default(-1)
+  scope              TemplateScope  @default(PLATFORM)
+  labTenantId        String?
+  ownerKey           String
+  parentDefinitionId String?
+  activeVersionId    String?        @unique
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  labTenant        Tenant?                    @relation("LabTemplateDefinitions", fields: [labTenantId], references: [id])
+  parentDefinition ResultTemplateDefinition?  @relation("TemplateInheritance", fields: [parentDefinitionId], references: [id])
+  childDefinitions ResultTemplateDefinition[] @relation("TemplateInheritance")
+  activeVersion    ResultTemplateVersion?     @relation("ActiveVersion", fields: [activeVersionId], references: [id])
+  versions         ResultTemplateVersion[]    @relation("DefinitionVersions")
+
+  @@unique([catalogItemCode, species, ageMinWeeks, ageMaxWeeks, ownerKey])
+  @@index([ownerKey])
+  @@index([catalogItemCode])
+  @@map("result_template_definitions")
+}
+
+model ResultTemplateVersion {
+  id                  String         @id @default(cuid())
+  definitionId        String
+  version             Int
+  title               String
+  status              TemplateStatus @default(DRAFT)
+  defaultObservations String?
+  publishedAt         DateTime?
+  createdAt           DateTime       @default(now())
+
+  definition          ResultTemplateDefinition  @relation("DefinitionVersions", fields: [definitionId], references: [id], onDelete: Cascade)
+  activeForDefinition ResultTemplateDefinition? @relation("ActiveVersion")
+  sections            ResultTemplateSection[]   @relation("VersionSections")
+  analytes            ResultTemplateAnalyte[]   @relation("VersionAnalytes")
+
+  @@unique([definitionId, version])
+  @@index([definitionId])
+  @@map("result_template_versions")
 }
 
 // ---------------------------------------------------------------------------
@@ -803,6 +871,69 @@ model ClinicLabConnection {
   @@map("clinic_lab_connections")
 }
 
+// ---------------------------------------------------------------------------
+// Analyzers & Lab Test Configuration
+// ---------------------------------------------------------------------------
+
+model Analyzer {
+  id             String     @id @default(cuid())
+  labTenantId    String
+  name           String
+  model          String?
+  manufacturer   String?
+  department     Department
+  connectionType String     @default("NONE")
+  isActive       Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  labTenant             Tenant                @relation("LabAnalyzers", fields: [labTenantId], references: [id], onDelete: Cascade)
+  labTestConfigurations LabTestConfiguration[]
+
+  @@unique([labTenantId, name])
+  @@index([labTenantId])
+  @@map("analyzers")
+}
+
+model LabTestConfiguration {
+  id                       String            @id @default(cuid())
+  labTenantId              String
+  catalogItemId            String
+  department               Department
+  defaultProcessingMethod  ProcessingMethod  @default(MANUAL)
+  allowedProcessingMethods ProcessingMethod[]
+  defaultAnalyzerId        String?
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  labTenant            Tenant       @relation("LabTestConfigs", fields: [labTenantId], references: [id], onDelete: Cascade)
+  catalogItem          CatalogItem  @relation(fields: [catalogItemId], references: [id])
+  defaultAnalyzer      Analyzer?    @relation(fields: [defaultAnalyzerId], references: [id])
+  specimenRequirements LabTestSpecimenRequirement[]
+
+  @@unique([labTenantId, catalogItemId])
+  @@index([labTenantId])
+  @@map("lab_test_configurations")
+}
+
+model LabTestSpecimenRequirement {
+  id                       String  @id @default(cuid())
+  labTestConfigurationId   String
+  specimenType             String
+  containerType            String
+  minimumVolumeMl          Float?
+  requirementGroupKey      String
+  specimenRole             String?
+  isAlternativeWithinGroup Boolean @default(false)
+  notes                    String?
+  sortOrder                Int     @default(0)
+
+  labTestConfiguration LabTestConfiguration @relation(fields: [labTestConfigurationId], references: [id], onDelete: Cascade)
+
+  @@index([labTestConfigurationId])
+  @@map("lab_test_specimen_requirements")
+}
+
 /// One row per catalog item requested within an order.
 /// Tracks per-test status and assignment independently of the overall order status.
 /// Status is derived from aggregating these rows — never persisted on Order directly.
@@ -813,6 +944,7 @@ model OrderedTest {
 
   status      OrderedTestStatus @default(PENDING)
   entryMethod ResultEntryMethod @default(MANUAL)
+  version     Int               @default(1)
 
   // Snapshot at order time — stable if catalog changes
   catalogItemCode String?
@@ -832,12 +964,36 @@ model OrderedTest {
   order          Order               @relation(fields: [orderId],       references: [id], onDelete: Cascade)
   catalogItem    CatalogItem         @relation(fields: [catalogItemId], references: [id])
   assignedTo     User?               @relation(fields: [assignedUserId], references: [id])
+  sources        OrderedTestSource[]
   reportAnalytes ResultReportAnalyte[]
 
   @@index([orderId])
   @@index([catalogItemId])
   @@index([assignedUserId])
   @@map("ordered_tests")
+}
+
+/// Preserves every ordering/billing origin for a deduplicated OrderedTest.
+/// A component test that appears in multiple packages (or both directly and via
+/// a package) has multiple source rows — one per origin. The test itself exists once.
+model OrderedTestSource {
+  id                    String               @id @default(cuid())
+  orderedTestId         String
+  originCatalogItemId   String
+  sourceType            OrderedTestSourceType
+  originalOrderItemKey  String
+  originalOrderItemIndex Int
+  quantity              Int                  @default(1)
+  originCode            String?
+  originName            String
+  createdAt             DateTime             @default(now())
+
+  orderedTest     OrderedTest @relation(fields: [orderedTestId], references: [id], onDelete: Cascade)
+  originCatalogItem CatalogItem @relation("SourceOriginCatalogItem", fields: [originCatalogItemId], references: [id])
+
+  @@unique([orderedTestId, originalOrderItemKey, originCatalogItemId])
+  @@index([orderedTestId])
+  @@map("ordered_test_sources")
 }
 
 // ---------------------------------------------------------------------------

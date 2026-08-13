@@ -3,8 +3,12 @@ import { PatientSpecies } from './case.model.js';
 export type AnalyteValueType =
   | 'NUMERIC'
   | 'TEXT'
+  | 'LONG_TEXT'
   | 'POSITIVE_NEGATIVE'
   | 'SELECT';
+
+export type TemplateScope = 'PLATFORM' | 'LABORATORY';
+export type TemplateStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 
 export interface ReferenceRangeSnapshot {
   min?: number;
@@ -14,7 +18,7 @@ export interface ReferenceRangeSnapshot {
 
 export interface ResultTemplateAnalyteModel {
   id: string;
-  templateId: string;
+  versionId: string;
   sectionId?: string;
   code: string;
   name: string;
@@ -30,15 +34,48 @@ export interface ResultTemplateAnalyteModel {
 
 export interface ResultTemplateSectionModel {
   id: string;
-  templateId: string;
+  versionId: string;
   name: string;
   sortOrder: number;
   analytes: ResultTemplateAnalyteModel[];
 }
 
+export interface ResultTemplateVersionModel {
+  id: string;
+  definitionId: string;
+  version: number;
+  title: string;
+  status: TemplateStatus;
+  defaultObservations?: string;
+  publishedAt?: Date;
+  createdAt: Date;
+  sections: ResultTemplateSectionModel[];
+  analytes: ResultTemplateAnalyteModel[];
+}
+
+export interface ResultTemplateDefinitionModel {
+  id: string;
+  catalogItemCode: string;
+  species: PatientSpecies;
+  ageMinWeeks: number;
+  ageMaxWeeks: number;
+  scope: TemplateScope;
+  labTenantId?: string;
+  ownerKey: string;
+  parentDefinitionId?: string;
+  activeVersionId?: string;
+  activeVersion?: ResultTemplateVersionModel;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * @deprecated Use ResultTemplateDefinitionModel + ResultTemplateVersionModel.
+ * Kept for backward compatibility with importTemplate() response shape.
+ */
 export interface ResultTemplateModel {
   id: string;
-  catalogItemId: string;
+  catalogItemCode: string;
   species: PatientSpecies;
   ageMinWeeks?: number;
   ageMaxWeeks?: number;

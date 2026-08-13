@@ -21,6 +21,8 @@ export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
 
 export type DeliveryMethod = 'LAB_PICKUP' | 'CLIENT_DELIVERY';
 
+export type OrderedTestSourceType = 'DIRECT' | 'PACKAGE';
+
 export type PickupStatus =
   | 'REQUESTED'
   | 'ASSIGNED'
@@ -48,6 +50,18 @@ export type Species =
   | 'RABBIT'
   | 'OTHER';
 
+export interface OrderedTestSource {
+  id: string;
+  orderedTestId: string;
+  originCatalogItemId: string;
+  sourceType: OrderedTestSourceType;
+  originalOrderItemKey: string;
+  originalOrderItemIndex: number;
+  quantity: number;
+  originCode: string | null;
+  originName: string;
+}
+
 export interface OrderedTest {
   id: string;
   orderId: string;
@@ -56,12 +70,14 @@ export interface OrderedTest {
   catalogItemCode: string | null;
   status: OrderedTestStatus;
   entryMethod: ResultEntryMethod;
+  version: number;
   assignedUserId: string | null;
   instrumentId: string | null;
   receivedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
   cancelledAt: string | null;
+  sources: OrderedTestSource[];
 }
 
 export interface PatientCase {
@@ -421,4 +437,132 @@ export interface CollectionSettings {
   pickupContactPhone: string | null;
   collectionHours: string | null;
   pickupInstructions: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Lab configuration — Analyzers & Test Config
+// ---------------------------------------------------------------------------
+
+export type Department =
+  | 'HEMATOLOGY'
+  | 'CHEMISTRY'
+  | 'URINALYSIS'
+  | 'PARASITOLOGY'
+  | 'SEROLOGY'
+  | 'ENDOCRINOLOGY'
+  | 'MICROBIOLOGY'
+  | 'OTHER';
+
+export type ProcessingMethod = 'MANUAL' | 'ANALYZER';
+
+export type TemplateScope = 'PLATFORM' | 'LABORATORY';
+export type TemplateStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+
+export type AnalyteValueType =
+  | 'NUMERIC'
+  | 'TEXT'
+  | 'LONG_TEXT'
+  | 'POSITIVE_NEGATIVE'
+  | 'SELECT';
+
+export interface Analyzer {
+  id: string;
+  name: string;
+  model: string | null;
+  manufacturer: string | null;
+  department: Department;
+  connectionType: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SpecimenRequirement {
+  id: string;
+  specimenType: string;
+  containerType: string;
+  minimumVolumeMl: number | null;
+  requirementGroupKey: string;
+  specimenRole: string | null;
+  isAlternativeWithinGroup: boolean;
+  notes: string | null;
+  sortOrder: number;
+}
+
+export interface LabTestConfiguration {
+  id: string;
+  catalogItemId: string;
+  department: Department;
+  defaultProcessingMethod: ProcessingMethod;
+  allowedProcessingMethods: ProcessingMethod[];
+  defaultAnalyzerId: string | null;
+  catalogItem: CatalogItem;
+  defaultAnalyzer: Analyzer | null;
+  specimenRequirements: SpecimenRequirement[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Template versioning
+// ---------------------------------------------------------------------------
+
+export interface ReferenceRange {
+  min?: number;
+  max?: number;
+  displayText: string;
+}
+
+export interface TemplateAnalyte {
+  id: string;
+  versionId: string;
+  sectionId: string | null;
+  code: string;
+  name: string;
+  technique: string | null;
+  valueType: AnalyteValueType;
+  unit: string | null;
+  options: string[];
+  sortOrder: number;
+  isHeader: boolean;
+  formula: string | null;
+  referenceRange: ReferenceRange | null;
+}
+
+export interface TemplateSection {
+  id: string;
+  versionId: string;
+  name: string;
+  sortOrder: number;
+  analytes: TemplateAnalyte[];
+}
+
+export interface TemplateVersion {
+  id: string;
+  definitionId: string;
+  version: number;
+  title: string;
+  status: TemplateStatus;
+  defaultObservations: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  sections?: TemplateSection[];
+  analytes?: TemplateAnalyte[];
+}
+
+export interface TemplateDefinition {
+  id: string;
+  catalogItemCode: string;
+  species: Species | 'ANY';
+  ageMinWeeks: number;
+  ageMaxWeeks: number;
+  scope: TemplateScope;
+  labTenantId: string | null;
+  ownerKey: string;
+  parentDefinitionId: string | null;
+  activeVersionId: string | null;
+  activeVersion: TemplateVersion | null;
+  versions?: TemplateVersion[];
+  createdAt: string;
+  updatedAt: string;
 }
