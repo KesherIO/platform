@@ -257,8 +257,7 @@ export function TemplateBuilderPage() {
           options: a.options,
           formula: a.formula || null,
           referenceRange:
-            a.valueType === 'NUMERIC' &&
-            (a.refMin || a.refMax || a.refDisplay)
+            a.valueType === 'NUMERIC' && (a.refMin || a.refMax || a.refDisplay)
               ? {
                   min: a.refMin ? Number(a.refMin) : undefined,
                   max: a.refMax ? Number(a.refMax) : undefined,

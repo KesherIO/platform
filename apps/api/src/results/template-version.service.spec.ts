@@ -263,9 +263,9 @@ describe('TemplateVersionService', () => {
         activeVersion: VERSION,
       });
 
-      await expect(
-        service.cloneFromPlatform('lab-1', 'def-1')
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.cloneFromPlatform('lab-1', 'def-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws ConflictException when lab already has a clone', async () => {
@@ -273,9 +273,9 @@ describe('TemplateVersionService', () => {
         .mockResolvedValueOnce({ ...DEFINITION, activeVersion: VERSION })
         .mockResolvedValueOnce({ id: 'existing-clone' });
 
-      await expect(
-        service.cloneFromPlatform('lab-1', 'def-1')
-      ).rejects.toThrow(ConflictException);
+      await expect(service.cloneFromPlatform('lab-1', 'def-1')).rejects.toThrow(
+        ConflictException
+      );
     });
   });
 

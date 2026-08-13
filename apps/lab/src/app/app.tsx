@@ -61,10 +61,7 @@ export function App() {
                 element={<LaboratorySettingsPage />}
               />
               <Route path="/settings/users" element={<TeamPage />} />
-              <Route
-                path="/settings/analyzers"
-                element={<AnalyzersPage />}
-              />
+              <Route path="/settings/analyzers" element={<AnalyzersPage />} />
               <Route
                 path="/settings/test-config"
                 element={<TestConfigPage />}

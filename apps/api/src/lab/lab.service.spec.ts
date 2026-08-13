@@ -303,7 +303,12 @@ describe('LabService', () => {
       (prisma.order.findFirst as jest.Mock).mockResolvedValue({
         ...mockOrder,
         orderedItems: [
-          { catalogItemId: 'cat-1', code: 'CBC', name: 'Hemograma', kind: 'TEST' },
+          {
+            catalogItemId: 'cat-1',
+            code: 'CBC',
+            name: 'Hemograma',
+            kind: 'TEST',
+          },
         ],
         orderedTests: [],
       });
@@ -494,14 +499,24 @@ describe('LabService', () => {
       (prisma.order.findFirst as jest.Mock).mockResolvedValue({
         ...mockOrder,
         orderedItems: [
-          { catalogItemId: 'cat-cbc', code: 'CBC', name: 'Hemograma', kind: 'TEST' },
+          {
+            catalogItemId: 'cat-cbc',
+            code: 'CBC',
+            name: 'Hemograma',
+            kind: 'TEST',
+          },
           {
             catalogItemId: 'pkg-1',
             code: 'BASIC',
             name: 'Perfil Básico',
             kind: 'PACKAGE',
           },
-          { catalogItemId: 'cat-uri', code: 'URI', name: 'Urianálisis', kind: 'TEST' },
+          {
+            catalogItemId: 'cat-uri',
+            code: 'URI',
+            name: 'Urianálisis',
+            kind: 'TEST',
+          },
         ],
         orderedTests: [],
       });
@@ -656,8 +671,18 @@ describe('LabService', () => {
       (prisma.order.findFirst as jest.Mock).mockResolvedValue({
         ...mockOrder,
         orderedItems: [
-          { catalogItemId: 'cat-1', code: 'CBC', name: 'Hemograma', kind: 'TEST' },
-          { catalogItemId: 'cat-2', code: 'URI', name: 'Urianálisis', kind: 'TEST' },
+          {
+            catalogItemId: 'cat-1',
+            code: 'CBC',
+            name: 'Hemograma',
+            kind: 'TEST',
+          },
+          {
+            catalogItemId: 'cat-2',
+            code: 'URI',
+            name: 'Urianálisis',
+            kind: 'TEST',
+          },
         ],
         orderedTests: [],
       });

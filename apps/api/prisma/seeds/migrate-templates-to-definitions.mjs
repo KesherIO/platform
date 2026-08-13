@@ -53,7 +53,9 @@ async function main() {
   for (const t of templates) {
     const catalogItemCode = t.catalogItem.code;
     if (!catalogItemCode) {
-      console.warn(`  SKIP template ${t.id} — catalogItem ${t.catalogItem.id} has no code`);
+      console.warn(
+        `  SKIP template ${t.id} — catalogItem ${t.catalogItem.id} has no code`
+      );
       skipped++;
       continue;
     }
@@ -74,7 +76,9 @@ async function main() {
     });
 
     if (existing) {
-      console.log(`  SKIP ${catalogItemCode} / ${t.species} / ${ageMin}-${ageMax} — already exists`);
+      console.log(
+        `  SKIP ${catalogItemCode} / ${t.species} / ${ageMin}-${ageMax} — already exists`
+      );
       skipped++;
       continue;
     }
@@ -117,16 +121,19 @@ async function main() {
       }
 
       for (const analyte of t.analytes) {
-        const valueType = LONG_TEXT_CODES.has(analyte.code) && analyte.valueType === 'TEXT'
-          ? 'LONG_TEXT'
-          : analyte.valueType;
+        const valueType =
+          LONG_TEXT_CODES.has(analyte.code) && analyte.valueType === 'TEXT'
+            ? 'LONG_TEXT'
+            : analyte.valueType;
 
         if (valueType === 'LONG_TEXT') longTextCount++;
 
         await tx.resultTemplateAnalyte.create({
           data: {
             versionId: version.id,
-            sectionId: analyte.sectionId ? sectionIdMap.get(analyte.sectionId) ?? null : null,
+            sectionId: analyte.sectionId
+              ? sectionIdMap.get(analyte.sectionId) ?? null
+              : null,
             code: analyte.code,
             name: analyte.name,
             technique: analyte.technique,

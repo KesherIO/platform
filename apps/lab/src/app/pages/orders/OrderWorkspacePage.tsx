@@ -41,11 +41,16 @@ type TestGroup =
   | { kind: 'package'; originName: string; tests: OrderedTest[] };
 
 function buildTestGroups(tests: OrderedTest[]): TestGroup[] {
-  const packageMap = new Map<string, { originName: string; tests: OrderedTest[] }>();
+  const packageMap = new Map<
+    string,
+    { originName: string; tests: OrderedTest[] }
+  >();
   const standaloneTests: OrderedTest[] = [];
 
   for (const test of tests) {
-    const packageSources = test.sources.filter((s) => s.sourceType === 'PACKAGE');
+    const packageSources = test.sources.filter(
+      (s) => s.sourceType === 'PACKAGE'
+    );
     if (packageSources.length > 0) {
       const firstPkg = packageSources[0];
       const key = firstPkg.originCatalogItemId;
@@ -64,7 +69,9 @@ function buildTestGroups(tests: OrderedTest[]): TestGroup[] {
   const usedPackageIds = new Set<string>();
 
   for (const test of tests) {
-    const packageSources = test.sources.filter((s) => s.sourceType === 'PACKAGE');
+    const packageSources = test.sources.filter(
+      (s) => s.sourceType === 'PACKAGE'
+    );
     if (packageSources.length > 0) {
       const key = packageSources[0].originCatalogItemId;
       if (!usedPackageIds.has(key)) {
@@ -86,9 +93,15 @@ function getAlsoDirectNote(test: OrderedTest): boolean {
   );
 }
 
-function getOtherPackageNames(test: OrderedTest, primaryOriginId: string): string[] {
+function getOtherPackageNames(
+  test: OrderedTest,
+  primaryOriginId: string
+): string[] {
   return test.sources
-    .filter((s) => s.sourceType === 'PACKAGE' && s.originCatalogItemId !== primaryOriginId)
+    .filter(
+      (s) =>
+        s.sourceType === 'PACKAGE' && s.originCatalogItemId !== primaryOriginId
+    )
     .map((s) => s.originName);
 }
 
@@ -223,8 +236,7 @@ export function OrderWorkspacePage() {
               d="M5 13l4 4L19 7"
             />
           </svg>
-          {t('workspace.sample_received')} ·{' '}
-          {formatTimestamp(test.receivedAt)}
+          {t('workspace.sample_received')} · {formatTimestamp(test.receivedAt)}
         </span>
       ) : isPreReceived ? (
         <button
@@ -508,7 +520,11 @@ export function OrderWorkspacePage() {
               testGroups.map((group) =>
                 group.kind === 'package' ? (
                   <div
-                    key={`pkg-${group.tests[0].sources.find((s) => s.sourceType === 'PACKAGE')!.originCatalogItemId}`}
+                    key={`pkg-${
+                      group.tests[0].sources.find(
+                        (s) => s.sourceType === 'PACKAGE'
+                      )!.originCatalogItemId
+                    }`}
                     className="rounded-xl border border-gray-800 bg-gray-900"
                   >
                     <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-2.5">
@@ -526,7 +542,10 @@ export function OrderWorkspacePage() {
                           (s) => s.sourceType === 'PACKAGE'
                         )!.originCatalogItemId;
                         const alsoDirect = getAlsoDirectNote(test);
-                        const otherPkgs = getOtherPackageNames(test, primaryOriginId);
+                        const otherPkgs = getOtherPackageNames(
+                          test,
+                          primaryOriginId
+                        );
                         return (
                           <div
                             key={test.id}
@@ -548,7 +567,10 @@ export function OrderWorkspacePage() {
                                   </span>
                                 )}
                                 {otherPkgs.map((name) => (
-                                  <span key={name} className="text-xs text-gray-500">
+                                  <span
+                                    key={name}
+                                    className="text-xs text-gray-500"
+                                  >
                                     {t('workspace.also_in_package', { name })}
                                   </span>
                                 ))}

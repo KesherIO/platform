@@ -27,7 +27,12 @@ export function AnalyzersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Analyzer | null>(null);
 
-  const { data: analyzers = [], isLoading, isFetching, error } = useQuery({
+  const {
+    data: analyzers = [],
+    isLoading,
+    isFetching,
+    error,
+  } = useQuery({
     queryKey: ['analyzers'],
     queryFn: () => labApi.analyzers.list(),
   });

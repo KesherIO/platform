@@ -104,7 +104,12 @@ export class LabController {
 
   // PATCH /api/lab/orders/:id/status
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.RECEPTIONIST, TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
   @Patch('orders/:id/status')
   updateOrderStatus(
     @CurrentTenant() tenant: TenantContext,
@@ -116,7 +121,12 @@ export class LabController {
 
   // POST /api/lab/orders/:id/ordered-tests
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.RECEPTIONIST, TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
   @Post('orders/:id/ordered-tests')
   initOrderedTests(
     @CurrentTenant() tenant: TenantContext,
@@ -139,7 +149,12 @@ export class LabController {
 
   // PATCH /api/lab/ordered-tests/:testId/receive
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.RECEPTIONIST, TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
   @Patch('ordered-tests/:testId/receive')
   receiveOrderedTest(
     @CurrentTenant() tenant: TenantContext,
@@ -150,7 +165,12 @@ export class LabController {
 
   // POST /api/lab/orders/:id/receive-all
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.RECEPTIONIST, TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
   @Post('orders/:id/receive-all')
   @HttpCode(HttpStatus.OK)
   receiveAllOrderedTests(

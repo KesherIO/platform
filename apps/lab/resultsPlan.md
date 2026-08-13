@@ -196,39 +196,40 @@ ResultReportAnalyte (MODIFIED — reparented under ResultReportTest)
 
 ### 1.3 Unchanged Entities
 
-| Entity | Status |
-|---|---|
-| `CatalogItem` | **Unchanged.** No new fields. Remains the orderable catalog definition. Lab-specific configuration is in `LabTestConfiguration`. |
-| `Order` | Mostly unchanged. `sampleType`/`sampleNotes` remain for backward compatibility but become secondary to the new `Specimen` records. Order status becomes **derived** (see section 1.4). |
-| `CatalogItemComposition` | **Unchanged.** Package → component TEST mapping. |
-| `LaboratoryProfile` | **Unchanged.** |
-| `LabSigner` | **Unchanged.** REVIEWER role used for review/release authorization. |
-| `Pickup` | **Unchanged.** |
-| `TimelineEvent` | Gains new event types (see section 10). |
+| Entity                   | Status                                                                                                                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CatalogItem`            | **Unchanged.** No new fields. Remains the orderable catalog definition. Lab-specific configuration is in `LabTestConfiguration`.                                                       |
+| `Order`                  | Mostly unchanged. `sampleType`/`sampleNotes` remain for backward compatibility but become secondary to the new `Specimen` records. Order status becomes **derived** (see section 1.4). |
+| `CatalogItemComposition` | **Unchanged.** Package → component TEST mapping.                                                                                                                                       |
+| `LaboratoryProfile`      | **Unchanged.**                                                                                                                                                                         |
+| `LabSigner`              | **Unchanged.** REVIEWER role used for review/release authorization.                                                                                                                    |
+| `Pickup`                 | **Unchanged.**                                                                                                                                                                         |
+| `TimelineEvent`          | Gains new event types (see section 10).                                                                                                                                                |
 
 ### 1.3.1 Replaced / Reparented Entities
 
-| Entity | Status |
-|---|---|
-| `ResultTemplate` | **Replaced** by `ResultTemplateDefinition` + `ResultTemplateVersion`. Old table migrated and dropped. |
-| `ResultTemplateSection` | **Reparented.** FK moves from `templateId` to `versionId` (→ `ResultTemplateVersion`). |
-| `ResultTemplateAnalyte` | **Reparented.** FK moves from `templateId` to `versionId`. |
-| `ResultReport` | **Modified.** `templateId` removed. Gains `tests: ResultReportTest[]`. |
-| `ResultReportAnalyte` | **Modified.** `reportId` and `orderedTestId` replaced by `reportTestId → ResultReportTest`. Snapshotting behavior unchanged. |
+| Entity                  | Status                                                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `ResultTemplate`        | **Replaced** by `ResultTemplateDefinition` + `ResultTemplateVersion`. Old table migrated and dropped.                        |
+| `ResultTemplateSection` | **Reparented.** FK moves from `templateId` to `versionId` (→ `ResultTemplateVersion`).                                       |
+| `ResultTemplateAnalyte` | **Reparented.** FK moves from `templateId` to `versionId`.                                                                   |
+| `ResultReport`          | **Modified.** `templateId` removed. Gains `tests: ResultReportTest[]`.                                                       |
+| `ResultReportAnalyte`   | **Modified.** `reportId` and `orderedTestId` replaced by `reportTestId → ResultReportTest`. Snapshotting behavior unchanged. |
 
 ### 1.4 Order Status Derivation Rules
 
 Order status is **derived** from the aggregate state of its ordered tests and specimens. Only cancellation and exceptional administrative actions change it directly.
 
-| Rule | Derived Order Status | Condition |
-|---|---|---|
-| 1 | `PENDING` | No specimens with status ACCEPTED exist |
-| 2 | `RECEIVED_BY_LAB` | Reception is complete: every required specimen group is satisfied by an ACCEPTED specimen or explicitly resolved as MISSING/REJECTED, affected tests are READY or BLOCKED, and no test has progressed past READY |
-| 3 | `PROCESSING` | Any test is IN_PROGRESS, RESULTS_ENTERED, or IN_REVIEW |
-| 4 | `COMPLETED` | ResultReport status = RELEASED |
-| 5 | `CANCELLED` | Explicitly cancelled (direct status change, not derived) |
+| Rule | Derived Order Status | Condition                                                                                                                                                                                                        |
+| ---- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `PENDING`            | No specimens with status ACCEPTED exist                                                                                                                                                                          |
+| 2    | `RECEIVED_BY_LAB`    | Reception is complete: every required specimen group is satisfied by an ACCEPTED specimen or explicitly resolved as MISSING/REJECTED, affected tests are READY or BLOCKED, and no test has progressed past READY |
+| 3    | `PROCESSING`         | Any test is IN_PROGRESS, RESULTS_ENTERED, or IN_REVIEW                                                                                                                                                           |
+| 4    | `COMPLETED`          | ResultReport status = RELEASED                                                                                                                                                                                   |
+| 5    | `CANCELLED`          | Explicitly cancelled (direct status change, not derived)                                                                                                                                                         |
 
 **Important distinctions:**
+
 - "Any test READY" alone does NOT move order to `RECEIVED_BY_LAB` — partial reception (some specimens accepted, others still EXPECTED) keeps the order in an intermediate state visible to reception staff but the order status stays `PENDING` until all expected specimens are resolved.
 - A single test moving to `IN_PROGRESS` is sufficient to derive `PROCESSING` — the order does not wait for all tests.
 - `COMPLETED` requires report release, not just all tests being individually COMPLETED.
@@ -259,10 +260,10 @@ Order status is **derived** from the aggregate state of its ordered tests and sp
 
 ### 2.2 Two Ownership Scopes
 
-| Scope | `ownerKey` value | `labTenantId` | Managed by |
-|---|---|---|---|
-| `PLATFORM` | `"platform"` | `null` | InternalApiKeyGuard (existing `POST /results/templates`) |
-| `LABORATORY` | `<labTenantId cuid>` | `<labTenantId>` | Lab ADMIN/OWNER via lab frontend |
+| Scope        | `ownerKey` value     | `labTenantId`   | Managed by                                               |
+| ------------ | -------------------- | --------------- | -------------------------------------------------------- |
+| `PLATFORM`   | `"platform"`         | `null`          | InternalApiKeyGuard (existing `POST /results/templates`) |
+| `LABORATORY` | `<labTenantId cuid>` | `<labTenantId>` | Lab ADMIN/OWNER via lab frontend                         |
 
 `ownerKey` is a non-nullable derived field set at creation time. It exists solely to make the unique constraint NULL-safe. Application logic sets it automatically — it is never user-facing.
 
@@ -285,6 +286,7 @@ Definition (identity — long-lived)
 - **ARCHIVED:** Immutable. Preserved for audit. Released reports that used this version remain valid — their `ResultReportTest.templateVersionId` still points to the archived version.
 
 **Publishing rules:**
+
 1. Only a DRAFT version can be published.
 2. Publishing atomically: DRAFT → PUBLISHED, old PUBLISHED → ARCHIVED, update `activeVersionId`.
 3. To edit a published template: clone it into a new DRAFT (version N+1), edit, publish.
@@ -358,12 +360,12 @@ The current `POST /results/templates` (InternalApiKeyGuard) is updated:
 
 ### 3.1 Separation of Concerns
 
-| Concept | What it defines | Who manages it | Where it lives |
-|---|---|---|---|
-| **CatalogItem** | What can be ordered: code, name, kind (TEST/PACKAGE), category, turnaround | Lab ADMIN (catalog page) | `catalog_items` table |
-| **LabTestConfiguration** | How a test is processed at this lab: department, processing method, analyzer | Lab ADMIN (test config page) | `lab_test_configurations` table |
-| **LabTestSpecimenRequirement** | What physical specimens a test needs: type, container, volume | Lab ADMIN (test config page) | `lab_test_specimen_requirements` table |
-| **ResultTemplateDefinition + Version** | What the report looks like: sections, analytes, reference ranges, formulas | Platform (PLATFORM scope) or Lab ADMIN (LABORATORY scope) | `result_template_definitions` + `result_template_versions` + sections + analytes |
+| Concept                                | What it defines                                                              | Who manages it                                            | Where it lives                                                                   |
+| -------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **CatalogItem**                        | What can be ordered: code, name, kind (TEST/PACKAGE), category, turnaround   | Lab ADMIN (catalog page)                                  | `catalog_items` table                                                            |
+| **LabTestConfiguration**               | How a test is processed at this lab: department, processing method, analyzer | Lab ADMIN (test config page)                              | `lab_test_configurations` table                                                  |
+| **LabTestSpecimenRequirement**         | What physical specimens a test needs: type, container, volume                | Lab ADMIN (test config page)                              | `lab_test_specimen_requirements` table                                           |
+| **ResultTemplateDefinition + Version** | What the report looks like: sections, analytes, reference ranges, formulas   | Platform (PLATFORM scope) or Lab ADMIN (LABORATORY scope) | `result_template_definitions` + `result_template_versions` + sections + analytes |
 
 ### 3.2 Workflow: Adding a New Test to the Lab
 
@@ -384,6 +386,7 @@ The UI displays `CONFIGURATION_INCOMPLETE` with the missing requirements and kee
 ### 3.3 Template-to-CatalogItem Relationship
 
 Templates are linked to catalog items by **code convention**, not by foreign key:
+
 - `ResultTemplateDefinition.catalogItemCode` = `CatalogItem.code` (string match).
 - No FK between them. A definition with `catalogItemCode = "CBC"` applies to any lab's CatalogItem whose `code = "CBC"`.
 - Creating a CatalogItem does NOT auto-create a template definition. Creating a definition does NOT auto-create a CatalogItem. They are independent.
@@ -398,6 +401,7 @@ Templates are linked to catalog items by **code convention**, not by foreign key
 A form-based editor for creating and editing LABORATORY DRAFT templates. Not a drag-and-drop canvas — a structured form that maps directly to the template data model.
 
 **Layout:**
+
 - Left panel: Template metadata (title, species, age range, default observations)
 - Main area: Sections list, each expandable to show analytes
 - Each section: name, sort order, "Add analyte" button
@@ -405,6 +409,7 @@ A form-based editor for creating and editing LABORATORY DRAFT templates. Not a d
 - Bottom: "Save draft" / "Publish" / "Discard changes" actions
 
 **Interactions:**
+
 - Reorder sections and analytes via up/down buttons (sort order changes)
 - Add/remove sections
 - Add/remove analytes within a section
@@ -431,14 +436,14 @@ Current state: histopathology and cytology templates use `TEXT` valueType analyt
 
 ### 4.3 Template Builder Permissions
 
-| Action | Roles |
-|---|---|
-| View PLATFORM templates | All lab members |
-| View LABORATORY templates | All lab members |
-| Create/edit LABORATORY DRAFT | ADMIN, OWNER |
-| Publish LABORATORY template | ADMIN, OWNER |
-| Archive LABORATORY template | ADMIN, OWNER |
-| Import PLATFORM template | InternalApiKeyGuard only (existing) |
+| Action                       | Roles                               |
+| ---------------------------- | ----------------------------------- |
+| View PLATFORM templates      | All lab members                     |
+| View LABORATORY templates    | All lab members                     |
+| Create/edit LABORATORY DRAFT | ADMIN, OWNER                        |
+| Publish LABORATORY template  | ADMIN, OWNER                        |
+| Archive LABORATORY template  | ADMIN, OWNER                        |
+| Import PLATFORM template     | InternalApiKeyGuard only (existing) |
 
 ---
 
@@ -448,41 +453,41 @@ Analysis of the 170 existing seed templates against the 137 TEST catalog items a
 
 ### 5.1 Coverage by Department
 
-| Department | Catalog Tests | Templates | Coverage | Notes |
-|---|---|---|---|---|
-| HEMATOLOGY | CBC (1 test + age variants) | 6 templates (dog adult + 4 age, cat adult) | Full | Formulas for MCV, MCH, MCHC, differentials |
-| CHEMISTRY | ~60 individual analytes (ALB, GLU, CREA, ALT, AST, ALP, GGT, BUN, etc.) | ~100 templates (per analyte × dog/cat) | Full | Single-analyte templates. Packages (Perfil Básico, etc.) expand to these. |
-| URINALYSIS | URINALYSIS (1 test) | 1 template (ANY species) | Full | 3 sections, all TEXT valueType (need LONG_TEXT for microscopy notes) |
-| PARASITOLOGY | COPRO, COPRO_FLOT, COPRO_DIRECTO | 3 templates (ANY species) | Full | TEXT fields |
-| SEROLOGY | 4DX, FELV_FIV, PARVO, DISTEMPER, etc. | ~15 templates | Full | Mix of POSITIVE_NEGATIVE and TEXT |
-| ENDOCRINOLOGY | T4, TSH, CORTISOL_BASAL, CORTISOL_POST | ~10 templates (dog/cat) | Full | NUMERIC with reference ranges |
-| MICROBIOLOGY | CULTURE, SENSITIVITY | ~3 templates | Partial | TEXT-only. Future: structured sensitivity panel |
-| OTHER | HISTOPATH, CYTOLOGY, IHC panels | ~5 templates | Partial | TEXT fields need LONG_TEXT migration |
-| COAGULATION | PT, PTT, FIBRINOGEN | ~4 templates | Full | NUMERIC |
-| PCR | Various PCR panels | ~8 templates | Full | Mix of TEXT and POSITIVE_NEGATIVE |
+| Department    | Catalog Tests                                                           | Templates                                  | Coverage | Notes                                                                     |
+| ------------- | ----------------------------------------------------------------------- | ------------------------------------------ | -------- | ------------------------------------------------------------------------- |
+| HEMATOLOGY    | CBC (1 test + age variants)                                             | 6 templates (dog adult + 4 age, cat adult) | Full     | Formulas for MCV, MCH, MCHC, differentials                                |
+| CHEMISTRY     | ~60 individual analytes (ALB, GLU, CREA, ALT, AST, ALP, GGT, BUN, etc.) | ~100 templates (per analyte × dog/cat)     | Full     | Single-analyte templates. Packages (Perfil Básico, etc.) expand to these. |
+| URINALYSIS    | URINALYSIS (1 test)                                                     | 1 template (ANY species)                   | Full     | 3 sections, all TEXT valueType (need LONG_TEXT for microscopy notes)      |
+| PARASITOLOGY  | COPRO, COPRO_FLOT, COPRO_DIRECTO                                        | 3 templates (ANY species)                  | Full     | TEXT fields                                                               |
+| SEROLOGY      | 4DX, FELV_FIV, PARVO, DISTEMPER, etc.                                   | ~15 templates                              | Full     | Mix of POSITIVE_NEGATIVE and TEXT                                         |
+| ENDOCRINOLOGY | T4, TSH, CORTISOL_BASAL, CORTISOL_POST                                  | ~10 templates (dog/cat)                    | Full     | NUMERIC with reference ranges                                             |
+| MICROBIOLOGY  | CULTURE, SENSITIVITY                                                    | ~3 templates                               | Partial  | TEXT-only. Future: structured sensitivity panel                           |
+| OTHER         | HISTOPATH, CYTOLOGY, IHC panels                                         | ~5 templates                               | Partial  | TEXT fields need LONG_TEXT migration                                      |
+| COAGULATION   | PT, PTT, FIBRINOGEN                                                     | ~4 templates                               | Full     | NUMERIC                                                                   |
+| PCR           | Various PCR panels                                                      | ~8 templates                               | Full     | Mix of TEXT and POSITIVE_NEGATIVE                                         |
 
 ### 5.2 Gaps and Recommendations
 
-| Gap | Impact | Recommendation |
-|---|---|---|
-| No species-specific urinalysis (dog vs cat reference ranges differ for density) | Low — current template has no reference ranges for TEXT fields | Create species-specific NUMERIC templates post-MVP |
-| Histopath/cytology use TEXT instead of LONG_TEXT | Low — functional but poor UX for multi-paragraph narratives | Migrate to LONG_TEXT in Phase 2 |
-| No template for some chemistry packages (e.g., "Perfil Renal Completo") | None — packages expand to component tests which each have templates | Correct by design |
-| No lab-specific templates exist yet | Expected — LABORATORY scope is new | Labs customize PLATFORM templates as needed after Phase 2 |
-| Culture/sensitivity templates are minimal (TEXT-only) | Medium — structured antibiogram support would be valuable | Defer structured sensitivity to future phase. TEXT works for MVP. |
+| Gap                                                                             | Impact                                                              | Recommendation                                                    |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| No species-specific urinalysis (dog vs cat reference ranges differ for density) | Low — current template has no reference ranges for TEXT fields      | Create species-specific NUMERIC templates post-MVP                |
+| Histopath/cytology use TEXT instead of LONG_TEXT                                | Low — functional but poor UX for multi-paragraph narratives         | Migrate to LONG_TEXT in Phase 2                                   |
+| No template for some chemistry packages (e.g., "Perfil Renal Completo")         | None — packages expand to component tests which each have templates | Correct by design                                                 |
+| No lab-specific templates exist yet                                             | Expected — LABORATORY scope is new                                  | Labs customize PLATFORM templates as needed after Phase 2         |
+| Culture/sensitivity templates are minimal (TEXT-only)                           | Medium — structured antibiogram support would be valuable           | Defer structured sensitivity to future phase. TEXT works for MVP. |
 
 ### 5.3 Formula Inventory
 
 Formulas exist in CBC templates only. All use `[CODE]` references to sibling analytes:
 
-| Formula | Used In | Expression |
-|---|---|---|
-| MCV | CBC | `([HCT]*10)/[RBC]` |
-| MCH | CBC | `([HGB]*10)/[RBC]` |
-| MCHC | CBC | `([HGB]*100)/[HCT]` |
-| Differential absolutes | CBC | `([PCT]*[WBC])/100` (NEU, LYM, MON, EOS, BAS, BAND) |
-| Osmolarity | OSM | `(2*([NA]+[K]))+([GLU]/18)+([BUN]/2.8)` |
-| UPC ratio | UPC | `[UPC_PROT]/[UPC_CREA]` |
+| Formula                | Used In | Expression                                          |
+| ---------------------- | ------- | --------------------------------------------------- |
+| MCV                    | CBC     | `([HCT]*10)/[RBC]`                                  |
+| MCH                    | CBC     | `([HGB]*10)/[RBC]`                                  |
+| MCHC                   | CBC     | `([HGB]*100)/[HCT]`                                 |
+| Differential absolutes | CBC     | `([PCT]*[WBC])/100` (NEU, LYM, MON, EOS, BAS, BAND) |
+| Osmolarity             | OSM     | `(2*([NA]+[K]))+([GLU]/18)+([BUN]/2.8)`             |
+| UPC ratio              | UPC     | `[UPC_PROT]/[UPC_CREA]`                             |
 
 Formula evaluation is immediate in the frontend for technician feedback, but the backend is authoritative. The same versioned formula engine must independently recalculate or validate calculated values when completing entry, submitting for review, and releasing. It rejects unknown references, cycles, non-numeric inputs, division by zero, non-finite results, and client/server mismatches. Stored calculated values include the formula snapshot and dependency values used.
 
@@ -493,6 +498,7 @@ Formula evaluation is immediate in the frontend for technician feedback, but the
 ### 6.1 LabTestSpecimenRequirement (Separated from LabTestConfiguration)
 
 `LabTestSpecimenRequirement` is a separate table with a 1:N relationship to `LabTestConfiguration`. Requirements are divided into groups. Every required group must be satisfied, while one accepted option within a group satisfies that group. This allows:
+
 - Multiple specimen requirements per test (e.g., crossmatch needs both patient and donor blood)
 - Alternative specimen types (e.g., serum OR plasma for a chemistry test)
 - Independent minimum volumes per specimen type
@@ -547,13 +553,13 @@ Each tube gets its own accession number and can be independently accepted/reject
 
 ### 6.4 Specimen State Distinctions
 
-| State | Meaning | Who sets it | What happens |
-|---|---|---|---|
-| `EXPECTED` | The system has determined this specimen is needed (derived from LabTestSpecimenRequirement). It has not physically arrived. | System (during accessioning derivation) | Linked tests remain PENDING. |
-| `MISSING` | Reception explicitly confirms that an expected physical specimen did not arrive. | Reception staff | Dependent tests become BLOCKED with MISSING_SPECIMEN. Records actor, timestamp and notes. Counts as accounted for when completing reception. |
-| `RECEIVED` | The physical tube has arrived and been scanned/logged. Condition flags are being evaluated. | Reception staff (during accessioning) | Transitional — staff must accept or reject. |
-| `ACCEPTED` | Reception staff has inspected the specimen and confirmed it is usable. | Reception staff | Linked tests transition PENDING → READY. |
-| `REJECTED` | Reception staff has determined the specimen is unusable. Rejection reason is required. | Reception staff | Linked tests transition to BLOCKED with reason REJECTED_SPECIMEN. |
+| State      | Meaning                                                                                                                     | Who sets it                             | What happens                                                                                                                                 |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EXPECTED` | The system has determined this specimen is needed (derived from LabTestSpecimenRequirement). It has not physically arrived. | System (during accessioning derivation) | Linked tests remain PENDING.                                                                                                                 |
+| `MISSING`  | Reception explicitly confirms that an expected physical specimen did not arrive.                                            | Reception staff                         | Dependent tests become BLOCKED with MISSING_SPECIMEN. Records actor, timestamp and notes. Counts as accounted for when completing reception. |
+| `RECEIVED` | The physical tube has arrived and been scanned/logged. Condition flags are being evaluated.                                 | Reception staff (during accessioning)   | Transitional — staff must accept or reject.                                                                                                  |
+| `ACCEPTED` | Reception staff has inspected the specimen and confirmed it is usable.                                                      | Reception staff                         | Linked tests transition PENDING → READY.                                                                                                     |
+| `REJECTED` | Reception staff has determined the specimen is unusable. Rejection reason is required.                                      | Reception staff                         | Linked tests transition to BLOCKED with reason REJECTED_SPECIMEN.                                                                            |
 
 **Late-arriving specimens:** A MISSING expectation is retained for audit. When a physical specimen later arrives, a new RECEIVED specimen resolves/replaces that expectation; once accepted and all requirement groups are satisfied, linked tests transition BLOCKED → READY.
 
@@ -569,6 +575,7 @@ When an order is accessioned, the system derives expected specimens:
 6. Requirements are grouped by `requirementGroupKey`; alternatives are displayed within their group, and every required group is shown separately.
 
 **Example:**
+
 - Albumin (SERUM/SST_TUBE), Glucose (SERUM/SST_TUBE), Creatinine (SERUM/SST_TUBE) → 1 expected Specimen
 - CBC (EDTA_BLOOD/EDTA_TUBE) → 1 expected Specimen
 - Urinalysis (URINE/URINE_CUP) → 1 expected Specimen
@@ -651,15 +658,16 @@ A component test that appears in multiple packages (or both directly and via a p
 
 **Critical constraint:** Package expansion changes the number of OrderedTest rows per order. Existing orders in various states must be handled carefully.
 
-| Order Status | Migration Action | Rationale |
-|---|---|---|
-| `COMPLETED` | **Do not touch.** | Results are released. Changing OrderedTest rows would break report integrity. |
-| `CANCELLED` | **Do not touch.** | Terminal state. No further processing. |
-| `PROCESSING` | **Do not touch.** | Tests may have in-progress results or claimed tasks. Re-expanding would disrupt active work. |
-| `RECEIVED_BY_LAB` | **Re-expand.** | Tests are received but not started. Delete package-level OrderedTests and create component-level ones, preserving `receivedAt` on the new rows. |
-| `PENDING` / `READY_FOR_PICKUP` / `COLLECTED` | **Re-expand.** | No processing has started. Safe to replace package-level OrderedTests with component-level ones. |
+| Order Status                                 | Migration Action  | Rationale                                                                                                                                       |
+| -------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `COMPLETED`                                  | **Do not touch.** | Results are released. Changing OrderedTest rows would break report integrity.                                                                   |
+| `CANCELLED`                                  | **Do not touch.** | Terminal state. No further processing.                                                                                                          |
+| `PROCESSING`                                 | **Do not touch.** | Tests may have in-progress results or claimed tasks. Re-expanding would disrupt active work.                                                    |
+| `RECEIVED_BY_LAB`                            | **Re-expand.**    | Tests are received but not started. Delete package-level OrderedTests and create component-level ones, preserving `receivedAt` on the new rows. |
+| `PENDING` / `READY_FOR_PICKUP` / `COLLECTED` | **Re-expand.**    | No processing has started. Safe to replace package-level OrderedTests with component-level ones.                                                |
 
 **Migration steps:**
+
 1. Create `ordered_test_sources` table.
 2. Identify orders in re-expandable states (PENDING, READY_FOR_PICKUP, COLLECTED, RECEIVED_BY_LAB).
 3. For each such order: identify OrderedTest rows where `catalogItem.kind == PACKAGE`.
@@ -767,6 +775,7 @@ For each accepted OrderedTest:
    - If still not found → remains BLOCKED with updated timestamp.
 
 **Catalog creation vs activation distinction:**
+
 - A CatalogItem can be created and ordered without a template — clinics can order tests freely.
 - Template readiness is checked at **accessioning time**, not at ordering time. This avoids blocking the clinic's workflow.
 - Result entry is impossible for a BLOCKED (MISSING_RESULT_TEMPLATE) test — no ResultReportTest exists, so there are no analyte fields to fill.
@@ -781,6 +790,7 @@ New primary view for technicians (alongside existing OrdersQueuePage for supervi
 - Badge counts on nav items: number of READY (unclaimed) tests
 
 **Worklist item displays:**
+
 - Accession number + specimen info
 - Patient name + species
 - Test name (+ source package name if expanded)
@@ -791,6 +801,7 @@ New primary view for technicians (alongside existing OrdersQueuePage for supervi
 - Status badge
 
 **Actions per worklist item:**
+
 - Unassigned + READY → "Claim" button
 - Claimed by me + READY → "Start" button
 - Claimed by other → shows their name, "Request reassignment" (creates a notification, does not auto-reassign)
@@ -812,6 +823,7 @@ Backend:
 ```
 
 Optimistic locking via `version` field on OrderedTest:
+
 - Every mutation increments version
 - Client sends the version it last read
 - If versions don't match, the operation fails with a 409 Conflict
@@ -822,6 +834,7 @@ Optimistic locking via `version` field on OrderedTest:
 Replaces the current `ResultEntryPage` (which only has status/method controls, no value inputs).
 
 **Form structure:**
+
 - Header: test name, processing method, analyzer (if applicable), specimen accession#, technician name
 - Body: sections from the matched template, each with analyte fields:
   - `NUMERIC`: number input + unit label + reference range display (min–max) + out-of-range indicator (red border for H/L)
@@ -834,11 +847,13 @@ Replaces the current `ResultEntryPage` (which only has status/method controls, n
 - Footer: "Save draft" (partial save, status stays IN_PROGRESS) / "Complete entry" (validates all required fields → RESULTS_ENTERED)
 
 **Validation:**
+
 - Required fields: all non-header, non-formula analytes must have a value to "Complete entry" (not for "Save draft")
 - Numeric bounds: warn (not block) if value is extremely out of range (e.g., 10x the reference max)
 - Formula computation: recalculate whenever a referenced analyte value changes
 
 **Processing context:**
+
 - Default processing method + analyzer come from LabTestConfiguration
 - "Change method" secondary action allows override with reason text (stored in a future field or timeline event)
 - ResultEntrySource is set based on the context: `MANUAL_ENTRY` for form input (MVP), `FILE_IMPORT` for future analyzer imports
@@ -850,6 +865,7 @@ Replaces the current `ResultEntryPage` (which only has status/method controls, n
 ### 9.1 Submission for Review
 
 When all OrderedTests for an order have reached RESULTS_ENTERED:
+
 - "Submit for review" button becomes available
 - Clicking it transitions all RESULTS_ENTERED tests → IN_REVIEW
 - ResultReport status → IN_REVIEW
@@ -860,6 +876,7 @@ When all OrderedTests for an order have reached RESULTS_ENTERED:
 New page or tab showing ResultReports in IN_REVIEW status for the lab.
 
 **Review display per report:**
+
 - Order info: requisition number, patient, clinic
 - All analyte values organized by test → section → analyte
 - Per analyte: value, flag (computed preview, not yet frozen), reference range, processing metadata
@@ -875,18 +892,20 @@ Review and release require **elevated authorization:**
 - The release endpoint checks BOTH conditions: valid JWT for a lab member + signer authorization.
 
 **Classification:** Review/release is a **higher-risk action** because:
+
 - Released reports are immutable and visible to clinics immediately
 - Incorrect results can lead to misdiagnosis
 - Regulatory requirements may mandate qualified reviewer sign-off
 
 ### 9.4 Review Actions
 
-| Action | Effect | Who |
-|---|---|---|
+| Action                  | Effect                                                                                                                                                                  | Who                                 |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | **Approve and release** | Report → RELEASED, all tests → COMPLETED. H/L/N flags computed and frozen. Reference ranges snapshotted. Professional footer filled. `deriveOrderStatus()` → COMPLETED. | LabSigner (REVIEWER) or ADMIN/OWNER |
-| **Request corrections** | Report → DRAFT, specified tests → RESULTS_ENTERED (back from IN_REVIEW). `correctionNotes` recorded on report. Review notes visible to technician. | LabSigner (REVIEWER) or ADMIN/OWNER |
+| **Request corrections** | Report → DRAFT, specified tests → RESULTS_ENTERED (back from IN_REVIEW). `correctionNotes` recorded on report. Review notes visible to technician.                      | LabSigner (REVIEWER) or ADMIN/OWNER |
 
 **Correction flow:**
+
 1. Reviewer selects tests needing corrections
 2. Enters correction notes (per-test or per-report)
 3. Submits → affected tests go back to RESULTS_ENTERED, report goes to DRAFT
@@ -896,6 +915,7 @@ Review and release require **elevated authorization:**
 ### 9.5 Release Immutability
 
 Once RELEASED:
+
 - No analyte values can be changed
 - No status can be changed (except by a future "amended report" feature, out of scope)
 - The report is visible to clinics
@@ -907,25 +927,27 @@ Once RELEASED:
 
 ### 10.1 Guard Architecture
 
-| Guard | Purpose | Existing? |
-|---|---|---|
-| `LabTenantGuard` | Verifies JWT user is a member of a LAB tenant. Extracts labTenantId. | Yes |
-| `TenantGuard` | Verifies JWT user is a member of a CLINIC tenant. | Yes |
-| `InternalApiKeyGuard` | Verifies `x-internal-api-key` header. For platform-internal operations. | Yes |
-| `@Roles(...)` decorator | Checks user's `TenantRole` in the lab membership. | **New** |
-| Signer authorization | Checks user is a LabSigner with required role. | **New** (inline check in service) |
+| Guard                   | Purpose                                                                 | Existing?                         |
+| ----------------------- | ----------------------------------------------------------------------- | --------------------------------- |
+| `LabTenantGuard`        | Verifies JWT user is a member of a LAB tenant. Extracts labTenantId.    | Yes                               |
+| `TenantGuard`           | Verifies JWT user is a member of a CLINIC tenant.                       | Yes                               |
+| `InternalApiKeyGuard`   | Verifies `x-internal-api-key` header. For platform-internal operations. | Yes                               |
+| `@Roles(...)` decorator | Checks user's `TenantRole` in the lab membership.                       | **New**                           |
+| Signer authorization    | Checks user is a LabSigner with required role.                          | **New** (inline check in service) |
 
 ### 10.2 InternalApiKeyGuard Preservation
 
 **Critical requirement:** The `InternalApiKeyGuard` on result endpoints is preserved. It is NOT replaced by JWT auth.
 
 Current internal-only endpoints (remain internal):
+
 - `POST /results/templates` — template import (PLATFORM templates)
 - `POST /results/reports` — report creation (called by internal systems or future automation)
 - `PATCH /results/reports/:id/analytes` — analyte value save (internal)
 - `POST /results/reports/:id/release` — release (internal)
 
 **New lab-facing endpoints** (JWT + LabTenantGuard + @Roles):
+
 - `POST /lab/reports` — create report (called during accessioning)
 - `PATCH /lab/reports/:id/analytes` — save analyte values
 - `POST /lab/reports/:id/submit-for-review`
@@ -937,23 +959,23 @@ The lab-facing endpoints call the same service methods but through a different c
 
 ### 10.3 Role Enforcement Matrix
 
-| Endpoint | Guard | Required Roles |
-|---|---|---|
-| `GET /lab/orders` | LabTenantGuard | Any lab member |
-| `GET /lab/orders/:id` | LabTenantGuard | Any lab member |
-| `POST /lab/orders/:id/accession` | LabTenantGuard + @Roles | RECEPTIONIST, TECHNICIAN, ADMIN, OWNER |
-| `PATCH /lab/specimens/:id` | LabTenantGuard + @Roles | TECHNICIAN, ADMIN, OWNER |
-| `GET /lab/worklist` | LabTenantGuard + @Roles | TECHNICIAN, ADMIN, OWNER |
-| `POST /lab/ordered-tests/:id/claim` | LabTenantGuard + @Roles | TECHNICIAN, ADMIN, OWNER |
-| `POST /lab/ordered-tests/:id/start` | LabTenantGuard + @Roles | TECHNICIAN, ADMIN, OWNER |
-| `POST /lab/ordered-tests/:id/reassign` | LabTenantGuard + @Roles | ADMIN, OWNER |
-| `PATCH /lab/reports/:id/analytes` | LabTenantGuard + @Roles | TECHNICIAN, ADMIN, OWNER |
-| `POST /lab/reports/:id/submit-for-review` | LabTenantGuard + @Roles | TECHNICIAN, ADMIN, OWNER |
-| `POST /lab/reports/:id/approve` | LabTenantGuard + Signer check | LabSigner(REVIEWER) + ADMIN/OWNER |
-| `POST /lab/reports/:id/request-corrections` | LabTenantGuard + Signer check | LabSigner(REVIEWER) + ADMIN/OWNER |
-| `GET/POST/PATCH /lab/analyzers` | LabTenantGuard + @Roles | ADMIN, OWNER |
-| `GET/POST/PATCH /lab/test-config` | LabTenantGuard + @Roles | ADMIN, OWNER |
-| `GET/POST/PATCH /lab/templates` | LabTenantGuard + @Roles | See section 4.3 |
+| Endpoint                                    | Guard                         | Required Roles                         |
+| ------------------------------------------- | ----------------------------- | -------------------------------------- |
+| `GET /lab/orders`                           | LabTenantGuard                | Any lab member                         |
+| `GET /lab/orders/:id`                       | LabTenantGuard                | Any lab member                         |
+| `POST /lab/orders/:id/accession`            | LabTenantGuard + @Roles       | RECEPTIONIST, TECHNICIAN, ADMIN, OWNER |
+| `PATCH /lab/specimens/:id`                  | LabTenantGuard + @Roles       | TECHNICIAN, ADMIN, OWNER               |
+| `GET /lab/worklist`                         | LabTenantGuard + @Roles       | TECHNICIAN, ADMIN, OWNER               |
+| `POST /lab/ordered-tests/:id/claim`         | LabTenantGuard + @Roles       | TECHNICIAN, ADMIN, OWNER               |
+| `POST /lab/ordered-tests/:id/start`         | LabTenantGuard + @Roles       | TECHNICIAN, ADMIN, OWNER               |
+| `POST /lab/ordered-tests/:id/reassign`      | LabTenantGuard + @Roles       | ADMIN, OWNER                           |
+| `PATCH /lab/reports/:id/analytes`           | LabTenantGuard + @Roles       | TECHNICIAN, ADMIN, OWNER               |
+| `POST /lab/reports/:id/submit-for-review`   | LabTenantGuard + @Roles       | TECHNICIAN, ADMIN, OWNER               |
+| `POST /lab/reports/:id/approve`             | LabTenantGuard + Signer check | LabSigner(REVIEWER) + ADMIN/OWNER      |
+| `POST /lab/reports/:id/request-corrections` | LabTenantGuard + Signer check | LabSigner(REVIEWER) + ADMIN/OWNER      |
+| `GET/POST/PATCH /lab/analyzers`             | LabTenantGuard + @Roles       | ADMIN, OWNER                           |
+| `GET/POST/PATCH /lab/test-config`           | LabTenantGuard + @Roles       | ADMIN, OWNER                           |
+| `GET/POST/PATCH /lab/templates`             | LabTenantGuard + @Roles       | See section 4.3                        |
 
 ### 10.4 Audit Trail (TimelineEvent Extensions)
 
@@ -982,11 +1004,13 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 **Optimistic locking:** `version` field on OrderedTest. Every mutation increments it. Clients send the version they read; mismatches return 409 Conflict.
 
 **Idempotency:**
+
 - Accessioning: checks for existing specimens before creation. Submitting the same accessioning data twice does not duplicate.
 - Report creation: `ResultReport` has `@@unique(orderId)`. Second creation attempt returns the existing report.
 - Claiming: checked in a single atomic update with version guard.
 
 **Historical integrity:**
+
 - Released reports are immutable (enforced at service level: any mutation on a RELEASED report throws).
 - Template version snapshots on reports. Templates can be edited/archived without affecting released reports.
 - OrderedTest status transitions are validated (only valid transitions allowed).
@@ -1001,6 +1025,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 **Goal:** Fix the core data model inconsistency and add the authorization foundation.
 
 **Backend changes:**
+
 - Modify `initOrderedTests()` to expand PACKAGE items into component TESTs via `CatalogItemComposition`
 - **New `OrderedTestSource` model** (replaces `sourcePackageId`) — records every direct/package origin using immutable `originalOrderItemKey`, index and quantity so repeated identical lines are lossless
 - Add `version` (Int, default 1) to OrderedTest for optimistic locking
@@ -1009,15 +1034,18 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - Run data migration for in-flight orders (see section 7.2)
 
 **Database migration:**
+
 - **New `ordered_test_sources` table**
 - Add `version` column to `ordered_tests` (default 1)
 - Data migration script: expand packages + create OrderedTestSource rows for all orders (section 7.2)
 
 **Frontend changes:**
+
 - Update `OrderWorkspacePage` to group tests using `OrderedTestSource` data
 - Update `lab.types.ts` with `OrderedTestSource`, `OrderedTestSourceType`, `version` fields
 
 **Tests:**
+
 - Package expansion with deduplication (package + standalone component ordered)
 - Idempotency of `initOrderedTests()`
 - Role enforcement on every lab endpoint
@@ -1032,6 +1060,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 **Goal:** Lab-specific configuration, template ownership/lifecycle, and the visual template editor.
 
 **Backend changes (configuration):**
+
 - New Prisma models: `Analyzer`, `LabTestConfiguration`, `LabTestSpecimenRequirement`
 - New enums: `Department`, `ProcessingMethod`, `ResultEntrySource`
 - New services: `analyzer.service.ts`, `lab-test-config.service.ts`
@@ -1040,6 +1069,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - All guarded: LabTenantGuard + @Roles(ADMIN, OWNER)
 
 **Backend changes (templates):**
+
 - **Drop old `ResultTemplate` table. Create `ResultTemplateDefinition` and `ResultTemplateVersion`.**
 - `ResultTemplateDefinition`: catalogItemCode (String, not FK), species, ageMinWeeks/ageMaxWeeks (sentinels, not NULLs), scope, ownerKey, labTenantId, parentDefinitionId, activeVersionId
 - `ResultTemplateVersion`: definitionId, version, title, status, content (sections+analytes), publishedAt. @@unique([definitionId, version])
@@ -1053,6 +1083,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - Data migration: migrate HISTOPATH/CYTOLOGY TEXT analytes to LONG_TEXT
 
 **Frontend changes:**
+
 - "Analyzers & Equipment" section on LaboratorySettingsPage (CRUD)
 - "Test Configuration" page: table of all active catalog tests with department, specimen requirements, method, analyzer config
 - "Template Management" page:
@@ -1063,6 +1094,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - Update `lab.types.ts` with all new types
 
 **Tests:**
+
 - Analyzer CRUD, LabTestConfiguration CRUD with specimen requirements
 - Definition creation, DRAFT version editing, publishing (old PUBLISHED → ARCHIVED atomically), archiving
 - Unique constraint enforcement (NULL-safe via ownerKey and age sentinels)
@@ -1079,6 +1111,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 **Goal:** Physical sample tracking with accessioning dialog.
 
 **Backend changes:**
+
 - New Prisma models: `Specimen`, `OrderedTestSpecimen`; specimen requirements use `requirementGroupKey` and alternatives within each group
 - New enum: `SpecimenStatus`, including explicit MISSING; record `markedMissingAt`, `markedMissingById`, and notes
 - Extend `OrderedTestStatus` enum: add READY, RESULTS_ENTERED, IN_REVIEW, BLOCKED
@@ -1100,6 +1133,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - New endpoints: `GET /lab/orders/:id/expected-specimens`, `POST /lab/orders/:id/accession`, `PATCH /lab/specimens/:id`, `POST /lab/orders/:id/specimens`
 
 **Database migration:**
+
 - New `specimens` table with boolean condition flags
 - New `ordered_test_specimens` link table
 - Add columns to `ordered_tests`: `department`, `processingMethod`, `resultEntrySource`, `analyzerId`, `claimedAt`, `blockReason`, `blockReasonDetail`
@@ -1107,6 +1141,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - New `SpecimenStatus` enum
 
 **Frontend changes:**
+
 - `AccessionDialog` component (modal/slide-over):
   - Calls expected-specimens endpoint
   - Renders one card per expected specimen with test groups
@@ -1118,11 +1153,13 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - Add `labApi.specimens.*` methods
 
 **Backward compatibility:**
+
 - Existing orders with `receivedAt` set on OrderedTests are considered accessioned
 - `deriveOrderStatus()` handles orders without specimens (legacy path)
 - Tests without LabTestConfiguration show "Unknown specimen requirement" — receptionist specifies manually
 
 **Tests:**
+
 - Expected specimen derivation from LabTestSpecimenRequirement
 - Accessioning with accept/reject
 - Condition flags (multiple set simultaneously)
@@ -1143,6 +1180,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 **Goal:** Route tests to departments. Claimable worklists with concurrency protection.
 
 **Backend changes:**
+
 - New `GET /lab/worklist` endpoint with filters: department, status, assignee, priority, date range
 - New `POST /lab/ordered-tests/:id/claim` — optimistic lock via version field
 - New `POST /lab/ordered-tests/:id/unclaim` — clears assignment (self or ADMIN)
@@ -1150,6 +1188,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - New `POST /lab/ordered-tests/:id/reassign` — ADMIN/OWNER only
 
 **Frontend changes:**
+
 - `WorklistPage` component with department tabs
 - `WorklistItem` card (tablet-optimized)
 - Department nav items with badge counts
@@ -1157,6 +1196,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - `labApi.worklist.*` methods
 
 **Tests:**
+
 - Worklist filtering by department, status, assignee
 - Optimistic locking race condition test (two claims for same test)
 - Reassignment by ADMIN
@@ -1171,6 +1211,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 **Goal:** Build the actual analyte value entry form and introduce `ResultReportTest` for per-test template provenance.
 
 **Backend changes:**
+
 - **New `ResultReportTest` model** — links each OrderedTest to the exact ResultTemplateVersion used and its analytes
 - **Reparent `ResultReportAnalyte`:** replace `reportId` + `orderedTestId` with `reportTestId → ResultReportTest`
 - Remove `templateId` from `ResultReport` (provenance is now per-test on ResultReportTest)
@@ -1185,12 +1226,14 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - Ensure partial save works (save subset of analytes without completing)
 
 **Database migration:**
+
 - New `result_report_tests` table
 - Migrate existing `ResultReportAnalyte` rows: group by `(reportId, orderedTestId)`, create `ResultReportTest` rows, re-point analytes via new `reportTestId`
 - Drop `reportId` and `orderedTestId` columns from `result_report_analytes` after migration verified
 - Remove `templateId` column from `result_reports`
 
 **Frontend changes:**
+
 - `ResultEntryForm` component — the core deliverable:
   - Load analytes via `reportTest.analytes` (not filtered by orderedTestId)
   - Render template-driven fields by type (NUMERIC, TEXT, LONG_TEXT, POSITIVE_NEGATIVE, SELECT, formula, header)
@@ -1204,6 +1247,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 **Build incrementally:** NUMERIC fields first → TEXT/LONG_TEXT → SELECT → POSITIVE_NEGATIVE → formulas → validation.
 
 **Tests:**
+
 - ResultReportTest creation with correct templateVersionId linkage
 - Form rendering for all value types
 - Formula computation with dependency tracking
@@ -1224,6 +1268,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 **Classification: Higher risk.** Released reports are immutable and immediately visible to clinics. Incorrect results can impact clinical decisions. This phase warrants extra testing and careful rollout.
 
 **Backend changes:**
+
 - Add `IN_REVIEW` to `ResultReportStatus` enum
 - Add to ResultReport: `reviewedById`, `reviewedAt`, `reviewNotes`, `correctionNotes`
 - New endpoints:
@@ -1234,10 +1279,12 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - Double-check: signer must also be an active UserTenantMembership for this lab
 
 **Database migration:**
+
 - Extend `ResultReportStatus` enum with `IN_REVIEW`
 - Add reviewer columns to `result_reports`
 
 **Frontend changes:**
+
 - Review Queue page/tab showing IN_REVIEW reports
 - Extended ReviewReleasePage:
   - Per-analyte review display with all metadata
@@ -1248,12 +1295,14 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 - StatusBadge updates for IN_REVIEW, RESULTS_ENTERED
 
 **Extra safeguards (higher risk classification):**
+
 - Release confirmation requires explicit signer selection + confirmation
 - Released report gets a tombstone: `releasedAt`, `releasedByUserId`, signer credentials frozen
 - Log release as TimelineEvent with full actor + signer metadata
 - Consider: "Preview release" mode showing exactly what the clinic will see before confirming
 
 **Tests:**
+
 - Submit for review with incomplete tests (should fail)
 - Approval by authorized signer
 - Approval by unauthorized user (should fail)
@@ -1271,6 +1320,7 @@ Each event records: `actorId`, `actorName`, timestamp, and event-specific `metad
 Deferred until physical access to lab equipment (BioSystems A25, etc.) and actual exported file formats are available.
 
 Architecture is prepared:
+
 - `ResultEntrySource.FILE_IMPORT` exists
 - `Analyzer` model tracks equipment
 - `ResultReport.rawPayload` stores original analyzer data
@@ -1290,15 +1340,15 @@ Deferred until equipment inspection. Requires decisions on communication protoco
 
 ## 12. Risks and Compatibility per Phase
 
-| Phase | Risk | Compatibility Impact | Mitigation |
-|---|---|---|---|
-| **1: Package Expansion** | Low-medium | Data migration for in-flight orders. New `ordered_test_sources` table. COMPLETED/CANCELLED untouched (backfill only). | Transaction-per-order migration. Dedup check for package+component overlap. Dry-run migration on staging first. |
-| **2: Config + Templates** | Medium | Old `result_templates` table replaced by `result_template_definitions` + `result_template_versions`. All existing templates migrated to PLATFORM definitions with PUBLISHED versions. | Template selection falls back to PLATFORM if no LABORATORY template exists. Verify `importTemplate()` works against new schema on staging. |
-| **3: Specimen + Accessioning** | Medium | Replaces "Mark as received" with accessioning dialog. Tests without published templates are BLOCKED (MISSING_RESULT_TEMPLATE). | `deriveOrderStatus()` handles legacy (no specimens) and new (with specimens) orders. `resolve-template` endpoint unblocks tests after admin publishes template. |
-| **4: Worklists** | Low | Additive. OrdersQueuePage remains. | No migration needed. |
-| **5: Result Entry UI** | **High** | New `result_report_tests` table. `result_report_analytes` reparented (reportId+orderedTestId → reportTestId). `templateId` removed from `result_reports`. | Consider splitting into 5a (schema migration) and 5b (UI). Migrate existing analytes carefully. Verify released reports survive reparenting. |
-| **6: Review/Release** | Medium (higher risk) | Adds IN_REVIEW state. DRAFT→RELEASED becomes DRAFT→IN_REVIEW→RELEASED. | Existing RELEASED reports unaffected. Consider feature flag for gradual rollout. |
-| **7-8: Future** | Deferred | N/A | N/A |
+| Phase                          | Risk                 | Compatibility Impact                                                                                                                                                                  | Mitigation                                                                                                                                                      |
+| ------------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1: Package Expansion**       | Low-medium           | Data migration for in-flight orders. New `ordered_test_sources` table. COMPLETED/CANCELLED untouched (backfill only).                                                                 | Transaction-per-order migration. Dedup check for package+component overlap. Dry-run migration on staging first.                                                 |
+| **2: Config + Templates**      | Medium               | Old `result_templates` table replaced by `result_template_definitions` + `result_template_versions`. All existing templates migrated to PLATFORM definitions with PUBLISHED versions. | Template selection falls back to PLATFORM if no LABORATORY template exists. Verify `importTemplate()` works against new schema on staging.                      |
+| **3: Specimen + Accessioning** | Medium               | Replaces "Mark as received" with accessioning dialog. Tests without published templates are BLOCKED (MISSING_RESULT_TEMPLATE).                                                        | `deriveOrderStatus()` handles legacy (no specimens) and new (with specimens) orders. `resolve-template` endpoint unblocks tests after admin publishes template. |
+| **4: Worklists**               | Low                  | Additive. OrdersQueuePage remains.                                                                                                                                                    | No migration needed.                                                                                                                                            |
+| **5: Result Entry UI**         | **High**             | New `result_report_tests` table. `result_report_analytes` reparented (reportId+orderedTestId → reportTestId). `templateId` removed from `result_reports`.                             | Consider splitting into 5a (schema migration) and 5b (UI). Migrate existing analytes carefully. Verify released reports survive reparenting.                    |
+| **6: Review/Release**          | Medium (higher risk) | Adds IN_REVIEW state. DRAFT→RELEASED becomes DRAFT→IN_REVIEW→RELEASED.                                                                                                                | Existing RELEASED reports unaffected. Consider feature flag for gradual rollout.                                                                                |
+| **7-8: Future**                | Deferred             | N/A                                                                                                                                                                                   | N/A                                                                                                                                                             |
 
 ### Cross-Phase Compatibility Notes
 
@@ -1314,6 +1364,7 @@ Deferred until equipment inspection. Requires decisions on communication protoco
 **Recommended: Phase 1 (Package Expansion + Role Enforcement + Optimistic Locking)**
 
 **Why:**
+
 1. **Fixes the fundamental data model inconsistency.** The disconnect between `initOrderedTests()` (no expansion) and `createReport()` (expansion) is the root cause of many downstream issues. Until this is fixed, every subsequent phase would need to work around it.
 2. **Low risk with high value.** The migration only affects non-terminal orders. COMPLETED and CANCELLED orders are untouched. The expansion logic already exists in `createReport()` — it needs to be moved earlier in the pipeline.
 3. **Enables all subsequent phases.** Phase 3 (specimens) needs expanded tests to derive specimen requirements. Phase 4 (worklists) needs individual component tests for department routing. Phase 5 (result entry) needs per-test analyte association.
@@ -1328,13 +1379,13 @@ Deferred until equipment inspection. Requires decisions on communication protoco
 
 These decisions are not required before starting Phase 1 but should be resolved before their respective phases:
 
-| # | Decision | Affects Phase | Options | Recommendation |
-|---|---|---|---|---|
-| 1 | **Accession number format** — should accession numbers be globally unique or unique per lab? | 3 | (a) Global: `SPEC-2026-000001` (b) Per-lab: `{labCode}-2026-000001` | Per-lab, using a Counter per labTenantId |
-| 2 | **Barcode format** — should accession numbers be scannable barcodes? What format? | 3 | (a) Code128 (b) QR code (c) Both (d) Defer | Defer — accession numbers are human-readable strings for now. Barcode rendering is a frontend concern added later. |
-| 3 | **Default LabTestConfiguration** — should platform-level defaults exist for common tests, or does every lab start from scratch? | 2 | (a) Platform seed with common defaults (b) Blank slate per lab | Platform seed — generate initial configs from existing template metadata (department inferred from category, specimen type from conventions). |
-| 4 | **Concurrent result entry** — can two technicians enter results for different tests on the same order simultaneously? | 5 | (a) Yes — each technician works on their own OrderedTest's analytes (b) No — lock the entire report during entry | Yes — the report is shared but analytes are partitioned by orderedTestId. No cross-test conflicts. |
-| 5 | **Partial release** — can a report be partially released (some tests released, others still in progress)? | 6 | (a) No — all-or-nothing release (b) Yes — per-test release with partial report visibility | No for MVP — all-or-nothing. Per-test release adds significant complexity. Revisit if labs request it. |
-| 6 | **Review requirement toggle** — should labs be able to skip the review step for routine tests? | 6 | (a) Always require review (b) Configurable per test in LabTestConfiguration | Always require for MVP. Configurability later. Patient safety over convenience. |
-| 7 | **Template import validation** — when importing PLATFORM templates, should the system validate formula references (all `[CODE]` targets exist in the template)? | 2 | (a) Validate on import and reject invalid formulas (b) Store as-is, validate at report creation (c) Store as-is, validate at frontend render time | (a) Validate on import — catch errors early. |
-| 8 | **Correction audit trail** — when a reviewer requests corrections and the technician re-submits, should the system keep a history of correction rounds? | 6 | (a) Just correctionNotes on the report (current plan) (b) Separate CorrectionRound entity with per-round notes and timestamps | (a) for MVP. The TimelineEvent trail provides the audit history. |
+| #   | Decision                                                                                                                                                        | Affects Phase | Options                                                                                                                                           | Recommendation                                                                                                                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Accession number format** — should accession numbers be globally unique or unique per lab?                                                                    | 3             | (a) Global: `SPEC-2026-000001` (b) Per-lab: `{labCode}-2026-000001`                                                                               | Per-lab, using a Counter per labTenantId                                                                                                      |
+| 2   | **Barcode format** — should accession numbers be scannable barcodes? What format?                                                                               | 3             | (a) Code128 (b) QR code (c) Both (d) Defer                                                                                                        | Defer — accession numbers are human-readable strings for now. Barcode rendering is a frontend concern added later.                            |
+| 3   | **Default LabTestConfiguration** — should platform-level defaults exist for common tests, or does every lab start from scratch?                                 | 2             | (a) Platform seed with common defaults (b) Blank slate per lab                                                                                    | Platform seed — generate initial configs from existing template metadata (department inferred from category, specimen type from conventions). |
+| 4   | **Concurrent result entry** — can two technicians enter results for different tests on the same order simultaneously?                                           | 5             | (a) Yes — each technician works on their own OrderedTest's analytes (b) No — lock the entire report during entry                                  | Yes — the report is shared but analytes are partitioned by orderedTestId. No cross-test conflicts.                                            |
+| 5   | **Partial release** — can a report be partially released (some tests released, others still in progress)?                                                       | 6             | (a) No — all-or-nothing release (b) Yes — per-test release with partial report visibility                                                         | No for MVP — all-or-nothing. Per-test release adds significant complexity. Revisit if labs request it.                                        |
+| 6   | **Review requirement toggle** — should labs be able to skip the review step for routine tests?                                                                  | 6             | (a) Always require review (b) Configurable per test in LabTestConfiguration                                                                       | Always require for MVP. Configurability later. Patient safety over convenience.                                                               |
+| 7   | **Template import validation** — when importing PLATFORM templates, should the system validate formula references (all `[CODE]` targets exist in the template)? | 2             | (a) Validate on import and reject invalid formulas (b) Store as-is, validate at report creation (c) Store as-is, validate at frontend render time | (a) Validate on import — catch errors early.                                                                                                  |
+| 8   | **Correction audit trail** — when a reviewer requests corrections and the technician re-submits, should the system keep a history of correction rounds?         | 6             | (a) Just correctionNotes on the report (current plan) (b) Separate CorrectionRound entity with per-round notes and timestamps                     | (a) for MVP. The TimelineEvent trail provides the audit history.                                                                              |

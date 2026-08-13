@@ -37,10 +37,7 @@ export class TemplateVersionService {
     filters?: { catalogItemCode?: string; species?: string }
   ) {
     const where: Record<string, unknown> = {
-      OR: [
-        { scope: 'PLATFORM' },
-        { scope: 'LABORATORY', labTenantId },
-      ],
+      OR: [{ scope: 'PLATFORM' }, { scope: 'LABORATORY', labTenantId }],
     };
     if (filters?.catalogItemCode) {
       where.catalogItemCode = filters.catalogItemCode;
@@ -72,16 +69,26 @@ export class TemplateVersionService {
       include: {
         ...DEFINITION_INCLUDE,
         versions: {
-          select: { id: true, version: true, status: true, title: true, publishedAt: true },
+          select: {
+            id: true,
+            version: true,
+            status: true,
+            title: true,
+            publishedAt: true,
+          },
           orderBy: { version: 'desc' },
         },
       },
     });
-    if (!definition) throw new NotFoundException('Template definition not found');
+    if (!definition)
+      throw new NotFoundException('Template definition not found');
     return definition;
   }
 
-  async createDefinition(labTenantId: string, dto: CreateTemplateDefinitionDto) {
+  async createDefinition(
+    labTenantId: string,
+    dto: CreateTemplateDefinitionDto
+  ) {
     const ageMin = dto.ageMinWeeks ?? -1;
     const ageMax = dto.ageMaxWeeks ?? -1;
 
@@ -128,7 +135,9 @@ export class TemplateVersionService {
       throw new BadRequestException('Can only clone PLATFORM templates');
     }
     if (!source.activeVersion) {
-      throw new BadRequestException('Platform template has no published version');
+      throw new BadRequestException(
+        'Platform template has no published version'
+      );
     }
 
     const ageMin = source.ageMinWeeks;
@@ -330,10 +339,7 @@ export class TemplateVersionService {
       where: {
         catalogItemCode,
         activeVersionId: { not: null },
-        OR: [
-          { scope: 'PLATFORM' },
-          { scope: 'LABORATORY', labTenantId },
-        ],
+        OR: [{ scope: 'PLATFORM' }, { scope: 'LABORATORY', labTenantId }],
         species: { in: [species, 'ANY'] },
       },
       include: {
@@ -373,26 +379,24 @@ export class TemplateVersionService {
     return speciesScore + ageScore;
   }
 
-  private versionToSectionDtos(
-    version: {
-      sections: Array<{
+  private versionToSectionDtos(version: {
+    sections: Array<{
+      name: string;
+      sortOrder: number;
+      analytes: Array<{
+        code: string;
         name: string;
+        technique: string | null;
+        valueType: string;
+        unit: string | null;
+        options: string[];
         sortOrder: number;
-        analytes: Array<{
-          code: string;
-          name: string;
-          technique: string | null;
-          valueType: string;
-          unit: string | null;
-          options: string[];
-          sortOrder: number;
-          isHeader: boolean;
-          formula: string | null;
-          referenceRange: unknown;
-        }>;
+        isHeader: boolean;
+        formula: string | null;
+        referenceRange: unknown;
       }>;
-    }
-  ): TemplateSectionDto[] {
+    }>;
+  }): TemplateSectionDto[] {
     return version.sections.map((s) => ({
       name: s.name,
       sortOrder: s.sortOrder,
@@ -400,7 +404,8 @@ export class TemplateVersionService {
         code: a.code,
         name: a.name,
         technique: a.technique ?? undefined,
-        valueType: a.valueType as TemplateSectionDto['analytes'][0]['valueType'],
+        valueType:
+          a.valueType as TemplateSectionDto['analytes'][0]['valueType'],
         unit: a.unit ?? undefined,
         options: a.options,
         sortOrder: a.sortOrder,
@@ -419,7 +424,9 @@ export class TemplateVersionService {
     sections: TemplateSectionDto[]
   ) {
     for (const section of sections) {
-      const newSection = await (tx as PrismaService).resultTemplateSection.create({
+      const newSection = await (
+        tx as PrismaService
+      ).resultTemplateSection.create({
         data: {
           versionId,
           name: section.name,

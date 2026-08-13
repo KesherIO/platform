@@ -44,14 +44,17 @@ export function TestConfigModal({
   const queryClient = useQueryClient();
   const isEdit = config !== null;
 
-  const [catalogItemId, setCatalogItemId] = useState(config?.catalogItemId ?? '');
-  const [department, setDepartment] = useState<Department>(config?.department ?? 'HEMATOLOGY');
-  const [defaultProcessingMethod, setDefaultProcessingMethod] = useState<ProcessingMethod>(
-    config?.defaultProcessingMethod ?? 'MANUAL'
+  const [catalogItemId, setCatalogItemId] = useState(
+    config?.catalogItemId ?? ''
   );
-  const [allowedProcessingMethods, setAllowedProcessingMethods] = useState<ProcessingMethod[]>(
-    config?.allowedProcessingMethods ?? ['MANUAL']
+  const [department, setDepartment] = useState<Department>(
+    config?.department ?? 'HEMATOLOGY'
   );
+  const [defaultProcessingMethod, setDefaultProcessingMethod] =
+    useState<ProcessingMethod>(config?.defaultProcessingMethod ?? 'MANUAL');
+  const [allowedProcessingMethods, setAllowedProcessingMethods] = useState<
+    ProcessingMethod[]
+  >(config?.allowedProcessingMethods ?? ['MANUAL']);
   const [defaultAnalyzerId, setDefaultAnalyzerId] = useState<string>(
     config?.defaultAnalyzerId ?? ''
   );
@@ -86,7 +89,10 @@ export function TestConfigModal({
 
   // Reset default analyzer when department changes and current selection is no longer valid
   useEffect(() => {
-    if (defaultAnalyzerId && !departmentAnalyzers.some((a) => a.id === defaultAnalyzerId)) {
+    if (
+      defaultAnalyzerId &&
+      !departmentAnalyzers.some((a) => a.id === defaultAnalyzerId)
+    ) {
       setDefaultAnalyzerId('');
     }
   }, [department, departmentAnalyzers, defaultAnalyzerId]);
@@ -288,7 +294,9 @@ export function TestConfigModal({
               disabled={submitting}
               className="rounded-lg bg-cyan px-5 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
             >
-              {submitting ? t('catalog.form.submitting') : t('catalog.form.submit')}
+              {submitting
+                ? t('catalog.form.submitting')
+                : t('catalog.form.submit')}
             </button>
             <button
               type="button"

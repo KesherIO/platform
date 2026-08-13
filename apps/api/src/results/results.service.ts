@@ -182,7 +182,9 @@ export class ResultsService {
       });
 
       for (const sectionDto of dto.sections) {
-        const section = await (tx as PrismaService).resultTemplateSection.create({
+        const section = await (
+          tx as PrismaService
+        ).resultTemplateSection.create({
           data: {
             versionId: version.id,
             name: sectionDto.name,

@@ -2,7 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { AnalyzerService } from './analyzer.service';
 import { PrismaService } from '../prisma/prisma.service';
-import type { CreateAnalyzerDto, UpdateAnalyzerDto } from './dto/lab-config.dto';
+import type {
+  CreateAnalyzerDto,
+  UpdateAnalyzerDto,
+} from './dto/lab-config.dto';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -196,7 +199,10 @@ describe('AnalyzerService', () => {
   describe('toggleActive', () => {
     it('sets isActive to false', async () => {
       prisma.analyzer.findFirst.mockResolvedValue(ANALYZER);
-      prisma.analyzer.update.mockResolvedValue({ ...ANALYZER, isActive: false });
+      prisma.analyzer.update.mockResolvedValue({
+        ...ANALYZER,
+        isActive: false,
+      });
 
       const result = await service.toggleActive(TENANT_ID, 'analyzer-1', false);
 

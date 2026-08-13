@@ -240,7 +240,8 @@ export const labApi = {
     getById: (id: string) => get<TemplateDefinition>(`lab/templates/${id}`),
     create: (data: Record<string, unknown>) =>
       post<TemplateDefinition>('lab/templates', data),
-    clone: (id: string) => post<TemplateDefinition>(`lab/templates/${id}/clone`),
+    clone: (id: string) =>
+      post<TemplateDefinition>(`lab/templates/${id}/clone`),
     createDraft: (id: string) =>
       post<TemplateVersion>(`lab/templates/${id}/draft`),
     updateDraft: (versionId: string, data: Record<string, unknown>) =>

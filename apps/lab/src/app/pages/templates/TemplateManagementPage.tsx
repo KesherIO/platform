@@ -140,7 +140,9 @@ export function TemplateManagementPage() {
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-sm font-medium text-white">
             <FileText size={16} className="shrink-0 text-gray-500" />
-            <span className="truncate">{ver?.title ?? def.catalogItemCode}</span>
+            <span className="truncate">
+              {ver?.title ?? def.catalogItemCode}
+            </span>
             <span
               className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLORS[status]}`}
             >
@@ -239,7 +241,9 @@ export function TemplateManagementPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">{t('templates.title')}</h1>
+          <h1 className="text-xl font-bold text-white">
+            {t('templates.title')}
+          </h1>
           {!isLoading && (
             <p className="mt-0.5 text-sm text-gray-400">
               {allTemplates.length} {t('templates.title').toLowerCase()}

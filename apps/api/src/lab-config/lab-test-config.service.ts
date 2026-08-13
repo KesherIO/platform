@@ -68,7 +68,8 @@ export class LabTestConfigService {
                   minimumVolumeMl: sr.minimumVolumeMl,
                   requirementGroupKey: sr.requirementGroupKey,
                   specimenRole: sr.specimenRole,
-                  isAlternativeWithinGroup: sr.isAlternativeWithinGroup ?? false,
+                  isAlternativeWithinGroup:
+                    sr.isAlternativeWithinGroup ?? false,
                   notes: sr.notes,
                   sortOrder: sr.sortOrder ?? i,
                 })),

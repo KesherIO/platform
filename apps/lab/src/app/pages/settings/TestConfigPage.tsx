@@ -31,9 +31,15 @@ export function TestConfigPage() {
 
   const [search, setSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingConfig, setEditingConfig] = useState<LabTestConfiguration | null>(null);
+  const [editingConfig, setEditingConfig] =
+    useState<LabTestConfiguration | null>(null);
 
-  const { data: configs = [], isLoading, isFetching, error } = useQuery({
+  const {
+    data: configs = [],
+    isLoading,
+    isFetching,
+    error,
+  } = useQuery({
     queryKey: ['testConfigs'],
     queryFn: () => labApi.testConfigs.list(),
   });
@@ -149,9 +155,15 @@ export function TestConfigPage() {
           <div className="mb-2 hidden items-center gap-4 px-5 text-xs font-medium uppercase tracking-wider text-gray-500 md:flex">
             <div className="min-w-0 flex-[2]">{t('test_config.test_name')}</div>
             <div className="w-24 text-center">{t('test_config.code')}</div>
-            <div className="w-32 text-center">{t('test_config.department')}</div>
-            <div className="w-28 text-center">{t('test_config.processing_method')}</div>
-            <div className="w-40 text-center">{t('test_config.default_analyzer')}</div>
+            <div className="w-32 text-center">
+              {t('test_config.department')}
+            </div>
+            <div className="w-28 text-center">
+              {t('test_config.processing_method')}
+            </div>
+            <div className="w-40 text-center">
+              {t('test_config.default_analyzer')}
+            </div>
             {isAdmin && <div className="w-24" />}
           </div>
 

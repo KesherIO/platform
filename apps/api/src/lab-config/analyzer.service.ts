@@ -33,14 +33,20 @@ export class AnalyzerService {
     });
   }
 
-  async updateAnalyzer(labTenantId: string, id: string, dto: UpdateAnalyzerDto) {
+  async updateAnalyzer(
+    labTenantId: string,
+    id: string,
+    dto: UpdateAnalyzerDto
+  ) {
     await this.getAnalyzer(labTenantId, id);
     return this.prisma.analyzer.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.model !== undefined && { model: dto.model }),
-        ...(dto.manufacturer !== undefined && { manufacturer: dto.manufacturer }),
+        ...(dto.manufacturer !== undefined && {
+          manufacturer: dto.manufacturer,
+        }),
         ...(dto.department !== undefined && { department: dto.department }),
       },
     });

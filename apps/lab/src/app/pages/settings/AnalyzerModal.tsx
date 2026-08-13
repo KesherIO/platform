@@ -148,7 +148,9 @@ export function AnalyzerModal({ open, onClose, analyzer }: AnalyzerModalProps) {
               disabled={submitting}
               className="rounded-lg bg-cyan px-5 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
             >
-              {submitting ? t('catalog.form.submitting') : t('catalog.form.submit')}
+              {submitting
+                ? t('catalog.form.submitting')
+                : t('catalog.form.submit')}
             </button>
             <button
               type="button"
