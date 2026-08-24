@@ -25,12 +25,6 @@ type Analyte = {
   selectValue: string | null;
 };
 
-type Section = {
-  id: string | null;
-  name: string | null;
-  analytes: Analyte[];
-};
-
 type Values = Record<
   string,
   {
