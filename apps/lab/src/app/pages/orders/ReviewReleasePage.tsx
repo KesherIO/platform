@@ -25,13 +25,6 @@ type Analyte = {
 
 type Section = { id: string | null; name: string | null; analytes: Analyte[] };
 
-type Session = {
-  test: { id: string; name: string; code: string | null; status: string };
-  template: { title: string; defaultObservations: string | null };
-  report: { id: string; observations: string | null } | null;
-  sections: Section[];
-};
-
 function TestResultSection({
   orderId,
   testId,

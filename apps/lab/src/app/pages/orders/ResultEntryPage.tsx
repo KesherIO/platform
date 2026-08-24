@@ -31,13 +31,6 @@ type Section = {
   analytes: Analyte[];
 };
 
-type Session = {
-  test: { id: string; name: string; code: string | null; status: string };
-  template: { title: string; defaultObservations: string | null };
-  report: { id: string; observations: string | null } | null;
-  sections: Section[];
-};
-
 type Values = Record<
   string,
   {
@@ -69,7 +62,7 @@ export function ResultEntryPage() {
     error: queryError,
   } = useQuery({
     queryKey: ['result-session', testId],
-    queryFn: () => labApi.resultEntry.getSession(testId!),
+    queryFn: () => labApi.resultEntry.getSession(testId ?? ''),
     enabled: !!testId,
     staleTime: 30_000,
   });
@@ -125,7 +118,6 @@ export function ResultEntryPage() {
     } finally {
       setSaving(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testId, session, values, observations, t, toast, queryClient]);
 
   const handleSubmit = async () => {
