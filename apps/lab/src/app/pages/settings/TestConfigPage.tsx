@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Trash2, Wrench } from 'lucide-react';
+import { Pencil, Trash2, Wrench, Zap } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
@@ -33,6 +33,7 @@ export function TestConfigPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingConfig, setEditingConfig] =
     useState<LabTestConfiguration | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   const {
     data: configs = [],
@@ -82,6 +83,44 @@ export function TestConfigPage() {
     invalidate();
   };
 
+  const handleGenerate = async () => {
+    const confirmed = await confirm({
+      title: t('test_config.generate_confirm_title'),
+      message: t('test_config.generate_confirm_message'),
+      confirmLabel: t('test_config.generate'),
+      icon: Zap,
+    });
+    if (!confirmed) return;
+
+    setGenerating(true);
+    try {
+      const result = await labApi.testConfigs.generate();
+      if (result.created === 0) {
+        toast.info(t('test_config.generate_nothing'));
+      } else {
+        toast.success(
+          t('test_config.generate_success', {
+            created: result.created,
+            skipped: result.skipped,
+          })
+        );
+        if (result.unmappedCategories.length > 0) {
+          toast.info(
+            t('test_config.generate_unmapped_warning', {
+              count: result.unmappedCategories.length,
+              categories: result.unmappedCategories.join(', '),
+            })
+          );
+        }
+      }
+      invalidate();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -99,12 +138,24 @@ export function TestConfigPage() {
           )}
         </div>
         {isAdmin && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
-          >
-            + {t('test_config.add')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+            >
+              <Zap size={14} />
+              {generating
+                ? t('test_config.generating')
+                : t('test_config.generate')}
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
+            >
+              + {t('test_config.add')}
+            </button>
+          </div>
         )}
       </div>
 

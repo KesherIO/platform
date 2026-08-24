@@ -98,6 +98,13 @@ export class LabConfigController {
     return this.labTestConfigService.upsertConfig(tenant.tenantId, dto);
   }
 
+  @Post('test-configs/generate')
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @HttpCode(HttpStatus.OK)
+  generateTestConfigs(@CurrentTenant() tenant: TenantContext) {
+    return this.labTestConfigService.generateConfigs(tenant.tenantId);
+  }
+
   @Delete('test-configs/:id')
   @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @HttpCode(HttpStatus.NO_CONTENT)

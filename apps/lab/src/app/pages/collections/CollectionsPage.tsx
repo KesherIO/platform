@@ -23,6 +23,7 @@ const TOOLBAR_TAB_INACTIVE =
   'border-gray-800 text-gray-400 hover:bg-gray-800 hover:text-white';
 
 const PAGE_SIZE = 20;
+const POLL_MS = 60_000;
 const HISTORY_STATUSES = 'RECEIVED_AT_LAB,CANCELLED,FAILED';
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -95,6 +96,7 @@ export function CollectionsPage() {
         page,
         pageSize: PAGE_SIZE,
       }),
+    refetchInterval: POLL_MS,
   });
 
   const pickups = data?.data ?? [];

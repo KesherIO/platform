@@ -9,6 +9,10 @@ const STATUS_COLORS: Record<string, string> = {
   COMPLETED: 'bg-green-400/15 text-green-300',
   CANCELLED: 'bg-gray-400/15 text-gray-400',
   IN_PROGRESS: 'bg-orange-400/15 text-orange-300',
+  READY: 'bg-cyan/15 text-cyan',
+  RESULTS_ENTERED: 'bg-purple-400/15 text-purple-300',
+  IN_REVIEW: 'bg-indigo-400/15 text-indigo-300',
+  BLOCKED: 'bg-red-400/15 text-red-300',
   DRAFT: 'bg-yellow-400/15 text-yellow-300',
   RELEASED: 'bg-green-400/15 text-green-300',
   // Pickup statuses

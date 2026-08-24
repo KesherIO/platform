@@ -1,0 +1,830 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { TemplateVersionService } from '../results/template-version.service';
+import type { AccessionOrderDto } from './dto/accession-order.dto';
+import type { AgeUnit, PatientSpecies, OrderStatus } from '@prisma/client';
+
+const CONDITION_FLAG_LABELS: Record<string, string> = {
+  isHemolyzed: 'hemolyzed',
+  isLipemic: 'lipemic',
+  isIcteric: 'icteric',
+  isInsufficient: 'insufficient volume',
+  isContaminated: 'contaminated',
+  isWrongContainer: 'wrong container',
+  isLeaking: 'leaking',
+};
+
+function buildConditionFlags(s: {
+  isHemolyzed?: boolean; isLipemic?: boolean; isIcteric?: boolean;
+  isInsufficient?: boolean; isContaminated?: boolean;
+  isWrongContainer?: boolean; isLeaking?: boolean;
+}): string[] {
+  return Object.entries(CONDITION_FLAG_LABELS)
+    .filter(([key]) => s[key as keyof typeof s])
+    .map(([, label]) => label);
+}
+
+function buildRejectionReason(s: {
+  rejectionReason?: string;
+  isHemolyzed?: boolean; isLipemic?: boolean; isIcteric?: boolean;
+  isInsufficient?: boolean; isContaminated?: boolean;
+  isWrongContainer?: boolean; isLeaking?: boolean;
+}): string {
+  const flags = buildConditionFlags(s);
+  if (s.rejectionReason && flags.length) return `${s.rejectionReason} (${flags.join(', ')})`;
+  if (s.rejectionReason) return s.rejectionReason;
+  if (flags.length) return flags.join(', ');
+  return 'no reason';
+}
+
+function ageToWeeks(age: number, unit: AgeUnit): number {
+  switch (unit) {
+    case 'DAYS':
+      return age / 7;
+    case 'WEEKS':
+      return age;
+    case 'MONTHS':
+      return age * 4.33;
+    case 'YEARS':
+      return age * 52;
+    default:
+      return age;
+  }
+}
+
+// Derives order status from the aggregate state of its tests and specimens.
+// Rules applied in priority order (most terminal state wins):
+//   CANCELLED (5) > COMPLETED (4) > PROCESSING (3) > RECEIVED_BY_LAB (2) > PENDING (1)
+async function deriveOrderStatusValue(
+  prisma: PrismaService,
+  orderId: string
+): Promise<OrderStatus> {
+  const order = await prisma.order.findUniqueOrThrow({
+    where: { id: orderId },
+    select: { status: true },
+  });
+  if (order.status === 'CANCELLED') return 'CANCELLED';
+
+  const [tests, specimens] = await Promise.all([
+    prisma.orderedTest.findMany({
+      where: { orderId },
+      select: { status: true },
+    }),
+    prisma.specimen.findMany({
+      where: { orderId },
+      select: { status: true },
+    }),
+  ]);
+
+  // Rule 4 — COMPLETED: any released report (checked by caller after release; not derivable here)
+  // For now derive based on test statuses only — release sets COMPLETED directly.
+
+  // Rule 3 — PROCESSING: any test is IN_PROGRESS, RESULTS_ENTERED, or IN_REVIEW
+  const processingStatuses = new Set([
+    'IN_PROGRESS',
+    'RESULTS_ENTERED',
+    'IN_REVIEW',
+  ]);
+  if (tests.some((t) => processingStatuses.has(t.status))) return 'PROCESSING';
+
+  // Rule 2 — RECEIVED_BY_LAB: specimens are resolved, OR any test is READY
+  // (READY means the sample was accessioned and a template was assigned)
+  const hasAccepted = specimens.some((s) => s.status === 'ACCEPTED');
+  const hasExpectedOrReceived = specimens.some(
+    (s) => s.status === 'EXPECTED' || s.status === 'RECEIVED'
+  );
+  const hasReadyTest = tests.some((t) => t.status === 'READY');
+  if ((hasAccepted && !hasExpectedOrReceived) || hasReadyTest) return 'RECEIVED_BY_LAB';
+
+  return 'PENDING';
+}
+
+@Injectable()
+export class SpecimenService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly templateVersionService: TemplateVersionService
+  ) {}
+
+  // ---------------------------------------------------------------------------
+  // Derive expected specimens from LabTestSpecimenRequirement
+  // ---------------------------------------------------------------------------
+
+  async getExpectedSpecimens(orderId: string, labTenantId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, labTenantId },
+      select: {
+        id: true,
+        orderedTests: {
+          where: { status: { not: 'CANCELLED' } },
+          select: {
+            id: true,
+            catalogItemId: true,
+            catalogItemCode: true,
+            catalogItemName: true,
+            status: true,
+            catalogItem: {
+              select: {
+                labTestConfigurations: {
+                  where: { labTenantId },
+                  select: {
+                    department: true,
+                    specimenRequirements: {
+                      orderBy: { sortOrder: 'asc' },
+                    },
+                  },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+        specimens: {
+          orderBy: [{ specimenType: 'asc' }, { tubeIndex: 'asc' }],
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+
+    // Group tests by their primary (specimenType, containerType) requirement
+    const specimenGroups = new Map<
+      string,
+      {
+        specimenType: string;
+        containerType: string;
+        tests: { id: string; name: string; code: string | null }[];
+        minimumVolumeMl: number | null;
+      }
+    >();
+
+    const unconfiguredTests: { id: string; name: string; code: string | null }[] =
+      [];
+
+    for (const test of order.orderedTests) {
+      const config = test.catalogItem.labTestConfigurations[0];
+      const primaryReq = config?.specimenRequirements.find(
+        (r) => !r.isAlternativeWithinGroup
+      );
+
+      if (!primaryReq) {
+        unconfiguredTests.push({
+          id: test.id,
+          name: test.catalogItemName,
+          code: test.catalogItemCode,
+        });
+        continue;
+      }
+
+      const key = `${primaryReq.specimenType}::${primaryReq.containerType}`;
+      const group = specimenGroups.get(key) ?? {
+        specimenType: primaryReq.specimenType,
+        containerType: primaryReq.containerType,
+        tests: [],
+        minimumVolumeMl: primaryReq.minimumVolumeMl,
+      };
+      group.tests.push({
+        id: test.id,
+        name: test.catalogItemName,
+        code: test.catalogItemCode,
+      });
+      if (
+        primaryReq.minimumVolumeMl !== null &&
+        (group.minimumVolumeMl === null ||
+          primaryReq.minimumVolumeMl > group.minimumVolumeMl)
+      ) {
+        group.minimumVolumeMl = primaryReq.minimumVolumeMl;
+      }
+      specimenGroups.set(key, group);
+    }
+
+    return {
+      expectedSpecimenGroups: Array.from(specimenGroups.values()),
+      unconfiguredTests,
+      existingSpecimens: order.specimens,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Accession an order — create/update specimens, link tests, transition statuses
+  // ---------------------------------------------------------------------------
+
+  async accessionOrder(
+    orderId: string,
+    labTenantId: string,
+    dto: AccessionOrderDto,
+    actorId: string,
+    actorName: string
+  ) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, labTenantId },
+      select: {
+        id: true,
+        status: true,
+        case: {
+          select: {
+            patientSpecies: true,
+            patientAge: true,
+            patientAgeUnit: true,
+          },
+        },
+        orderedTests: {
+          where: { status: { not: 'CANCELLED' } },
+          select: {
+            id: true,
+            catalogItemId: true,
+            catalogItemCode: true,
+            catalogItemName: true,
+            status: true,
+            catalogItem: {
+              select: {
+                code: true,
+                labTestConfigurations: {
+                  where: { labTenantId },
+                  select: {
+                    department: true,
+                    defaultProcessingMethod: true,
+                    defaultAnalyzerId: true,
+                    specimenRequirements: {
+                      orderBy: { sortOrder: 'asc' },
+                    },
+                  },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+        specimens: { select: { id: true, specimenType: true, containerType: true, tubeIndex: true } },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+
+    const patientSpecies = order.case.patientSpecies as PatientSpecies;
+    const ageWeeks =
+      order.case.patientAge && order.case.patientAgeUnit
+        ? ageToWeeks(order.case.patientAge, order.case.patientAgeUnit as AgeUnit)
+        : null;
+
+    // Generate accession numbers for specimens that don't have one
+    const year = new Date().getFullYear();
+    const specimenData = await Promise.all(
+      dto.specimens.map(async (s, idx) => {
+        let accessionNumber = s.accessionNumber;
+        if (!accessionNumber) {
+          // Use a counter per lab — pad to 6 digits
+          const count = await this.prisma.specimen.count({
+            where: { labTenantId },
+          });
+          accessionNumber = `SPEC-${year}-${String(count + idx + 1).padStart(6, '0')}`;
+        }
+        return { ...s, accessionNumber };
+      })
+    );
+
+    const now = new Date();
+
+    // Create / update specimens and link tests in a transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      const createdSpecimens: { id: string; accepted: boolean; specimenType: string; containerType: string; tubeIndex: number }[] = [];
+
+      for (const s of specimenData) {
+        const tubeIndex = s.tubeIndex ?? 1;
+
+        // Idempotency: find existing specimen for this tube slot
+        const existing = order.specimens.find(
+          (sp) =>
+            sp.specimenType === s.specimenType &&
+            sp.containerType === s.containerType &&
+            sp.tubeIndex === tubeIndex
+        );
+
+        const specimenStatus = s.accepted ? 'ACCEPTED' : 'REJECTED';
+
+        let specimen;
+        if (existing) {
+          specimen = await tx.specimen.update({
+            where: { id: existing.id },
+            data: {
+              status: specimenStatus,
+              isHemolyzed: s.isHemolyzed ?? false,
+              isLipemic: s.isLipemic ?? false,
+              isIcteric: s.isIcteric ?? false,
+              isInsufficient: s.isInsufficient ?? false,
+              isContaminated: s.isContaminated ?? false,
+              isWrongContainer: s.isWrongContainer ?? false,
+              isLeaking: s.isLeaking ?? false,
+              rejectionReason: s.accepted ? null : (s.rejectionReason ?? null),
+              notes: s.notes ?? null,
+              receivedAt: now,
+              receivedById: actorId,
+            },
+          });
+        } else {
+          specimen = await tx.specimen.create({
+            data: {
+              orderId,
+              labTenantId,
+              accessionNumber: s.accessionNumber!,
+              specimenType: s.specimenType,
+              containerType: s.containerType,
+              tubeIndex,
+              status: specimenStatus,
+              isHemolyzed: s.isHemolyzed ?? false,
+              isLipemic: s.isLipemic ?? false,
+              isIcteric: s.isIcteric ?? false,
+              isInsufficient: s.isInsufficient ?? false,
+              isContaminated: s.isContaminated ?? false,
+              isWrongContainer: s.isWrongContainer ?? false,
+              isLeaking: s.isLeaking ?? false,
+              rejectionReason: s.accepted ? null : (s.rejectionReason ?? null),
+              notes: s.notes ?? null,
+              receivedAt: now,
+              receivedById: actorId,
+            },
+          });
+        }
+
+        createdSpecimens.push({
+          id: specimen.id,
+          accepted: s.accepted,
+          specimenType: s.specimenType,
+          containerType: s.containerType,
+          tubeIndex,
+        });
+
+        // Timeline event per specimen
+        await tx.timelineEvent.create({
+          data: {
+            orderId,
+            eventType: s.accepted ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED',
+            actorId,
+            actorName,
+            description: s.accepted
+              ? `Specimen ${s.accessionNumber} (${s.specimenType}) accepted`
+              : `Specimen ${s.accessionNumber} (${s.specimenType}) rejected: ${buildRejectionReason(s)}`,
+            metadata: {
+              specimenId: specimen.id,
+              accessionNumber: s.accessionNumber,
+              specimenType: s.specimenType,
+              reason: s.rejectionReason,
+              conditions: buildConditionFlags(s),
+            },
+          },
+        });
+      }
+
+      // Link tests to accepted specimens and transition statuses
+      for (const test of order.orderedTests) {
+        const config = test.catalogItem.labTestConfigurations[0];
+        const primaryReq = config?.specimenRequirements.find(
+          (r) => !r.isAlternativeWithinGroup
+        );
+
+        // Find an accepted specimen matching this test's requirement
+        const matchingAccepted = createdSpecimens.find(
+          (sp) =>
+            sp.accepted &&
+            (!primaryReq ||
+              (sp.specimenType === primaryReq.specimenType &&
+                sp.containerType === primaryReq.containerType))
+        );
+
+        const matchingRejected = !matchingAccepted &&
+          createdSpecimens.find(
+            (sp) =>
+              !sp.accepted &&
+              (!primaryReq ||
+                (sp.specimenType === primaryReq.specimenType &&
+                  sp.containerType === primaryReq.containerType))
+          );
+
+        if (matchingAccepted) {
+          // Link test ↔ specimen (idempotent)
+          await tx.orderedTestSpecimen.upsert({
+            where: {
+              orderedTestId_specimenId: {
+                orderedTestId: test.id,
+                specimenId: matchingAccepted.id,
+              },
+            },
+            create: { orderedTestId: test.id, specimenId: matchingAccepted.id },
+            update: {},
+          });
+
+          // Resolve template
+          const catalogCode = test.catalogItem.code ?? test.catalogItemCode ?? '';
+          const templateDef = await this.templateVersionService.resolveTemplate(
+            catalogCode,
+            labTenantId,
+            patientSpecies,
+            ageWeeks
+          );
+
+          if (templateDef?.activeVersionId) {
+            await tx.orderedTest.update({
+              where: { id: test.id },
+              data: {
+                status: 'READY',
+                department: config?.department ?? null,
+                processingMethod: config?.defaultProcessingMethod ?? null,
+                analyzerId: config?.defaultAnalyzerId ?? null,
+                version: { increment: 1 },
+              },
+            });
+            await tx.timelineEvent.create({
+              data: {
+                orderId,
+                eventType: 'TEMPLATE_RESOLVED',
+                actorId,
+                actorName,
+                description: `Template resolved for ${test.catalogItemName}`,
+                metadata: {
+                  orderedTestId: test.id,
+                  templateDefinitionId: templateDef.id,
+                  templateVersionId: templateDef.activeVersionId,
+                },
+              },
+            });
+          } else {
+            await tx.orderedTest.update({
+              where: { id: test.id },
+              data: {
+                status: 'BLOCKED',
+                blockReason: 'MISSING_RESULT_TEMPLATE',
+                blockReasonDetail: `No published template for ${catalogCode} + ${patientSpecies}`,
+                version: { increment: 1 },
+              },
+            });
+            await tx.timelineEvent.create({
+              data: {
+                orderId,
+                eventType: 'TEST_BLOCKED',
+                actorId,
+                actorName,
+                description: `${test.catalogItemName} blocked: no result template`,
+                metadata: {
+                  orderedTestId: test.id,
+                  blockReason: 'MISSING_RESULT_TEMPLATE',
+                  catalogCode,
+                  species: patientSpecies,
+                },
+              },
+            });
+          }
+        } else if (matchingRejected) {
+          await tx.orderedTest.update({
+            where: { id: test.id },
+            data: {
+              status: 'BLOCKED',
+              blockReason: 'REJECTED_SPECIMEN',
+              blockReasonDetail: `Specimen rejected: ${matchingRejected.specimenType}`,
+              version: { increment: 1 },
+            },
+          });
+          await tx.timelineEvent.create({
+            data: {
+              orderId,
+              eventType: 'TEST_BLOCKED',
+              actorId,
+              actorName,
+              description: `${test.catalogItemName} blocked: specimen rejected`,
+              metadata: {
+                orderedTestId: test.id,
+                blockReason: 'REJECTED_SPECIMEN',
+              },
+            },
+          });
+        } else if (!primaryReq) {
+          // Unconfigured test with no specimen submitted — resolve template anyway
+          // so it can still be entered without a specimen configuration.
+          const catalogCode = test.catalogItem.code ?? test.catalogItemCode ?? '';
+          const templateDef = await this.templateVersionService.resolveTemplate(
+            catalogCode,
+            labTenantId,
+            patientSpecies,
+            ageWeeks
+          );
+
+          if (templateDef?.activeVersionId) {
+            await tx.orderedTest.update({
+              where: { id: test.id },
+              data: { status: 'READY', version: { increment: 1 } },
+            });
+            await tx.timelineEvent.create({
+              data: {
+                orderId,
+                eventType: 'TEMPLATE_RESOLVED',
+                actorId,
+                actorName,
+                description: `Template resolved for ${test.catalogItemName}`,
+                metadata: {
+                  orderedTestId: test.id,
+                  templateDefinitionId: templateDef.id,
+                  templateVersionId: templateDef.activeVersionId,
+                },
+              },
+            });
+          } else {
+            await tx.orderedTest.update({
+              where: { id: test.id },
+              data: {
+                status: 'BLOCKED',
+                blockReason: 'MISSING_RESULT_TEMPLATE',
+                blockReasonDetail: `No published template for ${catalogCode} + ${patientSpecies}`,
+                version: { increment: 1 },
+              },
+            });
+            await tx.timelineEvent.create({
+              data: {
+                orderId,
+                eventType: 'TEST_BLOCKED',
+                actorId,
+                actorName,
+                description: `${test.catalogItemName} blocked: no result template`,
+                metadata: {
+                  orderedTestId: test.id,
+                  blockReason: 'MISSING_RESULT_TEMPLATE',
+                  catalogCode,
+                  species: patientSpecies,
+                },
+              },
+            });
+          }
+        }
+      }
+
+      // Stamp receivedAt on all tests that haven't been marked received yet
+      await tx.orderedTest.updateMany({
+        where: { orderId, receivedAt: null },
+        data: { receivedAt: now },
+      });
+
+      // Overall accessioning event
+      await tx.timelineEvent.create({
+        data: {
+          orderId,
+          eventType: 'SAMPLE_ACCESSIONED',
+          actorId,
+          actorName,
+          description: `Order accessioned — ${createdSpecimens.filter((s) => s.accepted).length} specimen(s) accepted`,
+          metadata: {
+            totalSpecimens: createdSpecimens.length,
+            accepted: createdSpecimens.filter((s) => s.accepted).length,
+            rejected: createdSpecimens.filter((s) => !s.accepted).length,
+          },
+        },
+      });
+
+      return createdSpecimens;
+    });
+
+    // Derive and persist order status after transaction
+    await this.updateDerivedOrderStatus(orderId);
+
+    return {
+      specimens: result,
+      order: await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: { id: true, status: true },
+      }),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Update a single specimen (condition flags, accept/reject)
+  // ---------------------------------------------------------------------------
+
+  async updateSpecimen(
+    specimenId: string,
+    labTenantId: string,
+    data: {
+      status?: 'ACCEPTED' | 'REJECTED';
+      rejectionReason?: string;
+      notes?: string;
+      isHemolyzed?: boolean;
+      isLipemic?: boolean;
+      isIcteric?: boolean;
+      isInsufficient?: boolean;
+      isContaminated?: boolean;
+      isWrongContainer?: boolean;
+      isLeaking?: boolean;
+    },
+    actorId: string,
+    actorName: string
+  ) {
+    const specimen = await this.prisma.specimen.findFirst({
+      where: { id: specimenId, labTenantId },
+      select: { id: true, orderId: true, specimenType: true, accessionNumber: true },
+    });
+    if (!specimen) throw new NotFoundException('Specimen not found.');
+
+    if (data.status === 'REJECTED' && !data.rejectionReason) {
+      throw new BadRequestException('rejectionReason is required when rejecting a specimen.');
+    }
+
+    const updated = await this.prisma.specimen.update({
+      where: { id: specimenId },
+      data: {
+        ...(data.status && { status: data.status }),
+        ...(data.rejectionReason !== undefined && { rejectionReason: data.rejectionReason }),
+        ...(data.notes !== undefined && { notes: data.notes }),
+        ...(data.isHemolyzed !== undefined && { isHemolyzed: data.isHemolyzed }),
+        ...(data.isLipemic !== undefined && { isLipemic: data.isLipemic }),
+        ...(data.isIcteric !== undefined && { isIcteric: data.isIcteric }),
+        ...(data.isInsufficient !== undefined && { isInsufficient: data.isInsufficient }),
+        ...(data.isContaminated !== undefined && { isContaminated: data.isContaminated }),
+        ...(data.isWrongContainer !== undefined && { isWrongContainer: data.isWrongContainer }),
+        ...(data.isLeaking !== undefined && { isLeaking: data.isLeaking }),
+      },
+    });
+
+    if (data.status) {
+      await this.prisma.timelineEvent.create({
+        data: {
+          orderId: specimen.orderId,
+          eventType: data.status === 'ACCEPTED' ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED',
+          actorId,
+          actorName,
+          description: `Specimen ${specimen.accessionNumber} (${specimen.specimenType}) ${data.status.toLowerCase()}`,
+          metadata: { specimenId, reason: data.rejectionReason },
+        },
+      });
+    }
+
+    await this.updateDerivedOrderStatus(specimen.orderId);
+    return updated;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Retry template resolution for a BLOCKED test
+  // ---------------------------------------------------------------------------
+
+  async resolveTemplateForBlockedTest(
+    orderedTestId: string,
+    labTenantId: string,
+    actorId: string,
+    actorName: string
+  ) {
+    const test = await this.prisma.orderedTest.findFirst({
+      where: {
+        id: orderedTestId,
+        status: 'BLOCKED',
+        blockReason: 'MISSING_RESULT_TEMPLATE',
+        order: { labTenantId },
+      },
+      select: {
+        id: true,
+        catalogItemCode: true,
+        catalogItemName: true,
+        orderId: true,
+        order: {
+          select: {
+            case: {
+              select: { patientSpecies: true, patientAge: true, patientAgeUnit: true },
+            },
+          },
+        },
+        catalogItem: { select: { code: true } },
+      },
+    });
+    if (!test) {
+      throw new NotFoundException(
+        'Ordered test not found or not in BLOCKED (MISSING_RESULT_TEMPLATE) state.'
+      );
+    }
+
+    const patientSpecies = test.order.case.patientSpecies as PatientSpecies;
+    const ageWeeks =
+      test.order.case.patientAge && test.order.case.patientAgeUnit
+        ? ageToWeeks(test.order.case.patientAge, test.order.case.patientAgeUnit as AgeUnit)
+        : null;
+
+    const catalogCode = test.catalogItem.code ?? test.catalogItemCode ?? '';
+    const templateDef = await this.templateVersionService.resolveTemplate(
+      catalogCode,
+      labTenantId,
+      patientSpecies,
+      ageWeeks
+    );
+
+    if (!templateDef?.activeVersionId) {
+      return { resolved: false, test: { id: test.id, status: 'BLOCKED' } };
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.orderedTest.update({
+        where: { id: orderedTestId },
+        data: {
+          status: 'READY',
+          blockReason: null,
+          blockReasonDetail: null,
+          version: { increment: 1 },
+        },
+      }),
+      this.prisma.timelineEvent.create({
+        data: {
+          orderId: test.orderId,
+          eventType: 'TEMPLATE_RESOLVED',
+          actorId,
+          actorName,
+          description: `Template resolved for ${test.catalogItemName} — test unblocked`,
+          metadata: {
+            orderedTestId,
+            templateDefinitionId: templateDef.id,
+            templateVersionId: templateDef.activeVersionId,
+          },
+        },
+      }),
+    ]);
+
+    await this.updateDerivedOrderStatus(test.orderId);
+    return { resolved: true, test: { id: test.id, status: 'READY' } };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Manually assign a template to a BLOCKED (MISSING_RESULT_TEMPLATE) test
+  // ---------------------------------------------------------------------------
+
+  async assignTemplateToBlockedTest(
+    orderedTestId: string,
+    templateVersionId: string,
+    labTenantId: string,
+    actorId: string,
+    actorName: string
+  ) {
+    const test = await this.prisma.orderedTest.findFirst({
+      where: {
+        id: orderedTestId,
+        status: 'BLOCKED',
+        blockReason: 'MISSING_RESULT_TEMPLATE',
+        order: { labTenantId },
+      },
+      select: { id: true, catalogItemName: true, orderId: true },
+    });
+    if (!test) {
+      throw new NotFoundException(
+        'Ordered test not found or not in BLOCKED (MISSING_RESULT_TEMPLATE) state.'
+      );
+    }
+
+    const version = await this.prisma.resultTemplateVersion.findFirst({
+      where: { id: templateVersionId, status: 'PUBLISHED' },
+      select: { id: true, definitionId: true },
+    });
+    if (!version) {
+      throw new NotFoundException('Template version not found or not published.');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.orderedTest.update({
+        where: { id: orderedTestId },
+        data: {
+          status: 'READY',
+          blockReason: null,
+          blockReasonDetail: null,
+          version: { increment: 1 },
+        },
+      }),
+      this.prisma.timelineEvent.create({
+        data: {
+          orderId: test.orderId,
+          eventType: 'TEMPLATE_RESOLVED',
+          actorId,
+          actorName,
+          description: `Template manually assigned for ${test.catalogItemName} — test unblocked`,
+          metadata: { orderedTestId, templateVersionId },
+        },
+      }),
+    ]);
+
+    await this.updateDerivedOrderStatus(test.orderId);
+    return { resolved: true, test: { id: test.id, status: 'READY' } };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helper — derive and persist order status
+  // ---------------------------------------------------------------------------
+
+  private async updateDerivedOrderStatus(orderId: string) {
+    const derived = await deriveOrderStatusValue(this.prisma, orderId);
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true },
+    });
+    if (!order || order.status === derived) return;
+
+    const timestamps: Record<string, Date | null> = {};
+    const now = new Date();
+    if (derived === 'RECEIVED_BY_LAB') timestamps.receivedByLabAt = now;
+    if (derived === 'PROCESSING') timestamps.processingStartedAt = now;
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: derived, ...timestamps },
+    });
+  }
+}

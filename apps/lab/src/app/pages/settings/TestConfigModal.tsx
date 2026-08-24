@@ -9,7 +9,31 @@ import type {
   Department,
   ProcessingMethod,
   CatalogItem,
+  SpecimenRequirement,
 } from '../../types/lab.types';
+
+interface SpecimenReqRow {
+  _key: string;
+  specimenType: string;
+  containerType: string;
+  minimumVolumeMl: string;
+  notes: string;
+}
+
+function reqToRow(req: SpecimenRequirement, idx: number): SpecimenReqRow {
+  return {
+    _key: req.id ?? `new-${idx}`,
+    specimenType: req.specimenType,
+    containerType: req.containerType,
+    minimumVolumeMl: req.minimumVolumeMl != null ? String(req.minimumVolumeMl) : '',
+    notes: req.notes ?? '',
+  };
+}
+
+let _keyCounter = 0;
+function nextKey() {
+  return `new-${++_keyCounter}`;
+}
 
 const DEPARTMENTS: Department[] = [
   'HEMATOLOGY',
@@ -57,6 +81,9 @@ export function TestConfigModal({
   >(config?.allowedProcessingMethods ?? ['MANUAL']);
   const [defaultAnalyzerId, setDefaultAnalyzerId] = useState<string>(
     config?.defaultAnalyzerId ?? ''
+  );
+  const [specimenReqs, setSpecimenReqs] = useState<SpecimenReqRow[]>(
+    () => (config?.specimenRequirements ?? []).map(reqToRow)
   );
 
   const [availableTests, setAvailableTests] = useState<CatalogItem[]>([]);
@@ -115,6 +142,23 @@ export function TestConfigModal({
     }
   }, [allowedProcessingMethods, defaultProcessingMethod]);
 
+  const addSpecimenReq = () => {
+    setSpecimenReqs((prev) => [
+      ...prev,
+      { _key: nextKey(), specimenType: '', containerType: '', minimumVolumeMl: '', notes: '' },
+    ]);
+  };
+
+  const removeSpecimenReq = (key: string) => {
+    setSpecimenReqs((prev) => prev.filter((r) => r._key !== key));
+  };
+
+  const updateSpecimenReq = (key: string, patch: Partial<SpecimenReqRow>) => {
+    setSpecimenReqs((prev) =>
+      prev.map((r) => (r._key === key ? { ...r, ...patch } : r))
+    );
+  };
+
   if (!open) return null;
 
   const handleSubmit = async (e: FormEvent) => {
@@ -128,6 +172,16 @@ export function TestConfigModal({
       defaultProcessingMethod,
       allowedProcessingMethods,
       defaultAnalyzerId: defaultAnalyzerId || null,
+      specimenRequirements: specimenReqs
+        .filter((r) => r.specimenType && r.containerType)
+        .map((r, idx) => ({
+          specimenType: r.specimenType.trim().toUpperCase(),
+          containerType: r.containerType.trim().toUpperCase(),
+          minimumVolumeMl: r.minimumVolumeMl ? parseFloat(r.minimumVolumeMl) : undefined,
+          notes: r.notes.trim() || undefined,
+          requirementGroupKey: 'PRIMARY',
+          sortOrder: idx,
+        })),
     };
 
     try {
@@ -280,6 +334,94 @@ export function TestConfigModal({
                 {t('analyzers.no_results')}
               </p>
             )}
+          </div>
+
+          {/* Specimen requirements */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="text-xs font-medium text-gray-400">
+                {t('test_config.specimen_requirements')}
+              </label>
+              <button
+                type="button"
+                onClick={addSpecimenReq}
+                className="text-xs text-cyan hover:underline"
+              >
+                + {t('test_config.add_specimen_req')}
+              </button>
+            </div>
+
+            {specimenReqs.length === 0 && (
+              <p className="text-xs text-gray-600 italic">
+                {t('test_config.no_specimen_reqs')}
+              </p>
+            )}
+
+            <div className="space-y-2">
+              {specimenReqs.map((req) => (
+                <div
+                  key={req._key}
+                  className="rounded-lg border border-gray-700 bg-gray-800 p-3"
+                >
+                  <div className="mb-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-0.5 block text-xs text-gray-500">
+                        {t('test_config.specimen_type')} *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. SERUM"
+                        value={req.specimenType}
+                        onChange={(e) =>
+                          updateSpecimenReq(req._key, { specimenType: e.target.value })
+                        }
+                        className="w-full rounded-md border border-gray-600 bg-gray-900 px-2 py-1.5 font-mono text-xs text-white placeholder-gray-600 focus:border-cyan focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-0.5 block text-xs text-gray-500">
+                        {t('test_config.container_type')} *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. SST_TUBE"
+                        value={req.containerType}
+                        onChange={(e) =>
+                          updateSpecimenReq(req._key, { containerType: e.target.value })
+                        }
+                        className="w-full rounded-md border border-gray-600 bg-gray-900 px-2 py-1.5 font-mono text-xs text-white placeholder-gray-600 focus:border-cyan focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <label className="mb-0.5 block text-xs text-gray-500">
+                        {t('test_config.min_volume_ml')}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        placeholder="e.g. 2.0"
+                        value={req.minimumVolumeMl}
+                        onChange={(e) =>
+                          updateSpecimenReq(req._key, { minimumVolumeMl: e.target.value })
+                        }
+                        className="w-full rounded-md border border-gray-600 bg-gray-900 px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:border-cyan focus:outline-none"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSpecimenReq(req._key)}
+                      className="mb-px text-gray-600 hover:text-red-400"
+                      aria-label="Remove"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {formError && (

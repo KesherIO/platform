@@ -1377,7 +1377,8 @@ Deferred until equipment inspection. Requires decisions on communication protoco
 
 ## 14. Remaining Product Decisions
 
-These decisions are not required before starting Phase 1 but should be resolved before their respective phases:
+These decisions are not req
+uired before starting Phase 1 but should be resolved before their respective phases:
 
 | #   | Decision                                                                                                                                                        | Affects Phase | Options                                                                                                                                           | Recommendation                                                                                                                                |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1389,3 +1390,5 @@ These decisions are not required before starting Phase 1 but should be resolved 
 | 6   | **Review requirement toggle** — should labs be able to skip the review step for routine tests?                                                                  | 6             | (a) Always require review (b) Configurable per test in LabTestConfiguration                                                                       | Always require for MVP. Configurability later. Patient safety over convenience.                                                               |
 | 7   | **Template import validation** — when importing PLATFORM templates, should the system validate formula references (all `[CODE]` targets exist in the template)? | 2             | (a) Validate on import and reject invalid formulas (b) Store as-is, validate at report creation (c) Store as-is, validate at frontend render time | (a) Validate on import — catch errors early.                                                                                                  |
 | 8   | **Correction audit trail** — when a reviewer requests corrections and the technician re-submits, should the system keep a history of correction rounds?         | 6             | (a) Just correctionNotes on the report (current plan) (b) Separate CorrectionRound entity with per-round notes and timestamps                     | (a) for MVP. The TimelineEvent trail provides the audit history.                                                                              |
+
+

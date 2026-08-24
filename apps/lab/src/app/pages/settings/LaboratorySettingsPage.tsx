@@ -1,9 +1,12 @@
 import { useState, FormEvent, ChangeEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Download } from 'lucide-react';
 import i18n from '../../i18n/i18n';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
+import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
+import { useToast } from '../../shared/components/ToastProvider';
 import { COMMON_TIMEZONES } from '../../shared/timezones';
 import type {
   LaboratoryProfile,
@@ -59,11 +62,15 @@ function makeEmptySigner(): LabSigner {
 export function LaboratorySettingsPage() {
   const { t } = useTranslation();
   const { refreshTenant, isAdmin } = useAuth();
+  const confirm = useConfirm();
+  const toast = useToast();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<LaboratoryProfile>(EMPTY_PROFILE);
   const [contactInfo, setContactInfo] = useState<LabContactInfo>(EMPTY_CONTACT);
   const [signers, setSigners] = useState<LabSigner[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [importingPlatform, setImportingPlatform] = useState(false);
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -240,6 +247,36 @@ export function LaboratorySettingsPage() {
         }&layer=mapnik&marker=${contactInfo.mapLat}%2C${contactInfo.mapLng}`
       : null;
 
+  const handleImportPlatform = async () => {
+    const confirmed = await confirm({
+      title: t('catalog.import_platform.confirm_title'),
+      message: t('catalog.import_platform.confirm_message'),
+      confirmLabel: t('catalog.import_platform.confirm_button'),
+      icon: Download,
+    });
+    if (!confirmed) return;
+
+    setImportingPlatform(true);
+    try {
+      const result = await labApi.catalog.importPlatform();
+      toast.success(
+        t('catalog.import_platform.success', {
+          created: result.created,
+          updated: result.updated,
+          disabled: result.disabled,
+          total: result.total,
+        })
+      );
+      queryClient.invalidateQueries({ queryKey: ['catalog'] });
+    } catch (err) {
+      toast.error(
+        `${t('catalog.import_platform.error')} ${(err as Error).message}`
+      );
+    } finally {
+      setImportingPlatform(false);
+    }
+  };
+
   // --- Input helpers ---
 
   const inputClass = isAdmin
@@ -310,6 +347,28 @@ export function LaboratorySettingsPage() {
       <h1 className="mb-6 text-xl font-bold text-white">
         {t('settings.title')}
       </h1>
+
+      {isAdmin && (
+        <section className="mb-6 max-w-2xl rounded-xl border border-gray-800 bg-gray-900 p-5">
+          <h2 className="text-lg font-semibold text-white">
+            {t('settings.catalog_setup.title')}
+          </h2>
+          <p className="mb-4 text-sm text-gray-400">
+            {t('settings.catalog_setup.subtitle')}
+          </p>
+          <button
+            type="button"
+            onClick={handleImportPlatform}
+            disabled={importingPlatform}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-50"
+          >
+            <Download size={14} />
+            {importingPlatform
+              ? t('settings.catalog_setup.importing')
+              : t('settings.catalog_setup.button')}
+          </button>
+        </section>
+      )}
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
         {/* ─── Language ─── */}

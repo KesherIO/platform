@@ -13,6 +13,7 @@
     "next": "Next",
     "no_results": "No results found",
     "cancel": "Cancel",
+    "you": "You",
     "confirm": "Confirm",
     "dismiss": "Dismiss",
     "apply": "Apply",
@@ -61,7 +62,8 @@
     "close_menu": "Close menu",
     "analyzers": "Analyzers",
     "test_config": "Test Config",
-    "templates": "Templates"
+    "templates": "Templates",
+    "worklist": "Worklist"
   },
   "status": {
     "PENDING": "Pending",
@@ -72,6 +74,10 @@
     "COMPLETED": "Completed",
     "CANCELLED": "Cancelled",
     "IN_PROGRESS": "In progress",
+    "READY": "Ready",
+    "RESULTS_ENTERED": "Results entered",
+    "IN_REVIEW": "In review",
+    "BLOCKED": "Blocked",
     "DRAFT": "Draft",
     "RELEASED": "Released",
     "REQUESTED": "Requested",
@@ -83,6 +89,7 @@
     "FAILED": "Failed"
   },
   "species": {
+    "ANY": "Any species",
     "DOG": "Canine",
     "CAT": "Feline",
     "EQUINE": "Equine",
@@ -118,7 +125,7 @@
       "mark_all_received": "Mark all as received",
       "mark_received_single": "Mark received",
       "start_processing": "Start processing",
-      "mark_completed": "Mark as completed"
+      "cancel_order": "Cancel order"
     },
     "created": "Created",
     "received": "Received"
@@ -131,44 +138,88 @@
     "ordered_tests": "Ordered tests",
     "init_tests": "Initialize tests",
     "review_release": "Review & release",
+    "view_report": "View report",
     "tests_init_hint": "Tests are initialized when the sample is received.",
     "enter_results": "Enter results",
+    "view_results": "View results",
     "sample_received": "Received",
     "sample_pending": "Pending sample",
+    "results_entered": "Results entered",
+    "entering_results": "Entering results",
+    "complete_blocked_hint": "Enter results for all tests first",
+    "retry_template": "Retry",
+    "pick_template": "Pick template",
+    "pick_template_hint": "Selecting a template will unblock this test and make it ready for result entry.",
+    "search_templates": "Search templates...",
+    "pick_template_species_hint": "This only applies to this order. To avoid future blocks, create a template for {{species}} in the Templates page.",
+    "no_published_templates": "No published templates available.",
+    "template_resolved": "Template assigned — test is now ready for result entry.",
+    "template_still_missing": "Still no template for this test code. Use \"Pick template\" to assign one manually.",
     "also_direct": "also ordered directly",
     "also_in_package": "also in: {{name}}",
     "timeline": "Timeline",
     "completed": "Completed"
   },
+  "accession": {
+    "title": "Accession samples",
+    "button": "Accession samples",
+    "quick_accept_all": "Quick accept all",
+    "accept": "Accept",
+    "reject": "Reject",
+    "accession_number": "Accession number",
+    "accession_number_placeholder": "Auto-generated if empty",
+    "conditions": "Conditions",
+    "rejection_reason": "Rejection reason",
+    "rejection_reason_required": "Rejection reason is required when rejecting a specimen.",
+    "notes": "Notes",
+    "add_tube": "Add another {{type}} tube",
+    "confirm": "Confirm accessioning",
+    "unconfigured_tests": "{{count}} test(s) have no specimen configuration",
+    "flag": {
+      "isHemolyzed": "Hemolyzed",
+      "isLipemic": "Lipemic",
+      "isIcteric": "Icteric",
+      "isInsufficient": "Insufficient",
+      "isContaminated": "Contaminated",
+      "isWrongContainer": "Wrong container",
+      "isLeaking": "Leaking"
+    },
+    "block_reason": {
+      "MISSING_SPECIMEN": "Missing specimen",
+      "REJECTED_SPECIMEN": "Specimen rejected",
+      "INSUFFICIENT_VOLUME": "Insufficient volume",
+      "ANALYZER_UNAVAILABLE": "Analyzer unavailable",
+      "REAGENT_UNAVAILABLE": "Reagent unavailable",
+      "REQUIRES_RECOLLECTION": "Requires recollection",
+      "MISSING_RESULT_TEMPLATE": "No result template",
+      "OTHER": "Blocked"
+    }
+  },
   "result_entry": {
     "back": "← Back to order",
-    "entry_method": "Entry method",
-    "manual": "Manual",
-    "instrument": "Analyzer",
-    "imported": "Import file",
-    "start": "Start result entry",
-    "starting": "Starting...",
-    "in_progress_via": "Result entry in progress via",
-    "manual_label": "manual entry",
-    "in_progress_note": "Analyte values are entered directly in the result report. Once entry is complete, mark the test as completed.",
-    "report_hint": "To enter analyte values, use the Result Report section available in the order.",
-    "mark_complete": "Mark test as completed",
-    "saving": "Saving...",
-    "status_completed": "completed",
-    "status_cancelled": "cancelled",
-    "already_done": "This test was already {{status}}.",
-    "not_found": "Test not found."
+    "not_found": "Test not found.",
+    "save_draft": "Save draft",
+    "submit": "Submit results",
+    "saved": "Results saved.",
+    "submitted": "Results submitted.",
+    "update": "Update results",
+    "updated": "Results updated.",
+    "observations": "Observations",
+    "observations_placeholder": "Free-text notes (optional)"
   },
   "review": {
     "back": "← Back to order",
     "title": "Review & release — {{patient}}",
     "test_status": "Test status",
     "result_report": "Result report",
-    "already_released": "Report already released",
+    "already_released": "Released",
     "release_btn": "Release report to clinic",
-    "pending_warning": "Some tests are still pending. You can release the report anyway.",
-    "no_report": "No result report created for this order.",
-    "release_error": "Error releasing report:"
+    "pending_warning": "Some tests are still pending. You can release the available results anyway.",
+    "no_report": "No results entered yet.",
+    "release_error": "Error releasing report:",
+    "released_success": "Report released to clinic.",
+    "edit_results": "Edit",
+    "loading_results": "Loading results..."
   },
   "settings": {
     "title": "Laboratory settings",
@@ -222,7 +273,13 @@
     "signer_signature_hint": "Click to upload signature image",
     "add_signer": "Add signer",
     "remove_signer": "Remove",
-    "no_signers": "No signers configured yet. Add one to appear on report footers."
+    "no_signers": "No signers configured yet. Add one to appear on report footers.",
+    "catalog_setup": {
+      "title": "Catalog setup",
+      "subtitle": "Import the standard platform catalog as a starting point. This adds all standard tests and packages with platform codes. You can customize them afterwards in the Catalog page.",
+      "button": "Import Platform Catalog",
+      "importing": "Importing..."
+    }
   },
   "catalog": {
     "title": "Catalog",
@@ -300,6 +357,50 @@
       "update": "Couldn't update the catalog item.",
       "disable": "Couldn't disable the catalog item.",
       "enable": "Couldn't enable the catalog item."
+    },
+    "import_platform": {
+      "button": "Import Platform Catalog",
+      "importing": "Importing...",
+      "confirm_title": "Import platform catalog?",
+      "confirm_message": "This will add all standard platform tests and packages to your catalog using the platform codes (CBC, CA, CREA…). Any existing items with the same name but a different code will be disabled automatically so vets only see the correctly-coded versions.",
+      "confirm_button": "Import",
+      "success": "Imported: {{created}} new, {{updated}} updated, {{disabled}} old duplicates disabled ({{total}} platform items).",
+      "error": "Import failed."
+    },
+    "import_file": {
+      "button": "Import Catalog",
+      "importing": "Importing...",
+      "import_from_file": "Import catalog file",
+      "download_csv": "Download CSV template",
+      "download_json": "Download JSON template",
+      "format_hint": "CSV or JSON accepted. See documentation for format details.",
+      "invalid_json": "The file is not valid JSON.",
+      "invalid_csv": "CSV must have a header row and at least one data row.",
+      "csv_missing_headers": "CSV header must include at least \"kind\" and \"name\" columns.",
+      "missing_items": "The JSON file must have an \"items\" array at the top level.",
+      "empty_items": "The file contains no items.",
+      "invalid_item": "Item #{{index}} is not a valid object.",
+      "invalid_kind": "Item #{{index}} has an invalid \"kind\" — must be \"TEST\" or \"PACKAGE\".",
+      "missing_name": "Item #{{index}} is missing a \"name\".",
+      "confirm_title": "Import catalog items?",
+      "confirm_message": "This will import {{total}} items ({{tests}} tests, {{packages}} packages). Existing items with the same code or name will be updated.",
+      "confirm_button": "Import",
+      "success": "Imported: {{created}} new, {{updated}} updated.",
+      "error": "Import failed.",
+      "format_label": "Import format",
+      "format_title": "Accepted formats: CSV or JSON",
+      "format_columns": "Column / field reference",
+      "format_fields": [
+        "kind (required): \"TEST\" or \"PACKAGE\"",
+        "name (required): display name of the test or package",
+        "code (optional): unique lab code, used as upsert key",
+        "category (optional): e.g. \"Hematology\"",
+        "turnaroundHours (optional): positive integer",
+        "resultType (optional): \"NUMERIC\", \"TEXT\", or \"POSITIVE_NEGATIVE\"",
+        "unit (optional): e.g. \"mg/dL\"",
+        "description (optional): free text",
+        "componentCodes (optional, PACKAGE only): test codes in this package — semicolon-separated in CSV, array in JSON"
+      ]
     }
   },
   "clients": {
@@ -636,7 +737,20 @@
     "method": {
       "MANUAL": "Manual",
       "ANALYZER": "Analyzer"
-    }
+    },
+    "specimen_requirements": "Specimen Requirements",
+    "add_specimen_req": "Add Specimen Requirement",
+    "no_specimen_reqs": "No specimen requirements configured.",
+    "specimen_type": "Specimen Type",
+    "container_type": "Container Type",
+    "min_volume_ml": "Min Volume (mL)",
+    "generate": "Generate Configurations",
+    "generating": "Generating...",
+    "generate_confirm_title": "Generate configurations?",
+    "generate_confirm_message": "This will create default configurations (department + manual processing) for all active tests that don't have one yet. You can edit them individually afterwards.",
+    "generate_success": "Generated {{created}} configurations ({{skipped}} already configured).",
+    "generate_unmapped_warning": "{{count}} categories could not be mapped to a department and were assigned to \"Other\": {{categories}}",
+    "generate_nothing": "All active tests already have configurations."
   },
   "templates": {
     "title": "Result Templates",
@@ -653,11 +767,23 @@
     "new_draft": "New Draft",
     "search_placeholder": "Search templates...",
     "no_results": "No templates found.",
+    "new_template": "New Template",
+    "create_and_edit": "Create & Edit",
+    "form_title": "Template Title",
+    "form_title_placeholder": "e.g. Calcium — Canine Adult",
+    "form_code_placeholder": "e.g. CALCIO",
+    "form_code_hint": "Must match the catalog item code exactly.",
+    "species_label": "Species",
+    "customized_success": "Platform template cloned as a lab draft.",
     "confirm_publish": "Publish this template version? It will become the active version and the current published version will be archived.",
     "confirm_archive": "Archive this template version? It will no longer be used for new reports.",
     "confirm_customize": "Clone this platform template to create a lab-specific version?",
     "published_success": "Template version published successfully.",
     "archived_success": "Template version archived.",
+    "deleted_success": "Template deleted.",
+    "delete": "Delete template",
+    "confirm_delete": "Delete template?",
+    "confirm_delete_message": "This will permanently delete \"{{title}}\" and all its versions. This cannot be undone.",
     "customized_success": "Template cloned. You can now edit your lab-specific version.",
     "cloned_success": "Template cloned successfully.",
     "builder_title": "Template Builder",
@@ -697,5 +823,71 @@
     },
     "age_min": "Age min (wk)",
     "age_max": "Age max (wk)"
+  },
+  "worklist": {
+    "title": "Department Worklist",
+    "subtitle": "tests",
+    "empty": "No tests match this filter.",
+    "error": "Error loading worklist",
+    "search_placeholder": "Search by patient, accession, or test...",
+    "tab_all": "All departments",
+    "tab_no_department": "Unassigned dept.",
+    "filter": {
+      "ready": "Ready",
+      "in_progress": "In progress",
+      "all_statuses": "All statuses"
+    },
+    "assignment": {
+      "all": "All technicians",
+      "unassigned": "Unassigned",
+      "mine": "Assigned to me"
+    },
+    "card": {
+      "unassigned": "Unassigned",
+      "assigned_to": "Assigned to",
+      "method_manual": "Manual",
+      "method_analyzer": "Analyzer",
+      "waiting": "Waiting"
+    },
+    "actions": {
+      "claim": "Claim",
+      "claiming": "Claiming...",
+      "unclaim": "Release",
+      "unclaiming": "Releasing...",
+      "start": "Start",
+      "starting": "Starting...",
+      "reassign": "Reassign",
+      "enter_results": "Enter Results"
+    },
+    "success": {
+      "claimed": "Test claimed successfully.",
+      "unclaimed": "Test released successfully.",
+      "started": "Test started.",
+      "reassigned": "Test reassigned successfully."
+    },
+    "errors": {
+      "claim": "Could not claim test.",
+      "unclaim": "Could not release test.",
+      "start": "Could not start test.",
+      "reassign": "Could not reassign test.",
+      "conflict": "This test was modified by another user. The list has been refreshed."
+    },
+    "reassign_modal": {
+      "title": "Reassign Test",
+      "select_technician": "Select a technician",
+      "no_technicians": "No technicians available.",
+      "confirm": "Reassign",
+      "reassigning": "Reassigning..."
+    },
+    "department": {
+      "HEMATOLOGY": "Hematology",
+      "CHEMISTRY": "Chemistry",
+      "URINALYSIS": "Urinalysis",
+      "PARASITOLOGY": "Parasitology",
+      "SEROLOGY": "Serology",
+      "ENDOCRINOLOGY": "Endocrinology",
+      "MICROBIOLOGY": "Microbiology",
+      "OTHER": "Other"
+    }
   }
 }

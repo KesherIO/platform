@@ -24,6 +24,7 @@ import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
 import { PickupService } from './pickup.service';
+import { SpecimenService } from './specimen.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import { UpsertLaboratoryProfileDto } from './dto/upsert-laboratory-profile.dto';
@@ -41,6 +42,16 @@ import { CancelPickupDto } from './dto/cancel-pickup.dto';
 import { ReportPickupProblemDto } from './dto/report-pickup-problem.dto';
 import { SavePushSubscriptionDto } from './dto/save-push-subscription.dto';
 import { UpdateCollectionSettingsDto } from './dto/update-collection-settings.dto';
+import { AccessionOrderDto } from './dto/accession-order.dto';
+import { AssignTemplateDto } from './dto/assign-template.dto';
+import { ImportLabCatalogDto } from './dto/import-lab-catalog.dto';
+import { CatalogService } from '../catalog/catalog.service';
+import { ResultEntryService } from './result-entry.service';
+import { ResultsService } from '../results/results.service';
+import { WorklistService } from './worklist.service';
+import { ListWorklistDto } from './dto/list-worklist.dto';
+import { ClaimOrderedTestDto } from './dto/claim-ordered-test.dto';
+import { ReassignOrderedTestDto } from './dto/reassign-ordered-test.dto';
 
 @Controller('lab')
 export class LabController {
@@ -48,7 +59,12 @@ export class LabController {
     private readonly labService: LabService,
     private readonly labUsersService: LabUsersService,
     private readonly labClientsService: LabClientsService,
-    private readonly pickupService: PickupService
+    private readonly pickupService: PickupService,
+    private readonly specimenService: SpecimenService,
+    private readonly catalogService: CatalogService,
+    private readonly resultEntryService: ResultEntryService,
+    private readonly resultsService: ResultsService,
+    private readonly worklistService: WorklistService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -178,6 +194,159 @@ export class LabController {
     @Param('id') id: string
   ) {
     return this.labService.receiveAllOrderedTests(tenant.tenantId, id);
+  }
+
+  // GET /api/lab/orders/:id/expected-specimens
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('orders/:id/expected-specimens')
+  getExpectedSpecimens(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.specimenService.getExpectedSpecimens(id, tenant.tenantId);
+  }
+
+  // POST /api/lab/orders/:id/accession
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
+  @Post('orders/:id/accession')
+  @HttpCode(HttpStatus.OK)
+  accessionOrder(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: AccessionOrderDto
+  ) {
+    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.specimenService.accessionOrder(
+      id,
+      tenant.tenantId,
+      dto,
+      user.id,
+      actorName
+    );
+  }
+
+  // PATCH /api/lab/specimens/:specimenId
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
+  @Patch('specimens/:specimenId')
+  updateSpecimen(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('specimenId') specimenId: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.specimenService.updateSpecimen(
+      specimenId,
+      tenant.tenantId,
+      body as Parameters<typeof this.specimenService.updateSpecimen>[2],
+      user.id,
+      actorName
+    );
+  }
+
+  // POST /api/lab/ordered-tests/:testId/resolve-template
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('ordered-tests/:testId/resolve-template')
+  @HttpCode(HttpStatus.OK)
+  resolveTemplate(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('testId') testId: string
+  ) {
+    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.specimenService.resolveTemplateForBlockedTest(
+      testId,
+      tenant.tenantId,
+      user.id,
+      actorName
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('ordered-tests/:testId/assign-template')
+  @HttpCode(HttpStatus.OK)
+  assignTemplate(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('testId') testId: string,
+    @Body() dto: AssignTemplateDto
+  ) {
+    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.specimenService.assignTemplateToBlockedTest(
+      testId,
+      dto.templateVersionId,
+      tenant.tenantId,
+      user.id,
+      actorName
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Result entry — lab-facing, per ordered test
+  // ---------------------------------------------------------------------------
+
+  // GET /api/lab/ordered-tests/:testId/result-session
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('ordered-tests/:testId/result-session')
+  getResultSession(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('testId') testId: string,
+  ) {
+    return this.resultEntryService.getResultSession(testId, tenant.tenantId);
+  }
+
+  // PATCH /api/lab/ordered-tests/:testId/analytes
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Patch('ordered-tests/:testId/analytes')
+  @HttpCode(HttpStatus.OK)
+  saveAnalytes(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('testId') testId: string,
+    @Body() body: { analytes: Array<{ templateAnalyteId: string; numericValue?: number | null; textValue?: string | null; booleanValue?: boolean | null; selectValue?: string | null }>; observations?: string | null },
+  ) {
+    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.resultEntryService.saveAnalytes(testId, tenant.tenantId, body.analytes, body.observations, user.id, actorName);
+  }
+
+  // POST /api/lab/ordered-tests/:testId/submit-results
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Post('ordered-tests/:testId/submit-results')
+  @HttpCode(HttpStatus.OK)
+  submitResults(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('testId') testId: string,
+  ) {
+    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.resultEntryService.submitResults(testId, tenant.tenantId, user.id, actorName);
+  }
+
+  // POST /api/lab/reports/:reportId/release
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Post('reports/:reportId/release')
+  @HttpCode(HttpStatus.OK)
+  releaseReport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('reportId') reportId: string,
+  ) {
+    const processedByName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.resultsService.releaseReport(reportId, { processedByName });
   }
 
   // GET /api/lab/settings/laboratory
@@ -585,6 +754,131 @@ export class LabController {
       tenant.tenantId,
       id,
       dto
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Catalog — import platform catalog
+  // POST /api/lab/catalog/import-platform
+  // ---------------------------------------------------------------------------
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('catalog/import-platform')
+  importPlatformCatalog(@CurrentTenant() tenant: TenantContext) {
+    return this.catalogService.importPlatformCatalog(tenant.tenantId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Catalog — import from file (lab uploads their own catalog JSON)
+  // POST /api/lab/catalog/import
+  // ---------------------------------------------------------------------------
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('catalog/import')
+  @HttpCode(HttpStatus.OK)
+  importCatalog(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() body: ImportLabCatalogDto
+  ) {
+    return this.catalogService.import({
+      labTenantId: tenant.tenantId,
+      items: body.items,
+      replace: body.replace,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Worklist — department-based test queue
+  // ---------------------------------------------------------------------------
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('worklist/ready-count')
+  getWorklistReadyCount(@CurrentTenant() tenant: TenantContext) {
+    return this.worklistService.getReadyCount(tenant.tenantId);
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('worklist')
+  getWorklist(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListWorklistDto
+  ) {
+    return this.worklistService.getWorklist(tenant.tenantId, query, user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('worklist/counts')
+  getWorklistCounts(@CurrentTenant() tenant: TenantContext) {
+    return this.worklistService.getWorklistCounts(tenant.tenantId);
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('ordered-tests/:testId/claim')
+  @HttpCode(HttpStatus.OK)
+  claimTest(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('testId') testId: string,
+    @Body() dto: ClaimOrderedTestDto
+  ) {
+    return this.worklistService.claimTest(
+      tenant.tenantId,
+      testId,
+      user.id,
+      dto.version
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('ordered-tests/:testId/unclaim')
+  @HttpCode(HttpStatus.OK)
+  unclaimTest(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('testId') testId: string
+  ) {
+    return this.worklistService.unclaimTest(
+      tenant.tenantId,
+      testId,
+      user.id,
+      tenant.role
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('ordered-tests/:testId/start')
+  @HttpCode(HttpStatus.OK)
+  startTest(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('testId') testId: string
+  ) {
+    return this.worklistService.startTest(tenant.tenantId, testId, user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('ordered-tests/:testId/reassign')
+  @HttpCode(HttpStatus.OK)
+  reassignTest(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('testId') testId: string,
+    @Body() dto: ReassignOrderedTestDto
+  ) {
+    return this.worklistService.reassignTest(
+      tenant.tenantId,
+      testId,
+      dto.targetUserId,
+      dto.version
     );
   }
 }

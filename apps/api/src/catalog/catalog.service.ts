@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   Injectable,
   BadRequestException,
@@ -237,6 +239,55 @@ export class CatalogService {
     );
 
     return { created, updated };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Import platform catalog — lab-facing (called from lab portal by ADMIN/OWNER)
+  // Reads the platform's catalog.json and upserts into the lab's own catalog.
+  // ---------------------------------------------------------------------------
+
+  async importPlatformCatalog(
+    labTenantId: string
+  ): Promise<{ created: number; updated: number; disabled: number; total: number }> {
+    const catalogPath = join(
+      process.cwd(),
+      'apps/api/prisma/seeds/catalog.json'
+    );
+    const raw = JSON.parse(readFileSync(catalogPath, 'utf-8'));
+    const result = await this.import({
+      labTenantId,
+      items: raw.items,
+      replace: false,
+    });
+
+    // After importing, disable any existing items that share a name with a
+    // platform item but have a different code — these are old duplicates the
+    // lab created before adopting platform codes. Disabling them stops vets
+    // from ordering with the old codes going forward.
+    const platformByName = new Map<string, string>(
+      (raw.items as { name: string; code?: string }[])
+        .filter((i) => i.code)
+        .map((i) => [i.name.toLowerCase(), i.code!])
+    );
+
+    const oldItems = await this.prisma.catalogItem.findMany({
+      where: { labTenantId, active: true },
+      select: { id: true, name: true, code: true },
+    });
+
+    const toDisable = oldItems.filter((item) => {
+      const platformCode = platformByName.get(item.name.toLowerCase());
+      return platformCode && item.code !== platformCode;
+    });
+
+    if (toDisable.length > 0) {
+      await this.prisma.catalogItem.updateMany({
+        where: { id: { in: toDisable.map((i) => i.id) } },
+        data: { active: false },
+      });
+    }
+
+    return { ...result, disabled: toDisable.length, total: raw.items.length };
   }
 
   // ---------------------------------------------------------------------------

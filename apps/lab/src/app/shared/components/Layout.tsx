@@ -14,7 +14,9 @@ import {
   Cpu,
   Wrench,
   FileText,
+  Microscope,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../api/labApi';
 
@@ -35,55 +37,36 @@ export function Layout() {
   } = useAuth();
   const { t } = useTranslation();
   const location = useLocation();
-  const [unassignedCount, setUnassignedCount] = useState(0);
-  const [unacceptedCount, setUnacceptedCount] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const isMessenger = labRole === 'MESSENGER';
 
-  useEffect(() => {
-    if (isMessenger) return; // messengers don't see the Collections queue
+  const { data: unassignedData } = useQuery({
+    queryKey: ['unassigned-count'],
+    queryFn: () => labApi.pickups.unassignedCount(),
+    refetchInterval: POLL_MS,
+    enabled: !isMessenger,
+  });
+  const unassignedCount = unassignedData?.count ?? 0;
 
-    let ignore = false;
-    const poll = () => {
-      labApi.pickups
-        .unassignedCount()
-        .then((res) => {
-          if (!ignore) setUnassignedCount(res.count);
-        })
-        .catch(() => undefined);
-    };
-    poll();
-    const interval = setInterval(poll, POLL_MS);
-    return () => {
-      ignore = true;
-      clearInterval(interval);
-    };
-  }, [isMessenger]);
+  const onWorklistPage = location.pathname === '/worklist';
 
-  useEffect(() => {
-    if (!canPerformPickups) return;
+  const { data: readyCountData } = useQuery({
+    queryKey: ['worklist-ready-count'],
+    queryFn: () => labApi.worklist.readyCount(),
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
+    enabled: !isMessenger && !onWorklistPage,
+  });
+  const worklistReadyCount = readyCountData?.count ?? 0;
 
-    let ignore = false;
-    const poll = () => {
-      labApi.pickups
-        .myPickups()
-        .then((pickups) => {
-          if (!ignore) {
-            setUnacceptedCount(
-              pickups.filter((p) => p.status === 'NOTIFIED').length
-            );
-          }
-        })
-        .catch(() => undefined);
-    };
-    poll();
-    const interval = setInterval(poll, POLL_MS);
-    return () => {
-      ignore = true;
-      clearInterval(interval);
-    };
-  }, [canPerformPickups]);
+  const { data: myPickups = [] } = useQuery({
+    queryKey: ['my-pickups', { status: undefined }],
+    queryFn: () => labApi.pickups.myPickups(),
+    refetchInterval: POLL_MS,
+    enabled: canPerformPickups,
+  });
+  const unacceptedCount = myPickups.filter((p) => p.status === 'NOTIFIED').length;
 
   // Close the mobile drawer whenever the route changes (e.g. after tapping a
   // nav link) rather than leaving it open over the newly-loaded page.
@@ -111,6 +94,12 @@ export function Layout() {
           to: '/orders',
           label: t('nav.orders_queue'),
           icon: ClipboardList,
+        },
+        {
+          to: '/worklist',
+          label: t('nav.worklist'),
+          icon: Microscope,
+          badge: worklistReadyCount > 0 ? worklistReadyCount : undefined,
         },
         // Catalog management is admin-only server-side (LabTenantGuard +
         // @Roles(ADMIN) on every /catalog admin route) — hide the tab entirely

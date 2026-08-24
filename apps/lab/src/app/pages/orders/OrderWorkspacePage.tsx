@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
+import { Skeleton } from '../../shared/components/Skeleton';
+import { AccessionDialog } from './AccessionDialog';
+import { useToast } from '../../shared/components/ToastProvider';
 import type { OrderedTest } from '../../types/lab.types';
 
 const TECHNICAL_EVENT_TYPES = new Set([
@@ -21,7 +24,7 @@ function formatTimestamp(iso: string): string {
   });
 }
 
-const STATUS_TRANSITIONS: Record<string, { labelKey: string; next: string }[]> =
+const STATUS_TRANSITIONS: Record<string, { labelKey: string; next: string; variant?: 'danger' }[]> =
   {
     PENDING: [],
     READY_FOR_PICKUP: [],
@@ -30,7 +33,7 @@ const STATUS_TRANSITIONS: Record<string, { labelKey: string; next: string }[]> =
       { labelKey: 'orders.actions.start_processing', next: 'PROCESSING' },
     ],
     PROCESSING: [
-      { labelKey: 'orders.actions.mark_completed', next: 'COMPLETED' },
+      { labelKey: 'orders.actions.cancel_order', next: 'CANCELLED', variant: 'danger' },
     ],
     COMPLETED: [],
     CANCELLED: [],
@@ -109,10 +112,15 @@ export function OrderWorkspacePage() {
   const { orderId } = useParams<{ orderId: string }>();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [transitioning, setTransitioning] = useState(false);
-  const [receivingTestId, setReceivingTestId] = useState<string | null>(null);
-  const [receivingAll, setReceivingAll] = useState(false);
+  const [retryingTestId, setRetryingTestId] = useState<string | null>(null);
+  const [pickingTemplateForTestId, setPickingTemplateForTestId] = useState<string | null>(null);
+  const [availableTemplates, setAvailableTemplates] = useState<{ versionId: string; label: string }[]>([]);
+  const [assigningTemplate, setAssigningTemplate] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState('');
   const [confirmingReceived, setConfirmingReceived] = useState(false);
+  const [showAccessionDialog, setShowAccessionDialog] = useState(false);
 
   const {
     data: order,
@@ -138,6 +146,7 @@ export function OrderWorkspacePage() {
   const invalidateOrder = () => {
     queryClient.invalidateQueries({ queryKey: ['order', orderId] });
     queryClient.invalidateQueries({ queryKey: ['timeline', orderId] });
+    queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
   };
 
   const confirmPickupReceived = async () => {
@@ -146,6 +155,7 @@ export function OrderWorkspacePage() {
     try {
       await labApi.pickups.received(order.pickup.id);
       invalidateOrder();
+      setShowAccessionDialog(true);
     } finally {
       setConfirmingReceived(false);
     }
@@ -157,24 +167,47 @@ export function OrderWorkspacePage() {
     invalidateOrder();
   };
 
-  const receiveTest = async (testId: string) => {
-    setReceivingTestId(testId);
+  const retryTemplate = async (testId: string) => {
+    setRetryingTestId(testId);
     try {
-      await labApi.orderedTests.receive(testId);
-      invalidateOrder();
+      const result = await labApi.specimens.resolveTemplate(testId);
+      if (result.resolved) {
+        toast.success(t('workspace.template_resolved'));
+        invalidateOrder();
+      } else {
+        toast.error(t('workspace.template_still_missing'));
+      }
+    } catch (err) {
+      toast.error((err as Error).message);
     } finally {
-      setReceivingTestId(null);
+      setRetryingTestId(null);
     }
   };
 
-  const receiveAll = async () => {
-    if (!orderId) return;
-    setReceivingAll(true);
+  const openTemplatePicker = async (testId: string) => {
+    const defs = await labApi.templates.list();
+    const options = defs
+      .filter((d) => d.activeVersion)
+      .map((d) => ({
+        versionId: d.activeVersion!.id,
+        label: `${d.activeVersion!.title} (${d.catalogItemCode} · ${d.species})`,
+      }));
+    setAvailableTemplates(options);
+    setPickingTemplateForTestId(testId);
+  };
+
+  const confirmAssignTemplate = async (versionId: string) => {
+    if (!pickingTemplateForTestId) return;
+    setAssigningTemplate(true);
     try {
-      await labApi.orders.receiveAll(orderId);
+      await labApi.specimens.assignTemplate(pickingTemplateForTestId, versionId);
+      toast.success(t('workspace.template_resolved'));
+      setPickingTemplateForTestId(null);
       invalidateOrder();
+    } catch (err) {
+      toast.error((err as Error).message);
     } finally {
-      setReceivingAll(false);
+      setAssigningTemplate(false);
     }
   };
 
@@ -196,8 +229,37 @@ export function OrderWorkspacePage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-4 border-cyan border-t-transparent" />
+      <div className="p-6">
+        <Skeleton className="mb-6 h-4 w-24" />
+        <div className="mb-6 flex items-start justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-36" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-7 w-24 rounded-full" />
+            <Skeleton className="h-9 w-36" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-6">
+          <div className="col-span-1 space-y-4">
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-36 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+          </div>
+          <div className="col-span-2">
+            <div className="mb-3 flex items-center justify-between">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-9 w-36" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-16 rounded-xl" />
+              <Skeleton className="h-16 rounded-xl" />
+              <Skeleton className="h-16 rounded-xl" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -210,60 +272,96 @@ export function OrderWorkspacePage() {
     );
   }
 
-  const transitions = STATUS_TRANSITIONS[order.status] ?? [];
   const hasTests = order.orderedTests.length > 0;
+  const anyTestsPending = order.orderedTests.some((t) => t.status === 'PENDING');
+  const hasReadyTests = order.orderedTests.some((t) => t.status === 'READY');
   const c = order.case;
-  const isPreReceived = ['PENDING', 'READY_FOR_PICKUP', 'COLLECTED'].includes(
-    order.status
-  );
-  const unreceived = order.orderedTests.filter((t) => !t.receivedAt);
-  const hasUnreceived = unreceived.length > 0;
+
+  const transitions = (() => {
+    const base = STATUS_TRANSITIONS[order.status] ?? [];
+    if (base.length > 0) return base;
+    if (order.status === 'PENDING' && hasReadyTests) {
+      return STATUS_TRANSITIONS['RECEIVED_BY_LAB'];
+    }
+    return base;
+  })();
 
   const renderTestActions = (test: OrderedTest) => (
     <>
-      {test.receivedAt ? (
+      {test.status === 'BLOCKED' ? (
+        <div className="flex items-center gap-2">
+          <span className="max-w-[200px] text-right text-xs text-red-400">
+            {t(`accession.block_reason.${test.blockReason ?? 'OTHER'}`, {
+              defaultValue: test.blockReasonDetail ?? test.blockReason ?? 'Blocked',
+            })}
+          </span>
+          {test.blockReason === 'MISSING_RESULT_TEMPLATE' && (
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => retryTemplate(test.id)}
+                disabled={retryingTestId === test.id}
+                className="rounded-lg border border-gray-700 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+              >
+                {retryingTestId === test.id ? '...' : t('workspace.retry_template')}
+              </button>
+              <button
+                onClick={() => openTemplatePicker(test.id)}
+                className="rounded-lg border border-gray-700 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-800"
+              >
+                {t('workspace.pick_template')}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : test.status === 'RESULTS_ENTERED' || test.status === 'IN_REVIEW' ? (
+        <span className="flex items-center gap-1.5 text-xs text-purple-400">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {t('workspace.results_entered')}
+        </span>
+      ) : test.status === 'IN_PROGRESS' ? (
+        <span className="flex items-center gap-1.5 text-xs text-orange-400">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {t('workspace.entering_results')}
+        </span>
+      ) : test.status === 'READY' ? (
         <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-          <svg
-            className="h-3.5 w-3.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 13l4 4L19 7"
-            />
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {t('workspace.sample_received')}
+        </span>
+      ) : test.receivedAt ? (
+        <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
           {t('workspace.sample_received')} · {formatTimestamp(test.receivedAt)}
         </span>
-      ) : isPreReceived ? (
-        <button
-          onClick={() => receiveTest(test.id)}
-          disabled={receivingTestId === test.id || receivingAll}
-          className="rounded-lg border border-cyan/50 px-3 py-1.5 text-xs text-cyan hover:bg-cyan/10 disabled:opacity-50"
-        >
-          {receivingTestId === test.id
-            ? '...'
-            : t('orders.actions.mark_received_single')}
-        </button>
       ) : (
-        <span className="text-xs text-yellow-500">
-          {t('workspace.sample_pending')}
-        </span>
+        <span className="text-xs text-yellow-500">{t('workspace.sample_pending')}</span>
       )}
-      <StatusBadge status={test.status} size="sm" />
-      {test.receivedAt &&
-        test.status !== 'COMPLETED' &&
-        test.status !== 'CANCELLED' && (
-          <Link
-            to={`/orders/${order.id}/tests/${test.id}/results`}
-            className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
-          >
-            {t('workspace.enter_results')}
-          </Link>
-        )}
+      {test.status === 'READY' && <StatusBadge status={test.status} size="sm" />}
+      {(test.status === 'IN_PROGRESS' ||
+        (test.status === 'READY' && order.status === 'PROCESSING')) && (
+        <Link
+          to={`/orders/${order.id}/tests/${test.id}/results`}
+          className="rounded-lg bg-cyan px-3 py-1.5 text-xs font-semibold text-gray-950 hover:opacity-90"
+        >
+          {t('workspace.enter_results')}
+        </Link>
+      )}
+      {(test.status === 'RESULTS_ENTERED' || test.status === 'COMPLETED') && (
+        <Link
+          to={`/orders/${order.id}/tests/${test.id}/results`}
+          className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700"
+        >
+          {t('workspace.view_results')}
+        </Link>
+      )}
     </>
   );
 
@@ -297,14 +395,18 @@ export function OrderWorkspacePage() {
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
           {transitions.map((tr) => (
-            <button
-              key={tr.next}
-              onClick={() => transition(tr.next)}
-              disabled={transitioning}
-              className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
-            >
-              {t(tr.labelKey)}
-            </button>
+              <button
+                key={tr.next}
+                onClick={() => transition(tr.next)}
+                disabled={transitioning}
+                className={
+                  tr.variant === 'danger'
+                    ? 'rounded-lg border border-red-800 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-900/30 disabled:opacity-40'
+                    : 'rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-40'
+                }
+              >
+                {t(tr.labelKey)}
+              </button>
           ))}
         </div>
       </div>
@@ -409,7 +511,7 @@ export function OrderWorkspacePage() {
                 {formatTimestamp(order.createdAt)}
               </p>
             ) : (
-              <div className="space-y-2.5">
+              <div className="max-h-64 space-y-2.5 overflow-y-auto">
                 {timeline.map((event) => {
                   const technical = TECHNICAL_EVENT_TYPES.has(event.eventType);
                   const rawReason = (event.metadata as { reason?: string })
@@ -487,13 +589,12 @@ export function OrderWorkspacePage() {
               {t('workspace.ordered_tests')}
             </h2>
             <div className="flex items-center gap-2">
-              {isPreReceived && hasTests && hasUnreceived && (
+              {hasTests && order.pickup?.status !== 'IN_TRANSIT' && anyTestsPending && (
                 <button
-                  onClick={receiveAll}
-                  disabled={receivingAll}
-                  className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
+                  onClick={() => setShowAccessionDialog(true)}
+                  className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
                 >
-                  {receivingAll ? '...' : t('orders.actions.mark_all_received')}
+                  {t('accession.button')}
                 </button>
               )}
               {!hasTests && order.status !== 'PENDING' && (
@@ -507,9 +608,15 @@ export function OrderWorkspacePage() {
               {hasTests && order.resultReport && (
                 <Link
                   to={`/orders/${order.id}/review`}
-                  className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                  className={
+                    order.resultReport.status === 'RELEASED'
+                      ? 'rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800'
+                      : 'rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90'
+                  }
                 >
-                  {t('workspace.review_release')}
+                  {order.resultReport.status === 'RELEASED'
+                    ? t('workspace.view_report')
+                    : t('workspace.review_release')}
                 </Link>
               )}
             </div>
@@ -613,6 +720,78 @@ export function OrderWorkspacePage() {
           </div>
         </div>
       </div>
+
+      {showAccessionDialog && orderId && (
+        <AccessionDialog
+          orderId={orderId}
+          requisitionNumber={order.requisitionNumber}
+          onClose={() => setShowAccessionDialog(false)}
+          onSuccess={() => {
+            setShowAccessionDialog(false);
+            invalidateOrder();
+          }}
+        />
+      )}
+
+      {pickingTemplateForTestId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-950 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
+              <h2 className="text-base font-semibold text-white">
+                {t('workspace.pick_template')}
+              </h2>
+              <button
+                onClick={() => { setPickingTemplateForTestId(null); setTemplateSearch(''); }}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-6 pt-4 pb-2">
+              <input
+                type="text"
+                value={templateSearch}
+                onChange={(e) => setTemplateSearch(e.target.value)}
+                placeholder={t('workspace.search_templates')}
+                autoFocus
+                className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-cyan/50"
+              />
+            </div>
+            <div className="max-h-72 overflow-y-auto px-6 py-2">
+              {availableTemplates.length === 0 ? (
+                <p className="text-sm text-gray-400">
+                  {t('workspace.no_published_templates')}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {availableTemplates
+                    .filter((tpl) => tpl.label.toLowerCase().includes(templateSearch.toLowerCase()))
+                    .map((tpl) => (
+                    <button
+                      key={tpl.versionId}
+                      disabled={assigningTemplate}
+                      onClick={() => confirmAssignTemplate(tpl.versionId)}
+                      className="w-full rounded-lg border border-gray-800 bg-gray-900 px-4 py-3 text-left text-sm text-white hover:border-cyan/50 hover:bg-gray-800 disabled:opacity-50"
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="border-t border-gray-800 px-6 py-4">
+              <p className="text-xs text-gray-500">
+                {t('workspace.pick_template_hint')}
+              </p>
+              <p className="mt-2 text-xs text-yellow-400/80">
+                {t('workspace.pick_template_species_hint', {
+                  species: t(`species.${c.patientSpecies}`, { defaultValue: c.patientSpecies }),
+                })}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
