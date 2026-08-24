@@ -1,15 +1,24 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TemplateVersionService } from '../results/template-version.service';
 import { PatientSpecies, AgeUnit } from '@prisma/client';
 
 function ageToWeeks(age: number, unit: AgeUnit): number {
   switch (unit) {
-    case AgeUnit.DAYS:    return age / 7;
-    case AgeUnit.WEEKS:   return age;
-    case AgeUnit.MONTHS:  return age * 4.33;
-    case AgeUnit.YEARS:   return age * 52;
-    default:              return age * 52;
+    case AgeUnit.DAYS:
+      return age / 7;
+    case AgeUnit.WEEKS:
+      return age;
+    case AgeUnit.MONTHS:
+      return age * 4.33;
+    case AgeUnit.YEARS:
+      return age * 52;
+    default:
+      return age * 52;
   }
 }
 
@@ -17,7 +26,7 @@ function ageToWeeks(age: number, unit: AgeUnit): number {
 export class ResultEntryService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly templateVersionService: TemplateVersionService,
+    private readonly templateVersionService: TemplateVersionService
   ) {}
 
   // GET /lab/ordered-tests/:testId/result-session
@@ -33,8 +42,16 @@ export class ResultEntryService {
         order: {
           select: {
             id: true,
-            case: { select: { patientSpecies: true, patientAge: true, patientAgeUnit: true } },
-            resultReport: { select: { id: true, status: true, observations: true } },
+            case: {
+              select: {
+                patientSpecies: true,
+                patientAge: true,
+                patientAgeUnit: true,
+              },
+            },
+            resultReport: {
+              select: { id: true, status: true, observations: true },
+            },
           },
         },
       },
@@ -45,18 +62,23 @@ export class ResultEntryService {
     const species = test.order.case.patientSpecies as PatientSpecies;
     const ageWeeks =
       test.order.case.patientAge && test.order.case.patientAgeUnit
-        ? ageToWeeks(test.order.case.patientAge, test.order.case.patientAgeUnit as AgeUnit)
+        ? ageToWeeks(
+            test.order.case.patientAge,
+            test.order.case.patientAgeUnit as AgeUnit
+          )
         : null;
 
     const templateDef = await this.templateVersionService.resolveTemplate(
       test.catalogItemCode ?? '',
       labTenantId,
       species,
-      ageWeeks,
+      ageWeeks
     );
 
     if (!templateDef?.activeVersion) {
-      throw new NotFoundException('No active result template found for this test.');
+      throw new NotFoundException(
+        'No active result template found for this test.'
+      );
     }
 
     const version = templateDef.activeVersion;
@@ -64,7 +86,10 @@ export class ResultEntryService {
     // Get saved analyte values for this test (if any)
     const savedAnalytes = test.order.resultReport
       ? await this.prisma.resultReportAnalyte.findMany({
-          where: { reportId: test.order.resultReport.id, orderedTestId: testId },
+          where: {
+            reportId: test.order.resultReport.id,
+            orderedTestId: testId,
+          },
           select: {
             id: true,
             templateAnalyteId: true,
@@ -76,10 +101,15 @@ export class ResultEntryService {
         })
       : [];
 
-    const savedByTemplateId = new Map(savedAnalytes.map((a) => [a.templateAnalyteId, a]));
+    const savedByTemplateId = new Map(
+      savedAnalytes.map((a) => [a.templateAnalyteId, a])
+    );
 
     // Build sections with analytes merged with existing values
-    const sectionMap = new Map<string | null, { id: string | null; name: string | null; analytes: unknown[] }>();
+    const sectionMap = new Map<
+      string | null,
+      { id: string | null; name: string | null; analytes: unknown[] }
+    >();
     sectionMap.set(null, { id: null, name: null, analytes: [] });
     for (const s of version.sections) {
       sectionMap.set(s.id, { id: s.id, name: s.name, analytes: [] });
@@ -105,11 +135,14 @@ export class ResultEntryService {
         booleanValue: saved?.booleanValue ?? null,
         selectValue: saved?.selectValue ?? null,
       };
-      const section = sectionMap.get(analyte.sectionId ?? null) ?? sectionMap.get(null)!;
+      const section =
+        sectionMap.get(analyte.sectionId ?? null) ?? sectionMap.get(null)!;
       section.analytes.push(entry);
     }
 
-    const sections = Array.from(sectionMap.values()).filter((s) => s.analytes.length > 0);
+    const sections = Array.from(sectionMap.values()).filter(
+      (s) => s.analytes.length > 0
+    );
 
     return {
       test: {
@@ -123,7 +156,10 @@ export class ResultEntryService {
         defaultObservations: version.defaultObservations ?? null,
       },
       report: test.order.resultReport
-        ? { id: test.order.resultReport.id, observations: test.order.resultReport.observations }
+        ? {
+            id: test.order.resultReport.id,
+            observations: test.order.resultReport.observations,
+          }
         : null,
       sections,
     };
@@ -134,10 +170,16 @@ export class ResultEntryService {
   async saveAnalytes(
     testId: string,
     labTenantId: string,
-    analytes: Array<{ templateAnalyteId: string; numericValue?: number | null; textValue?: string | null; booleanValue?: boolean | null; selectValue?: string | null }>,
+    analytes: Array<{
+      templateAnalyteId: string;
+      numericValue?: number | null;
+      textValue?: string | null;
+      booleanValue?: boolean | null;
+      selectValue?: string | null;
+    }>,
     observations?: string | null,
     actorId?: string,
-    actorName?: string,
+    actorName?: string
   ) {
     const test = await this.prisma.orderedTest.findFirst({
       where: { id: testId, order: { labTenantId } },
@@ -152,7 +194,13 @@ export class ResultEntryService {
             caseId: true,
             tenantId: true,
             resultReport: { select: { id: true } },
-            case: { select: { patientSpecies: true, patientAge: true, patientAgeUnit: true } },
+            case: {
+              select: {
+                patientSpecies: true,
+                patientAge: true,
+                patientAgeUnit: true,
+              },
+            },
           },
         },
       },
@@ -163,23 +211,30 @@ export class ResultEntryService {
     const species = test.order.case.patientSpecies as PatientSpecies;
     const ageWeeks =
       test.order.case.patientAge && test.order.case.patientAgeUnit
-        ? ageToWeeks(test.order.case.patientAge, test.order.case.patientAgeUnit as AgeUnit)
+        ? ageToWeeks(
+            test.order.case.patientAge,
+            test.order.case.patientAgeUnit as AgeUnit
+          )
         : null;
 
     const templateDef = await this.templateVersionService.resolveTemplate(
       test.catalogItemCode ?? '',
       labTenantId,
       species,
-      ageWeeks,
+      ageWeeks
     );
 
     if (!templateDef?.activeVersion) {
-      throw new NotFoundException('No active result template found for this test.');
+      throw new NotFoundException(
+        'No active result template found for this test.'
+      );
     }
 
     const version = templateDef.activeVersion;
     const analyteById = new Map(version.analytes.map((a) => [a.id, a]));
-    const sectionNameById = new Map(version.sections.map((s) => [s.id, s.name]));
+    const sectionNameById = new Map(
+      version.sections.map((s) => [s.id, s.name])
+    );
 
     // Get or create the result report for this order
     let reportId = test.order.resultReport?.id;
@@ -211,7 +266,11 @@ export class ResultEntryService {
       if (!templateAnalyte || templateAnalyte.isHeader) continue;
 
       const existing = await this.prisma.resultReportAnalyte.findFirst({
-        where: { reportId, templateAnalyteId: input.templateAnalyteId, orderedTestId: testId },
+        where: {
+          reportId,
+          templateAnalyteId: input.templateAnalyteId,
+          orderedTestId: testId,
+        },
         select: { id: true },
       });
 
@@ -223,7 +282,10 @@ export class ResultEntryService {
       };
 
       if (existing) {
-        await this.prisma.resultReportAnalyte.update({ where: { id: existing.id }, data });
+        await this.prisma.resultReportAnalyte.update({
+          where: { id: existing.id },
+          data,
+        });
       } else {
         await this.prisma.resultReportAnalyte.create({
           data: {
@@ -236,7 +298,7 @@ export class ResultEntryService {
             unit: templateAnalyte.unit ?? null,
             valueType: templateAnalyte.valueType,
             sectionName: templateAnalyte.sectionId
-              ? (sectionNameById.get(templateAnalyte.sectionId) ?? null)
+              ? sectionNameById.get(templateAnalyte.sectionId) ?? null
               : null,
             sortOrder: templateAnalyte.sortOrder,
             isHeader: templateAnalyte.isHeader,
@@ -251,7 +313,11 @@ export class ResultEntryService {
     if (test.status === 'READY') {
       await this.prisma.orderedTest.update({
         where: { id: testId },
-        data: { status: 'IN_PROGRESS', startedAt: new Date(), version: { increment: 1 } },
+        data: {
+          status: 'IN_PROGRESS',
+          startedAt: new Date(),
+          version: { increment: 1 },
+        },
       });
       if (actorId && actorName) {
         await this.prisma.timelineEvent.create({
@@ -276,22 +342,33 @@ export class ResultEntryService {
     testId: string,
     labTenantId: string,
     actorId: string,
-    actorName: string,
+    actorName: string
   ) {
     const test = await this.prisma.orderedTest.findFirst({
       where: { id: testId, order: { labTenantId } },
-      select: { id: true, catalogItemName: true, status: true, order: { select: { id: true } } },
+      select: {
+        id: true,
+        catalogItemName: true,
+        status: true,
+        order: { select: { id: true } },
+      },
     });
 
     if (!test) throw new NotFoundException('Ordered test not found.');
 
     if (!['READY', 'IN_PROGRESS'].includes(test.status)) {
-      throw new ForbiddenException(`Cannot submit results for a test in status ${test.status}.`);
+      throw new ForbiddenException(
+        `Cannot submit results for a test in status ${test.status}.`
+      );
     }
 
     await this.prisma.orderedTest.update({
       where: { id: testId },
-      data: { status: 'RESULTS_ENTERED', completedAt: new Date(), version: { increment: 1 } },
+      data: {
+        status: 'RESULTS_ENTERED',
+        completedAt: new Date(),
+        version: { increment: 1 },
+      },
     });
 
     await this.prisma.timelineEvent.create({

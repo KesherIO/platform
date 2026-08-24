@@ -24,20 +24,26 @@ function formatTimestamp(iso: string): string {
   });
 }
 
-const STATUS_TRANSITIONS: Record<string, { labelKey: string; next: string; variant?: 'danger' }[]> =
-  {
-    PENDING: [],
-    READY_FOR_PICKUP: [],
-    COLLECTED: [],
-    RECEIVED_BY_LAB: [
-      { labelKey: 'orders.actions.start_processing', next: 'PROCESSING' },
-    ],
-    PROCESSING: [
-      { labelKey: 'orders.actions.cancel_order', next: 'CANCELLED', variant: 'danger' },
-    ],
-    COMPLETED: [],
-    CANCELLED: [],
-  };
+const STATUS_TRANSITIONS: Record<
+  string,
+  { labelKey: string; next: string; variant?: 'danger' }[]
+> = {
+  PENDING: [],
+  READY_FOR_PICKUP: [],
+  COLLECTED: [],
+  RECEIVED_BY_LAB: [
+    { labelKey: 'orders.actions.start_processing', next: 'PROCESSING' },
+  ],
+  PROCESSING: [
+    {
+      labelKey: 'orders.actions.cancel_order',
+      next: 'CANCELLED',
+      variant: 'danger',
+    },
+  ],
+  COMPLETED: [],
+  CANCELLED: [],
+};
 
 type TestGroup =
   | { kind: 'standalone'; test: OrderedTest }
@@ -115,8 +121,12 @@ export function OrderWorkspacePage() {
   const toast = useToast();
   const [transitioning, setTransitioning] = useState(false);
   const [retryingTestId, setRetryingTestId] = useState<string | null>(null);
-  const [pickingTemplateForTestId, setPickingTemplateForTestId] = useState<string | null>(null);
-  const [availableTemplates, setAvailableTemplates] = useState<{ versionId: string; label: string }[]>([]);
+  const [pickingTemplateForTestId, setPickingTemplateForTestId] = useState<
+    string | null
+  >(null);
+  const [availableTemplates, setAvailableTemplates] = useState<
+    { versionId: string; label: string }[]
+  >([]);
   const [assigningTemplate, setAssigningTemplate] = useState(false);
   const [templateSearch, setTemplateSearch] = useState('');
   const [confirmingReceived, setConfirmingReceived] = useState(false);
@@ -190,7 +200,9 @@ export function OrderWorkspacePage() {
       .filter((d) => d.activeVersion)
       .map((d) => ({
         versionId: d.activeVersion!.id,
-        label: `${d.activeVersion!.title} (${d.catalogItemCode} · ${d.species})`,
+        label: `${d.activeVersion!.title} (${d.catalogItemCode} · ${
+          d.species
+        })`,
       }));
     setAvailableTemplates(options);
     setPickingTemplateForTestId(testId);
@@ -200,7 +212,10 @@ export function OrderWorkspacePage() {
     if (!pickingTemplateForTestId) return;
     setAssigningTemplate(true);
     try {
-      await labApi.specimens.assignTemplate(pickingTemplateForTestId, versionId);
+      await labApi.specimens.assignTemplate(
+        pickingTemplateForTestId,
+        versionId
+      );
       toast.success(t('workspace.template_resolved'));
       setPickingTemplateForTestId(null);
       invalidateOrder();
@@ -273,7 +288,9 @@ export function OrderWorkspacePage() {
   }
 
   const hasTests = order.orderedTests.length > 0;
-  const anyTestsPending = order.orderedTests.some((t) => t.status === 'PENDING');
+  const anyTestsPending = order.orderedTests.some(
+    (t) => t.status === 'PENDING'
+  );
   const hasReadyTests = order.orderedTests.some((t) => t.status === 'READY');
   const c = order.case;
 
@@ -292,7 +309,8 @@ export function OrderWorkspacePage() {
         <div className="flex items-center gap-2">
           <span className="max-w-[200px] text-right text-xs text-red-400">
             {t(`accession.block_reason.${test.blockReason ?? 'OTHER'}`, {
-              defaultValue: test.blockReasonDetail ?? test.blockReason ?? 'Blocked',
+              defaultValue:
+                test.blockReasonDetail ?? test.blockReason ?? 'Blocked',
             })}
           </span>
           {test.blockReason === 'MISSING_RESULT_TEMPLATE' && (
@@ -302,7 +320,9 @@ export function OrderWorkspacePage() {
                 disabled={retryingTestId === test.id}
                 className="rounded-lg border border-gray-700 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-800 disabled:opacity-50"
               >
-                {retryingTestId === test.id ? '...' : t('workspace.retry_template')}
+                {retryingTestId === test.id
+                  ? '...'
+                  : t('workspace.retry_template')}
               </button>
               <button
                 onClick={() => openTemplatePicker(test.id)}
@@ -315,36 +335,80 @@ export function OrderWorkspacePage() {
         </div>
       ) : test.status === 'RESULTS_ENTERED' || test.status === 'IN_REVIEW' ? (
         <span className="flex items-center gap-1.5 text-xs text-purple-400">
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 13l4 4L19 7"
+            />
           </svg>
           {t('workspace.results_entered')}
         </span>
       ) : test.status === 'IN_PROGRESS' ? (
         <span className="flex items-center gap-1.5 text-xs text-orange-400">
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 13l4 4L19 7"
+            />
           </svg>
           {t('workspace.entering_results')}
         </span>
       ) : test.status === 'READY' ? (
         <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 13l4 4L19 7"
+            />
           </svg>
           {t('workspace.sample_received')}
         </span>
       ) : test.receivedAt ? (
         <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          <svg
+            className="h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 13l4 4L19 7"
+            />
           </svg>
           {t('workspace.sample_received')} · {formatTimestamp(test.receivedAt)}
         </span>
       ) : (
-        <span className="text-xs text-yellow-500">{t('workspace.sample_pending')}</span>
+        <span className="text-xs text-yellow-500">
+          {t('workspace.sample_pending')}
+        </span>
       )}
-      {test.status === 'READY' && <StatusBadge status={test.status} size="sm" />}
+      {test.status === 'READY' && (
+        <StatusBadge status={test.status} size="sm" />
+      )}
       {(test.status === 'IN_PROGRESS' ||
         (test.status === 'READY' && order.status === 'PROCESSING')) && (
         <Link
@@ -395,18 +459,18 @@ export function OrderWorkspacePage() {
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
           {transitions.map((tr) => (
-              <button
-                key={tr.next}
-                onClick={() => transition(tr.next)}
-                disabled={transitioning}
-                className={
-                  tr.variant === 'danger'
-                    ? 'rounded-lg border border-red-800 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-900/30 disabled:opacity-40'
-                    : 'rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-40'
-                }
-              >
-                {t(tr.labelKey)}
-              </button>
+            <button
+              key={tr.next}
+              onClick={() => transition(tr.next)}
+              disabled={transitioning}
+              className={
+                tr.variant === 'danger'
+                  ? 'rounded-lg border border-red-800 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-900/30 disabled:opacity-40'
+                  : 'rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-40'
+              }
+            >
+              {t(tr.labelKey)}
+            </button>
           ))}
         </div>
       </div>
@@ -589,14 +653,16 @@ export function OrderWorkspacePage() {
               {t('workspace.ordered_tests')}
             </h2>
             <div className="flex items-center gap-2">
-              {hasTests && order.pickup?.status !== 'IN_TRANSIT' && anyTestsPending && (
-                <button
-                  onClick={() => setShowAccessionDialog(true)}
-                  className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
-                >
-                  {t('accession.button')}
-                </button>
-              )}
+              {hasTests &&
+                order.pickup?.status !== 'IN_TRANSIT' &&
+                anyTestsPending && (
+                  <button
+                    onClick={() => setShowAccessionDialog(true)}
+                    className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
+                  >
+                    {t('accession.button')}
+                  </button>
+                )}
               {!hasTests && order.status !== 'PENDING' && (
                 <button
                   onClick={initTests}
@@ -741,7 +807,10 @@ export function OrderWorkspacePage() {
                 {t('workspace.pick_template')}
               </h2>
               <button
-                onClick={() => { setPickingTemplateForTestId(null); setTemplateSearch(''); }}
+                onClick={() => {
+                  setPickingTemplateForTestId(null);
+                  setTemplateSearch('');
+                }}
                 className="text-gray-400 hover:text-white"
               >
                 ✕
@@ -765,17 +834,21 @@ export function OrderWorkspacePage() {
               ) : (
                 <div className="space-y-2">
                   {availableTemplates
-                    .filter((tpl) => tpl.label.toLowerCase().includes(templateSearch.toLowerCase()))
+                    .filter((tpl) =>
+                      tpl.label
+                        .toLowerCase()
+                        .includes(templateSearch.toLowerCase())
+                    )
                     .map((tpl) => (
-                    <button
-                      key={tpl.versionId}
-                      disabled={assigningTemplate}
-                      onClick={() => confirmAssignTemplate(tpl.versionId)}
-                      className="w-full rounded-lg border border-gray-800 bg-gray-900 px-4 py-3 text-left text-sm text-white hover:border-cyan/50 hover:bg-gray-800 disabled:opacity-50"
-                    >
-                      {tpl.label}
-                    </button>
-                  ))}
+                      <button
+                        key={tpl.versionId}
+                        disabled={assigningTemplate}
+                        onClick={() => confirmAssignTemplate(tpl.versionId)}
+                        className="w-full rounded-lg border border-gray-800 bg-gray-900 px-4 py-3 text-left text-sm text-white hover:border-cyan/50 hover:bg-gray-800 disabled:opacity-50"
+                      >
+                        {tpl.label}
+                      </button>
+                    ))}
                 </div>
               )}
             </div>
@@ -785,7 +858,9 @@ export function OrderWorkspacePage() {
               </p>
               <p className="mt-2 text-xs text-yellow-400/80">
                 {t('workspace.pick_template_species_hint', {
-                  species: t(`species.${c.patientSpecies}`, { defaultValue: c.patientSpecies }),
+                  species: t(`species.${c.patientSpecies}`, {
+                    defaultValue: c.patientSpecies,
+                  }),
                 })}
               </p>
             </div>

@@ -246,9 +246,12 @@ export class CatalogService {
   // Reads the platform's catalog.json and upserts into the lab's own catalog.
   // ---------------------------------------------------------------------------
 
-  async importPlatformCatalog(
-    labTenantId: string
-  ): Promise<{ created: number; updated: number; disabled: number; total: number }> {
+  async importPlatformCatalog(labTenantId: string): Promise<{
+    created: number;
+    updated: number;
+    disabled: number;
+    total: number;
+  }> {
     const catalogPath = join(
       process.cwd(),
       'apps/api/prisma/seeds/catalog.json'

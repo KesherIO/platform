@@ -11,7 +11,11 @@ import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import { CatalogItemModal } from './CatalogItemModal';
 import { CatalogGuidelines } from './CatalogGuidelines';
-import type { CatalogCounts, CatalogItem, ImportCatalogItemInput } from '../../types/lab.types';
+import type {
+  CatalogCounts,
+  CatalogItem,
+  ImportCatalogItemInput,
+} from '../../types/lab.types';
 
 const STATUS_COLORS: Record<'active' | 'inactive', string> = {
   active: 'bg-green-900/30 text-green-300',
@@ -82,12 +86,8 @@ function parseCsvRow(line: string): string[] {
   return fields;
 }
 
-function parseCsvToItems(
-  text: string
-): Record<string, unknown>[] | string {
-  const lines = text
-    .split(/\r?\n/)
-    .filter((l) => l.trim().length > 0);
+function parseCsvToItems(text: string): Record<string, unknown>[] | string {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
 
   if (lines.length < 2) return 'catalog.import_file.invalid_csv';
 
@@ -153,7 +153,10 @@ export function CatalogPage() {
   useEffect(() => {
     if (!importMenuOpen) return;
     const handleClick = (e: MouseEvent) => {
-      if (importMenuRef.current && !importMenuRef.current.contains(e.target as Node)) {
+      if (
+        importMenuRef.current &&
+        !importMenuRef.current.contains(e.target as Node)
+      ) {
         setImportMenuOpen(false);
       }
     };
@@ -410,7 +413,9 @@ export function CatalogPage() {
                   : t('catalog.import_file.button')}
                 <ChevronDown
                   size={14}
-                  className={`text-gray-400 transition-transform ${importMenuOpen ? 'rotate-180' : ''}`}
+                  className={`text-gray-400 transition-transform ${
+                    importMenuOpen ? 'rotate-180' : ''
+                  }`}
                 />
               </button>
               {importMenuOpen && (

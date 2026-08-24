@@ -347,7 +347,8 @@ export class TemplateVersionService {
       where: { id },
     });
 
-    if (!definition) throw new NotFoundException('Template definition not found');
+    if (!definition)
+      throw new NotFoundException('Template definition not found');
     if (definition.scope !== 'LABORATORY') {
       throw new BadRequestException('Only lab-scope templates can be deleted');
     }

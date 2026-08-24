@@ -64,7 +64,7 @@ export class LabController {
     private readonly catalogService: CatalogService,
     private readonly resultEntryService: ResultEntryService,
     private readonly resultsService: ResultsService,
-    private readonly worklistService: WorklistService,
+    private readonly worklistService: WorklistService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -222,7 +222,8 @@ export class LabController {
     @Param('id') id: string,
     @Body() dto: AccessionOrderDto
   ) {
-    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
     return this.specimenService.accessionOrder(
       id,
       tenant.tenantId,
@@ -247,7 +248,8 @@ export class LabController {
     @Param('specimenId') specimenId: string,
     @Body() body: Record<string, unknown>
   ) {
-    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
     return this.specimenService.updateSpecimen(
       specimenId,
       tenant.tenantId,
@@ -267,7 +269,8 @@ export class LabController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('testId') testId: string
   ) {
-    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
     return this.specimenService.resolveTemplateForBlockedTest(
       testId,
       tenant.tenantId,
@@ -286,7 +289,8 @@ export class LabController {
     @Param('testId') testId: string,
     @Body() dto: AssignTemplateDto
   ) {
-    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
     return this.specimenService.assignTemplateToBlockedTest(
       testId,
       dto.templateVersionId,
@@ -305,7 +309,7 @@ export class LabController {
   @Get('ordered-tests/:testId/result-session')
   getResultSession(
     @CurrentTenant() tenant: TenantContext,
-    @Param('testId') testId: string,
+    @Param('testId') testId: string
   ) {
     return this.resultEntryService.getResultSession(testId, tenant.tenantId);
   }
@@ -318,10 +322,28 @@ export class LabController {
     @CurrentTenant() tenant: TenantContext,
     @CurrentUser() user: AuthenticatedUser,
     @Param('testId') testId: string,
-    @Body() body: { analytes: Array<{ templateAnalyteId: string; numericValue?: number | null; textValue?: string | null; booleanValue?: boolean | null; selectValue?: string | null }>; observations?: string | null },
+    @Body()
+    body: {
+      analytes: Array<{
+        templateAnalyteId: string;
+        numericValue?: number | null;
+        textValue?: string | null;
+        booleanValue?: boolean | null;
+        selectValue?: string | null;
+      }>;
+      observations?: string | null;
+    }
   ) {
-    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
-    return this.resultEntryService.saveAnalytes(testId, tenant.tenantId, body.analytes, body.observations, user.id, actorName);
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.resultEntryService.saveAnalytes(
+      testId,
+      tenant.tenantId,
+      body.analytes,
+      body.observations,
+      user.id,
+      actorName
+    );
   }
 
   // POST /api/lab/ordered-tests/:testId/submit-results
@@ -331,10 +353,16 @@ export class LabController {
   submitResults(
     @CurrentTenant() tenant: TenantContext,
     @CurrentUser() user: AuthenticatedUser,
-    @Param('testId') testId: string,
+    @Param('testId') testId: string
   ) {
-    const actorName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
-    return this.resultEntryService.submitResults(testId, tenant.tenantId, user.id, actorName);
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.resultEntryService.submitResults(
+      testId,
+      tenant.tenantId,
+      user.id,
+      actorName
+    );
   }
 
   // POST /api/lab/reports/:reportId/release
@@ -343,9 +371,10 @@ export class LabController {
   @HttpCode(HttpStatus.OK)
   releaseReport(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('reportId') reportId: string,
+    @Param('reportId') reportId: string
   ) {
-    const processedByName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    const processedByName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
     return this.resultsService.releaseReport(reportId, { processedByName });
   }
 

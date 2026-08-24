@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { WorklistService } from './worklist.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -98,13 +103,19 @@ describe('WorklistService', () => {
     });
 
     it('filters by assignment — unassigned', async () => {
-      await service.getWorklist(labTenantId, { assignmentFilter: 'unassigned' });
+      await service.getWorklist(labTenantId, {
+        assignmentFilter: 'unassigned',
+      });
       const where = prisma.orderedTest.findMany.mock.calls[0][0].where;
       expect(where.assignedUserId).toBeNull();
     });
 
     it('filters by assignment — mine', async () => {
-      await service.getWorklist(labTenantId, { assignmentFilter: 'mine' }, userId);
+      await service.getWorklist(
+        labTenantId,
+        { assignmentFilter: 'mine' },
+        userId
+      );
       const where = prisma.orderedTest.findMany.mock.calls[0][0].where;
       expect(where.assignedUserId).toBe(userId);
     });
@@ -189,7 +200,9 @@ describe('WorklistService', () => {
 
       const result = await service.getWorklistCounts(labTenantId);
       expect(result.departments).toHaveLength(2);
-      const hema = result.departments.find(d => d.department === 'HEMATOLOGY');
+      const hema = result.departments.find(
+        (d) => d.department === 'HEMATOLOGY'
+      );
       expect(hema).toMatchObject({ ready: 3, inProgress: 1, total: 4 });
       expect(result.totalReady).toBe(6);
     });
@@ -202,11 +215,18 @@ describe('WorklistService', () => {
   describe('claimTest', () => {
     it('claims an unassigned READY test', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: null, version: 1,
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: null,
+        version: 1,
       });
       prisma.orderedTest.updateMany.mockResolvedValue({ count: 1 });
       prisma.orderedTest.findUniqueOrThrow.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: userId, version: 2, claimedAt: new Date(),
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: userId,
+        version: 2,
+        claimedAt: new Date(),
       });
 
       const result = await service.claimTest(labTenantId, 'test-1', userId, 1);
@@ -220,7 +240,10 @@ describe('WorklistService', () => {
 
     it('throws ConflictException on version mismatch', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: null, version: 2,
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: null,
+        version: 2,
       });
       prisma.orderedTest.updateMany.mockResolvedValue({ count: 0 });
 
@@ -231,7 +254,10 @@ describe('WorklistService', () => {
 
     it('throws ConflictException when test already claimed', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: otherUserId, version: 1,
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: otherUserId,
+        version: 1,
       });
 
       await expect(
@@ -241,7 +267,10 @@ describe('WorklistService', () => {
 
     it('throws BadRequestException when test status not READY/IN_PROGRESS', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', status: 'COMPLETED', assignedUserId: null, version: 1,
+        id: 'test-1',
+        status: 'COMPLETED',
+        assignedUserId: null,
+        version: 1,
       });
 
       await expect(
@@ -265,33 +294,63 @@ describe('WorklistService', () => {
   describe('unclaimTest', () => {
     it('allows self-unclaim', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: userId, version: 1, startedAt: null,
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: userId,
+        version: 1,
+        startedAt: null,
       });
       prisma.orderedTest.update.mockResolvedValue({});
       prisma.orderedTest.findUniqueOrThrow.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: null, version: 2, claimedAt: null,
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: null,
+        version: 2,
+        claimedAt: null,
       });
 
-      const result = await service.unclaimTest(labTenantId, 'test-1', userId, 'TECHNICIAN');
+      const result = await service.unclaimTest(
+        labTenantId,
+        'test-1',
+        userId,
+        'TECHNICIAN'
+      );
       expect(result.assignedUserId).toBeNull();
     });
 
     it('allows ADMIN to unclaim another user test', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: otherUserId, version: 1, startedAt: null,
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: otherUserId,
+        version: 1,
+        startedAt: null,
       });
       prisma.orderedTest.update.mockResolvedValue({});
       prisma.orderedTest.findUniqueOrThrow.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: null, version: 2, claimedAt: null,
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: null,
+        version: 2,
+        claimedAt: null,
       });
 
-      const result = await service.unclaimTest(labTenantId, 'test-1', userId, 'ADMIN');
+      const result = await service.unclaimTest(
+        labTenantId,
+        'test-1',
+        userId,
+        'ADMIN'
+      );
       expect(result.assignedUserId).toBeNull();
     });
 
     it('rejects TECHNICIAN unclaiming another user test', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: otherUserId, version: 1, startedAt: null,
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: otherUserId,
+        version: 1,
+        startedAt: null,
       });
 
       await expect(
@@ -301,11 +360,19 @@ describe('WorklistService', () => {
 
     it('reverts IN_PROGRESS to READY when owner unclaims', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', status: 'IN_PROGRESS', assignedUserId: userId, version: 1, startedAt: new Date(),
+        id: 'test-1',
+        status: 'IN_PROGRESS',
+        assignedUserId: userId,
+        version: 1,
+        startedAt: new Date(),
       });
       prisma.orderedTest.update.mockResolvedValue({});
       prisma.orderedTest.findUniqueOrThrow.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: null, version: 2, claimedAt: null,
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: null,
+        version: 2,
+        claimedAt: null,
       });
 
       await service.unclaimTest(labTenantId, 'test-1', userId, 'TECHNICIAN');
@@ -325,12 +392,23 @@ describe('WorklistService', () => {
   describe('startTest', () => {
     it('starts a READY test claimed by the user', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', orderId: 'order-1', status: 'READY', assignedUserId: userId, version: 1, catalogItemName: 'CBC',
+        id: 'test-1',
+        orderId: 'order-1',
+        status: 'READY',
+        assignedUserId: userId,
+        version: 1,
+        catalogItemName: 'CBC',
       });
-      prisma.order.findUniqueOrThrow.mockResolvedValue({ status: 'RECEIVED_BY_LAB' });
+      prisma.order.findUniqueOrThrow.mockResolvedValue({
+        status: 'RECEIVED_BY_LAB',
+      });
       prisma.order.update.mockResolvedValue({});
       prisma.orderedTest.findUniqueOrThrow.mockResolvedValue({
-        id: 'test-1', status: 'IN_PROGRESS', assignedUserId: userId, version: 2, startedAt: new Date(),
+        id: 'test-1',
+        status: 'IN_PROGRESS',
+        assignedUserId: userId,
+        version: 2,
+        startedAt: new Date(),
       });
 
       const result = await service.startTest(labTenantId, 'test-1', userId);
@@ -339,7 +417,12 @@ describe('WorklistService', () => {
 
     it('rejects start when test not claimed by user', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', orderId: 'order-1', status: 'READY', assignedUserId: otherUserId, version: 1, catalogItemName: 'CBC',
+        id: 'test-1',
+        orderId: 'order-1',
+        status: 'READY',
+        assignedUserId: otherUserId,
+        version: 1,
+        catalogItemName: 'CBC',
       });
 
       await expect(
@@ -349,7 +432,12 @@ describe('WorklistService', () => {
 
     it('rejects start when test not READY', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', orderId: 'order-1', status: 'IN_PROGRESS', assignedUserId: userId, version: 1, catalogItemName: 'CBC',
+        id: 'test-1',
+        orderId: 'order-1',
+        status: 'IN_PROGRESS',
+        assignedUserId: userId,
+        version: 1,
+        catalogItemName: 'CBC',
       });
 
       await expect(
@@ -365,23 +453,36 @@ describe('WorklistService', () => {
   describe('reassignTest', () => {
     it('reassigns to a valid lab member', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', version: 1, status: 'READY',
+        id: 'test-1',
+        version: 1,
+        status: 'READY',
       });
       prisma.userTenantMembership.findUnique.mockResolvedValue({
         role: 'TECHNICIAN',
       });
       prisma.orderedTest.updateMany.mockResolvedValue({ count: 1 });
       prisma.orderedTest.findUniqueOrThrow.mockResolvedValue({
-        id: 'test-1', status: 'READY', assignedUserId: otherUserId, version: 2, claimedAt: new Date(),
+        id: 'test-1',
+        status: 'READY',
+        assignedUserId: otherUserId,
+        version: 2,
+        claimedAt: new Date(),
       });
 
-      const result = await service.reassignTest(labTenantId, 'test-1', otherUserId, 1);
+      const result = await service.reassignTest(
+        labTenantId,
+        'test-1',
+        otherUserId,
+        1
+      );
       expect(result.assignedUserId).toBe(otherUserId);
     });
 
     it('rejects reassign to non-lab-member', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', version: 1, status: 'READY',
+        id: 'test-1',
+        version: 1,
+        status: 'READY',
       });
       prisma.userTenantMembership.findUnique.mockResolvedValue(null);
 
@@ -392,7 +493,9 @@ describe('WorklistService', () => {
 
     it('rejects reassign to MESSENGER role', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', version: 1, status: 'READY',
+        id: 'test-1',
+        version: 1,
+        status: 'READY',
       });
       prisma.userTenantMembership.findUnique.mockResolvedValue({
         role: 'MESSENGER',
@@ -405,7 +508,9 @@ describe('WorklistService', () => {
 
     it('throws ConflictException on version mismatch', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
-        id: 'test-1', version: 2, status: 'READY',
+        id: 'test-1',
+        version: 2,
+        status: 'READY',
       });
       prisma.userTenantMembership.findUnique.mockResolvedValue({
         role: 'TECHNICIAN',

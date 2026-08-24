@@ -1,4 +1,9 @@
-import { IsArray, IsBoolean, IsOptional, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ImportCatalogItemDto } from '../../catalog/dto/catalog.dto';

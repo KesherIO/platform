@@ -38,7 +38,15 @@ type Session = {
   sections: Section[];
 };
 
-type Values = Record<string, { numericValue?: number | null; textValue?: string | null; booleanValue?: boolean | null; selectValue?: string | null }>;
+type Values = Record<
+  string,
+  {
+    numericValue?: number | null;
+    textValue?: string | null;
+    booleanValue?: boolean | null;
+    selectValue?: string | null;
+  }
+>;
 
 export function ResultEntryPage() {
   const { orderId, testId } = useParams<{ orderId: string; testId: string }>();
@@ -55,7 +63,11 @@ export function ResultEntryPage() {
   const savedObservationsRef = useRef<string>('');
   const initialized = useRef(false);
 
-  const { data: session, isLoading: loading, error: queryError } = useQuery({
+  const {
+    data: session,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery({
     queryKey: ['result-session', testId],
     queryFn: () => labApi.resultEntry.getSession(testId!),
     enabled: !!testId,
@@ -78,7 +90,10 @@ export function ResultEntryPage() {
         };
       }
     }
-    const initialObs = session.report?.observations ?? session.template.defaultObservations ?? '';
+    const initialObs =
+      session.report?.observations ??
+      session.template.defaultObservations ??
+      '';
     setValues(initial);
     setObservations(initialObs);
     savedValuesRef.current = initial;
@@ -86,13 +101,20 @@ export function ResultEntryPage() {
   }, [session]);
 
   const buildAnalytePayload = () =>
-    Object.entries(values).map(([templateAnalyteId, v]) => ({ templateAnalyteId, ...v }));
+    Object.entries(values).map(([templateAnalyteId, v]) => ({
+      templateAnalyteId,
+      ...v,
+    }));
 
   const handleSave = useCallback(async () => {
     if (!testId || !session) return;
     setSaving(true);
     try {
-      await labApi.resultEntry.saveAnalytes(testId, buildAnalytePayload(), observations || null);
+      await labApi.resultEntry.saveAnalytes(
+        testId,
+        buildAnalytePayload(),
+        observations || null
+      );
       savedValuesRef.current = values;
       savedObservationsRef.current = observations;
       // Update cache so navigating back still shows fresh values
@@ -103,14 +125,18 @@ export function ResultEntryPage() {
     } finally {
       setSaving(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testId, session, values, observations, t, toast, queryClient]);
 
   const handleSubmit = async () => {
     if (!testId || !orderId) return;
     setSubmitting(true);
     try {
-      await labApi.resultEntry.saveAnalytes(testId, buildAnalytePayload(), observations || null);
+      await labApi.resultEntry.saveAnalytes(
+        testId,
+        buildAnalytePayload(),
+        observations || null
+      );
       if (!isUpdate) {
         await labApi.resultEntry.submit(testId);
       }
@@ -118,7 +144,9 @@ export function ResultEntryPage() {
       queryClient.invalidateQueries({ queryKey: ['result-session', testId] });
       queryClient.invalidateQueries({ queryKey: ['order', orderId] });
       queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
-      toast.success(isUpdate ? t('result_entry.updated') : t('result_entry.submitted'));
+      toast.success(
+        isUpdate ? t('result_entry.updated') : t('result_entry.submitted')
+      );
       navigate(`/orders/${orderId}`);
     } catch (e) {
       toast.error((e as Error).message);
@@ -145,7 +173,10 @@ export function ResultEntryPage() {
         <div className="mb-4 rounded-xl border border-gray-800 bg-gray-900 px-5 py-4">
           <Skeleton className="mb-4 h-3 w-24" />
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex items-center justify-between border-b border-gray-800/40 py-3 last:border-0">
+            <div
+              key={i}
+              className="flex items-center justify-between border-b border-gray-800/40 py-3 last:border-0"
+            >
               <Skeleton className="h-4 w-40" />
               <div className="flex items-center gap-3">
                 <Skeleton className="h-8 w-24" />
@@ -165,12 +196,16 @@ export function ResultEntryPage() {
   if (queryError || !session) {
     return (
       <div className="p-6 text-red-400">
-        {queryError ? (queryError as Error).message : t('result_entry.not_found')}
+        {queryError
+          ? (queryError as Error).message
+          : t('result_entry.not_found')}
       </div>
     );
   }
 
-  const isReadOnly = !['READY', 'IN_PROGRESS', 'RESULTS_ENTERED'].includes(session.test.status);
+  const isReadOnly = !['READY', 'IN_PROGRESS', 'RESULTS_ENTERED'].includes(
+    session.test.status
+  );
   const isUpdate = session.test.status === 'RESULTS_ENTERED';
   const isDirty =
     JSON.stringify(values) !== JSON.stringify(savedValuesRef.current) ||
@@ -192,15 +227,32 @@ export function ResultEntryPage() {
 
     const refRange = analyte.referenceRange;
     const numVal = val.numericValue;
-    const isHigh = refRange?.max !== undefined && numVal !== null && numVal !== undefined && numVal > refRange.max;
-    const isLow = refRange?.min !== undefined && numVal !== null && numVal !== undefined && numVal < refRange.min;
-    const flagColor = isHigh ? 'text-red-400' : isLow ? 'text-blue-400' : 'text-emerald-400';
+    const isHigh =
+      refRange?.max !== undefined &&
+      numVal !== null &&
+      numVal !== undefined &&
+      numVal > refRange.max;
+    const isLow =
+      refRange?.min !== undefined &&
+      numVal !== null &&
+      numVal !== undefined &&
+      numVal < refRange.min;
+    const flagColor = isHigh
+      ? 'text-red-400'
+      : isLow
+      ? 'text-blue-400'
+      : 'text-emerald-400';
 
     return (
-      <div key={analyte.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2 border-b border-gray-800/60 last:border-0">
+      <div
+        key={analyte.id}
+        className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-2 border-b border-gray-800/60 last:border-0"
+      >
         <div>
           <p className="text-sm text-gray-200">{analyte.name}</p>
-          {analyte.technique && <p className="text-xs text-gray-500">{analyte.technique}</p>}
+          {analyte.technique && (
+            <p className="text-xs text-gray-500">{analyte.technique}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -223,11 +275,14 @@ export function ResultEntryPage() {
                   ...prev,
                   [analyte.id]: {
                     ...prev[analyte.id],
-                    numericValue: e.target.value === '' ? null : Number(e.target.value),
+                    numericValue:
+                      e.target.value === '' ? null : Number(e.target.value),
                   },
                 }))
               }
-              className={`w-24 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-right text-sm text-white focus:border-cyan focus:outline-none ${isReadOnly ? 'opacity-60' : ''} ${(isHigh || isLow) ? flagColor : ''}`}
+              className={`w-24 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-right text-sm text-white focus:border-cyan focus:outline-none ${
+                isReadOnly ? 'opacity-60' : ''
+              } ${isHigh || isLow ? flagColor : ''}`}
             />
           ) : analyte.valueType === 'TEXT' ? (
             <input
@@ -237,10 +292,15 @@ export function ResultEntryPage() {
               onChange={(e) =>
                 setValues((prev) => ({
                   ...prev,
-                  [analyte.id]: { ...prev[analyte.id], textValue: e.target.value || null },
+                  [analyte.id]: {
+                    ...prev[analyte.id],
+                    textValue: e.target.value || null,
+                  },
                 }))
               }
-              className={`w-40 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none ${isReadOnly ? 'opacity-60' : ''}`}
+              className={`w-40 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none ${
+                isReadOnly ? 'opacity-60' : ''
+              }`}
             />
           ) : analyte.valueType === 'SELECT' ? (
             <select
@@ -249,14 +309,21 @@ export function ResultEntryPage() {
               onChange={(e) =>
                 setValues((prev) => ({
                   ...prev,
-                  [analyte.id]: { ...prev[analyte.id], selectValue: e.target.value || null },
+                  [analyte.id]: {
+                    ...prev[analyte.id],
+                    selectValue: e.target.value || null,
+                  },
                 }))
               }
-              className={`rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none ${isReadOnly ? 'opacity-60' : ''}`}
+              className={`rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none ${
+                isReadOnly ? 'opacity-60' : ''
+              }`}
             >
               <option value="">—</option>
               {analyte.options.map((o) => (
-                <option key={o} value={o}>{o}</option>
+                <option key={o} value={o}>
+                  {o}
+                </option>
               ))}
             </select>
           ) : analyte.valueType === 'BOOLEAN' ? (
@@ -272,7 +339,10 @@ export function ResultEntryPage() {
                     onClick={() =>
                       setValues((prev) => ({
                         ...prev,
-                        [analyte.id]: { ...prev[analyte.id], booleanValue: selected ? null : isPos },
+                        [analyte.id]: {
+                          ...prev[analyte.id],
+                          booleanValue: selected ? null : isPos,
+                        },
                       }))
                     }
                     className={`rounded-lg px-2.5 py-1 text-xs font-medium border ${
@@ -291,16 +361,20 @@ export function ResultEntryPage() {
           ) : null}
 
           {analyte.unit && (
-            <span className="text-xs text-gray-500 w-12 shrink-0">{analyte.unit}</span>
+            <span className="text-xs text-gray-500 w-12 shrink-0">
+              {analyte.unit}
+            </span>
           )}
         </div>
 
         <div className="text-right">
           {refRange && (
-            <p className={`text-xs ${(isHigh || isLow) ? flagColor : 'text-gray-600'}`}>
-              {isHigh ? '▲ H' : isLow ? '▼ L' : ''}
-              {' '}
-              {refRange.displayText}
+            <p
+              className={`text-xs ${
+                isHigh || isLow ? flagColor : 'text-gray-600'
+              }`}
+            >
+              {isHigh ? '▲ H' : isLow ? '▼ L' : ''} {refRange.displayText}
             </p>
           )}
         </div>
@@ -311,7 +385,10 @@ export function ResultEntryPage() {
   return (
     <div className="p-6 max-w-3xl">
       <div className="mb-4">
-        <button onClick={() => navigate(-1)} className="text-sm text-gray-400 hover:text-white">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-sm text-gray-400 hover:text-white"
+        >
           {t('result_entry.back')}
         </button>
       </div>
@@ -320,7 +397,9 @@ export function ResultEntryPage() {
         <div>
           <h1 className="text-xl font-bold text-white">{session.test.name}</h1>
           {session.test.code && (
-            <p className="font-mono text-sm text-gray-400">{session.test.code}</p>
+            <p className="font-mono text-sm text-gray-400">
+              {session.test.code}
+            </p>
           )}
           <p className="mt-1 text-sm text-gray-500">{session.template.title}</p>
         </div>
@@ -340,14 +419,21 @@ export function ResultEntryPage() {
               disabled={saving || submitting || (isUpdate && !isDirty)}
               className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
             >
-              {submitting ? '...' : isUpdate ? t('result_entry.update') : t('result_entry.submit')}
+              {submitting
+                ? '...'
+                : isUpdate
+                ? t('result_entry.update')
+                : t('result_entry.submit')}
             </button>
           </div>
         )}
       </div>
 
       {session.sections.map((section, si) => (
-        <div key={section.id ?? si} className="mb-4 rounded-xl border border-gray-800 bg-gray-900 px-5 py-4">
+        <div
+          key={section.id ?? si}
+          className="mb-4 rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
+        >
           {section.name && (
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
               {section.name}
@@ -370,7 +456,9 @@ export function ResultEntryPage() {
           rows={3}
           value={observations}
           onChange={(e) => setObservations(e.target.value)}
-          className={`w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-cyan focus:outline-none resize-none ${isReadOnly ? 'opacity-60' : ''}`}
+          className={`w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-cyan focus:outline-none resize-none ${
+            isReadOnly ? 'opacity-60' : ''
+          }`}
           placeholder={t('result_entry.observations_placeholder')}
         />
       </div>

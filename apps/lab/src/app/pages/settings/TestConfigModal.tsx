@@ -25,7 +25,8 @@ function reqToRow(req: SpecimenRequirement, idx: number): SpecimenReqRow {
     _key: req.id ?? `new-${idx}`,
     specimenType: req.specimenType,
     containerType: req.containerType,
-    minimumVolumeMl: req.minimumVolumeMl != null ? String(req.minimumVolumeMl) : '',
+    minimumVolumeMl:
+      req.minimumVolumeMl != null ? String(req.minimumVolumeMl) : '',
     notes: req.notes ?? '',
   };
 }
@@ -82,8 +83,8 @@ export function TestConfigModal({
   const [defaultAnalyzerId, setDefaultAnalyzerId] = useState<string>(
     config?.defaultAnalyzerId ?? ''
   );
-  const [specimenReqs, setSpecimenReqs] = useState<SpecimenReqRow[]>(
-    () => (config?.specimenRequirements ?? []).map(reqToRow)
+  const [specimenReqs, setSpecimenReqs] = useState<SpecimenReqRow[]>(() =>
+    (config?.specimenRequirements ?? []).map(reqToRow)
   );
 
   const [availableTests, setAvailableTests] = useState<CatalogItem[]>([]);
@@ -145,7 +146,13 @@ export function TestConfigModal({
   const addSpecimenReq = () => {
     setSpecimenReqs((prev) => [
       ...prev,
-      { _key: nextKey(), specimenType: '', containerType: '', minimumVolumeMl: '', notes: '' },
+      {
+        _key: nextKey(),
+        specimenType: '',
+        containerType: '',
+        minimumVolumeMl: '',
+        notes: '',
+      },
     ]);
   };
 
@@ -177,7 +184,9 @@ export function TestConfigModal({
         .map((r, idx) => ({
           specimenType: r.specimenType.trim().toUpperCase(),
           containerType: r.containerType.trim().toUpperCase(),
-          minimumVolumeMl: r.minimumVolumeMl ? parseFloat(r.minimumVolumeMl) : undefined,
+          minimumVolumeMl: r.minimumVolumeMl
+            ? parseFloat(r.minimumVolumeMl)
+            : undefined,
           notes: r.notes.trim() || undefined,
           requirementGroupKey: 'PRIMARY',
           sortOrder: idx,
@@ -373,7 +382,9 @@ export function TestConfigModal({
                         placeholder="e.g. SERUM"
                         value={req.specimenType}
                         onChange={(e) =>
-                          updateSpecimenReq(req._key, { specimenType: e.target.value })
+                          updateSpecimenReq(req._key, {
+                            specimenType: e.target.value,
+                          })
                         }
                         className="w-full rounded-md border border-gray-600 bg-gray-900 px-2 py-1.5 font-mono text-xs text-white placeholder-gray-600 focus:border-cyan focus:outline-none"
                       />
@@ -387,7 +398,9 @@ export function TestConfigModal({
                         placeholder="e.g. SST_TUBE"
                         value={req.containerType}
                         onChange={(e) =>
-                          updateSpecimenReq(req._key, { containerType: e.target.value })
+                          updateSpecimenReq(req._key, {
+                            containerType: e.target.value,
+                          })
                         }
                         className="w-full rounded-md border border-gray-600 bg-gray-900 px-2 py-1.5 font-mono text-xs text-white placeholder-gray-600 focus:border-cyan focus:outline-none"
                       />
@@ -405,7 +418,9 @@ export function TestConfigModal({
                         placeholder="e.g. 2.0"
                         value={req.minimumVolumeMl}
                         onChange={(e) =>
-                          updateSpecimenReq(req._key, { minimumVolumeMl: e.target.value })
+                          updateSpecimenReq(req._key, {
+                            minimumVolumeMl: e.target.value,
+                          })
                         }
                         className="w-full rounded-md border border-gray-600 bg-gray-900 px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:border-cyan focus:outline-none"
                       />

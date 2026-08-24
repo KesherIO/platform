@@ -24,10 +24,7 @@ export class PlatformSeedService implements OnApplicationBootstrap {
 
     this.logger.log('No platform templates found — seeding now...');
 
-    const templatesDir = join(
-      process.cwd(),
-      'apps/api/prisma/seeds/templates'
-    );
+    const templatesDir = join(process.cwd(), 'apps/api/prisma/seeds/templates');
 
     let files: string[];
     try {
@@ -73,7 +70,13 @@ export class PlatformSeedService implements OnApplicationBootstrap {
         continue;
       }
 
-      const { catalogItemCode, species, title, defaultObservations, sections = [] } = raw;
+      const {
+        catalogItemCode,
+        species,
+        title,
+        defaultObservations,
+        sections = [],
+      } = raw;
       const ageMin = raw.ageMinWeeks ?? -1;
       const ageMax = raw.ageMaxWeeks ?? -1;
 

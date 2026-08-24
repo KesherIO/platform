@@ -83,10 +83,16 @@ describe('LabController', () => {
     };
 
     const specimenServiceMock: Partial<jest.Mocked<SpecimenService>> = {
-      getExpectedSpecimens: jest.fn().mockResolvedValue({ expectedSpecimenGroups: [], unconfiguredTests: [], existingSpecimens: [] }),
+      getExpectedSpecimens: jest.fn().mockResolvedValue({
+        expectedSpecimenGroups: [],
+        unconfiguredTests: [],
+        existingSpecimens: [],
+      }),
       accessionOrder: jest.fn().mockResolvedValue({ specimens: [], order: {} }),
       updateSpecimen: jest.fn().mockResolvedValue({}),
-      resolveTemplateForBlockedTest: jest.fn().mockResolvedValue({ resolved: false }),
+      resolveTemplateForBlockedTest: jest
+        .fn()
+        .mockResolvedValue({ resolved: false }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -97,10 +103,30 @@ describe('LabController', () => {
         { provide: LabClientsService, useValue: clientsServiceMock },
         { provide: PickupService, useValue: pickupServiceMock },
         { provide: SpecimenService, useValue: specimenServiceMock },
-        { provide: CatalogService, useValue: { importPlatformCatalog: jest.fn() } },
-        { provide: ResultEntryService, useValue: { getResultSession: jest.fn(), saveAnalytes: jest.fn(), submitResults: jest.fn() } },
+        {
+          provide: CatalogService,
+          useValue: { importPlatformCatalog: jest.fn() },
+        },
+        {
+          provide: ResultEntryService,
+          useValue: {
+            getResultSession: jest.fn(),
+            saveAnalytes: jest.fn(),
+            submitResults: jest.fn(),
+          },
+        },
         { provide: ResultsService, useValue: { releaseReport: jest.fn() } },
-        { provide: WorklistService, useValue: { getWorklist: jest.fn(), getWorklistCounts: jest.fn(), claimTest: jest.fn(), unclaimTest: jest.fn(), startTest: jest.fn(), reassignTest: jest.fn() } },
+        {
+          provide: WorklistService,
+          useValue: {
+            getWorklist: jest.fn(),
+            getWorklistCounts: jest.fn(),
+            claimTest: jest.fn(),
+            unclaimTest: jest.fn(),
+            startTest: jest.fn(),
+            reassignTest: jest.fn(),
+          },
+        },
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('test-key') },

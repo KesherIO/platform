@@ -15,7 +15,13 @@ import { ResultsModule } from '../results/results.module';
 import { CatalogModule } from '../catalog/catalog.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, NotificationsModule, ResultsModule, CatalogModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    NotificationsModule,
+    ResultsModule,
+    CatalogModule,
+  ],
   controllers: [LabController],
   providers: [
     LabService,

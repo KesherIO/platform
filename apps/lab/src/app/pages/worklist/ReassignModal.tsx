@@ -79,7 +79,10 @@ export function ReassignModal({
         {loading && (
           <div className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-800" />
+              <div
+                key={i}
+                className="h-10 animate-pulse rounded-lg bg-gray-800"
+              />
             ))}
           </div>
         )}
@@ -121,9 +124,7 @@ export function ReassignModal({
           </div>
         )}
 
-        {error && (
-          <p className="mb-3 text-sm text-red-400">{error}</p>
-        )}
+        {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
 
         <div className="flex justify-end gap-2">
           <button

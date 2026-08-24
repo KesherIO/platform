@@ -19,9 +19,13 @@ const CONDITION_FLAG_LABELS: Record<string, string> = {
 };
 
 function buildConditionFlags(s: {
-  isHemolyzed?: boolean; isLipemic?: boolean; isIcteric?: boolean;
-  isInsufficient?: boolean; isContaminated?: boolean;
-  isWrongContainer?: boolean; isLeaking?: boolean;
+  isHemolyzed?: boolean;
+  isLipemic?: boolean;
+  isIcteric?: boolean;
+  isInsufficient?: boolean;
+  isContaminated?: boolean;
+  isWrongContainer?: boolean;
+  isLeaking?: boolean;
 }): string[] {
   return Object.entries(CONDITION_FLAG_LABELS)
     .filter(([key]) => s[key as keyof typeof s])
@@ -30,12 +34,17 @@ function buildConditionFlags(s: {
 
 function buildRejectionReason(s: {
   rejectionReason?: string;
-  isHemolyzed?: boolean; isLipemic?: boolean; isIcteric?: boolean;
-  isInsufficient?: boolean; isContaminated?: boolean;
-  isWrongContainer?: boolean; isLeaking?: boolean;
+  isHemolyzed?: boolean;
+  isLipemic?: boolean;
+  isIcteric?: boolean;
+  isInsufficient?: boolean;
+  isContaminated?: boolean;
+  isWrongContainer?: boolean;
+  isLeaking?: boolean;
 }): string {
   const flags = buildConditionFlags(s);
-  if (s.rejectionReason && flags.length) return `${s.rejectionReason} (${flags.join(', ')})`;
+  if (s.rejectionReason && flags.length)
+    return `${s.rejectionReason} (${flags.join(', ')})`;
   if (s.rejectionReason) return s.rejectionReason;
   if (flags.length) return flags.join(', ');
   return 'no reason';
@@ -98,7 +107,8 @@ async function deriveOrderStatusValue(
     (s) => s.status === 'EXPECTED' || s.status === 'RECEIVED'
   );
   const hasReadyTest = tests.some((t) => t.status === 'READY');
-  if ((hasAccepted && !hasExpectedOrReceived) || hasReadyTest) return 'RECEIVED_BY_LAB';
+  if ((hasAccepted && !hasExpectedOrReceived) || hasReadyTest)
+    return 'RECEIVED_BY_LAB';
 
   return 'PENDING';
 }
@@ -161,8 +171,11 @@ export class SpecimenService {
       }
     >();
 
-    const unconfiguredTests: { id: string; name: string; code: string | null }[] =
-      [];
+    const unconfiguredTests: {
+      id: string;
+      name: string;
+      code: string | null;
+    }[] = [];
 
     for (const test of order.orderedTests) {
       const config = test.catalogItem.labTestConfigurations[0];
@@ -258,7 +271,14 @@ export class SpecimenService {
             },
           },
         },
-        specimens: { select: { id: true, specimenType: true, containerType: true, tubeIndex: true } },
+        specimens: {
+          select: {
+            id: true,
+            specimenType: true,
+            containerType: true,
+            tubeIndex: true,
+          },
+        },
       },
     });
     if (!order) throw new NotFoundException('Order not found.');
@@ -266,7 +286,10 @@ export class SpecimenService {
     const patientSpecies = order.case.patientSpecies as PatientSpecies;
     const ageWeeks =
       order.case.patientAge && order.case.patientAgeUnit
-        ? ageToWeeks(order.case.patientAge, order.case.patientAgeUnit as AgeUnit)
+        ? ageToWeeks(
+            order.case.patientAge,
+            order.case.patientAgeUnit as AgeUnit
+          )
         : null;
 
     // Generate accession numbers for specimens that don't have one
@@ -279,7 +302,10 @@ export class SpecimenService {
           const count = await this.prisma.specimen.count({
             where: { labTenantId },
           });
-          accessionNumber = `SPEC-${year}-${String(count + idx + 1).padStart(6, '0')}`;
+          accessionNumber = `SPEC-${year}-${String(count + idx + 1).padStart(
+            6,
+            '0'
+          )}`;
         }
         return { ...s, accessionNumber };
       })
@@ -289,7 +315,13 @@ export class SpecimenService {
 
     // Create / update specimens and link tests in a transaction
     const result = await this.prisma.$transaction(async (tx) => {
-      const createdSpecimens: { id: string; accepted: boolean; specimenType: string; containerType: string; tubeIndex: number }[] = [];
+      const createdSpecimens: {
+        id: string;
+        accepted: boolean;
+        specimenType: string;
+        containerType: string;
+        tubeIndex: number;
+      }[] = [];
 
       for (const s of specimenData) {
         const tubeIndex = s.tubeIndex ?? 1;
@@ -317,7 +349,7 @@ export class SpecimenService {
               isContaminated: s.isContaminated ?? false,
               isWrongContainer: s.isWrongContainer ?? false,
               isLeaking: s.isLeaking ?? false,
-              rejectionReason: s.accepted ? null : (s.rejectionReason ?? null),
+              rejectionReason: s.accepted ? null : s.rejectionReason ?? null,
               notes: s.notes ?? null,
               receivedAt: now,
               receivedById: actorId,
@@ -340,7 +372,7 @@ export class SpecimenService {
               isContaminated: s.isContaminated ?? false,
               isWrongContainer: s.isWrongContainer ?? false,
               isLeaking: s.isLeaking ?? false,
-              rejectionReason: s.accepted ? null : (s.rejectionReason ?? null),
+              rejectionReason: s.accepted ? null : s.rejectionReason ?? null,
               notes: s.notes ?? null,
               receivedAt: now,
               receivedById: actorId,
@@ -365,7 +397,9 @@ export class SpecimenService {
             actorName,
             description: s.accepted
               ? `Specimen ${s.accessionNumber} (${s.specimenType}) accepted`
-              : `Specimen ${s.accessionNumber} (${s.specimenType}) rejected: ${buildRejectionReason(s)}`,
+              : `Specimen ${s.accessionNumber} (${
+                  s.specimenType
+                }) rejected: ${buildRejectionReason(s)}`,
             metadata: {
               specimenId: specimen.id,
               accessionNumber: s.accessionNumber,
@@ -393,7 +427,8 @@ export class SpecimenService {
                 sp.containerType === primaryReq.containerType))
         );
 
-        const matchingRejected = !matchingAccepted &&
+        const matchingRejected =
+          !matchingAccepted &&
           createdSpecimens.find(
             (sp) =>
               !sp.accepted &&
@@ -416,7 +451,8 @@ export class SpecimenService {
           });
 
           // Resolve template
-          const catalogCode = test.catalogItem.code ?? test.catalogItemCode ?? '';
+          const catalogCode =
+            test.catalogItem.code ?? test.catalogItemCode ?? '';
           const templateDef = await this.templateVersionService.resolveTemplate(
             catalogCode,
             labTenantId,
@@ -501,7 +537,8 @@ export class SpecimenService {
         } else if (!primaryReq) {
           // Unconfigured test with no specimen submitted — resolve template anyway
           // so it can still be entered without a specimen configuration.
-          const catalogCode = test.catalogItem.code ?? test.catalogItemCode ?? '';
+          const catalogCode =
+            test.catalogItem.code ?? test.catalogItemCode ?? '';
           const templateDef = await this.templateVersionService.resolveTemplate(
             catalogCode,
             labTenantId,
@@ -570,7 +607,9 @@ export class SpecimenService {
           eventType: 'SAMPLE_ACCESSIONED',
           actorId,
           actorName,
-          description: `Order accessioned — ${createdSpecimens.filter((s) => s.accepted).length} specimen(s) accepted`,
+          description: `Order accessioned — ${
+            createdSpecimens.filter((s) => s.accepted).length
+          } specimen(s) accepted`,
           metadata: {
             totalSpecimens: createdSpecimens.length,
             accepted: createdSpecimens.filter((s) => s.accepted).length,
@@ -618,26 +657,43 @@ export class SpecimenService {
   ) {
     const specimen = await this.prisma.specimen.findFirst({
       where: { id: specimenId, labTenantId },
-      select: { id: true, orderId: true, specimenType: true, accessionNumber: true },
+      select: {
+        id: true,
+        orderId: true,
+        specimenType: true,
+        accessionNumber: true,
+      },
     });
     if (!specimen) throw new NotFoundException('Specimen not found.');
 
     if (data.status === 'REJECTED' && !data.rejectionReason) {
-      throw new BadRequestException('rejectionReason is required when rejecting a specimen.');
+      throw new BadRequestException(
+        'rejectionReason is required when rejecting a specimen.'
+      );
     }
 
     const updated = await this.prisma.specimen.update({
       where: { id: specimenId },
       data: {
         ...(data.status && { status: data.status }),
-        ...(data.rejectionReason !== undefined && { rejectionReason: data.rejectionReason }),
+        ...(data.rejectionReason !== undefined && {
+          rejectionReason: data.rejectionReason,
+        }),
         ...(data.notes !== undefined && { notes: data.notes }),
-        ...(data.isHemolyzed !== undefined && { isHemolyzed: data.isHemolyzed }),
+        ...(data.isHemolyzed !== undefined && {
+          isHemolyzed: data.isHemolyzed,
+        }),
         ...(data.isLipemic !== undefined && { isLipemic: data.isLipemic }),
         ...(data.isIcteric !== undefined && { isIcteric: data.isIcteric }),
-        ...(data.isInsufficient !== undefined && { isInsufficient: data.isInsufficient }),
-        ...(data.isContaminated !== undefined && { isContaminated: data.isContaminated }),
-        ...(data.isWrongContainer !== undefined && { isWrongContainer: data.isWrongContainer }),
+        ...(data.isInsufficient !== undefined && {
+          isInsufficient: data.isInsufficient,
+        }),
+        ...(data.isContaminated !== undefined && {
+          isContaminated: data.isContaminated,
+        }),
+        ...(data.isWrongContainer !== undefined && {
+          isWrongContainer: data.isWrongContainer,
+        }),
         ...(data.isLeaking !== undefined && { isLeaking: data.isLeaking }),
       },
     });
@@ -646,10 +702,13 @@ export class SpecimenService {
       await this.prisma.timelineEvent.create({
         data: {
           orderId: specimen.orderId,
-          eventType: data.status === 'ACCEPTED' ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED',
+          eventType:
+            data.status === 'ACCEPTED' ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED',
           actorId,
           actorName,
-          description: `Specimen ${specimen.accessionNumber} (${specimen.specimenType}) ${data.status.toLowerCase()}`,
+          description: `Specimen ${specimen.accessionNumber} (${
+            specimen.specimenType
+          }) ${data.status.toLowerCase()}`,
           metadata: { specimenId, reason: data.rejectionReason },
         },
       });
@@ -684,7 +743,11 @@ export class SpecimenService {
         order: {
           select: {
             case: {
-              select: { patientSpecies: true, patientAge: true, patientAgeUnit: true },
+              select: {
+                patientSpecies: true,
+                patientAge: true,
+                patientAgeUnit: true,
+              },
             },
           },
         },
@@ -700,7 +763,10 @@ export class SpecimenService {
     const patientSpecies = test.order.case.patientSpecies as PatientSpecies;
     const ageWeeks =
       test.order.case.patientAge && test.order.case.patientAgeUnit
-        ? ageToWeeks(test.order.case.patientAge, test.order.case.patientAgeUnit as AgeUnit)
+        ? ageToWeeks(
+            test.order.case.patientAge,
+            test.order.case.patientAgeUnit as AgeUnit
+          )
         : null;
 
     const catalogCode = test.catalogItem.code ?? test.catalogItemCode ?? '';
@@ -776,7 +842,9 @@ export class SpecimenService {
       select: { id: true, definitionId: true },
     });
     if (!version) {
-      throw new NotFoundException('Template version not found or not published.');
+      throw new NotFoundException(
+        'Template version not found or not published.'
+      );
     }
 
     await this.prisma.$transaction([

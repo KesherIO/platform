@@ -66,7 +66,9 @@ export function Layout() {
     refetchInterval: POLL_MS,
     enabled: canPerformPickups,
   });
-  const unacceptedCount = myPickups.filter((p) => p.status === 'NOTIFIED').length;
+  const unacceptedCount = myPickups.filter(
+    (p) => p.status === 'NOTIFIED'
+  ).length;
 
   // Close the mobile drawer whenever the route changes (e.g. after tapping a
   // nav link) rather than leaving it open over the newly-loaded page.

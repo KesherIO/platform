@@ -32,7 +32,13 @@ type Session = {
   sections: Section[];
 };
 
-function TestResultSection({ orderId, testId }: { orderId: string; testId: string }) {
+function TestResultSection({
+  orderId,
+  testId,
+}: {
+  orderId: string;
+  testId: string;
+}) {
   const { t } = useTranslation();
   const { data: session } = useQuery({
     queryKey: ['result-session', testId],
@@ -57,9 +63,15 @@ function TestResultSection({ orderId, testId }: { orderId: string; testId: strin
     if (analyte.isHeader) return null;
     const refRange = analyte.referenceRange;
     const numVal = analyte.numericValue;
-    const isHigh = refRange?.max !== undefined && numVal !== null && numVal > refRange.max;
-    const isLow = refRange?.min !== undefined && numVal !== null && numVal < refRange.min;
-    const flagColor = isHigh ? 'text-red-400' : isLow ? 'text-blue-400' : 'text-gray-300';
+    const isHigh =
+      refRange?.max !== undefined && numVal !== null && numVal > refRange.max;
+    const isLow =
+      refRange?.min !== undefined && numVal !== null && numVal < refRange.min;
+    const flagColor = isHigh
+      ? 'text-red-400'
+      : isLow
+      ? 'text-blue-400'
+      : 'text-gray-300';
 
     let displayVal: string | null = null;
     if (analyte.valueType === 'NUMERIC' || analyte.formula) {
@@ -73,19 +85,23 @@ function TestResultSection({ orderId, testId }: { orderId: string; testId: strin
         analyte.booleanValue === true
           ? 'Positivo'
           : analyte.booleanValue === false
-            ? 'Negativo'
-            : null;
+          ? 'Negativo'
+          : null;
     }
 
     return (
       <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-gray-800/40 py-2 last:border-0">
         <div>
           <p className="text-sm text-gray-200">{analyte.name}</p>
-          {analyte.technique && <p className="text-xs text-gray-500">{analyte.technique}</p>}
+          {analyte.technique && (
+            <p className="text-xs text-gray-500">{analyte.technique}</p>
+          )}
         </div>
         <span className={`text-sm font-medium ${flagColor}`}>
           {displayVal ?? <span className="text-gray-600">—</span>}
-          {analyte.unit ? <span className="ml-1 text-xs text-gray-500">{analyte.unit}</span> : null}
+          {analyte.unit ? (
+            <span className="ml-1 text-xs text-gray-500">{analyte.unit}</span>
+          ) : null}
           {(isHigh || isLow) && (
             <span className="ml-1 text-xs">{isHigh ? '▲H' : '▼L'}</span>
           )}
@@ -103,7 +119,9 @@ function TestResultSection({ orderId, testId }: { orderId: string; testId: strin
         <div>
           <p className="font-medium text-white">{session.test.name}</p>
           {session.test.code && (
-            <p className="font-mono text-xs text-gray-500">{session.test.code}</p>
+            <p className="font-mono text-xs text-gray-500">
+              {session.test.code}
+            </p>
           )}
         </div>
         <Link
@@ -124,7 +142,10 @@ function TestResultSection({ orderId, testId }: { orderId: string; testId: strin
             )}
             {section.analytes.map((analyte) =>
               analyte.isHeader ? (
-                <p key={analyte.id} className="py-1.5 text-sm font-semibold text-gray-200">
+                <p
+                  key={analyte.id}
+                  className="py-1.5 text-sm font-semibold text-gray-200"
+                >
                   {analyte.name}
                 </p>
               ) : (
@@ -139,7 +160,9 @@ function TestResultSection({ orderId, testId }: { orderId: string; testId: strin
             <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
               {t('result_entry.observations')}
             </p>
-            <p className="text-sm text-gray-300">{session.report.observations}</p>
+            <p className="text-sm text-gray-300">
+              {session.report.observations}
+            </p>
           </div>
         )}
       </div>
@@ -181,7 +204,10 @@ export function ReviewReleasePage() {
           <Skeleton className="h-10 w-44" />
         </div>
         {[1, 2].map((i) => (
-          <div key={i} className="mb-4 rounded-xl border border-gray-800 bg-gray-900">
+          <div
+            key={i}
+            className="mb-4 rounded-xl border border-gray-800 bg-gray-900"
+          >
             <div className="flex items-center justify-between border-b border-gray-800 px-5 py-3">
               <div className="space-y-1.5">
                 <Skeleton className="h-5 w-36" />
@@ -209,13 +235,19 @@ export function ReviewReleasePage() {
     ['RESULTS_ENTERED', 'IN_REVIEW'].includes(t.status)
   );
   const pendingTests = order.orderedTests.filter(
-    (t) => !['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED', 'CANCELLED'].includes(t.status)
+    (t) =>
+      !['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED', 'CANCELLED'].includes(
+        t.status
+      )
   );
 
   return (
     <div className="p-6 max-w-3xl">
       <div className="mb-4">
-        <Link to={`/orders/${order.id}`} className="text-sm text-gray-400 hover:text-white">
+        <Link
+          to={`/orders/${order.id}`}
+          className="text-sm text-gray-400 hover:text-white"
+        >
           {t('review.back')}
         </Link>
       </div>
@@ -247,7 +279,9 @@ export function ReviewReleasePage() {
           <div className="mt-2 flex flex-wrap gap-2">
             {pendingTests.map((test) => (
               <span key={test.id} className="flex items-center gap-1.5">
-                <span className="text-xs text-yellow-400">{test.catalogItemName}</span>
+                <span className="text-xs text-yellow-400">
+                  {test.catalogItemName}
+                </span>
                 <StatusBadge status={test.status} size="sm" />
               </span>
             ))}
@@ -257,7 +291,11 @@ export function ReviewReleasePage() {
 
       {enteredTests.length > 0 ? (
         enteredTests.map((test) => (
-          <TestResultSection key={test.id} orderId={order.id} testId={test.id} />
+          <TestResultSection
+            key={test.id}
+            orderId={order.id}
+            testId={test.id}
+          />
         ))
       ) : (
         <div className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-8 text-center text-sm text-gray-500">

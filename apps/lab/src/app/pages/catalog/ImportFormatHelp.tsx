@@ -16,7 +16,7 @@ export function ImportFormatHelp() {
       <p className="mb-1.5 text-xs font-medium text-cyan">CSV</p>
       <div className="mb-3 rounded-lg bg-gray-800 p-2">
         <pre className="overflow-x-auto text-[10px] text-gray-300">
-{`kind,code,name,category,turnaroundHours,resultType,unit,description,componentCodes
+          {`kind,code,name,category,turnaroundHours,resultType,unit,description,componentCodes
 TEST,CBC-001,CBC,Hematology,4,NUMERIC,cells/uL,,
 PACKAGE,PKG-001,Wellness,,,,,,CBC-001;CHEM-001`}
         </pre>
@@ -25,7 +25,7 @@ PACKAGE,PKG-001,Wellness,,,,,,CBC-001;CHEM-001`}
       <p className="mb-1.5 text-xs font-medium text-cyan">JSON</p>
       <div className="mb-3 rounded-lg bg-gray-800 p-2">
         <pre className="overflow-x-auto text-[10px] text-gray-300">
-{`{
+          {`{
   "items": [
     {
       "kind": "TEST",

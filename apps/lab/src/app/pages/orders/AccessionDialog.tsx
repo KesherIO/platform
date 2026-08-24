@@ -40,7 +40,8 @@ function buildInitialForms(
     specimenType: g.specimenType,
     containerType: g.containerType,
     tubeIndex: 1,
-    accessionNumber: idx === 0 ? requisitionNumber : `${requisitionNumber}-${idx + 1}`,
+    accessionNumber:
+      idx === 0 ? requisitionNumber : `${requisitionNumber}-${idx + 1}`,
     accepted: true,
     isHemolyzed: false,
     isLipemic: false,
@@ -69,7 +70,12 @@ interface Props {
   onSuccess: () => void;
 }
 
-export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess }: Props) {
+export function AccessionDialog({
+  orderId,
+  requisitionNumber,
+  onClose,
+  onSuccess,
+}: Props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -89,10 +95,7 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
       .finally(() => setLoading(false));
   }, [orderId]);
 
-  const updateForm = (
-    key: string,
-    patch: Partial<SpecimenFormState>
-  ) => {
+  const updateForm = (key: string, patch: Partial<SpecimenFormState>) => {
     setForms((prev) =>
       prev.map((f) => (f._key === key ? { ...f, ...patch } : f))
     );
@@ -145,8 +148,13 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
 
   const handleSubmit = async () => {
     const hasConditionFlag = (f: SpecimenFormState) =>
-      f.isHemolyzed || f.isLipemic || f.isIcteric || f.isInsufficient ||
-      f.isContaminated || f.isWrongContainer || f.isLeaking;
+      f.isHemolyzed ||
+      f.isLipemic ||
+      f.isIcteric ||
+      f.isInsufficient ||
+      f.isContaminated ||
+      f.isWrongContainer ||
+      f.isLeaking;
 
     for (const f of forms) {
       if (!f.accepted && !f.rejectionReason && !hasConditionFlag(f)) {
@@ -171,9 +179,10 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
   };
 
   const groupLabel = (f: SpecimenFormState) =>
-    `${f.specimenType.replace(/_/g, ' ')} · ${f.containerType.replace(/_/g, ' ')}${
-      f.tubeIndex && f.tubeIndex > 1 ? ` #${f.tubeIndex}` : ''
-    }`;
+    `${f.specimenType.replace(/_/g, ' ')} · ${f.containerType.replace(
+      /_/g,
+      ' '
+    )}${f.tubeIndex && f.tubeIndex > 1 ? ` #${f.tubeIndex}` : ''}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -212,7 +221,10 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
                     {t('accession.unconfigured_tests', {
                       count: expectedData.unconfiguredTests.length,
                     })}
-                    : {expectedData.unconfiguredTests.map((t) => t.name).join(', ')}
+                    :{' '}
+                    {expectedData.unconfiguredTests
+                      .map((t) => t.name)
+                      .join(', ')}
                   </div>
                 )}
 
@@ -238,7 +250,10 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
                       <div className="flex gap-2">
                         <button
                           onClick={() =>
-                            updateForm(f._key, { accepted: true, rejectionReason: undefined })
+                            updateForm(f._key, {
+                              accepted: true,
+                              rejectionReason: undefined,
+                            })
                           }
                           className={`rounded-lg px-3 py-1 text-xs font-medium ${
                             f.accepted
@@ -249,7 +264,9 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
                           {t('accession.accept')}
                         </button>
                         <button
-                          onClick={() => updateForm(f._key, { accepted: false })}
+                          onClick={() =>
+                            updateForm(f._key, { accepted: false })
+                          }
                           className={`rounded-lg px-3 py-1 text-xs font-medium ${
                             !f.accepted
                               ? 'bg-red-700 text-white'
@@ -268,10 +285,14 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
                       </label>
                       <input
                         type="text"
-                        placeholder={t('accession.accession_number_placeholder')}
+                        placeholder={t(
+                          'accession.accession_number_placeholder'
+                        )}
                         value={f.accessionNumber ?? ''}
                         onChange={(e) =>
-                          updateForm(f._key, { accessionNumber: e.target.value })
+                          updateForm(f._key, {
+                            accessionNumber: e.target.value,
+                          })
                         }
                         className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-white placeholder-gray-500 focus:border-cyan focus:outline-none"
                       />
@@ -310,15 +331,23 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
                       <div className="mb-3">
                         <label className="mb-1 block text-xs text-gray-400">
                           {t('accession.rejection_reason')}
-                          {!(f.isHemolyzed || f.isLipemic || f.isIcteric || f.isInsufficient || f.isContaminated || f.isWrongContainer || f.isLeaking) && (
-                            <span className="ml-1 text-red-400">*</span>
-                          )}
+                          {!(
+                            f.isHemolyzed ||
+                            f.isLipemic ||
+                            f.isIcteric ||
+                            f.isInsufficient ||
+                            f.isContaminated ||
+                            f.isWrongContainer ||
+                            f.isLeaking
+                          ) && <span className="ml-1 text-red-400">*</span>}
                         </label>
                         <input
                           type="text"
                           value={f.rejectionReason ?? ''}
                           onChange={(e) =>
-                            updateForm(f._key, { rejectionReason: e.target.value })
+                            updateForm(f._key, {
+                              rejectionReason: e.target.value,
+                            })
                           }
                           className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-red-500 focus:outline-none"
                         />
@@ -345,12 +374,16 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
 
               {/* Add tube buttons for each group */}
               {expectedData?.expectedSpecimenGroups.map((g) => (
-                <div key={`${g.specimenType}::${g.containerType}`} className="mt-2">
+                <div
+                  key={`${g.specimenType}::${g.containerType}`}
+                  className="mt-2"
+                >
                   <button
                     onClick={() => addTube(g)}
                     className="text-xs text-cyan hover:underline"
                   >
-                    + {t('accession.add_tube', {
+                    +{' '}
+                    {t('accession.add_tube', {
                       type: g.specimenType.replace(/_/g, ' '),
                     })}
                   </button>
@@ -375,7 +408,12 @@ export function AccessionDialog({ orderId, requisitionNumber, onClose, onSuccess
             </button>
             <button
               onClick={handleSubmit}
-              disabled={submitting || loading || (forms.length === 0 && (expectedData?.unconfiguredTests.length ?? 0) === 0)}
+              disabled={
+                submitting ||
+                loading ||
+                (forms.length === 0 &&
+                  (expectedData?.unconfiguredTests.length ?? 0) === 0)
+              }
               className="rounded-lg bg-cyan px-5 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
             >
               {submitting ? '...' : t('accession.confirm')}

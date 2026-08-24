@@ -365,11 +365,7 @@ export class WorklistService {
     });
   }
 
-  async startTest(
-    labTenantId: string,
-    testId: string,
-    userId: string
-  ) {
+  async startTest(labTenantId: string, testId: string, userId: string) {
     const test = await this.prisma.orderedTest.findFirst({
       where: { id: testId, order: { labTenantId } },
       select: {
@@ -425,7 +421,11 @@ export class WorklistService {
       select: { status: true },
     });
 
-    if (order.status !== 'PROCESSING' && order.status !== 'COMPLETED' && order.status !== 'CANCELLED') {
+    if (
+      order.status !== 'PROCESSING' &&
+      order.status !== 'COMPLETED' &&
+      order.status !== 'CANCELLED'
+    ) {
       await this.prisma.order.update({
         where: { id: test.orderId },
         data: { status: 'PROCESSING', processingStartedAt: now },

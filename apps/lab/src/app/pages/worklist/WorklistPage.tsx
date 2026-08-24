@@ -46,7 +46,9 @@ export function WorklistPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [busyTestId, setBusyTestId] = useState<string | null>(null);
-  const [reassigningItem, setReassigningItem] = useState<WorklistItem | null>(null);
+  const [reassigningItem, setReassigningItem] = useState<WorklistItem | null>(
+    null
+  );
 
   const currentUserId = user?.id ?? '';
 
@@ -123,7 +125,11 @@ export function WorklistPage() {
       toast.success(t('worklist.success.claimed'));
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('409') || msg.includes('modified') || msg.includes('claimed')) {
+      if (
+        msg.includes('409') ||
+        msg.includes('modified') ||
+        msg.includes('claimed')
+      ) {
         toast.error(t('worklist.errors.conflict'));
       } else {
         toast.error(t('worklist.errors.claim'));
@@ -173,7 +179,9 @@ export function WorklistPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">{t('worklist.title')}</h1>
+          <h1 className="text-xl font-bold text-white">
+            {t('worklist.title')}
+          </h1>
           <p className="text-sm text-gray-400">
             {total} {t('worklist.subtitle')}
           </p>
@@ -184,13 +192,13 @@ export function WorklistPage() {
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setDepartment('')}
-          className={`${TOOLBAR_TAB} ${!department ? TOOLBAR_TAB_ACTIVE : TOOLBAR_TAB_INACTIVE}`}
+          className={`${TOOLBAR_TAB} ${
+            !department ? TOOLBAR_TAB_ACTIVE : TOOLBAR_TAB_INACTIVE
+          }`}
         >
           {t('worklist.tab_all')}
           {countsData && (
-            <span className="ml-1.5 text-xs opacity-70">
-              {allTotal}
-            </span>
+            <span className="ml-1.5 text-xs opacity-70">{allTotal}</span>
           )}
         </button>
         {departments
@@ -200,7 +208,9 @@ export function WorklistPage() {
               key={d.department}
               onClick={() => setDepartment(d.department)}
               className={`${TOOLBAR_TAB} ${
-                department === d.department ? TOOLBAR_TAB_ACTIVE : TOOLBAR_TAB_INACTIVE
+                department === d.department
+                  ? TOOLBAR_TAB_ACTIVE
+                  : TOOLBAR_TAB_INACTIVE
               }`}
             >
               {t(`worklist.department.${d.department}`)}
@@ -215,7 +225,9 @@ export function WorklistPage() {
           <button
             onClick={() => setDepartment('__none__')}
             className={`${TOOLBAR_TAB} ${
-              department === '__none__' ? TOOLBAR_TAB_ACTIVE : TOOLBAR_TAB_INACTIVE
+              department === '__none__'
+                ? TOOLBAR_TAB_ACTIVE
+                : TOOLBAR_TAB_INACTIVE
             }`}
           >
             {t('worklist.tab_no_department')}
@@ -257,7 +269,9 @@ export function WorklistPage() {
               setPage(1);
             }}
             className={`${TOOLBAR_TAB} ${
-              assignmentFilter === f.key ? TOOLBAR_TAB_ACTIVE : TOOLBAR_TAB_INACTIVE
+              assignmentFilter === f.key
+                ? TOOLBAR_TAB_ACTIVE
+                : TOOLBAR_TAB_INACTIVE
             }`}
           >
             {t(`worklist.assignment.${f.label}`)}
@@ -305,7 +319,9 @@ export function WorklistPage() {
       {/* Item list */}
       {items.length > 0 && (
         <div
-          className={`space-y-2 transition-opacity ${fetching && !loading ? 'opacity-60' : ''}`}
+          className={`space-y-2 transition-opacity ${
+            fetching && !loading ? 'opacity-60' : ''
+          }`}
         >
           {items.map((item) => (
             <WorklistCard

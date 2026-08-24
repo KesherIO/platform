@@ -48,7 +48,8 @@ export function WorklistCard({
   const canClaim = isUnassigned && item.status === 'READY';
   const canStart = isMine && item.status === 'READY';
   const canUnclaim = item.assignedUserId && (isMine || isAdmin);
-  const canReassign = isAdmin && (item.status === 'READY' || item.status === 'IN_PROGRESS');
+  const canReassign =
+    isAdmin && (item.status === 'READY' || item.status === 'IN_PROGRESS');
   const canEnterResults = isMine && item.status === 'IN_PROGRESS';
 
   return (
@@ -57,12 +58,16 @@ export function WorklistCard({
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span
-            className={`rounded-md border px-1.5 py-0.5 text-xs font-semibold ${PRIORITY_COLORS[item.orderPriority] ?? PRIORITY_COLORS.ROUTINE}`}
+            className={`rounded-md border px-1.5 py-0.5 text-xs font-semibold ${
+              PRIORITY_COLORS[item.orderPriority] ?? PRIORITY_COLORS.ROUTINE
+            }`}
           >
             {item.orderPriority}
           </span>
           {item.accessionNumber && (
-            <span className="text-xs text-gray-400">{item.accessionNumber}</span>
+            <span className="text-xs text-gray-400">
+              {item.accessionNumber}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -120,7 +125,9 @@ export function WorklistCard({
               <span className="text-gray-200">{item.assignedUserName}</span>
             </span>
           ) : (
-            <span className="text-yellow-400/80">{t('worklist.card.unassigned')}</span>
+            <span className="text-yellow-400/80">
+              {t('worklist.card.unassigned')}
+            </span>
           )}
           <span className="text-gray-600">&middot;</span>
           <span>{item.clinicName}</span>

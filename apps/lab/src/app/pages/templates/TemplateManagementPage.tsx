@@ -1,6 +1,14 @@
 import { useState, FormEvent, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, Copy, Pencil, Upload, Archive, Plus, Trash2 } from 'lucide-react';
+import {
+  FileText,
+  Copy,
+  Pencil,
+  Upload,
+  Archive,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -17,7 +25,15 @@ import type {
 } from '../../types/lab.types';
 
 const SPECIES_OPTIONS: (Species | 'ANY')[] = [
-  'ANY', 'DOG', 'CAT', 'EQUINE', 'BOVINE', 'BIRD', 'REPTILE', 'RABBIT', 'OTHER',
+  'ANY',
+  'DOG',
+  'CAT',
+  'EQUINE',
+  'BOVINE',
+  'BIRD',
+  'REPTILE',
+  'RABBIT',
+  'OTHER',
 ];
 
 const STATUS_COLORS: Record<TemplateStatus, string> = {
@@ -46,10 +62,17 @@ export function TemplateManagementPage() {
 
   const [search, setSearch] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
-  const [newForm, setNewForm] = useState({ title: '', catalogItemCode: '', catalogItemId: '', species: 'ANY' as Species | 'ANY' });
+  const [newForm, setNewForm] = useState({
+    title: '',
+    catalogItemCode: '',
+    catalogItemId: '',
+    species: 'ANY' as Species | 'ANY',
+  });
   const [newSubmitting, setNewSubmitting] = useState(false);
   const [newError, setNewError] = useState<string | null>(null);
-  const [catalogItems, setCatalogItems] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [catalogItems, setCatalogItems] = useState<
+    { id: string; name: string; code: string }[]
+  >([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -58,7 +81,8 @@ export function TemplateManagementPage() {
   useEffect(() => {
     if (!catalogOpen) return;
     const handleClick = (e: MouseEvent) => {
-      if (!comboboxRef.current?.contains(e.target as Node)) setCatalogOpen(false);
+      if (!comboboxRef.current?.contains(e.target as Node))
+        setCatalogOpen(false);
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -184,13 +208,25 @@ export function TemplateManagementPage() {
       });
       invalidate();
       setShowNewModal(false);
-      setNewForm({ title: '', catalogItemCode: '', catalogItemId: '', species: 'ANY' });
+      setNewForm({
+        title: '',
+        catalogItemCode: '',
+        catalogItemId: '',
+        species: 'ANY',
+      });
       setCatalogSearch('');
       setCatalogOpen(false);
       // Navigate to builder with the newly created draft version
-      const versionId = (def as unknown as { activeVersion?: { id: string }; versions?: { id: string }[] })
-        .activeVersion?.id ?? (def as unknown as { versions?: { id: string }[] }).versions?.[0]?.id;
-      if (versionId) navigate(`/templates/${def.id}/versions/${versionId}/edit`);
+      const versionId =
+        (
+          def as unknown as {
+            activeVersion?: { id: string };
+            versions?: { id: string }[];
+          }
+        ).activeVersion?.id ??
+        (def as unknown as { versions?: { id: string }[] }).versions?.[0]?.id;
+      if (versionId)
+        navigate(`/templates/${def.id}/versions/${versionId}/edit`);
     } catch (err) {
       setNewError((err as Error).message);
     } finally {
@@ -337,10 +373,19 @@ export function TemplateManagementPage() {
             onClick={() => {
               setShowNewModal(true);
               setLoadingCatalog(true);
-              labApi.catalog.listActive()
-                .then((res) => setCatalogItems(
-                  res.data.filter((i) => i.kind === 'TEST' && i.active).map((i) => ({ id: i.id, name: i.name, code: i.code ?? '' }))
-                ))
+              labApi.catalog
+                .listActive()
+                .then((res) =>
+                  setCatalogItems(
+                    res.data
+                      .filter((i) => i.kind === 'TEST' && i.active)
+                      .map((i) => ({
+                        id: i.id,
+                        name: i.name,
+                        code: i.code ?? '',
+                      }))
+                  )
+                )
                 .finally(() => setLoadingCatalog(false));
             }}
             className="flex items-center gap-2 rounded-xl bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
@@ -408,35 +453,71 @@ export function TemplateManagementPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-950 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 px-6 py-4">
-              <h2 className="text-base font-semibold text-white">{t('templates.new_template')}</h2>
-              <button onClick={() => { setShowNewModal(false); setNewForm({ title: '', catalogItemCode: '', catalogItemId: '', species: 'ANY' }); }} className="text-gray-400 hover:text-white">✕</button>
+              <h2 className="text-base font-semibold text-white">
+                {t('templates.new_template')}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowNewModal(false);
+                  setNewForm({
+                    title: '',
+                    catalogItemCode: '',
+                    catalogItemId: '',
+                    species: 'ANY',
+                  });
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
             </div>
             <form onSubmit={handleCreateNew} className="space-y-4 px-6 py-5">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-400">{t('templates.form_title')} *</label>
+                <label className="mb-1 block text-xs font-medium text-gray-400">
+                  {t('templates.form_title')} *
+                </label>
                 <input
                   required
                   type="text"
                   value={newForm.title}
-                  onChange={(e) => setNewForm((f) => ({ ...f, title: e.target.value }))}
+                  onChange={(e) =>
+                    setNewForm((f) => ({ ...f, title: e.target.value }))
+                  }
                   placeholder={t('templates.form_title_placeholder')}
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-cyan focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-400">{t('test_config.test_name')} *</label>
+                <label className="mb-1 block text-xs font-medium text-gray-400">
+                  {t('test_config.test_name')} *
+                </label>
                 <div ref={comboboxRef} className="relative">
                   <input
                     required={!newForm.catalogItemId}
                     readOnly={!!newForm.catalogItemId}
-                    value={newForm.catalogItemId
-                      ? `${catalogItems.find((i) => i.id === newForm.catalogItemId)?.name ?? ''} (${newForm.catalogItemCode})`
-                      : catalogSearch}
-                    onChange={(e) => { setCatalogSearch(e.target.value); setCatalogOpen(true); }}
-                    onFocus={() => { if (!newForm.catalogItemId) setCatalogOpen(true); }}
+                    value={
+                      newForm.catalogItemId
+                        ? `${
+                            catalogItems.find(
+                              (i) => i.id === newForm.catalogItemId
+                            )?.name ?? ''
+                          } (${newForm.catalogItemCode})`
+                        : catalogSearch
+                    }
+                    onChange={(e) => {
+                      setCatalogSearch(e.target.value);
+                      setCatalogOpen(true);
+                    }}
+                    onFocus={() => {
+                      if (!newForm.catalogItemId) setCatalogOpen(true);
+                    }}
                     onClick={() => {
                       if (newForm.catalogItemId) {
-                        setNewForm((f) => ({ ...f, catalogItemId: '', catalogItemCode: '' }));
+                        setNewForm((f) => ({
+                          ...f,
+                          catalogItemId: '',
+                          catalogItemCode: '',
+                        }));
                         setCatalogSearch('');
                         setCatalogOpen(true);
                       }
@@ -447,56 +528,77 @@ export function TemplateManagementPage() {
                   {catalogOpen && (
                     <div className="absolute z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-gray-700 bg-gray-800 shadow-xl">
                       {loadingCatalog && (
-                        <p className="px-3 py-2 text-xs text-gray-400">{t('common.loading')}</p>
+                        <p className="px-3 py-2 text-xs text-gray-400">
+                          {t('common.loading')}
+                        </p>
                       )}
-                      {!loadingCatalog && (() => {
-                        const q = catalogSearch.toLowerCase();
-                        const matches = catalogItems.filter(
-                          (i) => i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q)
-                        );
-                        if (!matches.length) return (
-                          <p className="px-3 py-2 text-xs text-gray-400">{t('test_config.no_results')}</p>
-                        );
-                        return matches.map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onMouseDown={() => {
-                              setNewForm((f) => ({
-                                ...f,
-                                catalogItemId: item.id,
-                                catalogItemCode: item.code,
-                                title: f.title || item.name,
-                              }));
-                              setCatalogSearch('');
-                              setCatalogOpen(false);
-                            }}
-                            className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-white hover:bg-gray-700"
-                          >
-                            <span>{item.name}</span>
-                            <span className="font-mono text-xs text-gray-400">{item.code}</span>
-                          </button>
-                        ));
-                      })()}
+                      {!loadingCatalog &&
+                        (() => {
+                          const q = catalogSearch.toLowerCase();
+                          const matches = catalogItems.filter(
+                            (i) =>
+                              i.name.toLowerCase().includes(q) ||
+                              i.code.toLowerCase().includes(q)
+                          );
+                          if (!matches.length)
+                            return (
+                              <p className="px-3 py-2 text-xs text-gray-400">
+                                {t('test_config.no_results')}
+                              </p>
+                            );
+                          return matches.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onMouseDown={() => {
+                                setNewForm((f) => ({
+                                  ...f,
+                                  catalogItemId: item.id,
+                                  catalogItemCode: item.code,
+                                  title: f.title || item.name,
+                                }));
+                                setCatalogSearch('');
+                                setCatalogOpen(false);
+                              }}
+                              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-white hover:bg-gray-700"
+                            >
+                              <span>{item.name}</span>
+                              <span className="font-mono text-xs text-gray-400">
+                                {item.code}
+                              </span>
+                            </button>
+                          ));
+                        })()}
                     </div>
                   )}
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-400">{t('templates.species_label')} *</label>
+                <label className="mb-1 block text-xs font-medium text-gray-400">
+                  {t('templates.species_label')} *
+                </label>
                 <select
                   required
                   value={newForm.species}
-                  onChange={(e) => setNewForm((f) => ({ ...f, species: e.target.value as Species | 'ANY' }))}
+                  onChange={(e) =>
+                    setNewForm((f) => ({
+                      ...f,
+                      species: e.target.value as Species | 'ANY',
+                    }))
+                  }
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
                 >
                   {SPECIES_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{t(`species.${s}`)}</option>
+                    <option key={s} value={s}>
+                      {t(`species.${s}`)}
+                    </option>
                   ))}
                 </select>
               </div>
               {newError && (
-                <p className="rounded-lg bg-red-950 px-3 py-2 text-xs text-red-300">{newError}</p>
+                <p className="rounded-lg bg-red-950 px-3 py-2 text-xs text-red-300">
+                  {newError}
+                </p>
               )}
               <div className="flex gap-3 pt-1">
                 <button
@@ -508,7 +610,15 @@ export function TemplateManagementPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setShowNewModal(false); setNewForm({ title: '', catalogItemCode: '', catalogItemId: '', species: 'ANY' }); }}
+                  onClick={() => {
+                    setShowNewModal(false);
+                    setNewForm({
+                      title: '',
+                      catalogItemCode: '',
+                      catalogItemId: '',
+                      species: 'ANY',
+                    });
+                  }}
                   className="rounded-lg border border-gray-700 px-5 py-2 text-sm text-gray-300 hover:bg-gray-800"
                 >
                   {t('common.cancel')}

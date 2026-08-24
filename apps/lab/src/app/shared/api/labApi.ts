@@ -164,13 +164,17 @@ export const labApi = {
     enable: (id: string) => post<CatalogItem>(`catalog/${id}/enable`),
     disable: (id: string) => post<CatalogItem>(`catalog/${id}/disable`),
     importPlatform: () =>
-      post<{ created: number; updated: number; disabled: number; total: number }>(
-        'lab/catalog/import-platform'
-      ),
+      post<{
+        created: number;
+        updated: number;
+        disabled: number;
+        total: number;
+      }>('lab/catalog/import-platform'),
     importCatalog: (data: {
       items: import('../../types/lab.types').ImportCatalogItemInput[];
       replace?: boolean;
-    }) => post<{ created: number; updated: number }>('lab/catalog/import', data),
+    }) =>
+      post<{ created: number; updated: number }>('lab/catalog/import', data),
   },
   pickups: {
     list: (params?: CollectionsQuery) => {
@@ -247,7 +251,9 @@ export const labApi = {
   },
   specimens: {
     getExpected: (orderId: string) =>
-      get<ExpectedSpecimensResponse>(`lab/orders/${orderId}/expected-specimens`),
+      get<ExpectedSpecimensResponse>(
+        `lab/orders/${orderId}/expected-specimens`
+      ),
     accessionOrder: (orderId: string, specimens: AccessionSpecimenInput[]) =>
       post<{ specimens: Specimen[]; order: { id: string; status: string } }>(
         `lab/orders/${orderId}/accession`,
@@ -282,7 +288,11 @@ export const labApi = {
             valueType: string;
             unit: string | null;
             options: string[];
-            referenceRange: { min?: number; max?: number; displayText: string } | null;
+            referenceRange: {
+              min?: number;
+              max?: number;
+              displayText: string;
+            } | null;
             isHeader: boolean;
             formula: string | null;
             sortOrder: number;
@@ -296,8 +306,14 @@ export const labApi = {
       }>(`lab/ordered-tests/${testId}/result-session`),
     saveAnalytes: (
       testId: string,
-      analytes: Array<{ templateAnalyteId: string; numericValue?: number | null; textValue?: string | null; booleanValue?: boolean | null; selectValue?: string | null }>,
-      observations?: string | null,
+      analytes: Array<{
+        templateAnalyteId: string;
+        numericValue?: number | null;
+        textValue?: string | null;
+        booleanValue?: boolean | null;
+        selectValue?: string | null;
+      }>,
+      observations?: string | null
     ) =>
       patch<{ reportId: string; saved: number }>(
         `lab/ordered-tests/${testId}/analytes`,
@@ -313,7 +329,8 @@ export const labApi = {
       const sp = new URLSearchParams();
       if (params?.department) sp.set('department', params.department);
       if (params?.status) sp.set('status', params.status);
-      if (params?.assignmentFilter) sp.set('assignmentFilter', params.assignmentFilter);
+      if (params?.assignmentFilter)
+        sp.set('assignmentFilter', params.assignmentFilter);
       if (params?.search) sp.set('search', params.search);
       if (params?.dateFrom) sp.set('dateFrom', params.dateFrom);
       if (params?.dateTo) sp.set('dateTo', params.dateTo);

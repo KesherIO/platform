@@ -64,7 +64,10 @@ async function main() {
             });
             updated++;
           } else {
-            record = await tx.catalogItem.create({ data, select: { id: true } });
+            record = await tx.catalogItem.create({
+              data,
+              select: { id: true },
+            });
             created++;
           }
           idByCode.set(item.code, record.id);
@@ -81,7 +84,10 @@ async function main() {
             });
             updated++;
           } else {
-            record = await tx.catalogItem.create({ data, select: { id: true } });
+            record = await tx.catalogItem.create({
+              data,
+              select: { id: true },
+            });
             created++;
           }
           idByName.set(item.name, record.id);
@@ -107,7 +113,9 @@ async function main() {
         );
         if (missing.length > 0) {
           console.warn(
-            `  ⚠ Missing component codes for "${item.name}": ${missing.join(', ')}`
+            `  ⚠ Missing component codes for "${item.name}": ${missing.join(
+              ', '
+            )}`
           );
           continue;
         }

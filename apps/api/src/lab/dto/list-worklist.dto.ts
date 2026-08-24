@@ -40,7 +40,9 @@ export class ListWorklistDto {
 
   @Matches(
     new RegExp(
-      `^(${ORDERED_TEST_STATUSES.join('|')})(,(${ORDERED_TEST_STATUSES.join('|')}))*$`
+      `^(${ORDERED_TEST_STATUSES.join('|')})(,(${ORDERED_TEST_STATUSES.join(
+        '|'
+      )}))*$`
     )
   )
   @IsOptional()

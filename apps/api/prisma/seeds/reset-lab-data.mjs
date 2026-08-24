@@ -45,9 +45,11 @@ async function main() {
     where: { scope: 'LABORATORY', labTenantId: lab.id },
     data: { activeVersionId: null },
   });
-  const { count: templates } = await prisma.resultTemplateDefinition.deleteMany({
-    where: { scope: 'LABORATORY', labTenantId: lab.id },
-  });
+  const { count: templates } = await prisma.resultTemplateDefinition.deleteMany(
+    {
+      where: { scope: 'LABORATORY', labTenantId: lab.id },
+    }
+  );
   console.log(`✓ Deleted ${templates} lab-scope result templates`);
 
   // 3. Catalog items (cascade → compositions, case-catalog-item links)
@@ -55,7 +57,8 @@ async function main() {
   const { count: testConfigs } = await prisma.labTestConfiguration.deleteMany({
     where: { labTenantId: lab.id },
   });
-  if (testConfigs > 0) console.log(`✓ Deleted ${testConfigs} test configurations`);
+  if (testConfigs > 0)
+    console.log(`✓ Deleted ${testConfigs} test configurations`);
 
   const { count: catalogItems } = await prisma.catalogItem.deleteMany({
     where: { labTenantId: lab.id },
@@ -72,13 +75,13 @@ async function main() {
     });
     totalCases += count;
   }
-  console.log(`✓ Deleted ${totalCases} cases across ${clinics.length} clinic(s)`);
+  console.log(
+    `✓ Deleted ${totalCases} cases across ${clinics.length} clinic(s)`
+  );
 
   console.log('─'.repeat(50));
   console.log('Done. Platform templates are untouched.');
-  console.log(
-    'Next: go to Lab portal → Catalog → "Import Platform Catalog"\n'
-  );
+  console.log('Next: go to Lab portal → Catalog → "Import Platform Catalog"\n');
 }
 
 main()
