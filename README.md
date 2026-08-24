@@ -49,6 +49,7 @@ Auth for both frontends is via Supabase; `api` verifies the resulting JWT (no lo
 When a vet orders a test, the order contains a **catalog item** from the lab's own catalog. Each catalog item has a short **code** (e.g. `CBC`, `CA`, `CREA`). When the lab enters results for that test, the API looks up a **result template** using that exact code — the template defines the analytes, reference ranges, and sections that appear in the result form.
 
 The lookup priority is:
+
 1. A **LABORATORY-scope** template for the lab's tenant that matches the patient's species and age — most specific wins.
 2. A **PLATFORM-scope** template (shipped with the platform) that matches the same criteria — used as a fallback.
 
@@ -58,16 +59,16 @@ If no template matches the code at all, the result is marked as "blocked — no 
 
 The platform ships with ~100 standard test codes in `apps/api/prisma/seeds/catalog.json`. These codes are the keys that tie catalog items to result templates:
 
-| Code | Name (ES) |
-|------|-----------|
-| `CBC` | Hemograma Completo |
-| `CA` | Calcio |
-| `CL` | Cloro |
-| `CREA` | Creatinina |
-| `ALB` | Albúmina |
-| `GLU` | Glucosa |
-| `ALT` | ALT (GPT) |
-| … | (and ~90 more) |
+| Code   | Name (ES)          |
+| ------ | ------------------ |
+| `CBC`  | Hemograma Completo |
+| `CA`   | Calcio             |
+| `CL`   | Cloro              |
+| `CREA` | Creatinina         |
+| `ALB`  | Albúmina           |
+| `GLU`  | Glucosa            |
+| `ALT`  | ALT (GPT)          |
+| …      | (and ~90 more)     |
 
 The platform's 170 result templates (`apps/api/prisma/seeds/templates/`) use these same codes, so a lab that imports the platform catalog gets automatic template matching for every standard test.
 
@@ -94,21 +95,21 @@ The platform's 170 result templates (`apps/api/prisma/seeds/templates/`) use the
 }
 ```
 
-| Field | Required | Notes |
-|---|---|---|
-| `kind` | ✓ | `TEST` or `PACKAGE` |
-| `code` | For `TEST` | Upsert key — stable once in use |
-| `name` | ✓ | Display name |
-| `category` | – | Groups tests in the UI |
-| `turnaroundHours` | – | Expected lab processing time |
-| `unit` | – | e.g. `mg/dL` |
-| `resultType` | – | `NUMERIC`, `TEXT`, or `POSITIVE_NEGATIVE` |
-| `componentCodes` | For `PACKAGE` | Codes of the TEST items it bundles |
+| Field             | Required      | Notes                                     |
+| ----------------- | ------------- | ----------------------------------------- |
+| `kind`            | ✓             | `TEST` or `PACKAGE`                       |
+| `code`            | For `TEST`    | Upsert key — stable once in use           |
+| `name`            | ✓             | Display name                              |
+| `category`        | –             | Groups tests in the UI                    |
+| `turnaroundHours` | –             | Expected lab processing time              |
+| `unit`            | –             | e.g. `mg/dL`                              |
+| `resultType`      | –             | `NUMERIC`, `TEXT`, or `POSITIVE_NEGATIVE` |
+| `componentCodes`  | For `PACKAGE` | Codes of the TEST items it bundles        |
 
 ### New lab onboarding flow
 
 1. **Create the lab tenant** — run `node apps/api/prisma/seeds/seed-lab-tenant.mjs` (dev) or create via the onboarding API endpoint.
-2. **Seed platform templates** *(one-time, platform admin)* — run `node apps/api/prisma/seeds/seed-platform-templates.mjs`. This loads all 170 platform result templates (from `apps/api/prisma/seeds/templates/*.json`) into the DB as `scope: PLATFORM` definitions. These are shared across all labs — only needs to run once per database.
+2. **Seed platform templates** _(one-time, platform admin)_ — run `node apps/api/prisma/seeds/seed-platform-templates.mjs`. This loads all 170 platform result templates (from `apps/api/prisma/seeds/templates/*.json`) into the DB as `scope: PLATFORM` definitions. These are shared across all labs — only needs to run once per database.
 3. **Import the platform catalog** — in the Lab portal → **Settings** page (Admin/Owner only), use the **"Import Platform Catalog"** button in the Catalog Setup section. This upserts all standard test codes into the lab's own catalog. Alternatively: `node apps/api/prisma/seeds/seed-platform-catalog.mjs`.
 4. **Result templates activate automatically** — because the lab's catalog items now share the same codes as the platform templates (CA, CBC, CREA…), every standard test is immediately ready for result entry. The `resolveTemplate()` logic picks the best matching PLATFORM or LABORATORY template automatically.
 5. **Customize** — labs can create additional catalog items with custom codes for tests not in the platform catalog, then build result templates for those codes in the Templates section of the Lab portal.
@@ -116,6 +117,7 @@ The platform's 170 result templates (`apps/api/prisma/seeds/templates/`) use the
 ### Custom catalog items and templates
 
 If a lab runs a proprietary test (e.g. `MYLAB-PCR-PARVO`):
+
 - Create the catalog item with that code in **Catalog → Create**.
 - Build a result template keyed to the same code in **Templates → New Template**.
 - Publish the template — it will now be used automatically when that test is ordered.
@@ -178,17 +180,17 @@ For programmatic integrations or when you need full control:
 
 #### Field reference
 
-| Field | Required | Type | Notes |
-|---|---|---|---|
-| `kind` | Yes | `"TEST"` or `"PACKAGE"` | |
-| `name` | Yes | string | Display name |
-| `code` | Recommended | string | Unique lab code — used as the upsert key and to link with result templates. Once in use on orders, it should not change. |
-| `category` | No | string | Groups items in the UI (e.g. `"Hematology"`, `"Chemistry"`) |
-| `turnaroundHours` | No | positive integer | Expected processing time |
-| `resultType` | No | `"NUMERIC"`, `"TEXT"`, or `"POSITIVE_NEGATIVE"` | Defines how results are entered |
-| `unit` | No | string | Unit of measurement for `NUMERIC` results (e.g. `"mg/dL"`) |
-| `description` | No | string | Free-text description |
-| `componentCodes` | For `PACKAGE` | string[] | Codes of the `TEST` items included in this package. In CSV, separate with semicolons (`CBC;CHEM`). In JSON, use an array. All referenced codes must exist in the lab's catalog. |
+| Field             | Required      | Type                                            | Notes                                                                                                                                                                           |
+| ----------------- | ------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kind`            | Yes           | `"TEST"` or `"PACKAGE"`                         |                                                                                                                                                                                 |
+| `name`            | Yes           | string                                          | Display name                                                                                                                                                                    |
+| `code`            | Recommended   | string                                          | Unique lab code — used as the upsert key and to link with result templates. Once in use on orders, it should not change.                                                        |
+| `category`        | No            | string                                          | Groups items in the UI (e.g. `"Hematology"`, `"Chemistry"`)                                                                                                                     |
+| `turnaroundHours` | No            | positive integer                                | Expected processing time                                                                                                                                                        |
+| `resultType`      | No            | `"NUMERIC"`, `"TEXT"`, or `"POSITIVE_NEGATIVE"` | Defines how results are entered                                                                                                                                                 |
+| `unit`            | No            | string                                          | Unit of measurement for `NUMERIC` results (e.g. `"mg/dL"`)                                                                                                                      |
+| `description`     | No            | string                                          | Free-text description                                                                                                                                                           |
+| `componentCodes`  | For `PACKAGE` | string[]                                        | Codes of the `TEST` items included in this package. In CSV, separate with semicolons (`CBC;CHEM`). In JSON, use an array. All referenced codes must exist in the lab's catalog. |
 
 #### API endpoint
 
