@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Power } from 'lucide-react';
+import { Pencil, Power, Upload, FileDown, ChevronDown } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
@@ -11,7 +11,11 @@ import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import { CatalogItemModal } from './CatalogItemModal';
 import { CatalogGuidelines } from './CatalogGuidelines';
-import type { CatalogCounts, CatalogItem } from '../../types/lab.types';
+import type {
+  CatalogCounts,
+  CatalogItem,
+  ImportCatalogItemInput,
+} from '../../types/lab.types';
 
 const STATUS_COLORS: Record<'active' | 'inactive', string> = {
   active: 'bg-green-900/30 text-green-300',
@@ -41,6 +45,94 @@ const KIND_FILTERS: Array<{
 
 const EMPTY_COUNTS: CatalogCounts = { all: 0, TEST: 0, PACKAGE: 0 };
 
+const CSV_HEADERS = [
+  'kind',
+  'code',
+  'name',
+  'category',
+  'turnaroundHours',
+  'resultType',
+  'unit',
+  'description',
+  'componentCodes',
+] as const;
+
+function parseCsvRow(line: string): string[] {
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        current += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      fields.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  fields.push(current.trim());
+  return fields;
+}
+
+function parseCsvToItems(text: string): Record<string, unknown>[] | string {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+
+  if (lines.length < 2) return 'catalog.import_file.invalid_csv';
+
+  const headers = parseCsvRow(lines[0]).map((h) => h.toLowerCase());
+  const kindIdx = headers.indexOf('kind');
+  const nameIdx = headers.indexOf('name');
+
+  if (kindIdx === -1 || nameIdx === -1) {
+    return 'catalog.import_file.csv_missing_headers';
+  }
+
+  const items: Record<string, unknown>[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCsvRow(lines[i]);
+    const item: Record<string, unknown> = {};
+
+    for (let j = 0; j < headers.length; j++) {
+      const header = headers[j];
+      const value = values[j] ?? '';
+      if (!value) continue;
+
+      if (header === 'kind') {
+        item.kind = value.toUpperCase();
+      } else if (header === 'turnaroundhours') {
+        const n = parseInt(value, 10);
+        if (!isNaN(n)) item.turnaroundHours = n;
+      } else if (header === 'componentcodes') {
+        item.componentCodes = value
+          .split(';')
+          .map((c) => c.trim())
+          .filter(Boolean);
+      } else if (header === 'resulttype') {
+        item.resultType = value;
+      } else {
+        item[header] = value;
+      }
+    }
+
+    items.push(item);
+  }
+
+  return items;
+}
+
 export function CatalogPage() {
   const { t } = useTranslation();
   const { isAdmin } = useAuth();
@@ -53,6 +145,31 @@ export function CatalogPage() {
   const [kindFilter, setKindFilter] = useState<KindFilter>('ALL');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importMenuOpen, setImportMenuOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const importMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!importMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        importMenuRef.current &&
+        !importMenuRef.current.contains(e.target as Node)
+      ) {
+        setImportMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setImportMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [importMenuOpen]);
 
   const pageSize = 20;
 
@@ -114,6 +231,156 @@ export function CatalogPage() {
     queryClient.invalidateQueries({ queryKey: ['catalog'] });
   };
 
+  const handleFileSelected = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const text = await file.text();
+    const isCsv = file.name.toLowerCase().endsWith('.csv');
+
+    let items: unknown[];
+
+    if (isCsv) {
+      const parsed = parseCsvToItems(text);
+      if (typeof parsed === 'string') {
+        toast.error(t(parsed));
+        return;
+      }
+      items = parsed;
+    } else {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        toast.error(t('catalog.import_file.invalid_json'));
+        return;
+      }
+
+      if (
+        !parsed ||
+        typeof parsed !== 'object' ||
+        !Array.isArray((parsed as Record<string, unknown>).items)
+      ) {
+        toast.error(t('catalog.import_file.missing_items'));
+        return;
+      }
+
+      items = (parsed as { items: unknown[] }).items;
+    }
+
+    if (items.length === 0) {
+      toast.error(t('catalog.import_file.empty_items'));
+      return;
+    }
+
+    const validKinds = new Set(['TEST', 'PACKAGE']);
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i] as Record<string, unknown>;
+      if (!item || typeof item !== 'object') {
+        toast.error(t('catalog.import_file.invalid_item', { index: i + 1 }));
+        return;
+      }
+      if (!validKinds.has(item.kind as string)) {
+        toast.error(t('catalog.import_file.invalid_kind', { index: i + 1 }));
+        return;
+      }
+      if (typeof item.name !== 'string' || !item.name.trim()) {
+        toast.error(t('catalog.import_file.missing_name', { index: i + 1 }));
+        return;
+      }
+    }
+
+    const testCount = items.filter(
+      (i) => (i as Record<string, unknown>).kind === 'TEST'
+    ).length;
+    const packageCount = items.filter(
+      (i) => (i as Record<string, unknown>).kind === 'PACKAGE'
+    ).length;
+
+    const confirmed = await confirm({
+      title: t('catalog.import_file.confirm_title'),
+      message: t('catalog.import_file.confirm_message', {
+        total: items.length,
+        tests: testCount,
+        packages: packageCount,
+      }),
+      confirmLabel: t('catalog.import_file.confirm_button'),
+      icon: Upload,
+    });
+    if (!confirmed) return;
+
+    setImporting(true);
+    try {
+      const result = await labApi.catalog.importCatalog({
+        items: items as ImportCatalogItemInput[],
+      });
+      toast.success(
+        t('catalog.import_file.success', {
+          created: result.created,
+          updated: result.updated,
+        })
+      );
+      loadCatalog();
+    } catch (err) {
+      toast.error(
+        `${t('catalog.import_file.error')} ${(err as Error).message}`
+      );
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDownloadCsvTemplate = () => {
+    const header = CSV_HEADERS.join(',');
+    const rows = [
+      'TEST,EXAMPLE-001,Example Test,Hematology,4,NUMERIC,mg/dL,,',
+      'PACKAGE,PKG-001,Example Package,Chemistry,,,,,EXAMPLE-001',
+    ];
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'catalog-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    setImportMenuOpen(false);
+  };
+
+  const handleDownloadJsonTemplate = () => {
+    const template = {
+      items: [
+        {
+          kind: 'TEST',
+          code: 'EXAMPLE-001',
+          name: 'Example Test',
+          category: 'Hematology',
+          turnaroundHours: 4,
+          resultType: 'NUMERIC',
+          unit: 'mg/dL',
+        },
+        {
+          kind: 'PACKAGE',
+          code: 'PKG-001',
+          name: 'Example Package',
+          category: 'Chemistry',
+          description: 'A sample package bundling tests',
+          componentCodes: ['EXAMPLE-001'],
+        },
+      ],
+    };
+    const json = JSON.stringify(template, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'catalog-template.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    setImportMenuOpen(false);
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -122,7 +389,6 @@ export function CatalogPage() {
             <h1 className="text-xl font-bold text-white">
               {t('catalog.title')}
             </h1>
-            <CatalogGuidelines />
           </div>
           {!isLoading && (
             <p className="mt-0.5 text-sm text-gray-400">
@@ -131,12 +397,78 @@ export function CatalogPage() {
           )}
         </div>
         {isAdmin && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
-          >
-            + {t('catalog.create')}
-          </button>
+          <div className="flex items-center gap-2">
+            <CatalogGuidelines />
+            <div className="relative" ref={importMenuRef}>
+              <button
+                onClick={() => setImportMenuOpen(!importMenuOpen)}
+                disabled={importing}
+                aria-expanded={importMenuOpen}
+                aria-haspopup="true"
+                className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 pl-3 pr-2 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-50"
+              >
+                <Upload size={14} />
+                {importing
+                  ? t('catalog.import_file.importing')
+                  : t('catalog.import_file.button')}
+                <ChevronDown
+                  size={14}
+                  className={`text-gray-400 transition-transform ${
+                    importMenuOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              {importMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-gray-700 bg-gray-900 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      setImportMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-white"
+                  >
+                    <Upload size={15} strokeWidth={2} />
+                    {t('catalog.import_file.import_from_file')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadCsvTemplate}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-white"
+                  >
+                    <FileDown size={15} strokeWidth={2} />
+                    {t('catalog.import_file.download_csv')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadJsonTemplate}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-white"
+                  >
+                    <FileDown size={15} strokeWidth={2} />
+                    {t('catalog.import_file.download_json')}
+                  </button>
+                  <div className="border-t border-gray-800 px-3 py-2">
+                    <p className="text-[11px] text-gray-500">
+                      {t('catalog.import_file.format_hint')}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.json"
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="h-9 rounded-lg bg-cyan px-4 text-sm font-semibold text-gray-950 hover:opacity-90"
+            >
+              + {t('catalog.create')}
+            </button>
+          </div>
         )}
       </div>
 

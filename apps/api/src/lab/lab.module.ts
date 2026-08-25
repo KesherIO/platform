@@ -4,19 +4,33 @@ import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
 import { PickupService } from './pickup.service';
+import { SpecimenService } from './specimen.service';
+import { ResultEntryService } from './result-entry.service';
+import { WorklistService } from './worklist.service';
 import { LabTenantGuard } from './lab-tenant.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ResultsModule } from '../results/results.module';
+import { CatalogModule } from '../catalog/catalog.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, NotificationsModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    NotificationsModule,
+    ResultsModule,
+    CatalogModule,
+  ],
   controllers: [LabController],
   providers: [
     LabService,
     LabUsersService,
     LabClientsService,
     PickupService,
+    SpecimenService,
+    ResultEntryService,
+    WorklistService,
     LabTenantGuard,
   ],
   exports: [PickupService], // OrdersModule needs this to auto-create pickups

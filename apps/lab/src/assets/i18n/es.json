@@ -13,6 +13,7 @@
     "next": "Siguiente",
     "no_results": "No se encontraron resultados",
     "cancel": "Cancelar",
+    "you": "Tú",
     "confirm": "Confirmar",
     "dismiss": "Descartar",
     "apply": "Aplicar",
@@ -61,7 +62,8 @@
     "close_menu": "Cerrar menú",
     "analyzers": "Analizadores",
     "test_config": "Config. Pruebas",
-    "templates": "Plantillas"
+    "templates": "Plantillas",
+    "worklist": "Worklist"
   },
   "status": {
     "PENDING": "Pendiente",
@@ -72,6 +74,10 @@
     "COMPLETED": "Completado",
     "CANCELLED": "Cancelado",
     "IN_PROGRESS": "En proceso",
+    "READY": "Listo",
+    "RESULTS_ENTERED": "Resultados ingresados",
+    "IN_REVIEW": "En revisión",
+    "BLOCKED": "Bloqueado",
     "DRAFT": "Borrador",
     "RELEASED": "Liberado",
     "REQUESTED": "Solicitado",
@@ -83,6 +89,7 @@
     "FAILED": "Fallido"
   },
   "species": {
+    "ANY": "Cualquier especie",
     "DOG": "Canino",
     "CAT": "Felino",
     "EQUINE": "Equino",
@@ -118,7 +125,7 @@
       "mark_all_received": "Marcar todas como recibidas",
       "mark_received_single": "Marcar recibida",
       "start_processing": "Iniciar procesamiento",
-      "mark_completed": "Marcar como completado"
+      "cancel_order": "Cancelar orden"
     },
     "created": "Creada",
     "received": "Recibida"
@@ -131,44 +138,88 @@
     "ordered_tests": "Exámenes solicitados",
     "init_tests": "Inicializar exámenes",
     "review_release": "Revisar y liberar",
+    "view_report": "Ver reporte",
     "tests_init_hint": "Los exámenes se inicializan al recibir la muestra.",
     "enter_results": "Ingresar resultados",
+    "view_results": "Ver resultados",
     "sample_received": "Recibida",
     "sample_pending": "Pendiente de muestra",
+    "results_entered": "Resultados ingresados",
+    "entering_results": "Ingresando resultados",
+    "complete_blocked_hint": "Ingresa resultados de todos los análisis primero",
+    "retry_template": "Reintentar",
+    "pick_template": "Elegir plantilla",
+    "pick_template_hint": "Seleccionar una plantilla desbloqueará esta prueba y la dejará lista para ingresar resultados.",
+    "search_templates": "Buscar plantillas...",
+    "pick_template_species_hint": "Esto solo aplica a esta orden. Para evitar bloqueos futuros, crea una plantilla para {{species}} en la página de Plantillas.",
+    "no_published_templates": "No hay plantillas publicadas disponibles.",
+    "template_resolved": "Plantilla asignada — la prueba ya está lista para ingresar resultados.",
+    "template_still_missing": "Sin plantilla para este código. Usa \"Elegir plantilla\" para asignar una manualmente.",
     "also_direct": "también solicitado directamente",
     "also_in_package": "también en: {{name}}",
     "timeline": "Cronología",
     "completed": "Completada"
   },
+  "accession": {
+    "title": "Ingresar muestras",
+    "button": "Ingresar muestras",
+    "quick_accept_all": "Aceptar todas",
+    "accept": "Aceptar",
+    "reject": "Rechazar",
+    "accession_number": "Número de accesión",
+    "accession_number_placeholder": "Se genera automáticamente si está vacío",
+    "conditions": "Condiciones",
+    "rejection_reason": "Motivo de rechazo",
+    "rejection_reason_required": "El motivo de rechazo es requerido al rechazar una muestra.",
+    "notes": "Notas",
+    "add_tube": "Agregar otro tubo de {{type}}",
+    "confirm": "Confirmar ingreso",
+    "unconfigured_tests": "{{count}} examen(es) sin configuración de muestra",
+    "flag": {
+      "isHemolyzed": "Hemolizada",
+      "isLipemic": "Lipémica",
+      "isIcteric": "Ictérica",
+      "isInsufficient": "Insuficiente",
+      "isContaminated": "Contaminada",
+      "isWrongContainer": "Contenedor incorrecto",
+      "isLeaking": "Con derrame"
+    },
+    "block_reason": {
+      "MISSING_SPECIMEN": "Muestra faltante",
+      "REJECTED_SPECIMEN": "Muestra rechazada",
+      "INSUFFICIENT_VOLUME": "Volumen insuficiente",
+      "ANALYZER_UNAVAILABLE": "Analizador no disponible",
+      "REAGENT_UNAVAILABLE": "Reactivo no disponible",
+      "REQUIRES_RECOLLECTION": "Requiere recolección",
+      "MISSING_RESULT_TEMPLATE": "Sin plantilla de resultado",
+      "OTHER": "Bloqueado"
+    }
+  },
   "result_entry": {
     "back": "← Regresar a la orden",
-    "entry_method": "Método de ingreso",
-    "manual": "Manual",
-    "instrument": "Analizador",
-    "imported": "Importar archivo",
-    "start": "Iniciar ingreso de resultados",
-    "starting": "Iniciando...",
-    "in_progress_via": "Ingreso de resultados en progreso via",
-    "manual_label": "captura manual",
-    "in_progress_note": "Los valores analíticos se ingresan directamente en el informe de resultados. Una vez completado el ingreso, marque el examen como completado.",
-    "report_hint": "Para ingresar los valores analíticos, use la sección de Informe de Resultados disponible en la orden.",
-    "mark_complete": "Marcar examen como completado",
-    "saving": "Guardando...",
-    "status_completed": "completado",
-    "status_cancelled": "cancelado",
-    "already_done": "Este examen ya fue {{status}}.",
-    "not_found": "Examen no encontrado."
+    "not_found": "Examen no encontrado.",
+    "save_draft": "Guardar borrador",
+    "submit": "Enviar resultados",
+    "saved": "Resultados guardados.",
+    "submitted": "Resultados enviados.",
+    "update": "Actualizar resultados",
+    "updated": "Resultados actualizados.",
+    "observations": "Observaciones",
+    "observations_placeholder": "Notas de texto libre (opcional)"
   },
   "review": {
     "back": "← Regresar a la orden",
     "title": "Revisar y liberar — {{patient}}",
     "test_status": "Estado de exámenes",
     "result_report": "Informe de resultados",
-    "already_released": "Informe ya liberado",
+    "already_released": "Liberado",
     "release_btn": "Liberar informe para la clínica",
-    "pending_warning": "Hay exámenes pendientes de completar. Puede liberar el informe de todas formas.",
-    "no_report": "No hay informe de resultados creado para esta orden.",
-    "release_error": "Error al liberar el informe:"
+    "pending_warning": "Hay exámenes pendientes. Puede liberar los resultados disponibles de todas formas.",
+    "no_report": "Aún no se han ingresado resultados.",
+    "release_error": "Error al liberar el informe:",
+    "released_success": "Informe liberado para la clínica.",
+    "edit_results": "Editar",
+    "loading_results": "Cargando resultados..."
   },
   "settings": {
     "title": "Configuración del laboratorio",
@@ -222,7 +273,13 @@
     "signer_signature_hint": "Clic para subir imagen de firma",
     "add_signer": "Agregar firmante",
     "remove_signer": "Eliminar",
-    "no_signers": "No hay firmantes configurados. Agrega uno para que aparezca en los reportes."
+    "no_signers": "No hay firmantes configurados. Agrega uno para que aparezca en los reportes.",
+    "catalog_setup": {
+      "title": "Configuración del catálogo",
+      "subtitle": "Importa el catálogo estándar de la plataforma como punto de partida. Esto agrega todas las pruebas y paquetes estándar con códigos de plataforma. Luego puedes personalizarlos en la página de Catálogo.",
+      "button": "Importar Catálogo de Plataforma",
+      "importing": "Importando..."
+    }
   },
   "catalog": {
     "title": "Catálogo",
@@ -300,6 +357,50 @@
       "update": "No se pudo actualizar el elemento del catálogo.",
       "disable": "No se pudo deshabilitar el elemento del catálogo.",
       "enable": "No se pudo habilitar el elemento del catálogo."
+    },
+    "import_platform": {
+      "button": "Importar Catálogo de Plataforma",
+      "importing": "Importando...",
+      "confirm_title": "¿Importar el catálogo de la plataforma?",
+      "confirm_message": "Esto agregará todas las pruebas y paquetes estándar de la plataforma usando los códigos correctos (CBC, CA, CREA…). Los elementos existentes con el mismo nombre pero código diferente serán deshabilitados automáticamente para que los veterinarios solo vean las versiones correctamente codificadas.",
+      "confirm_button": "Importar",
+      "success": "Importado: {{created}} nuevos, {{updated}} actualizados, {{disabled}} duplicados deshabilitados ({{total}} elementos de plataforma).",
+      "error": "Falló la importación."
+    },
+    "import_file": {
+      "button": "Importar Catálogo",
+      "importing": "Importando...",
+      "import_from_file": "Importar archivo de catálogo",
+      "download_csv": "Descargar plantilla CSV",
+      "download_json": "Descargar plantilla JSON",
+      "format_hint": "Se aceptan CSV o JSON. Consulta la documentación para detalles del formato.",
+      "invalid_json": "El archivo no es un JSON válido.",
+      "invalid_csv": "El CSV debe tener una fila de encabezado y al menos una fila de datos.",
+      "csv_missing_headers": "El encabezado del CSV debe incluir al menos las columnas \"kind\" y \"name\".",
+      "missing_items": "El archivo JSON debe tener un array \"items\" en el nivel superior.",
+      "empty_items": "El archivo no contiene elementos.",
+      "invalid_item": "El elemento #{{index}} no es un objeto válido.",
+      "invalid_kind": "El elemento #{{index}} tiene un \"kind\" inválido — debe ser \"TEST\" o \"PACKAGE\".",
+      "missing_name": "El elemento #{{index}} no tiene un \"name\".",
+      "confirm_title": "¿Importar elementos al catálogo?",
+      "confirm_message": "Se importarán {{total}} elementos ({{tests}} pruebas, {{packages}} paquetes). Los elementos existentes con el mismo código o nombre serán actualizados.",
+      "confirm_button": "Importar",
+      "success": "Importado: {{created}} nuevos, {{updated}} actualizados.",
+      "error": "Falló la importación.",
+      "format_label": "Formato de importación",
+      "format_title": "Formatos aceptados: CSV o JSON",
+      "format_columns": "Referencia de columnas / campos",
+      "format_fields": [
+        "kind (requerido): \"TEST\" o \"PACKAGE\"",
+        "name (requerido): nombre de la prueba o paquete",
+        "code (opcional): código único del laboratorio, clave de upsert",
+        "category (opcional): ej. \"Hematología\"",
+        "turnaroundHours (opcional): número entero positivo",
+        "resultType (opcional): \"NUMERIC\", \"TEXT\" o \"POSITIVE_NEGATIVE\"",
+        "unit (opcional): ej. \"mg/dL\"",
+        "description (opcional): texto libre",
+        "componentCodes (opcional, solo PACKAGE): códigos de pruebas en el paquete — separados por punto y coma en CSV, array en JSON"
+      ]
     }
   },
   "clients": {
@@ -636,7 +737,20 @@
     "method": {
       "MANUAL": "Manual",
       "ANALYZER": "Analizador"
-    }
+    },
+    "specimen_requirements": "Requisitos de Muestra",
+    "add_specimen_req": "Agregar Requisito de Muestra",
+    "no_specimen_reqs": "No hay requisitos de muestra configurados.",
+    "specimen_type": "Tipo de Muestra",
+    "container_type": "Tipo de Contenedor",
+    "min_volume_ml": "Volumen Mínimo (mL)",
+    "generate": "Generar Configuraciones",
+    "generating": "Generando...",
+    "generate_confirm_title": "¿Generar configuraciones?",
+    "generate_confirm_message": "Esto creará configuraciones predeterminadas (departamento + procesamiento manual) para todas las pruebas activas que aún no tienen una. Puede editarlas individualmente después.",
+    "generate_success": "Se generaron {{created}} configuraciones ({{skipped}} ya estaban configuradas).",
+    "generate_unmapped_warning": "{{count}} categorías no pudieron mapearse a un departamento y se asignaron a \"Otro\": {{categories}}",
+    "generate_nothing": "Todas las pruebas activas ya tienen configuración."
   },
   "templates": {
     "title": "Plantillas de Resultados",
@@ -653,11 +767,23 @@
     "new_draft": "Nuevo Borrador",
     "search_placeholder": "Buscar plantillas...",
     "no_results": "No se encontraron plantillas.",
+    "new_template": "Nueva Plantilla",
+    "create_and_edit": "Crear y Editar",
+    "form_title": "Título de la Plantilla",
+    "form_title_placeholder": "ej. Calcio — Canino Adulto",
+    "form_code_placeholder": "ej. CALCIO",
+    "form_code_hint": "Debe coincidir exactamente con el código del ítem de catálogo.",
+    "species_label": "Especie",
+    "customized_success": "Plantilla de plataforma clonada como borrador de laboratorio.",
     "confirm_publish": "¿Publicar esta versión? Se convertirá en la versión activa y la versión publicada actual será archivada.",
     "confirm_archive": "¿Archivar esta versión? Ya no se usará para nuevos reportes.",
     "confirm_customize": "¿Clonar esta plantilla de plataforma para crear una versión específica del laboratorio?",
     "published_success": "Versión de plantilla publicada exitosamente.",
     "archived_success": "Versión de plantilla archivada.",
+    "deleted_success": "Plantilla eliminada.",
+    "delete": "Eliminar plantilla",
+    "confirm_delete": "¿Eliminar plantilla?",
+    "confirm_delete_message": "Esto eliminará permanentemente \"{{title}}\" y todas sus versiones. Esta acción no se puede deshacer.",
     "customized_success": "Plantilla clonada. Ahora puede editar su versión específica del laboratorio.",
     "cloned_success": "Plantilla clonada exitosamente.",
     "builder_title": "Constructor de Plantillas",
@@ -697,5 +823,71 @@
     },
     "age_min": "Edad mín (sem)",
     "age_max": "Edad máx (sem)"
+  },
+  "worklist": {
+    "title": "Worklist por Departamento",
+    "subtitle": "pruebas",
+    "empty": "No hay pruebas que coincidan con este filtro.",
+    "error": "Error al cargar el worklist",
+    "search_placeholder": "Buscar por paciente, accesión o prueba...",
+    "tab_all": "Todos los departamentos",
+    "tab_no_department": "Sin departamento",
+    "filter": {
+      "ready": "Listas",
+      "in_progress": "En progreso",
+      "all_statuses": "Todos los estados"
+    },
+    "assignment": {
+      "all": "Todos los técnicos",
+      "unassigned": "Sin asignar",
+      "mine": "Asignados a mí"
+    },
+    "card": {
+      "unassigned": "Sin asignar",
+      "assigned_to": "Asignado a",
+      "method_manual": "Manual",
+      "method_analyzer": "Analizador",
+      "waiting": "Esperando"
+    },
+    "actions": {
+      "claim": "Reclamar",
+      "claiming": "Reclamando...",
+      "unclaim": "Liberar",
+      "unclaiming": "Liberando...",
+      "start": "Iniciar",
+      "starting": "Iniciando...",
+      "reassign": "Reasignar",
+      "enter_results": "Ingresar Resultados"
+    },
+    "success": {
+      "claimed": "Prueba reclamada exitosamente.",
+      "unclaimed": "Prueba liberada exitosamente.",
+      "started": "Prueba iniciada.",
+      "reassigned": "Prueba reasignada exitosamente."
+    },
+    "errors": {
+      "claim": "No se pudo reclamar la prueba.",
+      "unclaim": "No se pudo liberar la prueba.",
+      "start": "No se pudo iniciar la prueba.",
+      "reassign": "No se pudo reasignar la prueba.",
+      "conflict": "Esta prueba fue modificada por otro usuario. La lista se ha actualizado."
+    },
+    "reassign_modal": {
+      "title": "Reasignar Prueba",
+      "select_technician": "Seleccione un técnico",
+      "no_technicians": "No hay técnicos disponibles.",
+      "confirm": "Reasignar",
+      "reassigning": "Reasignando..."
+    },
+    "department": {
+      "HEMATOLOGY": "Hematología",
+      "CHEMISTRY": "Química",
+      "URINALYSIS": "Uroanálisis",
+      "PARASITOLOGY": "Parasitología",
+      "SEROLOGY": "Serología",
+      "ENDOCRINOLOGY": "Endocrinología",
+      "MICROBIOLOGY": "Microbiología",
+      "OTHER": "Otro"
+    }
   }
 }

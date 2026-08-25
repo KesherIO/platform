@@ -12,10 +12,24 @@ export type OrderStatus =
 
 export type OrderedTestStatus =
   | 'PENDING'
+  | 'READY'
   | 'IN_PROGRESS'
+  | 'RESULTS_ENTERED'
+  | 'IN_REVIEW'
   | 'COMPLETED'
+  | 'BLOCKED'
   | 'CANCELLED';
 export type ResultEntryMethod = 'MANUAL' | 'INSTRUMENT' | 'IMPORTED';
+export type SpecimenStatus = 'EXPECTED' | 'RECEIVED' | 'ACCEPTED' | 'REJECTED';
+export type BlockReason =
+  | 'MISSING_SPECIMEN'
+  | 'REJECTED_SPECIMEN'
+  | 'INSUFFICIENT_VOLUME'
+  | 'ANALYZER_UNAVAILABLE'
+  | 'REAGENT_UNAVAILABLE'
+  | 'REQUIRES_RECOLLECTION'
+  | 'MISSING_RESULT_TEMPLATE'
+  | 'OTHER';
 export type ReportStatus = 'DRAFT' | 'RELEASED';
 export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
 
@@ -73,11 +87,71 @@ export interface OrderedTest {
   version: number;
   assignedUserId: string | null;
   instrumentId: string | null;
+  department: Department | null;
+  processingMethod: ProcessingMethod | null;
+  analyzerId: string | null;
+  claimedAt: string | null;
+  blockReason: BlockReason | null;
+  blockReasonDetail: string | null;
   receivedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
   cancelledAt: string | null;
   sources: OrderedTestSource[];
+}
+
+export interface Specimen {
+  id: string;
+  orderId: string;
+  labTenantId: string;
+  accessionNumber: string;
+  specimenType: string;
+  containerType: string;
+  tubeIndex: number;
+  status: SpecimenStatus;
+  isHemolyzed: boolean;
+  isLipemic: boolean;
+  isIcteric: boolean;
+  isInsufficient: boolean;
+  isContaminated: boolean;
+  isWrongContainer: boolean;
+  isLeaking: boolean;
+  receivedAt: string | null;
+  receivedById: string | null;
+  rejectionReason: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExpectedSpecimenGroup {
+  specimenType: string;
+  containerType: string;
+  minimumVolumeMl: number | null;
+  tests: { id: string; name: string; code: string | null }[];
+}
+
+export interface ExpectedSpecimensResponse {
+  expectedSpecimenGroups: ExpectedSpecimenGroup[];
+  unconfiguredTests: { id: string; name: string; code: string | null }[];
+  existingSpecimens: Specimen[];
+}
+
+export interface AccessionSpecimenInput {
+  specimenType: string;
+  containerType: string;
+  tubeIndex?: number;
+  accessionNumber?: string;
+  accepted: boolean;
+  rejectionReason?: string;
+  notes?: string;
+  isHemolyzed?: boolean;
+  isLipemic?: boolean;
+  isIcteric?: boolean;
+  isInsufficient?: boolean;
+  isContaminated?: boolean;
+  isWrongContainer?: boolean;
+  isLeaking?: boolean;
 }
 
 export interface PatientCase {
@@ -154,6 +228,7 @@ export interface LabOrderDetail extends LabOrderSummary {
   tenant: { name: string; email: string | null; phone: string | null };
   resultReport: ResultReport | null;
   pickup: OrderPickupInfo | null;
+  specimens?: Specimen[];
 }
 
 export type LabRole = 'ADMIN' | 'TECHNICIAN' | 'MESSENGER';
@@ -369,6 +444,18 @@ export interface CatalogListResponse extends PaginatedResponse<CatalogItem> {
   counts: CatalogCounts;
 }
 
+export interface ImportCatalogItemInput {
+  kind: CatalogItemKind;
+  name: string;
+  code?: string;
+  category?: string;
+  turnaroundHours?: number;
+  resultType?: ResultType;
+  unit?: string;
+  description?: string;
+  componentCodes?: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Sample collection & pickup workflow
 // ---------------------------------------------------------------------------
@@ -503,6 +590,12 @@ export interface LabTestConfiguration {
   updatedAt: string;
 }
 
+export interface GenerateTestConfigsResult {
+  created: number;
+  skipped: number;
+  unmappedCategories: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Template versioning
 // ---------------------------------------------------------------------------
@@ -565,4 +658,59 @@ export interface TemplateDefinition {
   versions?: TemplateVersion[];
   createdAt: string;
   updatedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Worklist
+// ---------------------------------------------------------------------------
+
+export interface WorklistItem {
+  id: string;
+  catalogItemName: string;
+  catalogItemCode: string | null;
+  status: OrderedTestStatus;
+  department: Department | null;
+  processingMethod: ProcessingMethod | null;
+  version: number;
+  claimedAt: string | null;
+  startedAt: string | null;
+  createdAt: string;
+  blockReason: BlockReason | null;
+  blockReasonDetail: string | null;
+  orderId: string;
+  requisitionNumber: string;
+  orderPriority: Priority;
+  orderStatus: OrderStatus;
+  patientName: string;
+  patientSpecies: string;
+  ownerName: string;
+  clinicName: string;
+  assignedUserId: string | null;
+  assignedUserName: string | null;
+  analyzerName: string | null;
+  accessionNumber: string | null;
+}
+
+export interface WorklistQuery {
+  department?: string;
+  status?: string;
+  assignmentFilter?: 'unassigned' | 'mine' | 'all';
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface DepartmentCount {
+  department: Department;
+  ready: number;
+  inProgress: number;
+  total: number;
+}
+
+export interface WorklistCountsResponse {
+  departments: DepartmentCount[];
+  totalReady: number;
+  noDepartment: { ready: number; inProgress: number; total: number } | null;
 }

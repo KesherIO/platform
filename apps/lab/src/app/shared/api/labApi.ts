@@ -16,8 +16,15 @@ import type {
   TimelineEvent,
   Analyzer,
   LabTestConfiguration,
+  GenerateTestConfigsResult,
   TemplateDefinition,
   TemplateVersion,
+  ExpectedSpecimensResponse,
+  Specimen,
+  AccessionSpecimenInput,
+  WorklistItem,
+  WorklistQuery,
+  WorklistCountsResponse,
 } from '../../types/lab.types';
 
 async function authHeaders(): Promise<HeadersInit> {
@@ -156,6 +163,18 @@ export const labApi = {
       patch<CatalogItem>(`catalog/${id}`, data),
     enable: (id: string) => post<CatalogItem>(`catalog/${id}/enable`),
     disable: (id: string) => post<CatalogItem>(`catalog/${id}/disable`),
+    importPlatform: () =>
+      post<{
+        created: number;
+        updated: number;
+        disabled: number;
+        total: number;
+      }>('lab/catalog/import-platform'),
+    importCatalog: (data: {
+      items: import('../../types/lab.types').ImportCatalogItemInput[];
+      replace?: boolean;
+    }) =>
+      post<{ created: number; updated: number }>('lab/catalog/import', data),
   },
   pickups: {
     list: (params?: CollectionsQuery) => {
@@ -227,6 +246,114 @@ export const labApi = {
     upsert: (data: Record<string, unknown>) =>
       post<LabTestConfiguration>('lab-config/test-configs', data),
     remove: (id: string) => del(`lab-config/test-configs/${id}`),
+    generate: () =>
+      post<GenerateTestConfigsResult>('lab-config/test-configs/generate'),
+  },
+  specimens: {
+    getExpected: (orderId: string) =>
+      get<ExpectedSpecimensResponse>(
+        `lab/orders/${orderId}/expected-specimens`
+      ),
+    accessionOrder: (orderId: string, specimens: AccessionSpecimenInput[]) =>
+      post<{ specimens: Specimen[]; order: { id: string; status: string } }>(
+        `lab/orders/${orderId}/accession`,
+        { specimens }
+      ),
+    update: (specimenId: string, data: Record<string, unknown>) =>
+      patch<Specimen>(`lab/specimens/${specimenId}`, data),
+    resolveTemplate: (orderedTestId: string) =>
+      post<{ resolved: boolean; test: { id: string; status: string } }>(
+        `lab/ordered-tests/${orderedTestId}/resolve-template`
+      ),
+    assignTemplate: (orderedTestId: string, templateVersionId: string) =>
+      post<{ resolved: boolean; test: { id: string; status: string } }>(
+        `lab/ordered-tests/${orderedTestId}/assign-template`,
+        { templateVersionId }
+      ),
+  },
+  resultEntry: {
+    getSession: (testId: string) =>
+      get<{
+        test: { id: string; name: string; code: string | null; status: string };
+        template: { title: string; defaultObservations: string | null };
+        report: { id: string; observations: string | null } | null;
+        sections: Array<{
+          id: string | null;
+          name: string | null;
+          analytes: Array<{
+            id: string;
+            code: string;
+            name: string;
+            technique: string | null;
+            valueType: string;
+            unit: string | null;
+            options: string[];
+            referenceRange: {
+              min?: number;
+              max?: number;
+              displayText: string;
+            } | null;
+            isHeader: boolean;
+            formula: string | null;
+            sortOrder: number;
+            savedValueId: string | null;
+            numericValue: number | null;
+            textValue: string | null;
+            booleanValue: boolean | null;
+            selectValue: string | null;
+          }>;
+        }>;
+      }>(`lab/ordered-tests/${testId}/result-session`),
+    saveAnalytes: (
+      testId: string,
+      analytes: Array<{
+        templateAnalyteId: string;
+        numericValue?: number | null;
+        textValue?: string | null;
+        booleanValue?: boolean | null;
+        selectValue?: string | null;
+      }>,
+      observations?: string | null
+    ) =>
+      patch<{ reportId: string; saved: number }>(
+        `lab/ordered-tests/${testId}/analytes`,
+        { analytes, observations }
+      ),
+    submit: (testId: string) =>
+      post<{ status: string }>(`lab/ordered-tests/${testId}/submit-results`),
+    releaseReport: (reportId: string) =>
+      post<{ id: string; status: string }>(`lab/reports/${reportId}/release`),
+  },
+  worklist: {
+    list: (params?: WorklistQuery) => {
+      const sp = new URLSearchParams();
+      if (params?.department) sp.set('department', params.department);
+      if (params?.status) sp.set('status', params.status);
+      if (params?.assignmentFilter)
+        sp.set('assignmentFilter', params.assignmentFilter);
+      if (params?.search) sp.set('search', params.search);
+      if (params?.dateFrom) sp.set('dateFrom', params.dateFrom);
+      if (params?.dateTo) sp.set('dateTo', params.dateTo);
+      if (params?.page) sp.set('page', String(params.page));
+      if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
+      const qs = sp.toString();
+      return get<PaginatedResponse<WorklistItem>>(
+        `lab/worklist${qs ? `?${qs}` : ''}`
+      );
+    },
+    counts: () => get<WorklistCountsResponse>('lab/worklist/counts'),
+    readyCount: () => get<{ count: number }>('lab/worklist/ready-count'),
+    claim: (testId: string, version: number) =>
+      post<WorklistItem>(`lab/ordered-tests/${testId}/claim`, { version }),
+    unclaim: (testId: string) =>
+      post<WorklistItem>(`lab/ordered-tests/${testId}/unclaim`),
+    start: (testId: string) =>
+      post<WorklistItem>(`lab/ordered-tests/${testId}/start`),
+    reassign: (testId: string, targetUserId: string, version: number) =>
+      post<WorklistItem>(`lab/ordered-tests/${testId}/reassign`, {
+        targetUserId,
+        version,
+      }),
   },
   templates: {
     list: (params?: { catalogItemCode?: string; species?: string }) => {
@@ -250,5 +377,6 @@ export const labApi = {
       post<TemplateVersion>(`lab/template-versions/${versionId}/publish`),
     archive: (versionId: string) =>
       post<TemplateVersion>(`lab/template-versions/${versionId}/archive`),
+    delete: (id: string) => del(`lab/templates/${id}`),
   },
 };

@@ -1377,7 +1377,8 @@ Deferred until equipment inspection. Requires decisions on communication protoco
 
 ## 14. Remaining Product Decisions
 
-These decisions are not required before starting Phase 1 but should be resolved before their respective phases:
+These decisions are not req
+uired before starting Phase 1 but should be resolved before their respective phases:
 
 | #   | Decision                                                                                                                                                        | Affects Phase | Options                                                                                                                                           | Recommendation                                                                                                                                |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |

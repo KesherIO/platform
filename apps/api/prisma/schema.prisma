@@ -56,6 +56,13 @@ enum TimelineEventType {
   PROCESSING_STARTED
   RESULTS_COMPLETED
   REPORT_RELEASED
+  // Phase 3 — specimen accessioning
+  SAMPLE_ACCESSIONED
+  SAMPLE_ACCEPTED
+  SAMPLE_REJECTED
+  TEST_BLOCKED
+  TEST_UNBLOCKED
+  TEMPLATE_RESOLVED
 }
 
 enum OnboardingTokenType {
@@ -176,10 +183,32 @@ enum ClientStatus {
 
 /// Status of a single ordered test within a lab order.
 enum OrderedTestStatus {
-  PENDING      // received, not yet started
-  IN_PROGRESS  // lab is processing / entering values
-  COMPLETED    // values entered, awaiting report release
-  CANCELLED    // test cancelled (sample issue, vet request)
+  PENDING          // created, awaiting specimen acceptance
+  READY            // specimen accepted, template resolved — available for processing
+  IN_PROGRESS      // technician has started processing
+  RESULTS_ENTERED  // all analyte values filled in — awaiting review
+  IN_REVIEW        // submitted for supervisor review
+  COMPLETED        // report released
+  BLOCKED          // cannot proceed (missing specimen, missing template, etc.)
+  CANCELLED        // test cancelled
+}
+
+enum SpecimenStatus {
+  EXPECTED  // derived from LabTestSpecimenRequirement, not yet received
+  RECEIVED  // physical tube logged — transitional, pending accept/reject
+  ACCEPTED  // usable — linked tests transition PENDING → READY
+  REJECTED  // unusable — linked tests transition to BLOCKED
+}
+
+enum BlockReason {
+  MISSING_SPECIMEN
+  REJECTED_SPECIMEN
+  INSUFFICIENT_VOLUME
+  ANALYZER_UNAVAILABLE
+  REAGENT_UNAVAILABLE
+  REQUIRES_RECOLLECTION
+  MISSING_RESULT_TEMPLATE
+  OTHER
 }
 
 /// How analyte values were entered for a given ordered test.
@@ -292,11 +321,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships     UserTenantMembership[]
-  sentInvitations TenantInvitation[]
-  createdCases    Case[]
-  assignedTests   OrderedTest[]
-  pickupsAsMessenger Pickup[]            @relation("MessengerPickups")
+  memberships        UserTenantMembership[]
+  sentInvitations    TenantInvitation[]
+  createdCases       Case[]
+  assignedTests      OrderedTest[]
+  receivedSpecimens  Specimen[]             @relation("SpecimensReceivedBy")
+  pickupsAsMessenger Pickup[]               @relation("MessengerPickups")
   pushSubscriptions  PushSubscription[]
 
   @@map("users")
@@ -538,6 +568,7 @@ model Order {
   labTenant    Tenant?       @relation("LabOrders", fields: [labTenantId], references: [id])
   resultReport ResultReport?
   orderedTests OrderedTest[]
+  specimens    Specimen[]
   pickup         Pickup?
   timelineEvents TimelineEvent[]
 
@@ -889,6 +920,7 @@ model Analyzer {
 
   labTenant             Tenant                @relation("LabAnalyzers", fields: [labTenantId], references: [id], onDelete: Cascade)
   labTestConfigurations LabTestConfiguration[]
+  orderedTests          OrderedTest[]
 
   @@unique([labTenantId, name])
   @@index([labTenantId])
@@ -954,6 +986,15 @@ model OrderedTest {
   assignedUserId String?  // lab technician responsible for this test
   instrumentId   String?  // analyzer / instrument used (future integration anchor)
 
+  // Phase 3 fields
+  department         Department?
+  processingMethod   ProcessingMethod?
+  resultEntrySource  ResultEntrySource?
+  analyzerId         String?
+  claimedAt          DateTime?
+  blockReason        BlockReason?
+  blockReasonDetail  String?
+
   receivedAt  DateTime?
   startedAt   DateTime?
   completedAt DateTime?
@@ -964,8 +1005,10 @@ model OrderedTest {
   order          Order               @relation(fields: [orderId],       references: [id], onDelete: Cascade)
   catalogItem    CatalogItem         @relation(fields: [catalogItemId], references: [id])
   assignedTo     User?               @relation(fields: [assignedUserId], references: [id])
+  analyzer       Analyzer?           @relation(fields: [analyzerId], references: [id])
   sources        OrderedTestSource[]
   reportAnalytes ResultReportAnalyte[]
+  specimens      OrderedTestSpecimen[]
 
   @@index([orderId])
   @@index([catalogItemId])
@@ -994,6 +1037,63 @@ model OrderedTestSource {
   @@unique([orderedTestId, originalOrderItemKey, originCatalogItemId])
   @@index([orderedTestId])
   @@map("ordered_test_sources")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 — Specimen & Accessioning
+// ---------------------------------------------------------------------------
+
+/// A physical biological sample received at the lab for processing.
+/// One specimen per tube (tubeIndex distinguishes multiple tubes of the same type).
+model Specimen {
+  id             String        @id @default(cuid())
+  orderId        String
+  labTenantId    String
+
+  accessionNumber String       // auto-generated: SPEC-{YEAR}-{6-digit-seq}, unique per lab
+  specimenType    String        // e.g. "EDTA_BLOOD", "SERUM", "URINE"
+  containerType   String        // e.g. "EDTA_TUBE", "SST_TUBE", "URINE_CUP"
+  tubeIndex       Int           @default(1)
+
+  status          SpecimenStatus @default(EXPECTED)
+
+  // Condition flags — multiple can be true simultaneously
+  isHemolyzed      Boolean @default(false)
+  isLipemic        Boolean @default(false)
+  isIcteric        Boolean @default(false)
+  isInsufficient   Boolean @default(false)
+  isContaminated   Boolean @default(false)
+  isWrongContainer Boolean @default(false)
+  isLeaking        Boolean @default(false)
+
+  receivedAt      DateTime?
+  receivedById    String?
+  rejectionReason String?
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order        Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  receivedBy   User?               @relation("SpecimensReceivedBy", fields: [receivedById], references: [id])
+  orderedTests OrderedTestSpecimen[]
+
+  @@unique([labTenantId, accessionNumber])
+  @@index([orderId])
+  @@index([labTenantId, status])
+  @@map("specimens")
+}
+
+/// M:N link between ordered tests and the physical specimens used to run them.
+model OrderedTestSpecimen {
+  orderedTestId String
+  specimenId    String
+
+  orderedTest OrderedTest @relation(fields: [orderedTestId], references: [id], onDelete: Cascade)
+  specimen    Specimen    @relation(fields: [specimenId], references: [id], onDelete: Cascade)
+
+  @@id([orderedTestId, specimenId])
+  @@map("ordered_test_specimens")
 }
 
 // ---------------------------------------------------------------------------

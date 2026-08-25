@@ -5,6 +5,11 @@ import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
 import { PickupService } from './pickup.service';
+import { SpecimenService } from './specimen.service';
+import { CatalogService } from '../catalog/catalog.service';
+import { ResultEntryService } from './result-entry.service';
+import { ResultsService } from '../results/results.service';
+import { WorklistService } from './worklist.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('LabController', () => {
@@ -77,6 +82,19 @@ describe('LabController', () => {
       getTimelineForOrder: jest.fn().mockResolvedValue([]),
     };
 
+    const specimenServiceMock: Partial<jest.Mocked<SpecimenService>> = {
+      getExpectedSpecimens: jest.fn().mockResolvedValue({
+        expectedSpecimenGroups: [],
+        unconfiguredTests: [],
+        existingSpecimens: [],
+      }),
+      accessionOrder: jest.fn().mockResolvedValue({ specimens: [], order: {} }),
+      updateSpecimen: jest.fn().mockResolvedValue({}),
+      resolveTemplateForBlockedTest: jest
+        .fn()
+        .mockResolvedValue({ resolved: false }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LabController],
       providers: [
@@ -84,6 +102,31 @@ describe('LabController', () => {
         { provide: LabUsersService, useValue: usersServiceMock },
         { provide: LabClientsService, useValue: clientsServiceMock },
         { provide: PickupService, useValue: pickupServiceMock },
+        { provide: SpecimenService, useValue: specimenServiceMock },
+        {
+          provide: CatalogService,
+          useValue: { importPlatformCatalog: jest.fn() },
+        },
+        {
+          provide: ResultEntryService,
+          useValue: {
+            getResultSession: jest.fn(),
+            saveAnalytes: jest.fn(),
+            submitResults: jest.fn(),
+          },
+        },
+        { provide: ResultsService, useValue: { releaseReport: jest.fn() } },
+        {
+          provide: WorklistService,
+          useValue: {
+            getWorklist: jest.fn(),
+            getWorklistCounts: jest.fn(),
+            claimTest: jest.fn(),
+            unclaimTest: jest.fn(),
+            startTest: jest.fn(),
+            reassignTest: jest.fn(),
+          },
+        },
         {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('test-key') },

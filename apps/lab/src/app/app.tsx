@@ -22,6 +22,7 @@ import { CollectionsPage } from './pages/collections/CollectionsPage';
 import { MyPickupsPage } from './pages/pickups/MyPickupsPage';
 import { TemplateManagementPage } from './pages/templates/TemplateManagementPage';
 import { TemplateBuilderPage } from './pages/templates/TemplateBuilderPage';
+import { WorklistPage } from './pages/worklist/WorklistPage';
 
 export function App() {
   return (
@@ -43,6 +44,7 @@ export function App() {
               <Route index element={<Navigate to="/orders" replace />} />
               <Route path="/orders" element={<OrdersQueuePage />} />
               <Route path="/orders/:orderId" element={<OrderWorkspacePage />} />
+              <Route path="/worklist" element={<WorklistPage />} />
               <Route
                 path="/orders/:orderId/tests/:testId/results"
                 element={<ResultEntryPage />}

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -57,6 +58,18 @@ export class TemplateVersionService {
             status: true,
             publishedAt: true,
           },
+        },
+        versions: {
+          where: { status: 'DRAFT' },
+          select: {
+            id: true,
+            version: true,
+            title: true,
+            status: true,
+            publishedAt: true,
+          },
+          orderBy: { version: 'desc' },
+          take: 1,
         },
       },
       orderBy: [{ catalogItemCode: 'asc' }, { species: 'asc' }],
@@ -326,6 +339,31 @@ export class TemplateVersionService {
       });
 
       return archived;
+    });
+  }
+
+  async deleteDefinition(id: string, labTenantId: string) {
+    const definition = await this.prisma.resultTemplateDefinition.findUnique({
+      where: { id },
+    });
+
+    if (!definition)
+      throw new NotFoundException('Template definition not found');
+    if (definition.scope !== 'LABORATORY') {
+      throw new BadRequestException('Only lab-scope templates can be deleted');
+    }
+    if (definition.labTenantId !== labTenantId) {
+      throw new ForbiddenException('Cannot delete templates from another lab');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Null out activeVersionId first to avoid FK self-reference constraint
+      await tx.resultTemplateDefinition.update({
+        where: { id },
+        data: { activeVersionId: null },
+      });
+      // Cascade deletes versions → sections + analytes automatically
+      await tx.resultTemplateDefinition.delete({ where: { id } });
     });
   }
 

@@ -11,7 +11,7 @@ import {
   AiInterpretationModel,
 } from '@vet-ai/shared-types';
 import { AuthService } from '../../../../core/services/auth.service';
-import { MOCK_DELAY, MOCK_REPORT, mockCases } from './cases.mocks';
+import { MOCK_REPORT, MOCK_DELAY } from './cases.mocks';
 
 @Injectable({ providedIn: 'root' })
 export class CasesService {
@@ -33,7 +33,6 @@ export class CasesService {
   }): Observable<CaseModel[]> {
     return this.http.get<CaseModel[]>('/api/cases', this.tenantHeaders).pipe(
       catchError(() => of([] as CaseModel[])),
-      map((cases) => (cases.length === 0 ? mockCases : cases)),
       map((cases) => {
         let result = cases;
         if (params?.search) {
@@ -58,14 +57,7 @@ export class CasesService {
   getCase(id: string): Observable<CaseModel> {
     return this.http
       .get<CaseModel>(`/api/cases/${id}`, this.tenantHeaders)
-      .pipe(
-        catchError(() => {
-          const found = mockCases.find((c) => c.id === id);
-          if (found) return of(found).pipe(delay(MOCK_DELAY));
-          return of(mockCases[0]).pipe(delay(MOCK_DELAY));
-        }),
-        tap((c) => this.activeCase.set(c))
-      );
+      .pipe(tap((c) => this.activeCase.set(c)));
   }
 
   searchCases(query: string): Observable<CaseModel[]> {

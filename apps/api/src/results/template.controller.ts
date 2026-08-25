@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -90,5 +91,15 @@ export class TemplateController {
   @HttpCode(HttpStatus.OK)
   archiveVersion(@Param('id') id: string) {
     return this.templateService.archiveVersion(id);
+  }
+
+  @Delete('templates/:id')
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteDefinition(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.templateService.deleteDefinition(id, tenant.tenantId);
   }
 }

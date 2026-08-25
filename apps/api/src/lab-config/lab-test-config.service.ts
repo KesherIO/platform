@@ -1,6 +1,54 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Department } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpsertLabTestConfigDto } from './dto/lab-config.dto';
+
+const CATEGORY_DEPARTMENT_MAP: Record<string, Department> = {
+  // Spanish
+  hematología: 'HEMATOLOGY',
+  coagulación: 'HEMATOLOGY',
+  bioquímica: 'CHEMISTRY',
+  electrolitos: 'CHEMISTRY',
+  'biología molecular': 'CHEMISTRY',
+  hormonas: 'ENDOCRINOLOGY',
+  endocrinología: 'ENDOCRINOLOGY',
+  serología: 'SEROLOGY',
+  urianálisis: 'URINALYSIS',
+  uroanálisis: 'URINALYSIS',
+  microbiología: 'MICROBIOLOGY',
+  coprología: 'PARASITOLOGY',
+  patología: 'OTHER',
+  citología: 'OTHER',
+  inmunohistoquímica: 'OTHER',
+  histoquímica: 'OTHER',
+  toxicología: 'OTHER',
+  fármacos: 'OTHER',
+  // English
+  hematology: 'HEMATOLOGY',
+  coagulation: 'HEMATOLOGY',
+  biochemistry: 'CHEMISTRY',
+  chemistry: 'CHEMISTRY',
+  electrolytes: 'CHEMISTRY',
+  'molecular biology': 'CHEMISTRY',
+  hormones: 'ENDOCRINOLOGY',
+  endocrinology: 'ENDOCRINOLOGY',
+  serology: 'SEROLOGY',
+  urinalysis: 'URINALYSIS',
+  microbiology: 'MICROBIOLOGY',
+  coprology: 'PARASITOLOGY',
+  parasitology: 'PARASITOLOGY',
+  pathology: 'OTHER',
+  cytology: 'OTHER',
+  immunohistochemistry: 'OTHER',
+  histochemistry: 'OTHER',
+  toxicology: 'OTHER',
+  pharmaceuticals: 'OTHER',
+};
+
+function mapCategoryToDepartment(category: string | null): Department {
+  if (!category) return 'OTHER';
+  return CATEGORY_DEPARTMENT_MAP[category.toLowerCase().trim()] ?? 'OTHER';
+}
 
 @Injectable()
 export class LabTestConfigService {
@@ -113,5 +161,54 @@ export class LabTestConfigService {
   async deleteConfig(labTenantId: string, id: string) {
     await this.getConfig(labTenantId, id);
     await this.prisma.labTestConfiguration.delete({ where: { id } });
+  }
+
+  async generateConfigs(labTenantId: string) {
+    const [unconfigured, totalActive] = await Promise.all([
+      this.prisma.catalogItem.findMany({
+        where: {
+          labTenantId,
+          kind: 'TEST',
+          active: true,
+          labTestConfigurations: { none: { labTenantId } },
+        },
+        select: { id: true, category: true },
+      }),
+      this.prisma.catalogItem.count({
+        where: { labTenantId, kind: 'TEST', active: true },
+      }),
+    ]);
+
+    const unmappedCategories = new Set<string>();
+    const data = unconfigured.map((item) => {
+      const department = mapCategoryToDepartment(item.category);
+      if (
+        item.category &&
+        department === 'OTHER' &&
+        !CATEGORY_DEPARTMENT_MAP[item.category.toLowerCase().trim()]
+      ) {
+        unmappedCategories.add(item.category);
+      }
+      return {
+        labTenantId,
+        catalogItemId: item.id,
+        department,
+        defaultProcessingMethod: 'MANUAL' as const,
+        allowedProcessingMethods: ['MANUAL' as const],
+      };
+    });
+
+    if (data.length > 0) {
+      await this.prisma.labTestConfiguration.createMany({
+        data,
+        skipDuplicates: true,
+      });
+    }
+
+    return {
+      created: data.length,
+      skipped: totalActive - data.length,
+      unmappedCategories: Array.from(unmappedCategories),
+    };
   }
 }
