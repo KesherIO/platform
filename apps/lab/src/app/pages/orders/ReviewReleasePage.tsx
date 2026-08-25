@@ -23,7 +23,6 @@ type Analyte = {
   selectValue: string | null;
 };
 
-
 function TestResultSection({
   orderId,
   testId,
