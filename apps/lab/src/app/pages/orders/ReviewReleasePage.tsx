@@ -23,7 +23,6 @@ type Analyte = {
   selectValue: string | null;
 };
 
-type Section = { id: string | null; name: string | null; analytes: Analyte[] };
 
 function TestResultSection({
   orderId,
