@@ -48,10 +48,12 @@ import { ImportLabCatalogDto } from './dto/import-lab-catalog.dto';
 import { CatalogService } from '../catalog/catalog.service';
 import { ResultEntryService } from './result-entry.service';
 import { ResultsService } from '../results/results.service';
+import { ReviewService } from './review.service';
 import { WorklistService } from './worklist.service';
 import { ListWorklistDto } from './dto/list-worklist.dto';
 import { ClaimOrderedTestDto } from './dto/claim-ordered-test.dto';
 import { ReassignOrderedTestDto } from './dto/reassign-ordered-test.dto';
+import { ApproveReleaseDto, RequestCorrectionsDto } from './dto/review.dto';
 
 @Controller('lab')
 export class LabController {
@@ -64,6 +66,7 @@ export class LabController {
     private readonly catalogService: CatalogService,
     private readonly resultEntryService: ResultEntryService,
     private readonly resultsService: ResultsService,
+    private readonly reviewService: ReviewService,
     private readonly worklistService: WorklistService
   ) {}
 
@@ -365,6 +368,23 @@ export class LabController {
     );
   }
 
+  // GET /api/lab/reports/by-order/:orderId
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('reports/by-order/:orderId')
+  getReportByOrder(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string
+  ) {
+    return this.resultsService.findReportByOrder(tenant.tenantId, orderId);
+  }
+
+  // GET /api/lab/reports/:reportId
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('reports/:reportId')
+  getReport(@Param('reportId') reportId: string) {
+    return this.resultsService.findReport(reportId);
+  }
+
   // POST /api/lab/reports/:reportId/release
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Post('reports/:reportId/release')
@@ -376,6 +396,83 @@ export class LabController {
     const processedByName =
       [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
     return this.resultsService.releaseReport(reportId, { processedByName });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Review workflow
+  // ---------------------------------------------------------------------------
+
+  // POST /api/lab/orders/:orderId/submit-for-review
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/submit-for-review')
+  @HttpCode(HttpStatus.OK)
+  submitForReview(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.reviewService.submitForReview(
+      orderId,
+      tenant.tenantId,
+      user.id,
+      actorName
+    );
+  }
+
+  // POST /api/lab/orders/:orderId/approve-release
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/approve-release')
+  @HttpCode(HttpStatus.OK)
+  approveAndRelease(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Body() dto: ApproveReleaseDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.reviewService.approveAndRelease(
+      orderId,
+      tenant.tenantId,
+      dto.signerId,
+      dto.reviewNotes,
+      user.id,
+      actorName
+    );
+  }
+
+  // POST /api/lab/orders/:orderId/request-corrections
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/request-corrections')
+  @HttpCode(HttpStatus.OK)
+  requestCorrections(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Body() dto: RequestCorrectionsDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.reviewService.requestCorrections(
+      orderId,
+      tenant.tenantId,
+      dto.correctionNotes,
+      dto.testIds,
+      user.id,
+      actorName
+    );
+  }
+
+  // GET /api/lab/signers/reviewers
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('signers/reviewers')
+  getReviewerSigners(@CurrentTenant() tenant: TenantContext) {
+    return this.reviewService.getReviewerSigners(tenant.tenantId);
   }
 
   // GET /api/lab/settings/laboratory

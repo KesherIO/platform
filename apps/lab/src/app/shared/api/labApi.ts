@@ -25,6 +25,7 @@ import type {
   WorklistItem,
   WorklistQuery,
   WorklistCountsResponse,
+  LabSigner,
 } from '../../types/lab.types';
 
 async function authHeaders(): Promise<HeadersInit> {
@@ -276,7 +277,7 @@ export const labApi = {
       get<{
         test: { id: string; name: string; code: string | null; status: string };
         template: { title: string; defaultObservations: string | null };
-        report: { id: string; observations: string | null } | null;
+        report: { id: string; observations: string | null; correctionNotes?: string | null } | null;
         sections: Array<{
           id: string | null;
           name: string | null;
@@ -323,6 +324,38 @@ export const labApi = {
       post<{ status: string }>(`lab/ordered-tests/${testId}/submit-results`),
     releaseReport: (reportId: string) =>
       post<{ id: string; status: string }>(`lab/reports/${reportId}/release`),
+  },
+  reports: {
+    getById: (reportId: string) =>
+      get<unknown>(`lab/reports/${reportId}`),
+    getByOrderId: (orderId: string) =>
+      get<unknown>(`lab/reports/by-order/${orderId}`),
+  },
+  review: {
+    submitForReview: (orderId: string) =>
+      post<{ status: string; reportId: string }>(
+        `lab/orders/${orderId}/submit-for-review`
+      ),
+    approveAndRelease: (
+      orderId: string,
+      signerId: string,
+      reviewNotes?: string
+    ) =>
+      post<{ status: string; reportId: string }>(
+        `lab/orders/${orderId}/approve-release`,
+        { signerId, reviewNotes }
+      ),
+    requestCorrections: (
+      orderId: string,
+      correctionNotes: string,
+      testIds?: string[]
+    ) =>
+      post<{ status: string; correctionNotes: string }>(
+        `lab/orders/${orderId}/request-corrections`,
+        { correctionNotes, testIds }
+      ),
+    getReviewerSigners: () =>
+      get<LabSigner[]>('lab/signers/reviewers'),
   },
   worklist: {
     list: (params?: WorklistQuery) => {

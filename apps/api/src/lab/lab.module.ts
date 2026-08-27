@@ -6,6 +6,7 @@ import { LabClientsService } from './lab-clients.service';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
 import { ResultEntryService } from './result-entry.service';
+import { ReviewService } from './review.service';
 import { WorklistService } from './worklist.service';
 import { LabTenantGuard } from './lab-tenant.guard';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -30,6 +31,7 @@ import { CatalogModule } from '../catalog/catalog.module';
     PickupService,
     SpecimenService,
     ResultEntryService,
+    ReviewService,
     WorklistService,
     LabTenantGuard,
   ],

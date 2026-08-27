@@ -63,6 +63,10 @@ enum TimelineEventType {
   TEST_BLOCKED
   TEST_UNBLOCKED
   TEMPLATE_RESOLVED
+  // Phase 6 — review workflow
+  SUBMITTED_FOR_REVIEW
+  REVIEW_APPROVED
+  REVIEW_CORRECTIONS
 }
 
 enum OnboardingTokenType {
@@ -145,6 +149,7 @@ enum AnalyteValueType {
 
 enum ResultReportStatus {
   DRAFT // lab is entering values — not visible to clinic
+  IN_REVIEW // submitted for supervisor review
   RELEASED // final and immutable — clinic can see it
 }
 
@@ -785,6 +790,14 @@ model ResultReport {
   approvedByCredentials  String? // e.g. "Universidad del Valle\nRegistro No.: 767658"
   signatureUrl           String? // approver signature image URL
 
+  // Review workflow (Phase 6)
+  submittedForReviewAt DateTime?
+  submittedByUserId    String?
+  reviewedBySignerId   String?
+  reviewedAt           DateTime?
+  reviewNotes          String?
+  correctionNotes      String?
+
   // Machine import hook — store raw analyzer payload for audit; mapping deferred
   rawPayload Json?
 
@@ -797,6 +810,7 @@ model ResultReport {
   updatedAt        DateTime  @updatedAt
 
   order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reviewedBySigner  LabSigner?         @relation(fields: [reviewedBySignerId], references: [id], onDelete: SetNull)
   tests             ResultReportTest[]
   aiInterpretations AiInterpretation[]
 
@@ -901,6 +915,7 @@ model LabSigner {
   updatedAt           DateTime @updatedAt
 
   laboratoryProfile LaboratoryProfile @relation(fields: [laboratoryProfileId], references: [id], onDelete: Cascade)
+  reviewedReports   ResultReport[]
 
   @@map("lab_signers")
 }

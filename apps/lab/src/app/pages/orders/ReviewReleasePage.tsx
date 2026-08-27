@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Skeleton } from '../../shared/components/Skeleton';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -5,7 +6,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { useToast } from '../../shared/components/ToastProvider';
-import type { LabOrderDetail } from '../../types/lab.types';
+import { useAuth } from '../../auth/AuthContext';
+import type { LabOrderDetail, LabSigner } from '../../types/lab.types';
 
 type Analyte = {
   id: string;
@@ -26,9 +28,11 @@ type Analyte = {
 function TestResultSection({
   orderId,
   testId,
+  readOnly,
 }: {
   orderId: string;
   testId: string;
+  readOnly: boolean;
 }) {
   const { t } = useTranslation();
   const { data: session } = useQuery({
@@ -124,12 +128,14 @@ function TestResultSection({
             </p>
           )}
         </div>
-        <Link
-          to={`/orders/${orderId}/tests/${testId}/results`}
-          className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
-        >
-          {t('review.edit_results')}
-        </Link>
+        {!readOnly && (
+          <Link
+            to={`/orders/${orderId}/tests/${testId}/results`}
+            className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
+          >
+            {t('review.edit_results')}
+          </Link>
+        )}
       </div>
 
       <div className="px-5 py-2">
@@ -170,11 +176,233 @@ function TestResultSection({
   );
 }
 
+function ReviewerPanel({
+  orderId,
+  onDone,
+}: {
+  orderId: string;
+  onDone: () => void;
+}) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [selectedSignerId, setSelectedSignerId] = useState('');
+  const [reviewNotes, setReviewNotes] = useState('');
+  const [correctionNotes, setCorrectionNotes] = useState('');
+  const [showCorrections, setShowCorrections] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const { data: signers, isLoading: loadingSigners } = useQuery({
+    queryKey: ['reviewer-signers'],
+    queryFn: () => labApi.review.getReviewerSigners(),
+    staleTime: 0,
+  });
+
+  const handleApprove = async () => {
+    if (!selectedSignerId) return;
+    setBusy(true);
+    try {
+      await labApi.review.approveAndRelease(
+        orderId,
+        selectedSignerId,
+        reviewNotes || undefined
+      );
+      toast.success(t('review.approve_success'));
+      onDone();
+    } catch (e) {
+      toast.error(`${t('review.approve_error')} ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+      setShowConfirm(false);
+    }
+  };
+
+  const handleCorrections = async () => {
+    if (!correctionNotes.trim()) {
+      toast.error(t('review.corrections_notes_required'));
+      return;
+    }
+    setBusy(true);
+    try {
+      await labApi.review.requestCorrections(orderId, correctionNotes);
+      toast.success(t('review.corrections_success'));
+      onDone();
+    } catch (e) {
+      toast.error(`${t('review.corrections_error')} ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loadingSigners) {
+    return (
+      <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-3">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+    );
+  }
+
+  if (!signers?.length) {
+    return (
+      <div className="rounded-xl border border-yellow-800/50 bg-yellow-900/20 px-5 py-4">
+        <p className="text-sm text-yellow-300">
+          {t('review.no_reviewer_signers')}
+        </p>
+      </div>
+    );
+  }
+
+  const selectedSigner = signers.find(
+    (s: LabSigner) => s.id === selectedSignerId
+  );
+
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
+      <h3 className="text-sm font-semibold text-white">
+        {t('review.reviewer_panel_title')}
+      </h3>
+
+      {/* Signer dropdown */}
+      <div>
+        <label className="mb-1 block text-xs text-gray-400">
+          {t('review.select_signer')}
+        </label>
+        <select
+          value={selectedSignerId}
+          onChange={(e) => setSelectedSignerId(e.target.value)}
+          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+        >
+          <option value="">{t('review.select_signer_placeholder')}</option>
+          {signers.map((signer: LabSigner) => (
+            <option key={signer.id} value={signer.id}>
+              {signer.name} — {signer.title}
+              {signer.registrationNumber
+                ? ` (${signer.registrationNumber})`
+                : ''}
+            </option>
+          ))}
+        </select>
+        {selectedSigner && (
+          <p className="mt-1 text-xs text-gray-500">
+            {selectedSigner.specialty}
+            {selectedSigner.university
+              ? ` · ${selectedSigner.university}`
+              : ''}
+          </p>
+        )}
+      </div>
+
+      {/* Review notes */}
+      <div>
+        <label className="mb-1 block text-xs text-gray-400">
+          {t('review.review_notes_label')}
+        </label>
+        <textarea
+          value={reviewNotes}
+          onChange={(e) => setReviewNotes(e.target.value)}
+          placeholder={t('review.review_notes_placeholder')}
+          rows={2}
+          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-cyan focus:outline-none"
+        />
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => setShowConfirm(true)}
+          disabled={!selectedSignerId || busy}
+          className="rounded-lg bg-purple px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {t('review.approve_btn')}
+        </button>
+        <button
+          onClick={() => setShowCorrections(!showCorrections)}
+          disabled={busy}
+          className="rounded-lg border border-yellow-700 px-4 py-2.5 text-sm font-medium text-yellow-300 hover:bg-yellow-900/30 disabled:opacity-50"
+        >
+          {t('review.corrections_btn')}
+        </button>
+      </div>
+
+      {/* Corrections section */}
+      {showCorrections && (
+        <div className="rounded-lg border border-yellow-800/50 bg-yellow-900/10 p-4 space-y-3">
+          <label className="block text-xs text-yellow-400">
+            {t('review.corrections_notes_label')}
+          </label>
+          <textarea
+            value={correctionNotes}
+            onChange={(e) => setCorrectionNotes(e.target.value)}
+            placeholder={t('review.corrections_notes_placeholder')}
+            rows={3}
+            className="w-full rounded-lg border border-yellow-800/50 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-yellow-600 focus:outline-none"
+          />
+          <button
+            onClick={handleCorrections}
+            disabled={busy || !correctionNotes.trim()}
+            className="rounded-lg bg-yellow-700 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? '...' : t('review.corrections_btn')}
+          </button>
+        </div>
+      )}
+
+      {/* Confirm dialog */}
+      {showConfirm && (
+        <div className="rounded-lg border border-purple/40 bg-purple/10 p-4 space-y-3">
+          <p className="text-sm font-medium text-white">
+            {t('review.approve_confirm_title')}
+          </p>
+          <p className="text-xs text-gray-400">
+            {t('review.approve_confirm')}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleApprove}
+              disabled={busy}
+              className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {busy ? '...' : t('common.confirm')}
+            </button>
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CorrectionBanner({ notes }: { notes: string }) {
+  const { t } = useTranslation();
+  return (
+    <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
+      <p className="text-sm font-semibold text-yellow-300">
+        {t('review.correction_banner')}
+      </p>
+      <p className="mt-1 text-xs text-yellow-400">
+        {t('review.correction_banner_notes')}
+      </p>
+      <p className="mt-1 text-sm text-yellow-200 whitespace-pre-wrap">
+        {notes}
+      </p>
+    </div>
+  );
+}
+
 export function ReviewReleasePage() {
   const { orderId } = useParams<{ orderId: string }>();
   const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
 
   const { data: order, isLoading: loading } = useQuery({
     queryKey: ['order', orderId],
@@ -182,16 +410,29 @@ export function ReviewReleasePage() {
     enabled: !!orderId,
   });
 
-  const releaseReport = async () => {
-    if (!order?.resultReport?.id) return;
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+    queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
+    order?.orderedTests.forEach((test) => {
+      queryClient.invalidateQueries({
+        queryKey: ['result-session', test.id],
+      });
+    });
+  };
+
+  const handleSubmitForReview = async () => {
+    if (!orderId) return;
+    setSubmitting(true);
     try {
-      await labApi.resultEntry.releaseReport(order.resultReport.id);
-      await labApi.orders.updateStatus(orderId!, 'COMPLETED');
-      queryClient.invalidateQueries({ queryKey: ['order', orderId] });
-      queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
-      toast.success(t('review.released_success'));
+      await labApi.review.submitForReview(orderId);
+      toast.success(t('review.submit_for_review_success'));
+      invalidate();
     } catch (e) {
-      toast.error(`${t('review.release_error')} ${(e as Error).message}`);
+      toast.error(
+        `${t('review.submit_for_review_error')} ${(e as Error).message}`
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -231,8 +472,14 @@ export function ReviewReleasePage() {
 
   if (!order) return null;
 
+  const report = order.resultReport;
+  const reportStatus = report?.status;
+  const isReleased = reportStatus === 'RELEASED';
+  const isInReview = reportStatus === 'IN_REVIEW';
+  const isDraft = reportStatus === 'DRAFT';
+
   const enteredTests = order.orderedTests.filter((t) =>
-    ['RESULTS_ENTERED', 'IN_REVIEW'].includes(t.status)
+    ['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED'].includes(t.status)
   );
   const pendingTests = order.orderedTests.filter(
     (t) =>
@@ -240,6 +487,8 @@ export function ReviewReleasePage() {
         t.status
       )
   );
+
+  const readOnly = isReleased || isInReview;
 
   return (
     <div className="p-6 max-w-3xl">
@@ -252,26 +501,58 @@ export function ReviewReleasePage() {
         </Link>
       </div>
 
+      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-white">
           {t('review.title', { patient: order.case.patientName })}
         </h1>
-        {order.resultReport?.status === 'DRAFT' && (
-          <button
-            onClick={releaseReport}
-            className="rounded-lg bg-purple px-5 py-2.5 font-semibold text-white hover:opacity-90"
-          >
-            {t('review.release_btn')}
-          </button>
-        )}
-        {order.resultReport?.status === 'RELEASED' && (
+
+        {isReleased && (
           <span className="rounded-full bg-green-900/30 px-3 py-1 text-sm font-medium text-green-400">
             {t('review.already_released')}
           </span>
         )}
+        {isInReview && !isAdmin && (
+          <span className="rounded-full bg-blue-900/30 px-3 py-1 text-sm font-medium text-blue-400">
+            {t('review.in_review_status')}
+          </span>
+        )}
       </div>
 
-      {pendingTests.length > 0 && (
+      {/* Released: approver info */}
+      {isReleased && report?.approvedByName && report.reviewedAt && (
+        <div className="mb-4 rounded-lg border border-green-800/40 bg-green-900/10 px-4 py-3">
+          <p className="text-xs text-green-400">
+            {t('review.approver_info', {
+              name: report.approvedByName,
+            })}
+            {' · '}
+            {new Date(report.reviewedAt).toLocaleString()}
+          </p>
+          {report.reviewNotes && (
+            <p className="mt-1 text-sm text-gray-300">{report.reviewNotes}</p>
+          )}
+        </div>
+      )}
+
+      {/* Submitted timestamp for IN_REVIEW */}
+      {isInReview && report?.submittedForReviewAt && (
+        <div className="mb-4 rounded-lg border border-blue-800/40 bg-blue-900/10 px-4 py-3">
+          <p className="text-xs text-blue-400">
+            {t('review.submitted_at')}
+            {' · '}
+            {new Date(report.submittedForReviewAt).toLocaleString()}
+          </p>
+        </div>
+      )}
+
+      {/* Correction banner */}
+      {isDraft && report?.correctionNotes && (
+        <CorrectionBanner notes={report.correctionNotes} />
+      )}
+
+      {/* Pending tests warning */}
+      {pendingTests.length > 0 && !isReleased && (
         <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
           <p className="text-sm text-yellow-300">
             {t('review.pending_warning')}
@@ -289,17 +570,39 @@ export function ReviewReleasePage() {
         </div>
       )}
 
+      {/* Test results */}
       {enteredTests.length > 0 ? (
         enteredTests.map((test) => (
           <TestResultSection
             key={test.id}
             orderId={order.id}
             testId={test.id}
+            readOnly={readOnly}
           />
         ))
       ) : (
         <div className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-8 text-center text-sm text-gray-500">
           {t('review.no_report')}
+        </div>
+      )}
+
+      {/* DRAFT: Submit for review button */}
+      {isDraft && enteredTests.length > 0 && (
+        <div className="mt-6">
+          <button
+            onClick={handleSubmitForReview}
+            disabled={submitting}
+            className="rounded-lg bg-purple px-5 py-2.5 font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? '...' : t('review.submit_for_review_btn')}
+          </button>
+        </div>
+      )}
+
+      {/* IN_REVIEW + admin: Reviewer panel */}
+      {isInReview && isAdmin && (
+        <div className="mt-6">
+          <ReviewerPanel orderId={order.id} onDone={invalidate} />
         </div>
       )}
     </div>

@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         loading,
         labRole,
-        isAdmin: labRole === 'ADMIN',
+        isAdmin: labRole === 'ADMIN' || labRole === 'OWNER',
         canPerformPickups: labRole === 'MESSENGER' || canPerformPickupsFlag,
         tenantName,
         logoUrl,

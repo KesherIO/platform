@@ -30,7 +30,7 @@ export type BlockReason =
   | 'REQUIRES_RECOLLECTION'
   | 'MISSING_RESULT_TEMPLATE'
   | 'OTHER';
-export type ReportStatus = 'DRAFT' | 'RELEASED';
+export type ReportStatus = 'DRAFT' | 'IN_REVIEW' | 'RELEASED';
 export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
 
 export type DeliveryMethod = 'LAB_PICKUP' | 'CLIENT_DELIVERY';
@@ -172,6 +172,12 @@ export interface ResultReport {
   status: ReportStatus;
   observations: string | null;
   releasedAt?: string | null;
+  submittedForReviewAt?: string | null;
+  reviewedAt?: string | null;
+  reviewNotes?: string | null;
+  correctionNotes?: string | null;
+  reviewedBySignerId?: string | null;
+  approvedByName?: string | null;
 }
 
 export interface LabOrderSummary {
@@ -231,7 +237,7 @@ export interface LabOrderDetail extends LabOrderSummary {
   specimens?: Specimen[];
 }
 
-export type LabRole = 'ADMIN' | 'TECHNICIAN' | 'MESSENGER';
+export type LabRole = 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'MESSENGER';
 
 export const WEEKDAYS = [
   'MONDAY',

@@ -499,6 +499,18 @@ export class ResultsService {
     return this.formatReport(report);
   }
 
+  async findReportByOrder(
+    tenantId: string,
+    orderId: string
+  ): Promise<ResultReportModel> {
+    const report = await this.prisma.resultReport.findFirst({
+      where: { orderId, tenantId },
+      include: REPORT_INCLUDE,
+    });
+    if (!report) throw new NotFoundException('Result report not found.');
+    return this.formatReport(report);
+  }
+
   /**
    * Batch-save analyte values on a DRAFT report.
    * Only updates provided analytes; omitted analytes are left unchanged.
@@ -561,8 +573,10 @@ export class ResultsService {
       select: { id: true, status: true, caseId: true },
     });
     if (!report) throw new NotFoundException('Result report not found.');
-    if (report.status !== 'DRAFT') {
-      throw new BadRequestException('Only DRAFT reports can be released.');
+    if (report.status !== 'DRAFT' && report.status !== 'IN_REVIEW') {
+      throw new BadRequestException(
+        'Only DRAFT or IN_REVIEW reports can be released.'
+      );
     }
 
     const reportTests = await this.prisma.resultReportTest.findMany({
@@ -1016,6 +1030,11 @@ export class ResultsService {
       approvedByCredentials: raw.approvedByCredentials ?? undefined,
       signatureUrl: raw.signatureUrl ?? undefined,
       pdfUrl: raw.pdfUrl ?? undefined,
+      submittedForReviewAt: raw.submittedForReviewAt ?? undefined,
+      reviewedAt: raw.reviewedAt ?? undefined,
+      reviewNotes: raw.reviewNotes ?? undefined,
+      correctionNotes: raw.correctionNotes ?? undefined,
+      reviewedBySignerId: raw.reviewedBySignerId ?? undefined,
       releasedAt: raw.releasedAt ?? undefined,
       releasedByUserId: raw.releasedByUserId ?? undefined,
       createdAt: raw.createdAt,

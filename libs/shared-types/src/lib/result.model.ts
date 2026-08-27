@@ -5,7 +5,7 @@ import {
 
 export type AnalyteFlag = 'H' | 'L' | 'N';
 
-export type ResultReportStatus = 'DRAFT' | 'RELEASED';
+export type ResultReportStatus = 'DRAFT' | 'IN_REVIEW' | 'RELEASED';
 
 export interface ResultReportAnalyteModel {
   id: string;
@@ -62,6 +62,13 @@ export interface ResultReportModel {
 
   // Export
   pdfUrl?: string;
+
+  // Review workflow
+  submittedForReviewAt?: Date;
+  reviewedAt?: Date;
+  reviewNotes?: string;
+  correctionNotes?: string;
+  reviewedBySignerId?: string;
 
   // Audit
   releasedAt?: Date;

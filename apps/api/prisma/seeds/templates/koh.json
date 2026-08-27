@@ -6,29 +6,71 @@
   "sections": [
     {
       "name": "Resultados",
+      "code": "RESULTADOS",
       "sortOrder": 0,
       "analytes": [
         {
           "code": "KOH_ECTO",
           "name": "Ectoparásitos",
           "technique": "Microscopía directa",
-          "valueType": "TEXT",
+          "valueType": "LONG_TEXT",
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": null
+          "referenceRange": null,
+          "options": [
+            "Negativo",
+            "Demodex spp.",
+            "Sarcoptes scabiei",
+            "Otodectes cynotis",
+            "Notoedres cati",
+            "Cheyletiella spp.",
+            "Ctenocephalides spp. (pulgas)",
+            "Trichodectes canis (piojos)",
+            "Felicola subrostratus (piojos)",
+            "Rhipicephalus sanguineus (garrapata)"
+          ]
         },
         {
           "code": "KOH_FUNGI",
           "name": "Hongos",
           "technique": "Microscopía directa",
-          "valueType": "TEXT",
+          "valueType": "LONG_TEXT",
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
-          "referenceRange": null
+          "referenceRange": null,
+          "options": [
+            "Negativo",
+            "Dermatofitos (Microsporum / Trichophyton spp.)",
+            "Malassezia spp.",
+            "Hifas hialinas inespecíficas",
+            "Levaduras inespecíficas"
+          ]
         }
       ]
+    }
+  ],
+  "observationPhrases": [
+    {
+      "code": "FLORA_BACT_NORMAL",
+      "label": "Flora bacteriana normal",
+      "text": "Se observa flora bacteriana compatible con la normal para la zona anatómica evaluada."
+    },
+    {
+      "code": "FLORA_BACT_COCOS",
+      "label": "Sobrecrecimiento de cocos",
+      "text": "Se observa sobrecrecimiento bacteriano con predominio de cocos, sugestivo de infección por Staphylococcus spp."
+    },
+    {
+      "code": "FLORA_MIXTA",
+      "label": "Flora mixta aumentada",
+      "text": "Se observa flora bacteriana mixta (cocos y bacilos) en cantidad aumentada."
+    },
+    {
+      "code": "KOH_NORMAL",
+      "label": "Examen sin alteraciones",
+      "text": "Examen KOH sin hallazgos patológicos. No se observan ectoparásitos ni elementos fúngicos."
     }
   ]
 }

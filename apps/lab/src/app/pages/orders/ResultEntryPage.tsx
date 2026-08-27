@@ -80,10 +80,14 @@ export function ResultEntryPage() {
         };
       }
     }
-    const initialObs =
-      session.report?.observations ??
-      session.template.defaultObservations ??
-      '';
+    const hasSavedValues = session.sections.some((s) =>
+      s.analytes.some((a) => a.savedValueId)
+    );
+    const initialObs = hasSavedValues
+      ? session.report?.observations ??
+        session.template.defaultObservations ??
+        ''
+      : session.template.defaultObservations ?? '';
     setValues(initial);
     setObservations(initialObs);
     savedValuesRef.current = initial;
@@ -353,23 +357,44 @@ export function ResultEntryPage() {
               />
             )
           ) : analyte.valueType === 'LONG_TEXT' ? (
-            <textarea
-              readOnly={isReadOnly}
-              rows={3}
-              value={val.textValue ?? ''}
-              onChange={(e) =>
-                setValues((prev) => ({
-                  ...prev,
-                  [analyte.id]: {
-                    ...prev[analyte.id],
-                    textValue: e.target.value || null,
-                  },
-                }))
-              }
-              className={`w-56 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none resize-none ${
-                isReadOnly ? 'opacity-60' : ''
-              }`}
-            />
+            analyte.options.length > 0 ? (
+              <Combobox
+                value={val.textValue ?? ''}
+                options={analyte.options}
+                readOnly={isReadOnly}
+                multiLine
+                onChange={(v) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    [analyte.id]: {
+                      ...prev[analyte.id],
+                      textValue: v || null,
+                    },
+                  }))
+                }
+                className={`w-56 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none ${
+                  isReadOnly ? 'opacity-60' : ''
+                }`}
+              />
+            ) : (
+              <textarea
+                readOnly={isReadOnly}
+                rows={3}
+                value={val.textValue ?? ''}
+                onChange={(e) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    [analyte.id]: {
+                      ...prev[analyte.id],
+                      textValue: e.target.value || null,
+                    },
+                  }))
+                }
+                className={`w-56 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none resize-none ${
+                  isReadOnly ? 'opacity-60' : ''
+                }`}
+              />
+            )
           ) : analyte.valueType === 'SELECT' ? (
             <select
               disabled={isReadOnly}
@@ -496,6 +521,20 @@ export function ResultEntryPage() {
           </div>
         )}
       </div>
+
+      {session.report?.correctionNotes && (
+        <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
+          <p className="text-sm font-semibold text-yellow-300">
+            {t('review.correction_banner')}
+          </p>
+          <p className="mt-1 text-xs text-yellow-400">
+            {t('review.correction_banner_notes')}
+          </p>
+          <p className="mt-1 text-sm text-yellow-200 whitespace-pre-wrap">
+            {session.report.correctionNotes}
+          </p>
+        </div>
+      )}
 
       {session.sections.map((section, si) => (
         <div

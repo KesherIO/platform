@@ -52,7 +52,7 @@ export class ResultEntryService {
               },
             },
             resultReport: {
-              select: { id: true, status: true, observations: true },
+              select: { id: true, status: true, observations: true, correctionNotes: true },
             },
           },
         },
@@ -180,6 +180,7 @@ export class ResultEntryService {
         ? {
             id: test.order.resultReport.id,
             observations: test.order.resultReport.observations,
+            correctionNotes: test.order.resultReport.correctionNotes ?? null,
           }
         : null,
       sections,
