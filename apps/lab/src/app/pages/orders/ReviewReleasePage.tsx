@@ -69,9 +69,11 @@ function TestResultSection({
       displayVal = numVal !== null ? String(numVal) : null;
     } else if (analyte.valueType === 'TEXT') {
       displayVal = analyte.textValue;
+    } else if (analyte.valueType === 'LONG_TEXT') {
+      displayVal = analyte.textValue;
     } else if (analyte.valueType === 'SELECT') {
       displayVal = analyte.selectValue;
-    } else if (analyte.valueType === 'BOOLEAN') {
+    } else if (analyte.valueType === 'POSITIVE_NEGATIVE') {
       displayVal =
         analyte.booleanValue === true
           ? 'Positivo'
@@ -88,7 +90,14 @@ function TestResultSection({
             <p className="text-xs text-gray-500">{analyte.technique}</p>
           )}
         </div>
-        <span className={`text-sm font-medium ${flagColor}`}>
+        <span
+          className={`text-sm font-medium ${flagColor}`}
+          style={
+            analyte.valueType === 'LONG_TEXT'
+              ? { whiteSpace: 'pre-wrap' }
+              : undefined
+          }
+        >
           {displayVal ?? <span className="text-gray-600">—</span>}
           {analyte.unit ? (
             <span className="ml-1 text-xs text-gray-500">{analyte.unit}</span>

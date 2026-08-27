@@ -7,12 +7,44 @@ import {
   IsOptional,
   IsString,
   IsBoolean,
+  Matches,
+  MaxLength,
+  ArrayMaxSize,
   Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AnalyteValueTypeDto, PatientSpeciesDto } from './results.dto';
+
+export class ObservationPhraseDto {
+  @ApiProperty({ example: 'REPETIR_EXAMEN' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  @Matches(/^[A-Z][A-Z0-9_]*$/)
+  code!: string;
+
+  @ApiProperty({ example: 'Repetir examen' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  label!: string;
+
+  @ApiProperty({
+    example: 'Se recomienda repetir el examen con una nueva muestra.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  text!: string;
+
+  @ApiPropertyOptional({ example: 'EXAMEN_MICROSCOPICO' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  sectionCode?: string;
+}
 
 export class TemplateAnalyteDto {
   @ApiProperty({ example: 'WBC' })
@@ -42,7 +74,9 @@ export class TemplateAnalyteDto {
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(30)
   @IsString({ each: true })
+  @MaxLength(200, { each: true })
   options?: string[];
 
   @ApiProperty()
@@ -66,6 +100,13 @@ export class TemplateAnalyteDto {
 }
 
 export class TemplateSectionDto {
+  @ApiPropertyOptional({ example: 'EXAMEN_MACROSCOPICO' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  @Matches(/^[A-Z][A-Z0-9_]*$/)
+  code?: string;
+
   @ApiProperty({ example: 'Serie Roja' })
   @IsString()
   @IsNotEmpty()
@@ -111,6 +152,7 @@ export class CreateTemplateDefinitionDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   defaultObservations?: string;
 
   @ApiProperty({ type: [TemplateSectionDto] })
@@ -118,6 +160,14 @@ export class CreateTemplateDefinitionDto {
   @ValidateNested({ each: true })
   @Type(() => TemplateSectionDto)
   sections!: TemplateSectionDto[];
+
+  @ApiPropertyOptional({ type: [ObservationPhraseDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => ObservationPhraseDto)
+  observationPhrases?: ObservationPhraseDto[];
 }
 
 export class UpdateDraftVersionDto {
@@ -129,6 +179,7 @@ export class UpdateDraftVersionDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   defaultObservations?: string;
 
   @ApiPropertyOptional({ type: [TemplateSectionDto] })
@@ -137,4 +188,12 @@ export class UpdateDraftVersionDto {
   @ValidateNested({ each: true })
   @Type(() => TemplateSectionDto)
   sections?: TemplateSectionDto[];
+
+  @ApiPropertyOptional({ type: [ObservationPhraseDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => ObservationPhraseDto)
+  observationPhrases?: ObservationPhraseDto[];
 }

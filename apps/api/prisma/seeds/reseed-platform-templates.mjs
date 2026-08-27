@@ -1,12 +1,10 @@
 /**
- * Seed: loads all platform result templates from templates/*.json into the DB
- * as PLATFORM-scope ResultTemplateDefinition + PUBLISHED ResultTemplateVersion.
+ * Drops ALL PLATFORM-scope result template definitions and re-seeds them
+ * from the JSON files. Safe to run at any time — only affects PLATFORM
+ * templates, not lab-customized ones.
  *
- * Run from the workspace root:
- *   node apps/api/prisma/seeds/seed-platform-templates.mjs
- *
- * Idempotent — skips definitions that already exist.
- * Run after seed-platform-catalog.mjs (catalog codes must match template codes).
+ * Run from workspace root:
+ *   node apps/api/prisma/seeds/reseed-platform-templates.mjs
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -18,13 +16,52 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const prisma = new PrismaClient();
 
 async function main() {
+  // ── Step 1: delete report rows referencing PLATFORM templates ──────
+  const platformDefs = await prisma.resultTemplateDefinition.findMany({
+    where: { scope: 'PLATFORM' },
+    select: { id: true },
+  });
+  const defIds = platformDefs.map((d) => d.id);
+
+  if (defIds.length > 0) {
+    // Delete analytes on report-tests that point at platform definitions
+    const reportTests = await prisma.resultReportTest.findMany({
+      where: { templateDefinitionId: { in: defIds } },
+      select: { id: true },
+    });
+    const rtIds = reportTests.map((rt) => rt.id);
+
+    if (rtIds.length > 0) {
+      const { count: analytes } = await prisma.resultReportAnalyte.deleteMany({
+        where: { reportTestId: { in: rtIds } },
+      });
+      console.log(`✓ Deleted ${analytes} report analytes referencing PLATFORM templates`);
+    }
+
+    const { count: rts } = await prisma.resultReportTest.deleteMany({
+      where: { templateDefinitionId: { in: defIds } },
+    });
+    console.log(`✓ Deleted ${rts} report tests referencing PLATFORM templates`);
+  }
+
+  // ── Step 2: delete all PLATFORM template definitions ───────────────
+  // Null out activeVersionId first to break the self-referencing FK
+  await prisma.resultTemplateDefinition.updateMany({
+    where: { scope: 'PLATFORM' },
+    data: { activeVersionId: null },
+  });
+
+  const { count } = await prisma.resultTemplateDefinition.deleteMany({
+    where: { scope: 'PLATFORM' },
+  });
+  console.log(`✓ Deleted ${count} PLATFORM template definitions`);
+
+  // ── Step 2: re-seed from JSON files ────────────────────────────────
   const templatesDir = join(__dirname, 'templates');
   const files = readdirSync(templatesDir).filter((f) => f.endsWith('.json'));
-
-  console.log(`Found ${files.length} template files.`);
+  console.log(`Found ${files.length} template files. Seeding...`);
 
   let created = 0;
-  let skipped = 0;
 
   for (const file of files) {
     let raw;
@@ -46,24 +83,6 @@ async function main() {
 
     const ageMin = raw.ageMinWeeks ?? -1;
     const ageMax = raw.ageMaxWeeks ?? -1;
-
-    // Idempotency check
-    const existing = await prisma.resultTemplateDefinition.findUnique({
-      where: {
-        catalogItemCode_species_ageMinWeeks_ageMaxWeeks_ownerKey: {
-          catalogItemCode,
-          species,
-          ageMinWeeks: ageMin,
-          ageMaxWeeks: ageMax,
-          ownerKey: 'platform',
-        },
-      },
-    });
-
-    if (existing) {
-      skipped++;
-      continue;
-    }
 
     await prisma.$transaction(async (tx) => {
       const definition = await tx.resultTemplateDefinition.create({
@@ -119,7 +138,6 @@ async function main() {
         }
       }
 
-      // Point the definition at its active (published) version
       await tx.resultTemplateDefinition.update({
         where: { id: definition.id },
         data: { activeVersionId: version.id },
@@ -127,14 +145,10 @@ async function main() {
     });
 
     created++;
-    process.stdout.write(
-      `\r  ${created + skipped}/${files.length} processed...`
-    );
+    process.stdout.write(`\r  ${created}/${files.length} processed...`);
   }
 
-  console.log(
-    `\nDone: ${created} created, ${skipped} already existed (${files.length} total).`
-  );
+  console.log(`\nDone: ${created} PLATFORM templates created.`);
 }
 
 main()

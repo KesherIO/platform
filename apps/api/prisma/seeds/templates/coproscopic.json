@@ -3,8 +3,95 @@
   "species": "ANY",
   "title": "Coproscópico Completo",
   "defaultObservations": "Tipo de muestra: materia fecal.",
+  "observationPhrases": [
+    {
+      "code": "SIN_PARASITOS",
+      "label": "Sin parásitos",
+      "text": "No se observan parásitos ni huevos en la muestra analizada.",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "HUEVOS_ESCASOS",
+      "label": "Huevos escasos",
+      "text": "Se observan escasos huevos de ...",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "HUEVOS_MODERADOS",
+      "label": "Huevos moderados",
+      "text": "Se observan moderados huevos de ...",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "HUEVOS_ABUNDANTES",
+      "label": "Huevos abundantes",
+      "text": "Se observan abundantes huevos de ...",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "FLORA_AUMENTADA",
+      "label": "Flora bacteriana aumentada",
+      "text": "Flora bacteriana aumentada.",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "FLORA_NORMAL",
+      "label": "Flora bacteriana normal",
+      "text": "Flora bacteriana dentro de los límites normales.",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "RESTOS_ALIMENTO",
+      "label": "Restos de alimento",
+      "text": "Se observan restos de alimento sin digerir.",
+      "sectionCode": "EXAMEN_MACROSCOPICO"
+    },
+    {
+      "code": "MUESTRA_INADECUADA",
+      "label": "Muestra inadecuada",
+      "text": "Muestra recibida en condiciones inadecuadas para su procesamiento. Resultados orientativos.",
+      "sectionCode": ""
+    },
+    {
+      "code": "REPETIR_EXAMEN",
+      "label": "Repetir examen",
+      "text": "Se recomienda repetir el examen con una nueva muestra.",
+      "sectionCode": ""
+    },
+    {
+      "code": "DESPARASITAR",
+      "label": "Desparasitación sugerida",
+      "text": "Se sugiere desparasitación y control coprológico posterior.",
+      "sectionCode": ""
+    },
+    {
+      "code": "SANGRE_OCULTA_POS",
+      "label": "Sangre oculta positiva",
+      "text": "Sangre oculta positiva. Se recomienda correlacionar clínicamente y descartar causas gastrointestinales.",
+      "sectionCode": "ESPECIALES"
+    },
+    {
+      "code": "GRASA_FECAL_POS",
+      "label": "Grasa fecal positiva",
+      "text": "Presencia de grasa fecal. Compatible con mala digestión o malabsorción. Se recomienda evaluar función pancreática exocrina.",
+      "sectionCode": "ESPECIALES"
+    },
+    {
+      "code": "OOQUISTES_OBSERVADOS",
+      "label": "Ooquistes observados",
+      "text": "Se observan ooquistes compatibles con ...",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "LARVAS_OBSERVADAS",
+      "label": "Larvas observadas",
+      "text": "Se observan larvas compatibles con ...",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    }
+  ],
   "sections": [
     {
+      "code": "EXAMEN_MACROSCOPICO",
       "name": "Examen Macroscópico",
       "sortOrder": 0,
       "analytes": [
@@ -16,6 +103,7 @@
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
+          "options": ["Normal", "Blando", "Líquido", "Diarreico", "Mucoso", "Sanguinolento"],
           "referenceRange": null
         },
         {
@@ -26,6 +114,7 @@
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
+          "options": ["Marrón", "Marrón oscuro", "Amarillo", "Verde", "Negro", "Rojo"],
           "referenceRange": null
         },
         {
@@ -36,11 +125,13 @@
           "unit": null,
           "sortOrder": 2,
           "isHeader": false,
+          "options": ["No se observan", "Restos de alimento", "Moco", "Sangre", "Parásitos macroscópicos"],
           "referenceRange": null
         }
       ]
     },
     {
+      "code": "EXAMEN_MICROSCOPICO",
       "name": "Examen Microscópico",
       "sortOrder": 1,
       "analytes": [
@@ -52,6 +143,7 @@
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": null
         },
         {
@@ -62,11 +154,13 @@
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": null
         }
       ]
     },
     {
+      "code": "ESPECIALES",
       "name": "Especiales",
       "sortOrder": 2,
       "analytes": [
@@ -92,6 +186,7 @@
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
+          "options": ["Negativo", "+", "++", "+++"],
           "referenceRange": { "displayText": "Negativo" }
         },
         {
@@ -102,6 +197,7 @@
           "unit": null,
           "sortOrder": 2,
           "isHeader": false,
+          "options": ["Negativo", "+", "++", "+++"],
           "referenceRange": { "displayText": "Negativo" }
         },
         {
@@ -112,6 +208,7 @@
           "unit": null,
           "sortOrder": 3,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": { "displayText": "Negativo" }
         },
         {
@@ -122,6 +219,7 @@
           "unit": null,
           "sortOrder": 4,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": { "displayText": "Negativo" }
         }
       ]

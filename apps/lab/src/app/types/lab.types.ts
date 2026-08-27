@@ -622,9 +622,17 @@ export interface TemplateAnalyte {
   referenceRange: ReferenceRange | null;
 }
 
+export interface ObservationPhrase {
+  code: string;
+  label: string;
+  text: string;
+  sectionCode?: string;
+}
+
 export interface TemplateSection {
   id: string;
   versionId: string;
+  code?: string;
   name: string;
   sortOrder: number;
   analytes: TemplateAnalyte[];
@@ -637,6 +645,7 @@ export interface TemplateVersion {
   title: string;
   status: TemplateStatus;
   defaultObservations: string | null;
+  observationPhrases?: ObservationPhrase[] | null;
   publishedAt: string | null;
   createdAt: string;
   sections?: TemplateSection[];

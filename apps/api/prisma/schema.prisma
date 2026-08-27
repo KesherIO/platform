@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-    url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 // ---------------------------------------------------------------------------
@@ -78,7 +78,7 @@ enum PatientSpecies {
   REPTILE
   RABBIT
   OTHER
-  ANY   // species-agnostic template — applies to all species
+  ANY // species-agnostic template — applies to all species
 }
 
 enum AgeUnit {
@@ -119,12 +119,12 @@ enum ResultType {
 }
 
 enum OrderStatus {
-  PENDING          // order placed, waiting for sample
+  PENDING // order placed, waiting for sample
   READY_FOR_PICKUP // clinic flagged sample as ready — courier path only
-  COLLECTED        // sample drawn/picked up
-  RECEIVED_BY_LAB  // sample physically arrived at lab
-  PROCESSING       // analysis underway
-  COMPLETED        // results available
+  COLLECTED // sample drawn/picked up
+  RECEIVED_BY_LAB // sample physically arrived at lab
+  PROCESSING // analysis underway
+  COMPLETED // results available
   CANCELLED
 }
 
@@ -136,21 +136,21 @@ enum OrderPriority {
 
 /// How a single analyte value should be entered and rendered.
 enum AnalyteValueType {
-  NUMERIC            // number + unit + ref range → auto-flag H/L/N
-  TEXT               // single-line string (culture report, microscopy)
-  LONG_TEXT          // multi-line textarea (pathology narratives)
-  POSITIVE_NEGATIVE  // boolean rendered as Positivo / Negativo
-  SELECT             // fixed option list stored in options[]
+  NUMERIC // number + unit + ref range → auto-flag H/L/N
+  TEXT // single-line string (culture report, microscopy)
+  LONG_TEXT // multi-line textarea (pathology narratives)
+  POSITIVE_NEGATIVE // boolean rendered as Positivo / Negativo
+  SELECT // fixed option list stored in options[]
 }
 
 enum ResultReportStatus {
-  DRAFT    // lab is entering values — not visible to clinic
+  DRAFT // lab is entering values — not visible to clinic
   RELEASED // final and immutable — clinic can see it
 }
 
 enum KnowledgeScope {
-  GLOBAL  // shared across all tenants — platform-owned
-  TENANT  // specific to one clinic/lab
+  GLOBAL // shared across all tenants — platform-owned
+  TENANT // specific to one clinic/lab
 }
 
 enum DocumentStatus {
@@ -159,9 +159,9 @@ enum DocumentStatus {
 }
 
 enum TenantType {
-  CLINIC    // veterinary clinic — creates cases and orders
-  LAB       // external reference laboratory
-  PLATFORM  // KesherIO platform tenant (singleton)
+  CLINIC // veterinary clinic — creates cases and orders
+  LAB // external reference laboratory
+  PLATFORM // KesherIO platform tenant (singleton)
 }
 
 enum ClientType {
@@ -183,21 +183,21 @@ enum ClientStatus {
 
 /// Status of a single ordered test within a lab order.
 enum OrderedTestStatus {
-  PENDING          // created, awaiting specimen acceptance
-  READY            // specimen accepted, template resolved — available for processing
-  IN_PROGRESS      // technician has started processing
-  RESULTS_ENTERED  // all analyte values filled in — awaiting review
-  IN_REVIEW        // submitted for supervisor review
-  COMPLETED        // report released
-  BLOCKED          // cannot proceed (missing specimen, missing template, etc.)
-  CANCELLED        // test cancelled
+  PENDING // created, awaiting specimen acceptance
+  READY // specimen accepted, template resolved — available for processing
+  IN_PROGRESS // technician has started processing
+  RESULTS_ENTERED // all analyte values filled in — awaiting review
+  IN_REVIEW // submitted for supervisor review
+  COMPLETED // report released
+  BLOCKED // cannot proceed (missing specimen, missing template, etc.)
+  CANCELLED // test cancelled
 }
 
 enum SpecimenStatus {
-  EXPECTED  // derived from LabTestSpecimenRequirement, not yet received
-  RECEIVED  // physical tube logged — transitional, pending accept/reject
-  ACCEPTED  // usable — linked tests transition PENDING → READY
-  REJECTED  // unusable — linked tests transition to BLOCKED
+  EXPECTED // derived from LabTestSpecimenRequirement, not yet received
+  RECEIVED // physical tube logged — transitional, pending accept/reject
+  ACCEPTED // usable — linked tests transition PENDING → READY
+  REJECTED // unusable — linked tests transition to BLOCKED
 }
 
 enum BlockReason {
@@ -213,14 +213,14 @@ enum BlockReason {
 
 /// How analyte values were entered for a given ordered test.
 enum ResultEntryMethod {
-  MANUAL      // technician enters values manually
-  INSTRUMENT  // connected analyzer pushed data
-  IMPORTED    // CSV / HL7 file import
+  MANUAL // technician enters values manually
+  INSTRUMENT // connected analyzer pushed data
+  IMPORTED // CSV / HL7 file import
 }
 
 /// Whether an OrderedTest originated from a direct order line or a package expansion.
 enum OrderedTestSourceType {
-  DIRECT  // test ordered as a standalone line item
+  DIRECT // test ordered as a standalone line item
   PACKAGE // test derived from a package expansion
 }
 
@@ -262,27 +262,27 @@ enum TemplateStatus {
 // ---------------------------------------------------------------------------
 
 model Tenant {
-  id                 String       @id @default(cuid())
-  name               String
-  type               TenantType   @default(CLINIC)
-  slug               String       @unique
-  clientType         ClientType?
-  clientStatus       ClientStatus?
+  id                    String          @id @default(cuid())
+  name                  String
+  type                  TenantType      @default(CLINIC)
+  slug                  String          @unique
+  clientType            ClientType?
+  clientStatus          ClientStatus?
   // Contact & clinic details — collected during onboarding clinic-setup step
-  primaryContactName String?
-  address            String?
-  city               String?
-  email              String?
-  phone              String?
-  phoneNumbers       Json?    // [{label: "WhatsApp", number: "+1 555…"}, …]
-  country            String?
-  notificationMethod String?  // 'email' | 'sms'
-  timezone           String   @default("UTC") // IANA name, e.g. "America/Bogota" — used to evaluate messenger schedules
+  primaryContactName    String?
+  address               String?
+  city                  String?
+  email                 String?
+  phone                 String?
+  phoneNumbers          Json? // [{label: "WhatsApp", number: "+1 555…"}, …]
+  country               String?
+  notificationMethod    String? // 'email' | 'sms'
+  timezone              String          @default("UTC") // IANA name, e.g. "America/Bogota" — used to evaluate messenger schedules
   // Branding — optional, populated via future branding/settings step
-  logoUrl            String?  // URL to uploaded logo in storage (never store file data here)
-  primaryColor       String?
-  mapLat             Float?
-  mapLng             Float?
+  logoUrl               String? // URL to uploaded logo in storage (never store file data here)
+  primaryColor          String?
+  mapLat                Float?
+  mapLng                Float?
   // Sample collection settings — snapshotted onto each Pickup at creation time
   pickupEnabled         Boolean         @default(false)
   defaultDeliveryMethod DeliveryMethod?
@@ -291,22 +291,22 @@ model Tenant {
   pickupContactPhone    String?
   collectionHours       String?
   pickupInstructions    String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
-  memberships        UserTenantMembership[]
-  invitations        TenantInvitation[]
-  cases              Case[]
-  orders             Order[]              @relation("ClinicOrders")
-  labOrders          Order[]              @relation("LabOrders")
-  laboratoryProfile  LaboratoryProfile?
-  clinicConnections  ClinicLabConnection[] @relation("ClinicConnections")
-  labConnections     ClinicLabConnection[] @relation("LabConnections")
-  labCatalogItems    CatalogItem[]         @relation("LabCatalog")
-  labPickups         Pickup[]              @relation("LabPickups")
-  clinicPickups      Pickup[]              @relation("ClinicPickups")
-  labAnalyzers       Analyzer[]            @relation("LabAnalyzers")
-  labTestConfigs     LabTestConfiguration[] @relation("LabTestConfigs")
+  memberships            UserTenantMembership[]
+  invitations            TenantInvitation[]
+  cases                  Case[]
+  orders                 Order[]                    @relation("ClinicOrders")
+  labOrders              Order[]                    @relation("LabOrders")
+  laboratoryProfile      LaboratoryProfile?
+  clinicConnections      ClinicLabConnection[]      @relation("ClinicConnections")
+  labConnections         ClinicLabConnection[]      @relation("LabConnections")
+  labCatalogItems        CatalogItem[]              @relation("LabCatalog")
+  labPickups             Pickup[]                   @relation("LabPickups")
+  clinicPickups          Pickup[]                   @relation("ClinicPickups")
+  labAnalyzers           Analyzer[]                 @relation("LabAnalyzers")
+  labTestConfigs         LabTestConfiguration[]     @relation("LabTestConfigs")
   labTemplateDefinitions ResultTemplateDefinition[] @relation("LabTemplateDefinitions")
 
   @@map("tenants")
@@ -333,9 +333,9 @@ model User {
 }
 
 model UserTenantMembership {
-  userId    String
-  tenantId  String
-  role      TenantRole
+  userId            String
+  tenantId          String
+  role              TenantRole
   /// MESSENGER-only: recurring weekly availability, e.g.
   /// { MONDAY: {start:"09:00", end:"17:00"}, ..., SUNDAY: null }.
   /// Informational for now — displayed and used to sort the assign-messenger
@@ -344,13 +344,13 @@ model UserTenantMembership {
   /// When true, non-MESSENGER users (ADMIN, TECHNICIAN) can be assigned
   /// pickups, appear in the messenger list, access My Pickups, and receive
   /// push notifications. Ignored for MESSENGER role (intrinsic capability).
-  canPerformPickups Boolean  @default(false)
-  createdAt         DateTime @default(now())
+  canPerformPickups Boolean    @default(false)
+  createdAt         DateTime   @default(now())
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  @@id([userId, tenantId])  // composite PK — no surrogate id needed
+  @@id([userId, tenantId]) // composite PK — no surrogate id needed
   @@index([tenantId])
   @@index([userId])
   @@map("user_tenant_memberships")
@@ -359,17 +359,17 @@ model UserTenantMembership {
 /// Pending invitations sent by clinic owners/admins to bring staff onboard.
 /// Token is a signed short-lived value; acceptedAt is set on acceptance.
 model TenantInvitation {
-  id            String     @id @default(cuid())
-  tenantId      String
-  email         String
-  role          TenantRole
-  token         String     @unique
-  expiresAt     DateTime
-  acceptedAt    DateTime?
+  id              String     @id @default(cuid())
+  tenantId        String
+  email           String
+  role            TenantRole
+  token           String     @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
   invitedByUserId String
 
-  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  invitedBy  User   @relation(fields: [invitedByUserId], references: [id])
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedBy User   @relation(fields: [invitedByUserId], references: [id])
 
   @@index([tenantId])
   @@index([email])
@@ -380,21 +380,21 @@ model TenantInvitation {
 /// Each token is single-use and expires after 7 days.
 /// On completion, the backend creates the Supabase user, Tenant, and ADMIN membership.
 model OnboardingToken {
-  id              String              @id @default(cuid())
-  token           String?             @unique  // DEPRECATED — kept for backward compat with old rows
-  tokenHash       String?             @unique  // SHA-256 hex of the raw token (new rows use this)
-  type            OnboardingTokenType @default(ADMIN)
-  clinicName      String
-  clinicEmail     String              // contact email for the clinic (Tenant.email)
-  clientType      ClientType?
-  externalClinicId String?             // optional external reference from the platform
-  laboratoryId    String?              // lab tenant that created this invitation
-  expiresAt       DateTime
-  used            Boolean             @default(false)
-  usedAt          DateTime?
-  revokedAt       DateTime?
-  createdByUserId String?
-  createdAt       DateTime            @default(now())
+  id               String              @id @default(cuid())
+  token            String?             @unique // DEPRECATED — kept for backward compat with old rows
+  tokenHash        String?             @unique // SHA-256 hex of the raw token (new rows use this)
+  type             OnboardingTokenType @default(ADMIN)
+  clinicName       String
+  clinicEmail      String // contact email for the clinic (Tenant.email)
+  clientType       ClientType?
+  externalClinicId String? // optional external reference from the platform
+  laboratoryId     String? // lab tenant that created this invitation
+  expiresAt        DateTime
+  used             Boolean             @default(false)
+  usedAt           DateTime?
+  revokedAt        DateTime?
+  createdByUserId  String?
+  createdAt        DateTime            @default(now())
 
   @@index([token])
   @@index([tokenHash])
@@ -411,28 +411,28 @@ model OnboardingToken {
 /// All case data is scoped to a tenant — cross-tenant access is impossible
 /// because every lookup includes tenantId in the WHERE clause.
 model Case {
-  id        String     @id @default(cuid())
-  tenantId  String
-  status    CaseStatus @default(OPEN)
+  id       String     @id @default(cuid())
+  tenantId String
+  status   CaseStatus @default(OPEN)
 
   // Patient — embedded (no separate Patient table for MVP)
   patientName        String
   patientSpecies     PatientSpecies
   patientSex         PatientSex?
   patientBreed       String?
-  patientDateOfBirth DateTime?    // used when exact DOB is known; age/ageUnit are the fallback
+  patientDateOfBirth DateTime? // used when exact DOB is known; age/ageUnit are the fallback
   patientAge         Int?
   patientAgeUnit     AgeUnit?
-  patientWeight      Float?       // kilograms
+  patientWeight      Float? // kilograms
 
   // Owner
   ownerName  String
   ownerPhone String?
 
   // Clinical inputs
-  symptoms                String?   // free-text symptom description (textarea)
-  triageResult            Json?     // AI DDx output: { diagnoses: [...], suggestedCatalogItemIds: [...] }
-  suggestedCatalogItemIds String[]  // AI-proposed catalog item IDs (TEST or PACKAGE) — no FK, AI output
+  symptoms                String? // free-text symptom description (textarea)
+  triageResult            Json? // AI DDx output: { diagnoses: [...], suggestedCatalogItemIds: [...] }
+  suggestedCatalogItemIds String[] // AI-proposed catalog item IDs (TEST or PACKAGE) — no FK, AI output
 
   // Order (embedded — one per case for MVP)
   orderNotes  String?
@@ -443,8 +443,8 @@ model Case {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  tenant               Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy            User                @relation(fields: [createdByUserId], references: [id])
+  tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy            User              @relation(fields: [createdByUserId], references: [id])
   selectedCatalogItems CaseCatalogItem[]
   order                Order?
 
@@ -468,23 +468,23 @@ model CatalogItem {
   id              String          @id @default(cuid())
   labTenantId     String
   kind            CatalogItemKind
-  code            String?         // TEST only — lab code (e.g. "CBC"); unique within the lab's catalog
+  code            String? // TEST only — lab code (e.g. "CBC"); unique within the lab's catalog
   name            String
-  description     String?         // PACKAGE only
-  category        String?         // TEST only
-  turnaroundHours Int?            // TEST only
-  resultType      ResultType?     // TEST only — how to interpret the result value; null = unstructured
-  unit            String?         // TEST only — unit of measurement (e.g. "mg/dL", "K/µL"); null = unitless or not applicable
+  description     String? // PACKAGE only
+  category        String? // TEST only
+  turnaroundHours Int? // TEST only
+  resultType      ResultType? // TEST only — how to interpret the result value; null = unstructured
+  unit            String? // TEST only — unit of measurement (e.g. "mg/dL", "K/µL"); null = unitless or not applicable
   active          Boolean         @default(true)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  labTenant        Tenant                   @relation("LabCatalog", fields: [labTenantId], references: [id], onDelete: Cascade)
-  components       CatalogItemComposition[] @relation("PackageComponents")
-  packages         CatalogItemComposition[] @relation("ComponentPackages")
-  caseCatalogItems CaseCatalogItem[]
-  orderedTests     OrderedTest[]
-  orderedTestSources OrderedTestSource[] @relation("SourceOriginCatalogItem")
+  labTenant             Tenant                   @relation("LabCatalog", fields: [labTenantId], references: [id], onDelete: Cascade)
+  components            CatalogItemComposition[] @relation("PackageComponents")
+  packages              CatalogItemComposition[] @relation("ComponentPackages")
+  caseCatalogItems      CaseCatalogItem[]
+  orderedTests          OrderedTest[]
+  orderedTestSources    OrderedTestSource[]      @relation("SourceOriginCatalogItem")
   labTestConfigurations LabTestConfiguration[]
 
   @@unique([labTenantId, code])
@@ -535,24 +535,24 @@ model Counter {
 /// orderedItems is a denormalized JSON snapshot of the catalog items at order
 /// time — intentionally not a FK so history stays accurate if catalog changes.
 model Order {
-  id                  String        @id @default(cuid())
-  requisitionNumber   String        @unique  // REQ-2026-000001
-  caseId              String        @unique  // one active order per case (MVP)
-  tenantId            String
-  labTenantId         String?       // which lab processes this order (null = platform direct for MVP seed)
-  status              OrderStatus   @default(PENDING)
-  priority            OrderPriority @default(ROUTINE)
-  deliveryMethod      DeliveryMethod?
+  id                String          @id @default(cuid())
+  requisitionNumber String          @unique // REQ-2026-000001
+  caseId            String          @unique // one active order per case (MVP)
+  tenantId          String
+  labTenantId       String? // which lab processes this order (null = platform direct for MVP seed)
+  status            OrderStatus     @default(PENDING)
+  priority          OrderPriority   @default(ROUTINE)
+  deliveryMethod    DeliveryMethod?
 
   /// JSON snapshot: Array<{ catalogItemId, code, name, kind, category?, turnaroundHours? }>
-  orderedItems        Json
+  orderedItems Json
 
-  clinicNotes         String?   // vet → lab
-  labNotes            String?   // internal lab use, not shown to clinic
+  clinicNotes String? // vet → lab
+  labNotes    String? // internal lab use, not shown to clinic
 
   // Sample info — filled by lab/clinic staff
-  sampleType          String?   // BLOOD | URINE | FECES | SWAB | TISSUE | OTHER
-  sampleNotes         String?
+  sampleType  String? // BLOOD | URINE | FECES | SWAB | TISSUE | OTHER
+  sampleNotes String?
 
   // Timestamps
   createdAt           DateTime  @default(now())
@@ -563,12 +563,12 @@ model Order {
   completedAt         DateTime?
   cancelledAt         DateTime?
 
-  case         Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  tenant       Tenant        @relation("ClinicOrders", fields: [tenantId], references: [id], onDelete: Cascade)
-  labTenant    Tenant?       @relation("LabOrders", fields: [labTenantId], references: [id])
-  resultReport ResultReport?
-  orderedTests OrderedTest[]
-  specimens    Specimen[]
+  case           Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  tenant         Tenant          @relation("ClinicOrders", fields: [tenantId], references: [id], onDelete: Cascade)
+  labTenant      Tenant?         @relation("LabOrders", fields: [labTenantId], references: [id])
+  resultReport   ResultReport?
+  orderedTests   OrderedTest[]
+  specimens      Specimen[]
   pickup         Pickup?
   timelineEvents TimelineEvent[]
 
@@ -585,14 +585,16 @@ model Order {
 
 /// Named group of analytes within a template version (e.g. "Serie Roja", "Examen Macroscópico").
 model ResultTemplateSection {
-  id        String  @id @default(cuid())
+  id        String @id @default(cuid())
   versionId String
+  code      String?
   name      String
   sortOrder Int
 
   version  ResultTemplateVersion   @relation("VersionSections", fields: [versionId], references: [id], onDelete: Cascade)
   analytes ResultTemplateAnalyte[]
 
+  @@unique([versionId, code])
   @@map("result_template_sections")
 }
 
@@ -601,22 +603,22 @@ model ResultTemplateSection {
 model ResultTemplateAnalyte {
   id        String           @id @default(cuid())
   versionId String
-  sectionId String?          // null = template has no sections
-  code      String           // stable semantic key: "WBC", "HGB" — AI + machine import anchor
-  name      String           // display name: "Recuento total de leucocitos (WBC)"
-  technique String?          // "Impedancia eléctrica"
+  sectionId String? // null = template has no sections
+  code      String // stable semantic key: "WBC", "HGB" — AI + machine import anchor
+  name      String // display name: "Recuento total de leucocitos (WBC)"
+  technique String? // "Impedancia eléctrica"
   valueType AnalyteValueType
-  unit      String?          // "10^3/µL" — null for qualitative analytes
-  options   String[]         // SELECT only — valid option values
+  unit      String? // "10^3/µL" — null for qualitative analytes
+  options   String[] // SELECT only — valid option values
   sortOrder Int
   isHeader  Boolean          @default(false) // bold label row — no value input, no flag
-  formula   String?          // e.g. "([HCT]*10)/[RBC]" — computed on frontend, read-only input
+  formula   String? // e.g. "([HCT]*10)/[RBC]" — computed on frontend, read-only input
 
   /// MVP shape: { min?: number, max?: number, displayText: string }
   referenceRange Json?
 
-  version        ResultTemplateVersion   @relation("VersionAnalytes", fields: [versionId], references: [id], onDelete: Cascade)
-  section        ResultTemplateSection?  @relation(fields: [sectionId], references: [id])
+  version        ResultTemplateVersion  @relation("VersionAnalytes", fields: [versionId], references: [id], onDelete: Cascade)
+  section        ResultTemplateSection? @relation(fields: [sectionId], references: [id])
   reportAnalytes ResultReportAnalyte[]
 
   @@map("result_template_analytes")
@@ -645,6 +647,7 @@ model ResultTemplateDefinition {
   childDefinitions ResultTemplateDefinition[] @relation("TemplateInheritance")
   activeVersion    ResultTemplateVersion?     @relation("ActiveVersion", fields: [activeVersionId], references: [id])
   versions         ResultTemplateVersion[]    @relation("DefinitionVersions")
+  reportTests      ResultReportTest[]
 
   @@unique([catalogItemCode, species, ageMinWeeks, ageMaxWeeks, ownerKey])
   @@index([ownerKey])
@@ -659,6 +662,7 @@ model ResultTemplateVersion {
   title               String
   status              TemplateStatus @default(DRAFT)
   defaultObservations String?
+  observationPhrases  Json?
   publishedAt         DateTime?
   createdAt           DateTime       @default(now())
 
@@ -666,6 +670,7 @@ model ResultTemplateVersion {
   activeForDefinition ResultTemplateDefinition? @relation("ActiveVersion")
   sections            ResultTemplateSection[]   @relation("VersionSections")
   analytes            ResultTemplateAnalyte[]   @relation("VersionAnalytes")
+  reportTests         ResultReportTest[]
 
   @@unique([definitionId, version])
   @@index([definitionId])
@@ -681,18 +686,18 @@ model ResultTemplateVersion {
 /// tenantId = value → clinic/lab-specific knowledge (future).
 model KnowledgeDocument {
   id         String         @id @default(cuid())
-  tenantId   String?                                // null = global
+  tenantId   String? // null = global
   scope      KnowledgeScope @default(GLOBAL)
   title      String
-  species    String?                                // 'dog' | 'cat' | null (species-agnostic)
-  topic      String?                                // e.g. 'tick-borne', 'renal', 'parasites'
-  sourceType String         @default("markdown")   // 'markdown' | 'pdf' | 'manual'
+  species    String? // 'dog' | 'cat' | null (species-agnostic)
+  topic      String? // e.g. 'tick-borne', 'renal', 'parasites'
+  sourceType String         @default("markdown") // 'markdown' | 'pdf' | 'manual'
   status     DocumentStatus @default(ACTIVE)
-  filePath   String?        @unique                 // relative path — used for idempotent re-ingestion
+  filePath   String?        @unique // relative path — used for idempotent re-ingestion
 
   chunks    KnowledgeChunk[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@index([tenantId])
   @@index([species])
@@ -703,14 +708,14 @@ model KnowledgeDocument {
 /// One chunk = one section (H2 heading) of a markdown document.
 /// embedding uses pgvector — requires the vector extension to be enabled in PostgreSQL.
 model KnowledgeChunk {
-  id           String         @id @default(cuid())
+  id           String                       @id @default(cuid())
   documentId   String
-  tenantId     String?                              // denormalized from document for fast queries
-  scope        KnowledgeScope @default(GLOBAL)
-  section      String                               // section heading (e.g. "CBC / Chemistry Patterns")
-  content      String                               // section body text
-  embedding    Unsupported("vector(1536)")?         // OpenAI text-embedding-3-small (1536 dims)
-  metadataJson Json?                                // { species, tags, analytes, documentId }
+  tenantId     String? // denormalized from document for fast queries
+  scope        KnowledgeScope               @default(GLOBAL)
+  section      String // section heading (e.g. "CBC / Chemistry Patterns")
+  content      String // section body text
+  embedding    Unsupported("vector(1536)")? // OpenAI text-embedding-3-small (1536 dims)
+  metadataJson Json? // { species, tags, analytes, documentId }
 
   document  KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
   createdAt DateTime          @default(now())
@@ -718,7 +723,7 @@ model KnowledgeChunk {
 
   @@index([documentId])
   @@index([tenantId])
-  @@index([scope, tenantId])                        // supports future tenant-first + global fallback query
+  @@index([scope, tenantId]) // supports future tenant-first + global fallback query
   @@map("knowledge_chunks")
 }
 
@@ -730,22 +735,22 @@ model KnowledgeChunk {
 /// Created on first request and cached — subsequent calls return the stored record.
 /// promptVersion lets us track which prompt generated each interpretation.
 model AiInterpretation {
-  id                String   @id @default(cuid())
-  reportId          String
-  lang              String   @default("en")  // "en" | "es" — one record per report + language
-  caseId            String            // denormalized — fast case-scoped queries
-  tenantId          String            // denormalized — fast tenant scoping
-  model             String            // e.g. "claude-sonnet-4-6"
-  promptVersion     String            // e.g. "v1" — bump when prompt changes
-  summary           String
-  flaggedAnalytes   Json              // AiInterpretationFlaggedAnalyte[]
-  risks             Json              // string[]
-  suggestedNextSteps Json             // string[]
-  disclaimer        String
-  generatedByUserId String?           // null when generated by async flow (future)
-  retrievedChunkIds String[] @default([]) // IDs of KnowledgeChunks used in RAG retrieval
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  reportId           String
+  lang               String   @default("en") // "en" | "es" — one record per report + language
+  caseId             String // denormalized — fast case-scoped queries
+  tenantId           String // denormalized — fast tenant scoping
+  model              String // e.g. "claude-sonnet-4-6"
+  promptVersion      String // e.g. "v1" — bump when prompt changes
+  summary            String
+  flaggedAnalytes    Json // AiInterpretationFlaggedAnalyte[]
+  risks              Json // string[]
+  suggestedNextSteps Json // string[]
+  disclaimer         String
+  generatedByUserId  String? // null when generated by async flow (future)
+  retrievedChunkIds  String[] @default([]) // IDs of KnowledgeChunks used in RAG retrieval
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   report ResultReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
@@ -760,26 +765,25 @@ model AiInterpretation {
 // ---------------------------------------------------------------------------
 
 /// The actual filled lab result for an order.
-/// Created from a ResultTemplate — one report per order for MVP.
+/// One report per order. Template provenance is per-test via ResultReportTest.
 /// DRAFT while the lab is entering values; RELEASED is final and visible to the clinic.
 model ResultReport {
-  id         String             @id @default(cuid())
-  orderId    String             @unique // one structured report per order
-  caseId     String             // denormalized — fast case-scoped queries without Order join
-  tenantId   String             // denormalized — fast tenant scoping
-  templateId String             // soft reference — no FK so old reports survive template changes
+  id       String @id @default(cuid())
+  orderId  String @unique // one structured report per order
+  caseId   String // denormalized — fast case-scoped queries without Order join
+  tenantId String // denormalized — fast tenant scoping
 
   status       ResultReportStatus @default(DRAFT)
-  observations String?           // lab's free-text note (maps to "Observaciones" on real reports)
+  observations String? // lab's free-text note (maps to "Observaciones" on real reports)
 
   // Professional footer — filled when releasing the report
   processedByName        String?
   processedByRole        String?
-  processedByCredentials String?  // e.g. "Universidad Santiago de Cali"
+  processedByCredentials String? // e.g. "Universidad Santiago de Cali"
   approvedByName         String?
   approvedByRole         String?
-  approvedByCredentials  String?  // e.g. "Universidad del Valle\nRegistro No.: 767658"
-  signatureUrl           String?  // approver signature image URL
+  approvedByCredentials  String? // e.g. "Universidad del Valle\nRegistro No.: 767658"
+  signatureUrl           String? // approver signature image URL
 
   // Machine import hook — store raw analyzer payload for audit; mapping deferred
   rawPayload Json?
@@ -789,11 +793,11 @@ model ResultReport {
 
   releasedAt       DateTime?
   releasedByUserId String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  order            Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  analytes         ResultReportAnalyte[]
+  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tests             ResultReportTest[]
   aiInterpretations AiInterpretation[]
 
   @@index([caseId])
@@ -801,43 +805,63 @@ model ResultReport {
   @@map("result_reports")
 }
 
+/// Per-test template provenance within a result report.
+/// Links each OrderedTest to the exact ResultTemplateVersion used for its analytes.
+model ResultReportTest {
+  id                   String   @id @default(cuid())
+  reportId             String
+  orderedTestId        String?
+  templateVersionId    String
+  templateDefinitionId String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  report             ResultReport             @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  orderedTest        OrderedTest?             @relation(fields: [orderedTestId], references: [id])
+  templateVersion    ResultTemplateVersion    @relation(fields: [templateVersionId], references: [id])
+  templateDefinition ResultTemplateDefinition @relation(fields: [templateDefinitionId], references: [id])
+  analytes           ResultReportAnalyte[]
+
+  @@unique([reportId, orderedTestId])
+  @@index([reportId])
+  @@index([orderedTestId])
+  @@map("result_report_tests")
+}
+
 /// One filled analyte row within a result report.
 /// All display fields are denormalized snapshots so released results are stable
 /// even if the source template is later edited.
 model ResultReportAnalyte {
-  id                String           @id @default(cuid())
-  reportId          String
-  templateAnalyteId String?          // null when row comes from machine import with no template match
-  orderedTestId     String?          // links this analyte group to the specific ordered test (Option B)
+  id                String  @id @default(cuid())
+  reportTestId      String
+  templateAnalyteId String? // null when row comes from machine import with no template match
 
   // Snapshot fields — copied from template at report creation time
-  code        String           // "WBC" — the AI and cross-visit query anchor
+  code        String // "WBC" — the AI and cross-visit query anchor
   name        String
   technique   String?
   unit        String?
   valueType   AnalyteValueType
-  sectionName String?          // denormalized from section — render without extra joins
+  sectionName String? // denormalized from section — render without extra joins
   sortOrder   Int
   isHeader    Boolean          @default(false)
-  formula     String?          // snapshot of formula — frontend uses this to auto-compute value
+  formula     String? // snapshot of formula — frontend uses this to auto-compute value
 
   // Typed value — exactly one is populated per non-header row
-  numericValue  Float?
-  textValue     String?
-  booleanValue  Boolean?       // POSITIVE_NEGATIVE
-  selectValue   String?        // SELECT
+  numericValue Float?
+  textValue    String?
+  booleanValue Boolean? // POSITIVE_NEGATIVE
+  selectValue  String? // SELECT
 
   // Semantic fields — computed on release and then frozen with the report
   // flag: "H" (High) | "L" (Low) | "N" (Normal) | null (non-numeric or no ref range)
   flag              String?
-  referenceSnapshot Json?      // snapshot of referenceRange at release time
+  referenceSnapshot Json? // snapshot of referenceRange at release time
 
-  report          ResultReport           @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportTest      ResultReportTest       @relation(fields: [reportTestId], references: [id], onDelete: Cascade)
   templateAnalyte ResultTemplateAnalyte? @relation(fields: [templateAnalyteId], references: [id])
-  orderedTest     OrderedTest?           @relation(fields: [orderedTestId], references: [id])
 
-  @@index([reportId])
-  @@index([orderedTestId])
+  @@index([reportTestId])
   @@map("result_report_analytes")
 }
 
@@ -847,13 +871,13 @@ model ResultReportAnalyte {
 
 /// Lab-specific settings for a tenant of type LAB or PLATFORM.
 model LaboratoryProfile {
-  id                  String  @id @default(cuid())
-  tenantId            String  @unique
+  id                  String   @id @default(cuid())
+  tenantId            String   @unique
   accreditationNumber String?
   directorName        String?
   directorCredentials String?
-  signatureUrl        String?  // default signature image URL for released reports
-  defaultObservations String?  // default footer text pre-filled in result reports
+  signatureUrl        String? // default signature image URL for released reports
+  defaultObservations String? // default footer text pre-filled in result reports
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -864,17 +888,17 @@ model LaboratoryProfile {
 }
 
 model LabSigner {
-  id                 String   @id @default(cuid())
+  id                  String   @id @default(cuid())
   laboratoryProfileId String
-  name               String
-  roles              String[] // ANALYST, REVIEWER, DATA_ENTRY
-  title              String   @default("")
-  specialty          String   @default("")
-  university         String   @default("")
-  registrationNumber String   @default("")
-  signatureUrl       String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  name                String
+  roles               String[] // ANALYST, REVIEWER, DATA_ENTRY
+  title               String   @default("")
+  specialty           String   @default("")
+  university          String   @default("")
+  registrationNumber  String   @default("")
+  signatureUrl        String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   laboratoryProfile LaboratoryProfile @relation(fields: [laboratoryProfileId], references: [id], onDelete: Cascade)
 
@@ -894,7 +918,7 @@ model ClinicLabConnection {
   updatedAt DateTime @updatedAt
 
   clinic Tenant @relation("ClinicConnections", fields: [clinicId], references: [id], onDelete: Cascade)
-  lab    Tenant @relation("LabConnections",    fields: [labId],    references: [id], onDelete: Cascade)
+  lab    Tenant @relation("LabConnections", fields: [labId], references: [id], onDelete: Cascade)
 
   @@unique([clinicId, labId])
   @@index([clinicId])
@@ -918,7 +942,7 @@ model Analyzer {
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
-  labTenant             Tenant                @relation("LabAnalyzers", fields: [labTenantId], references: [id], onDelete: Cascade)
+  labTenant             Tenant                 @relation("LabAnalyzers", fields: [labTenantId], references: [id], onDelete: Cascade)
   labTestConfigurations LabTestConfiguration[]
   orderedTests          OrderedTest[]
 
@@ -928,19 +952,19 @@ model Analyzer {
 }
 
 model LabTestConfiguration {
-  id                       String            @id @default(cuid())
+  id                       String             @id @default(cuid())
   labTenantId              String
   catalogItemId            String
   department               Department
-  defaultProcessingMethod  ProcessingMethod  @default(MANUAL)
+  defaultProcessingMethod  ProcessingMethod   @default(MANUAL)
   allowedProcessingMethods ProcessingMethod[]
   defaultAnalyzerId        String?
-  createdAt                DateTime          @default(now())
-  updatedAt                DateTime          @updatedAt
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
-  labTenant            Tenant       @relation("LabTestConfigs", fields: [labTenantId], references: [id], onDelete: Cascade)
-  catalogItem          CatalogItem  @relation(fields: [catalogItemId], references: [id])
-  defaultAnalyzer      Analyzer?    @relation(fields: [defaultAnalyzerId], references: [id])
+  labTenant            Tenant                       @relation("LabTestConfigs", fields: [labTenantId], references: [id], onDelete: Cascade)
+  catalogItem          CatalogItem                  @relation(fields: [catalogItemId], references: [id])
+  defaultAnalyzer      Analyzer?                    @relation(fields: [defaultAnalyzerId], references: [id])
   specimenRequirements LabTestSpecimenRequirement[]
 
   @@unique([labTenantId, catalogItemId])
@@ -970,7 +994,7 @@ model LabTestSpecimenRequirement {
 /// Tracks per-test status and assignment independently of the overall order status.
 /// Status is derived from aggregating these rows — never persisted on Order directly.
 model OrderedTest {
-  id            String            @id @default(cuid())
+  id            String @id @default(cuid())
   orderId       String
   catalogItemId String
 
@@ -983,32 +1007,32 @@ model OrderedTest {
   catalogItemName String
 
   // Lab assignment
-  assignedUserId String?  // lab technician responsible for this test
-  instrumentId   String?  // analyzer / instrument used (future integration anchor)
+  assignedUserId String? // lab technician responsible for this test
+  instrumentId   String? // analyzer / instrument used (future integration anchor)
 
   // Phase 3 fields
-  department         Department?
-  processingMethod   ProcessingMethod?
-  resultEntrySource  ResultEntrySource?
-  analyzerId         String?
-  claimedAt          DateTime?
-  blockReason        BlockReason?
-  blockReasonDetail  String?
+  department        Department?
+  processingMethod  ProcessingMethod?
+  resultEntrySource ResultEntrySource?
+  analyzerId        String?
+  claimedAt         DateTime?
+  blockReason       BlockReason?
+  blockReasonDetail String?
 
   receivedAt  DateTime?
   startedAt   DateTime?
   completedAt DateTime?
   cancelledAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  order          Order               @relation(fields: [orderId],       references: [id], onDelete: Cascade)
-  catalogItem    CatalogItem         @relation(fields: [catalogItemId], references: [id])
-  assignedTo     User?               @relation(fields: [assignedUserId], references: [id])
-  analyzer       Analyzer?           @relation(fields: [analyzerId], references: [id])
-  sources        OrderedTestSource[]
-  reportAnalytes ResultReportAnalyte[]
-  specimens      OrderedTestSpecimen[]
+  order       Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogItem CatalogItem           @relation(fields: [catalogItemId], references: [id])
+  assignedTo  User?                 @relation(fields: [assignedUserId], references: [id])
+  analyzer    Analyzer?             @relation(fields: [analyzerId], references: [id])
+  sources     OrderedTestSource[]
+  reportTests ResultReportTest[]
+  specimens   OrderedTestSpecimen[]
 
   @@index([orderId])
   @@index([catalogItemId])
@@ -1020,18 +1044,18 @@ model OrderedTest {
 /// A component test that appears in multiple packages (or both directly and via
 /// a package) has multiple source rows — one per origin. The test itself exists once.
 model OrderedTestSource {
-  id                    String               @id @default(cuid())
-  orderedTestId         String
-  originCatalogItemId   String
-  sourceType            OrderedTestSourceType
-  originalOrderItemKey  String
+  id                     String                @id @default(cuid())
+  orderedTestId          String
+  originCatalogItemId    String
+  sourceType             OrderedTestSourceType
+  originalOrderItemKey   String
   originalOrderItemIndex Int
-  quantity              Int                  @default(1)
-  originCode            String?
-  originName            String
-  createdAt             DateTime             @default(now())
+  quantity               Int                   @default(1)
+  originCode             String?
+  originName             String
+  createdAt              DateTime              @default(now())
 
-  orderedTest     OrderedTest @relation(fields: [orderedTestId], references: [id], onDelete: Cascade)
+  orderedTest       OrderedTest @relation(fields: [orderedTestId], references: [id], onDelete: Cascade)
   originCatalogItem CatalogItem @relation("SourceOriginCatalogItem", fields: [originCatalogItemId], references: [id])
 
   @@unique([orderedTestId, originalOrderItemKey, originCatalogItemId])
@@ -1046,16 +1070,16 @@ model OrderedTestSource {
 /// A physical biological sample received at the lab for processing.
 /// One specimen per tube (tubeIndex distinguishes multiple tubes of the same type).
 model Specimen {
-  id             String        @id @default(cuid())
-  orderId        String
-  labTenantId    String
+  id          String @id @default(cuid())
+  orderId     String
+  labTenantId String
 
-  accessionNumber String       // auto-generated: SPEC-{YEAR}-{6-digit-seq}, unique per lab
-  specimenType    String        // e.g. "EDTA_BLOOD", "SERUM", "URINE"
-  containerType   String        // e.g. "EDTA_TUBE", "SST_TUBE", "URINE_CUP"
-  tubeIndex       Int           @default(1)
+  accessionNumber String // auto-generated: SPEC-{YEAR}-{6-digit-seq}, unique per lab
+  specimenType    String // e.g. "EDTA_BLOOD", "SERUM", "URINE"
+  containerType   String // e.g. "EDTA_TUBE", "SST_TUBE", "URINE_CUP"
+  tubeIndex       Int    @default(1)
 
-  status          SpecimenStatus @default(EXPECTED)
+  status SpecimenStatus @default(EXPECTED)
 
   // Condition flags — multiple can be true simultaneously
   isHemolyzed      Boolean @default(false)
@@ -1074,8 +1098,8 @@ model Specimen {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  order        Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  receivedBy   User?               @relation("SpecimensReceivedBy", fields: [receivedById], references: [id])
+  order        Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  receivedBy   User?                 @relation("SpecimensReceivedBy", fields: [receivedById], references: [id])
   orderedTests OrderedTestSpecimen[]
 
   @@unique([labTenantId, accessionNumber])

@@ -2,10 +2,12 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TemplateVersionService } from '../results/template-version.service';
 import { PatientSpecies, AgeUnit } from '@prisma/client';
+import { evaluateAllFormulas } from './formula.util';
 
 function ageToWeeks(age: number, unit: AgeUnit): number {
   switch (unit) {
@@ -83,24 +85,32 @@ export class ResultEntryService {
 
     const version = templateDef.activeVersion;
 
-    // Get saved analyte values for this test (if any)
-    const savedAnalytes = test.order.resultReport
-      ? await this.prisma.resultReportAnalyte.findMany({
+    // Get saved analyte values via ResultReportTest → analytes
+    const reportTest = test.order.resultReport
+      ? await this.prisma.resultReportTest.findUnique({
           where: {
-            reportId: test.order.resultReport.id,
-            orderedTestId: testId,
+            reportId_orderedTestId: {
+              reportId: test.order.resultReport.id,
+              orderedTestId: testId,
+            },
           },
           select: {
             id: true,
-            templateAnalyteId: true,
-            numericValue: true,
-            textValue: true,
-            booleanValue: true,
-            selectValue: true,
+            analytes: {
+              select: {
+                id: true,
+                templateAnalyteId: true,
+                numericValue: true,
+                textValue: true,
+                booleanValue: true,
+                selectValue: true,
+              },
+            },
           },
         })
-      : [];
+      : null;
 
+    const savedAnalytes = reportTest?.analytes ?? [];
     const savedByTemplateId = new Map(
       savedAnalytes.map((a) => [a.templateAnalyteId, a])
     );
@@ -108,11 +118,21 @@ export class ResultEntryService {
     // Build sections with analytes merged with existing values
     const sectionMap = new Map<
       string | null,
-      { id: string | null; name: string | null; analytes: unknown[] }
+      {
+        id: string | null;
+        code: string | null;
+        name: string | null;
+        analytes: unknown[];
+      }
     >();
-    sectionMap.set(null, { id: null, name: null, analytes: [] });
+    sectionMap.set(null, { id: null, code: null, name: null, analytes: [] });
     for (const s of version.sections) {
-      sectionMap.set(s.id, { id: s.id, name: s.name, analytes: [] });
+      sectionMap.set(s.id, {
+        id: s.id,
+        code: s.code ?? null,
+        name: s.name,
+        analytes: [],
+      });
     }
 
     for (const analyte of version.analytes) {
@@ -154,6 +174,7 @@ export class ResultEntryService {
       template: {
         title: version.title,
         defaultObservations: version.defaultObservations ?? null,
+        observationPhrases: version.observationPhrases ?? null,
       },
       report: test.order.resultReport
         ? {
@@ -166,7 +187,7 @@ export class ResultEntryService {
   }
 
   // PATCH /lab/ordered-tests/:testId/analytes
-  // Upsert analyte values. Creates the ResultReport if it doesn't exist yet.
+  // Upsert analyte values. Creates the ResultReport and ResultReportTest if needed.
   async saveAnalytes(
     testId: string,
     labTenantId: string,
@@ -236,7 +257,7 @@ export class ResultEntryService {
       version.sections.map((s) => [s.id, s.name])
     );
 
-    // Get or create the result report for this order
+    // Get or create the ResultReport for this order
     let reportId = test.order.resultReport?.id;
     if (!reportId) {
       const report = await this.prisma.resultReport.create({
@@ -244,12 +265,34 @@ export class ResultEntryService {
           orderId: test.order.id,
           caseId: test.order.caseId,
           tenantId: test.order.tenantId,
-          templateId: version.id,
           status: 'DRAFT',
         },
         select: { id: true },
       });
       reportId = report.id;
+    }
+
+    // Get or create the ResultReportTest for this (report, orderedTest)
+    let reportTest = await this.prisma.resultReportTest.findUnique({
+      where: {
+        reportId_orderedTestId: {
+          reportId,
+          orderedTestId: testId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!reportTest) {
+      reportTest = await this.prisma.resultReportTest.create({
+        data: {
+          reportId,
+          orderedTestId: testId,
+          templateVersionId: version.id,
+          templateDefinitionId: templateDef.id,
+        },
+        select: { id: true },
+      });
     }
 
     // Update observations if provided
@@ -267,9 +310,8 @@ export class ResultEntryService {
 
       const existing = await this.prisma.resultReportAnalyte.findFirst({
         where: {
-          reportId,
+          reportTestId: reportTest.id,
           templateAnalyteId: input.templateAnalyteId,
-          orderedTestId: testId,
         },
         select: { id: true },
       });
@@ -289,9 +331,8 @@ export class ResultEntryService {
       } else {
         await this.prisma.resultReportAnalyte.create({
           data: {
-            reportId,
+            reportTestId: reportTest.id,
             templateAnalyteId: input.templateAnalyteId,
-            orderedTestId: testId,
             code: templateAnalyte.code,
             name: templateAnalyte.name,
             technique: templateAnalyte.technique ?? null,
@@ -306,6 +347,62 @@ export class ResultEntryService {
             ...data,
           },
         });
+      }
+    }
+
+    // Compute formula analytes from just-saved input values
+    const formulaAnalytes = version.analytes.filter(
+      (a) => a.formula && !a.isHeader
+    );
+    if (formulaAnalytes.length > 0) {
+      const savedRows = await this.prisma.resultReportAnalyte.findMany({
+        where: { reportTestId: reportTest.id },
+        select: { code: true, numericValue: true },
+      });
+      const savedByCode = new Map(savedRows.map((r) => [r.code, r]));
+
+      const allForEval = version.analytes
+        .filter((a) => !a.isHeader)
+        .map((a) => ({
+          code: a.code,
+          formula: a.formula ?? null,
+          numericValue: savedByCode.get(a.code)?.numericValue ?? null,
+        }));
+
+      const computed = evaluateAllFormulas(allForEval);
+
+      for (const fa of formulaAnalytes) {
+        const value = computed[fa.code] ?? null;
+        const existing = await this.prisma.resultReportAnalyte.findFirst({
+          where: { reportTestId: reportTest.id, templateAnalyteId: fa.id },
+          select: { id: true },
+        });
+
+        if (existing) {
+          await this.prisma.resultReportAnalyte.update({
+            where: { id: existing.id },
+            data: { numericValue: value },
+          });
+        } else {
+          await this.prisma.resultReportAnalyte.create({
+            data: {
+              reportTestId: reportTest.id,
+              templateAnalyteId: fa.id,
+              code: fa.code,
+              name: fa.name,
+              technique: fa.technique ?? null,
+              unit: fa.unit ?? null,
+              valueType: fa.valueType,
+              sectionName: fa.sectionId
+                ? sectionNameById.get(fa.sectionId) ?? null
+                : null,
+              sortOrder: fa.sortOrder,
+              isHeader: false,
+              formula: fa.formula ?? null,
+              numericValue: value,
+            },
+          });
+        }
       }
     }
 
@@ -348,9 +445,22 @@ export class ResultEntryService {
       where: { id: testId, order: { labTenantId } },
       select: {
         id: true,
+        catalogItemCode: true,
         catalogItemName: true,
         status: true,
-        order: { select: { id: true } },
+        order: {
+          select: {
+            id: true,
+            resultReport: { select: { id: true } },
+            case: {
+              select: {
+                patientSpecies: true,
+                patientAge: true,
+                patientAgeUnit: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -359,6 +469,141 @@ export class ResultEntryService {
     if (!['READY', 'IN_PROGRESS'].includes(test.status)) {
       throw new ForbiddenException(
         `Cannot submit results for a test in status ${test.status}.`
+      );
+    }
+
+    const reportId = test.order.resultReport?.id;
+    if (!reportId) {
+      throw new BadRequestException('No report exists — save analytes first.');
+    }
+
+    const reportTest = await this.prisma.resultReportTest.findUnique({
+      where: {
+        reportId_orderedTestId: { reportId, orderedTestId: testId },
+      },
+      select: { id: true },
+    });
+
+    if (!reportTest) {
+      throw new BadRequestException('No report test exists — save analytes first.');
+    }
+
+    const species = test.order.case.patientSpecies as PatientSpecies;
+    const ageWeeks =
+      test.order.case.patientAge && test.order.case.patientAgeUnit
+        ? ageToWeeks(
+            test.order.case.patientAge,
+            test.order.case.patientAgeUnit as AgeUnit
+          )
+        : null;
+
+    const templateDef = await this.templateVersionService.resolveTemplate(
+      test.catalogItemCode ?? '',
+      labTenantId,
+      species,
+      ageWeeks
+    );
+
+    if (!templateDef?.activeVersion) {
+      throw new NotFoundException('No active result template found for this test.');
+    }
+
+    const version = templateDef.activeVersion;
+    const savedRows = await this.prisma.resultReportAnalyte.findMany({
+      where: { reportTestId: reportTest.id },
+      select: {
+        templateAnalyteId: true,
+        code: true,
+        numericValue: true,
+        textValue: true,
+        booleanValue: true,
+        selectValue: true,
+      },
+    });
+    const savedByTemplateId = new Map(
+      savedRows.map((r) => [r.templateAnalyteId, r])
+    );
+
+    const missingFields: string[] = [];
+    for (const analyte of version.analytes) {
+      if (analyte.isHeader || analyte.formula) continue;
+      const saved = savedByTemplateId.get(analyte.id);
+      const hasValue =
+        saved &&
+        (saved.numericValue !== null ||
+          (saved.textValue !== null && saved.textValue !== '') ||
+          saved.booleanValue !== null ||
+          (saved.selectValue !== null && saved.selectValue !== ''));
+      if (!hasValue) {
+        missingFields.push(analyte.name);
+      }
+    }
+
+    if (missingFields.length > 0) {
+      throw new BadRequestException(
+        `Missing required fields: ${missingFields.join(', ')}`
+      );
+    }
+
+    // Recompute formulas and validate they all resolve
+    const allForEval = version.analytes
+      .filter((a) => !a.isHeader)
+      .map((a) => ({
+        code: a.code,
+        formula: a.formula ?? null,
+        numericValue: savedByTemplateId.get(a.id)?.numericValue ?? null,
+      }));
+
+    const computed = evaluateAllFormulas(allForEval);
+    const sectionNameById = new Map(
+      version.sections.map((s) => [s.id, s.name])
+    );
+
+    const failedFormulas: string[] = [];
+    const formulaAnalytes = version.analytes.filter(
+      (a) => a.formula && !a.isHeader
+    );
+    for (const fa of formulaAnalytes) {
+      const value = computed[fa.code] ?? null;
+      if (value === null) {
+        failedFormulas.push(fa.name);
+      }
+
+      // Upsert formula value
+      const existing = await this.prisma.resultReportAnalyte.findFirst({
+        where: { reportTestId: reportTest.id, templateAnalyteId: fa.id },
+        select: { id: true },
+      });
+      if (existing) {
+        await this.prisma.resultReportAnalyte.update({
+          where: { id: existing.id },
+          data: { numericValue: value },
+        });
+      } else {
+        await this.prisma.resultReportAnalyte.create({
+          data: {
+            reportTestId: reportTest.id,
+            templateAnalyteId: fa.id,
+            code: fa.code,
+            name: fa.name,
+            technique: fa.technique ?? null,
+            unit: fa.unit ?? null,
+            valueType: fa.valueType,
+            sectionName: fa.sectionId
+              ? sectionNameById.get(fa.sectionId) ?? null
+              : null,
+            sortOrder: fa.sortOrder,
+            isHeader: false,
+            formula: fa.formula ?? null,
+            numericValue: value,
+          },
+        });
+      }
+    }
+
+    if (failedFormulas.length > 0) {
+      throw new BadRequestException(
+        `Formulas could not be computed: ${failedFormulas.join(', ')}`
       );
     }
 

@@ -37,7 +37,6 @@ export const MOCK_REPORT: ResultReportModel = {
   orderId: 'ORD-0002',
   caseId: 'c4',
   tenantId: 'tenant1',
-  templateId: 'tpl-cbc-dog-adult',
   status: 'RELEASED',
   observations:
     'Tipo de muestra: Sangre entera anticoagulada con EDTA. Se observan leucocitos y plaquetas normales en tamaño y morfología. Resultado confirmado en placa.',
@@ -55,7 +54,7 @@ export const MOCK_REPORT: ResultReportModel = {
     // SERIE ROJA
     {
       id: 'a1',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'RBC',
       name: 'Recuento total de eritrocitos (RBC)',
       technique: 'Impedancia eléctrica',
@@ -70,7 +69,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a2',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'HGB',
       name: 'Hemoglobina',
       technique: 'Colorimétrico',
@@ -85,7 +84,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a3',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'HCT',
       name: 'Hematocrito',
       technique: 'Parámetro calculado',
@@ -100,7 +99,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a4',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'MCV',
       name: 'MCV',
       technique: 'Derivado histogramas',
@@ -115,7 +114,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a5',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'MCH',
       name: 'MCH',
       technique: 'Parámetro calculado',
@@ -130,7 +129,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a6',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'MCHC',
       name: 'MCHC',
       technique: 'Parámetro calculado',
@@ -146,7 +145,7 @@ export const MOCK_REPORT: ResultReportModel = {
     // SERIE BLANCA
     {
       id: 'a7',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'WBC',
       name: 'Recuento total de leucocitos (WBC)',
       technique: 'Impedancia eléctrica',
@@ -161,7 +160,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a8',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'DIFF_HEADER',
       name: 'Recuento diferencial',
       sectionName: 'SERIE BLANCA',
@@ -171,7 +170,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a9',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'NEU_PCT',
       name: 'Neutrófilos porcentaje',
       technique: 'Recuento en placa',
@@ -186,7 +185,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a10',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'NEU_ABS',
       name: 'Neutrófilos absoluto',
       technique: 'Parámetro calculado',
@@ -201,7 +200,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a11',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'LYM_PCT',
       name: 'Linfocitos porcentaje',
       technique: 'Recuento en placa',
@@ -216,7 +215,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a12',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'LYM_ABS',
       name: 'Linfocitos absoluto',
       technique: 'Parámetro calculado',
@@ -231,7 +230,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a13',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'MON_PCT',
       name: 'Monocitos porcentaje',
       technique: 'Recuento en placa',
@@ -246,7 +245,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a14',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'MON_ABS',
       name: 'Monocitos absoluto',
       technique: 'Parámetro calculado',
@@ -261,7 +260,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a15',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'EOS_PCT',
       name: 'Eosinófilos porcentaje',
       technique: 'Recuento en placa',
@@ -276,7 +275,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a16',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'EOS_ABS',
       name: 'Eosinófilos absoluto',
       technique: 'Parámetro calculado',
@@ -291,7 +290,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a17',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'BAS_PCT',
       name: 'Basófilos porcentaje',
       technique: 'Recuento en placa',
@@ -306,7 +305,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a18',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'BAS_ABS',
       name: 'Basófilos absoluto',
       technique: 'Parámetro calculado',
@@ -321,7 +320,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a19',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'BND_PCT',
       name: 'Bandas porcentaje',
       technique: 'Recuento en placa',
@@ -336,7 +335,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a20',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'BND_ABS',
       name: 'Bandas absoluto',
       technique: 'Parámetro calculado',
@@ -352,7 +351,7 @@ export const MOCK_REPORT: ResultReportModel = {
     // PLAQUETAS
     {
       id: 'a21',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'PLT',
       name: 'Recuento total de plaquetas (PLT)',
       technique: 'Impedancia Eléctrica',
@@ -367,7 +366,7 @@ export const MOCK_REPORT: ResultReportModel = {
     },
     {
       id: 'a22',
-      reportId: 'report-001',
+      reportTestId: 'rt-001',
       code: 'MPV',
       name: 'MPV (volumen medio plaquetario)',
       technique: 'Derivado histogramas',

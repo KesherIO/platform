@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Upload,
   GripVertical,
+  Code2,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -15,10 +16,12 @@ import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
+import { toStableCode } from '../../shared/codeGen';
 import type {
   TemplateSection,
   TemplateAnalyte,
   AnalyteValueType,
+  ObservationPhrase,
 } from '../../types/lab.types';
 
 const VALUE_TYPE_OPTIONS: AnalyteValueType[] = [
@@ -32,9 +35,17 @@ const VALUE_TYPE_OPTIONS: AnalyteValueType[] = [
 interface SectionFormState {
   id: string;
   name: string;
+  code: string | null;
   sortOrder: number;
   collapsed: boolean;
   analytes: AnalyteFormState[];
+}
+
+interface PhraseFormState {
+  code: string | null;
+  label: string;
+  text: string;
+  sectionCode: string;
 }
 
 interface AnalyteFormState {
@@ -83,9 +94,19 @@ function toSectionForm(s: TemplateSection): SectionFormState {
   return {
     id: s.id,
     name: s.name,
+    code: s.code ?? null,
     sortOrder: s.sortOrder,
     collapsed: false,
     analytes: s.analytes.map(toAnalyteForm),
+  };
+}
+
+function toPhraseForm(p: ObservationPhrase): PhraseFormState {
+  return {
+    code: p.code || null,
+    label: p.label,
+    text: p.text,
+    sectionCode: p.sectionCode ?? '',
   };
 }
 
@@ -115,6 +136,7 @@ export function TemplateBuilderPage() {
   const [title, setTitle] = useState('');
   const [defaultObservations, setDefaultObservations] = useState('');
   const [sections, setSections] = useState<SectionFormState[]>([]);
+  const [phrases, setPhrases] = useState<PhraseFormState[]>([]);
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -127,11 +149,11 @@ export function TemplateBuilderPage() {
     if (version.sections && version.sections.length > 0) {
       setSections(version.sections.map(toSectionForm));
     } else if (version.analytes && version.analytes.length > 0) {
-      // Analytes without sections — place them in a default section
       setSections([
         {
           id: newSectionId(),
           name: '',
+          code: null,
           sortOrder: 0,
           collapsed: false,
           analytes: version.analytes.map(toAnalyteForm),
@@ -141,13 +163,34 @@ export function TemplateBuilderPage() {
       setSections([]);
     }
 
+    if (version.observationPhrases && version.observationPhrases.length > 0) {
+      setPhrases(version.observationPhrases.map(toPhraseForm));
+    } else {
+      setPhrases([]);
+    }
+
     setInitialized(true);
   }, [version, initialized]);
 
   const updateSection = useCallback(
     (sectionId: string, updates: Partial<SectionFormState>) => {
       setSections((prev) =>
-        prev.map((s) => (s.id === sectionId ? { ...s, ...updates } : s))
+        prev.map((s) => {
+          if (s.id !== sectionId) return s;
+          const next = { ...s, ...updates };
+          if (
+            'name' in updates &&
+            s.code === null &&
+            updates.name &&
+            updates.name.trim()
+          ) {
+            const existingCodes = prev
+              .filter((o) => o.id !== sectionId && o.code)
+              .map((o) => o.code!);
+            next.code = toStableCode(updates.name, existingCodes, 'SEC');
+          }
+          return next;
+        })
       );
     },
     []
@@ -159,6 +202,7 @@ export function TemplateBuilderPage() {
       {
         id: newSectionId(),
         name: '',
+        code: null,
         sortOrder: prev.length,
         collapsed: false,
         analytes: [],
@@ -238,12 +282,28 @@ export function TemplateBuilderPage() {
   };
 
   const buildPayload = () => {
+    const validPhrases = phrases
+      .filter((p) => p.label.trim() && p.text.trim())
+      .map((p) => {
+        const existingCodes = phrases
+          .filter((o) => o !== p && o.code)
+          .map((o) => o.code!);
+        return {
+          code:
+            p.code || toStableCode(p.label, existingCodes, 'OBS') || 'OBS_1',
+          label: p.label.trim(),
+          text: p.text.trim(),
+          sectionCode: p.sectionCode || undefined,
+        };
+      });
     return {
       title,
       defaultObservations: defaultObservations || null,
+      observationPhrases: validPhrases.length > 0 ? validPhrases : undefined,
       sections: sections.map((s, si) => ({
         id: s.id.startsWith('new-') ? undefined : s.id,
         name: s.name,
+        code: s.code || undefined,
         sortOrder: si,
         analytes: s.analytes.map((a, ai) => ({
           id: a.id.startsWith('new-') ? undefined : a.id,
@@ -268,6 +328,45 @@ export function TemplateBuilderPage() {
       })),
     };
   };
+
+  const addPhrase = () => {
+    setPhrases((prev) => [
+      ...prev,
+      { code: null, label: '', text: '', sectionCode: '' },
+    ]);
+  };
+
+  const removePhrase = (index: number) => {
+    setPhrases((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updatePhrase = (
+    index: number,
+    updates: Partial<PhraseFormState>
+  ) => {
+    setPhrases((prev) =>
+      prev.map((p, i) => {
+        if (i !== index) return p;
+        const next = { ...p, ...updates };
+        if (
+          'label' in updates &&
+          p.code === null &&
+          updates.label &&
+          updates.label.trim()
+        ) {
+          const existingCodes = prev
+            .filter((o, oi) => oi !== index && o.code)
+            .map((o) => o.code!);
+          next.code = toStableCode(updates.label, existingCodes, 'OBS');
+        }
+        return next;
+      })
+    );
+  };
+
+  const duplicatePhraseTexts = phrases
+    .map((p) => p.text.trim().toLowerCase())
+    .filter((t, i, arr) => t && arr.indexOf(t) !== i);
 
   const handleSave = async () => {
     if (!versionId) return;
@@ -439,6 +538,15 @@ export function TemplateBuilderPage() {
                 {section.analytes.length}{' '}
                 {section.analytes.length === 1 ? 'analyte' : 'analytes'}
               </span>
+              {section.code && (
+                <span
+                  className="flex items-center gap-1 rounded bg-gray-800 px-2 py-0.5 text-xs font-mono text-gray-400"
+                  title={t('templates.section_code')}
+                >
+                  <Code2 size={12} />
+                  {section.code}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => removeSection(section.id)}
@@ -520,6 +628,113 @@ export function TemplateBuilderPage() {
           <Plus size={16} />
           {t('templates.add_section')}
         </button>
+      </div>
+
+      {/* Observation Phrases */}
+      <div className="mt-6 rounded-xl border border-gray-800 bg-gray-900 p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">
+            {t('templates.observation_phrases')}
+          </h2>
+          <button
+            type="button"
+            onClick={addPhrase}
+            className="flex items-center gap-1 text-xs font-medium text-cyan transition hover:opacity-80"
+          >
+            <Plus size={14} />
+            {t('templates.add_phrase')}
+          </button>
+        </div>
+        {duplicatePhraseTexts.length > 0 && (
+          <div className="mb-3 rounded-lg border border-yellow-700/50 bg-yellow-900/20 px-3 py-2 text-xs text-yellow-400">
+            {t('templates.duplicate_phrase_warning')}
+          </div>
+        )}
+        {phrases.length === 0 ? (
+          <p className="text-xs text-gray-500">
+            {t('templates.no_phrases')}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {phrases.map((phrase, idx) => (
+              <div
+                key={idx}
+                className="rounded-lg border border-gray-800 bg-gray-950 p-3"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="grid flex-1 grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-400">
+                        {t('templates.phrase_label')}
+                      </label>
+                      <input
+                        type="text"
+                        value={phrase.label}
+                        onChange={(e) =>
+                          updatePhrase(idx, { label: e.target.value })
+                        }
+                        maxLength={80}
+                        placeholder={t('templates.phrase_label_placeholder')}
+                        className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-1.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-gray-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-400">
+                        {t('templates.phrase_section')}
+                      </label>
+                      <select
+                        value={phrase.sectionCode}
+                        onChange={(e) =>
+                          updatePhrase(idx, { sectionCode: e.target.value })
+                        }
+                        className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-1.5 text-sm text-white outline-none transition focus:border-gray-600"
+                      >
+                        <option value="">
+                          {t('templates.phrase_general')}
+                        </option>
+                        {sections
+                          .filter((s) => s.code)
+                          .map((s) => (
+                            <option key={s.code} value={s.code!}>
+                              {s.name || s.code}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePhrase(idx)}
+                    className="mt-5 shrink-0 text-gray-500 transition hover:text-red-400"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div className="mt-2">
+                  <label className="mb-1 block text-xs text-gray-400">
+                    {t('templates.phrase_text')}
+                  </label>
+                  <textarea
+                    value={phrase.text}
+                    onChange={(e) =>
+                      updatePhrase(idx, { text: e.target.value })
+                    }
+                    maxLength={500}
+                    rows={2}
+                    placeholder={t('templates.phrase_text_placeholder')}
+                    className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-1.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-gray-600"
+                  />
+                </div>
+                {phrase.code && (
+                  <div className="mt-1 flex items-center gap-1 text-xs font-mono text-gray-500">
+                    <Code2 size={10} />
+                    {phrase.code}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -687,6 +902,106 @@ function AnalyteRow({
           </td>
         </tr>
       )}
+      {(analyte.valueType === 'TEXT' || analyte.valueType === 'SELECT') && (
+        <OptionsEditorRow
+          analyte={analyte}
+          sectionId={sectionId}
+          onUpdate={onUpdate}
+          t={t}
+        />
+      )}
     </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  OptionsEditorRow — chip-based options editor for TEXT/SELECT       */
+/* ------------------------------------------------------------------ */
+
+interface OptionsEditorRowProps {
+  analyte: AnalyteFormState;
+  sectionId: string;
+  onUpdate: (
+    sectionId: string,
+    analyteId: string,
+    updates: Partial<AnalyteFormState>
+  ) => void;
+  t: (key: string) => string;
+}
+
+function OptionsEditorRow({
+  analyte,
+  sectionId,
+  onUpdate,
+  t,
+}: OptionsEditorRowProps) {
+  const [newOption, setNewOption] = useState('');
+
+  const addOption = () => {
+    const val = newOption.trim();
+    if (!val || analyte.options.includes(val)) return;
+    onUpdate(sectionId, analyte.id, {
+      options: [...analyte.options, val],
+    });
+    setNewOption('');
+  };
+
+  const removeOption = (index: number) => {
+    onUpdate(sectionId, analyte.id, {
+      options: analyte.options.filter((_, i) => i !== index),
+    });
+  };
+
+  return (
+    <tr className="border-b border-gray-800/50">
+      <td colSpan={8} className="pb-2 pl-6 pt-1">
+        <div className="text-xs text-gray-400">
+          <span className="mb-1 block font-medium">
+            {t('templates.options_label')}
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {analyte.options.map((opt, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-800 px-2.5 py-0.5 text-xs text-gray-200"
+              >
+                {opt}
+                <button
+                  type="button"
+                  onClick={() => removeOption(i)}
+                  className="text-gray-500 transition hover:text-red-400"
+                >
+                  &times;
+                </button>
+              </span>
+            ))}
+            <div className="inline-flex items-center gap-1">
+              <input
+                type="text"
+                value={newOption}
+                onChange={(e) => setNewOption(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addOption();
+                  }
+                }}
+                placeholder={t('templates.option_add_placeholder')}
+                maxLength={200}
+                className="w-32 rounded border border-gray-700 bg-gray-950 px-2 py-1 text-xs text-white placeholder-gray-500 outline-none transition focus:border-gray-600"
+              />
+              <button
+                type="button"
+                onClick={addOption}
+                disabled={!newOption.trim()}
+                className="rounded bg-gray-800 px-2 py-1 text-xs text-cyan transition hover:bg-gray-700 disabled:opacity-40"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
   );
 }

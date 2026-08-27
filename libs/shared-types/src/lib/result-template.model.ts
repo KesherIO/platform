@@ -16,6 +16,13 @@ export interface ReferenceRangeSnapshot {
   displayText: string;
 }
 
+export interface ObservationPhrase {
+  code: string;
+  label: string;
+  text: string;
+  sectionCode?: string;
+}
+
 export interface ResultTemplateAnalyteModel {
   id: string;
   versionId: string;
@@ -35,6 +42,7 @@ export interface ResultTemplateAnalyteModel {
 export interface ResultTemplateSectionModel {
   id: string;
   versionId: string;
+  code?: string;
   name: string;
   sortOrder: number;
   analytes: ResultTemplateAnalyteModel[];
@@ -47,6 +55,7 @@ export interface ResultTemplateVersionModel {
   title: string;
   status: TemplateStatus;
   defaultObservations?: string;
+  observationPhrases?: ObservationPhrase[];
   publishedAt?: Date;
   createdAt: Date;
   sections: ResultTemplateSectionModel[];
@@ -83,6 +92,7 @@ export interface ResultTemplateModel {
   version: number;
   isActive: boolean;
   defaultObservations?: string;
+  observationPhrases?: ObservationPhrase[];
   sections: ResultTemplateSectionModel[];
   analytes: ResultTemplateAnalyteModel[];
 }

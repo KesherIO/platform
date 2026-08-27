@@ -16,6 +16,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagService, RetrievedChunk } from '../rag/rag.service';
 import { TemplateVersionService } from './template-version.service';
+import { evaluateAllFormulas } from '../lab/formula.util';
+import { toStableCode } from './code-gen.util';
 import type {
   ResultTemplateModel,
   ResultTemplateSectionModel,
@@ -79,7 +81,11 @@ const VERSION_INCLUDE = {
 } satisfies Prisma.ResultTemplateVersionInclude;
 
 const REPORT_INCLUDE = {
-  analytes: { orderBy: { sortOrder: 'asc' as const } },
+  tests: {
+    include: {
+      analytes: { orderBy: { sortOrder: 'asc' as const } },
+    },
+  },
 } satisfies Prisma.ResultReportInclude;
 
 // ---------------------------------------------------------------------------
@@ -177,16 +183,72 @@ export class ResultsService {
           status: 'PUBLISHED',
           publishedAt: new Date(),
           defaultObservations: dto.defaultObservations ?? null,
+          observationPhrases: dto.observationPhrases
+            ? (dto.observationPhrases as unknown as Prisma.InputJsonValue)
+            : undefined,
         },
         select: { id: true },
       });
 
-      for (const sectionDto of dto.sections) {
+      // Generate missing section codes before validating phrase references
+      const existingCodes: string[] = dto.sections
+        .filter((s) => s.code)
+        .map((s) => s.code!);
+      const sectionCodeMap = new Map<number, string | null>();
+      const sectionCodeSet = new Set<string>();
+
+      for (let i = 0; i < dto.sections.length; i++) {
+        const sectionDto = dto.sections[i];
+        let code = sectionDto.code ?? null;
+        if (!code && sectionDto.name.trim()) {
+          code = toStableCode(sectionDto.name, existingCodes, 'SEC');
+          if (code) existingCodes.push(code);
+        }
+        if (code) {
+          if (sectionCodeSet.has(code)) {
+            throw new BadRequestException(
+              `Duplicate section code '${code}' in this template`
+            );
+          }
+          sectionCodeSet.add(code);
+        }
+        sectionCodeMap.set(i, code);
+      }
+
+      // Validate phrase sectionCode references against resolved codes
+      if (dto.observationPhrases?.length) {
+        const phraseCodes = new Set<string>();
+        for (const phrase of dto.observationPhrases) {
+          if (phraseCodes.has(phrase.code)) {
+            throw new BadRequestException(
+              `Duplicate phrase code: '${phrase.code}'`
+            );
+          }
+          phraseCodes.add(phrase.code);
+
+          if (!phrase.text.trim()) {
+            throw new BadRequestException(
+              `Phrase '${phrase.code}' has empty text after trimming`
+            );
+          }
+
+          if (phrase.sectionCode && !sectionCodeSet.has(phrase.sectionCode)) {
+            throw new BadRequestException(
+              `Phrase '${phrase.code}' references non-existent section code '${phrase.sectionCode}'`
+            );
+          }
+        }
+      }
+
+      for (let i = 0; i < dto.sections.length; i++) {
+        const sectionDto = dto.sections[i];
+        const code = sectionCodeMap.get(i) ?? null;
         const section = await (
           tx as PrismaService
         ).resultTemplateSection.create({
           data: {
             versionId: version.id,
+            code,
             name: sectionDto.name,
             sortOrder: sectionDto.sortOrder,
           },
@@ -357,13 +419,10 @@ export class ResultsService {
           orderId: dto.orderId,
           caseId: order.caseId,
           tenantId: order.tenantId,
-          templateId: templates[0].activeVersion!.id,
           status: 'DRAFT',
         },
         select: { id: true },
       });
-
-      const analytesToCreate: Prisma.ResultReportAnalyteCreateManyInput[] = [];
 
       for (const template of templates) {
         const version = template.activeVersion!;
@@ -371,9 +430,19 @@ export class ResultsService {
           version.sections.map((s) => [s.id, s.name])
         );
 
+        const reportTest = await tx.resultReportTest.create({
+          data: {
+            reportId: newReport.id,
+            templateVersionId: version.id,
+            templateDefinitionId: template.id,
+          },
+          select: { id: true },
+        });
+
+        const analytesToCreate: Prisma.ResultReportAnalyteCreateManyInput[] = [];
         for (const analyte of version.analytes) {
           analytesToCreate.push({
-            reportId: newReport.id,
+            reportTestId: reportTest.id,
             templateAnalyteId: analyte.id,
             code: analyte.code,
             name: analyte.name,
@@ -388,10 +457,10 @@ export class ResultsService {
             formula: analyte.formula ?? null,
           });
         }
-      }
 
-      if (analytesToCreate.length > 0) {
-        await tx.resultReportAnalyte.createMany({ data: analytesToCreate });
+        if (analytesToCreate.length > 0) {
+          await tx.resultReportAnalyte.createMany({ data: analytesToCreate });
+        }
       }
 
       return tx.resultReport.findUniqueOrThrow({
@@ -449,11 +518,17 @@ export class ResultsService {
       );
     }
 
+    const reportTestIds = await this.prisma.resultReportTest.findMany({
+      where: { reportId },
+      select: { id: true },
+    });
+    const testIds = reportTestIds.map((rt) => rt.id);
+
     await this.prisma.$transaction(async (tx) => {
       await Promise.all(
         dto.analytes.map((a) =>
           tx.resultReportAnalyte.updateMany({
-            where: { id: a.analyteId, reportId },
+            where: { id: a.analyteId, reportTestId: { in: testIds } },
             data: {
               numericValue: a.numericValue ?? null,
               textValue: a.textValue ?? null,
@@ -490,11 +565,47 @@ export class ResultsService {
       throw new BadRequestException('Only DRAFT reports can be released.');
     }
 
-    const analytes = await this.prisma.resultReportAnalyte.findMany({
+    const reportTests = await this.prisma.resultReportTest.findMany({
       where: { reportId },
-      include: { templateAnalyte: { select: { referenceRange: true } } },
-      orderBy: { sortOrder: 'asc' },
+      include: {
+        analytes: {
+          include: { templateAnalyte: { select: { referenceRange: true } } },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
     });
+    const analytes = reportTests.flatMap((rt) => rt.analytes);
+
+    // Recompute all formula analytes before flag computation
+    for (const rt of reportTests) {
+      const hasFormulas = rt.analytes.some((a) => a.formula && !a.isHeader);
+      if (!hasFormulas) continue;
+
+      const allForEval = rt.analytes
+        .filter((a) => !a.isHeader)
+        .map((a) => ({
+          code: a.code,
+          formula: a.formula ?? null,
+          numericValue: a.numericValue
+            ? Number(a.numericValue)
+            : null,
+        }));
+
+      const computed = evaluateAllFormulas(allForEval);
+
+      for (const a of rt.analytes) {
+        if (!a.formula || a.isHeader) continue;
+        const value = computed[a.code] ?? null;
+        if (value !== null) {
+          await this.prisma.resultReportAnalyte.update({
+            where: { id: a.id },
+            data: { numericValue: value },
+          });
+          // Update in-memory for subsequent flag computation
+          (a as { numericValue: typeof value }).numericValue = value;
+        }
+      }
+    }
 
     await this.prisma.$transaction(async (tx) => {
       // Compute flags and snapshot reference ranges for every non-header analyte
@@ -588,7 +699,13 @@ export class ResultsService {
 
     const report = await this.prisma.resultReport.findUnique({
       where: { id: reportId },
-      include: { analytes: { orderBy: { sortOrder: 'asc' } } },
+      include: {
+        tests: {
+          include: {
+            analytes: { orderBy: { sortOrder: 'asc' } },
+          },
+        },
+      },
     });
     if (!report) throw new NotFoundException('Result report not found.');
     if (report.tenantId !== tenantId)
@@ -598,6 +715,8 @@ export class ResultsService {
         'AI interpretation is only available for released reports.'
       );
     }
+
+    const allAnalytes = report.tests.flatMap((t) => t.analytes);
 
     const caseRow = await this.prisma.case.findUnique({
       where: { id: report.caseId },
@@ -628,7 +747,7 @@ export class ResultsService {
       .filter(Boolean)
       .join(' | ');
 
-    const analyteLines = report.analytes
+    const analyteLines = allAnalytes
       .filter((a) => !a.isHeader)
       .map((a) => {
         const ref = a.referenceSnapshot as ReferenceRangeSnapshot | null;
@@ -645,7 +764,7 @@ export class ResultsService {
       .join('\n');
 
     // RAG retrieval — build query from flagged analytes + symptoms + species
-    const flaggedForRag = report.analytes
+    const flaggedForRag = allAnalytes
       .filter((a) => !a.isHeader && (a.flag === 'H' || a.flag === 'L'))
       .map((a) => ({ code: a.code, flag: a.flag as 'H' | 'L' }));
 
@@ -853,6 +972,7 @@ export class ResultsService {
       (s: any) => ({
         id: s.id,
         versionId: version.id,
+        code: s.code ?? undefined,
         name: s.name,
         sortOrder: s.sortOrder,
         analytes: (s.analytes ?? []).map(mapAnalyte),
@@ -869,6 +989,9 @@ export class ResultsService {
       version: version.version,
       isActive: version.status === 'PUBLISHED',
       defaultObservations: version.defaultObservations ?? undefined,
+      observationPhrases: version.observationPhrases
+        ? (version.observationPhrases as unknown as ResultTemplateModel['observationPhrases'])
+        : undefined,
       sections,
       analytes: (version.analytes ?? []).map(mapAnalyte),
     };
@@ -876,12 +999,13 @@ export class ResultsService {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private formatReport(raw: any): ResultReportModel {
+    const allAnalytes = (raw.tests ?? []).flatMap((t: any) => t.analytes ?? []);
+
     return {
       id: raw.id,
       orderId: raw.orderId,
       caseId: raw.caseId,
       tenantId: raw.tenantId,
-      templateId: raw.templateId,
       status: raw.status as ResultReportModel['status'],
       observations: raw.observations ?? undefined,
       processedByName: raw.processedByName ?? undefined,
@@ -896,10 +1020,10 @@ export class ResultsService {
       releasedByUserId: raw.releasedByUserId ?? undefined,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
-      analytes: (raw.analytes ?? []).map(
+      analytes: allAnalytes.map(
         (a: any): ResultReportAnalyteModel => ({
           id: a.id,
-          reportId: a.reportId,
+          reportTestId: a.reportTestId,
           templateAnalyteId: a.templateAnalyteId ?? undefined,
           code: a.code,
           name: a.name,

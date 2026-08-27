@@ -1,8 +1,9 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import type { PatientSpecies, AnalyteValueType } from '@prisma/client';
+import type { PatientSpecies, AnalyteValueType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { toStableCode } from './code-gen.util';
 
 @Injectable()
 export class PlatformSeedService implements OnApplicationBootstrap {
@@ -44,9 +45,16 @@ export class PlatformSeedService implements OnApplicationBootstrap {
         species: string;
         title: string;
         defaultObservations?: string | null;
+        observationPhrases?: Array<{
+          code: string;
+          label: string;
+          text: string;
+          sectionCode?: string;
+        }>;
         ageMinWeeks?: number;
         ageMaxWeeks?: number;
         sections?: Array<{
+          code?: string;
           name: string;
           sortOrder: number;
           analytes?: Array<{
@@ -75,6 +83,7 @@ export class PlatformSeedService implements OnApplicationBootstrap {
         species,
         title,
         defaultObservations,
+        observationPhrases,
         sections = [],
       } = raw;
       const ageMin = raw.ageMinWeeks ?? -1;
@@ -115,14 +124,29 @@ export class PlatformSeedService implements OnApplicationBootstrap {
             title,
             status: 'PUBLISHED',
             defaultObservations: defaultObservations ?? null,
+            observationPhrases: observationPhrases
+              ? (observationPhrases as unknown as Prisma.InputJsonValue)
+              : undefined,
             publishedAt: new Date(),
           },
         });
 
+        // Auto-generate missing section codes
+        const existingCodes: string[] = sections
+          .filter((s) => s.code)
+          .map((s) => s.code!);
+
         for (const section of sections) {
+          let code = section.code ?? null;
+          if (!code && section.name.trim()) {
+            code = toStableCode(section.name, existingCodes, 'SEC');
+            if (code) existingCodes.push(code);
+          }
+
           const newSection = await tx.resultTemplateSection.create({
             data: {
               versionId: version.id,
+              code,
               name: section.name,
               sortOrder: section.sortOrder,
             },

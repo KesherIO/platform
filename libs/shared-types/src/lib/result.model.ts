@@ -9,7 +9,7 @@ export type ResultReportStatus = 'DRAFT' | 'RELEASED';
 
 export interface ResultReportAnalyteModel {
   id: string;
-  reportId: string;
+  reportTestId: string;
   templateAnalyteId?: string;
 
   // Snapshot fields — stable even after template edits
@@ -34,12 +34,20 @@ export interface ResultReportAnalyteModel {
   referenceSnapshot?: ReferenceRangeSnapshot;
 }
 
+export interface ResultReportTestModel {
+  id: string;
+  reportId: string;
+  orderedTestId?: string;
+  templateVersionId: string;
+  templateDefinitionId: string;
+  analytes: ResultReportAnalyteModel[];
+}
+
 export interface ResultReportModel {
   id: string;
   orderId: string;
   caseId: string;
   tenantId: string;
-  templateId: string;
   status: ResultReportStatus;
   observations?: string;
 
@@ -62,4 +70,5 @@ export interface ResultReportModel {
   updatedAt: Date;
 
   analytes: ResultReportAnalyteModel[];
+  tests?: ResultReportTestModel[];
 }

@@ -205,7 +205,10 @@
     "update": "Update results",
     "updated": "Results updated.",
     "observations": "Observations",
-    "observations_placeholder": "Free-text notes (optional)"
+    "observations_placeholder": "Free-text notes (optional)",
+    "validation_missing": "The following fields are required: {{fields}}",
+    "validation_formula": "The following formulas could not be computed: {{fields}}",
+    "quick_phrases": "Quick phrases"
   },
   "review": {
     "back": "← Back to order",
@@ -822,7 +825,20 @@
       "ARCHIVED": "Archived"
     },
     "age_min": "Age min (wk)",
-    "age_max": "Age max (wk)"
+    "age_max": "Age max (wk)",
+    "section_code": "Section code",
+    "observation_phrases": "Observation Phrases",
+    "add_phrase": "Add Phrase",
+    "no_phrases": "No observation phrases. Add reusable text snippets that technicians can quickly insert into the observations field.",
+    "phrase_label": "Label",
+    "phrase_label_placeholder": "e.g. Repeat exam",
+    "phrase_text": "Full text",
+    "phrase_text_placeholder": "e.g. It is recommended to repeat the exam with a new sample.",
+    "phrase_section": "Section",
+    "phrase_general": "General",
+    "duplicate_phrase_warning": "Two or more phrases have identical text. Consider removing duplicates before saving.",
+    "options_label": "Options",
+    "option_add_placeholder": "Add option..."
   },
   "worklist": {
     "title": "Department Worklist",

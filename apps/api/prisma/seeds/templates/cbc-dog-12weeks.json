@@ -33,8 +33,8 @@
           "sortOrder": 1,
           "isHeader": false,
           "referenceRange": {
-            "min": 12.0,
-            "max": 18.0,
+            "min": 12,
+            "max": 18,
             "displayText": "12.00 – 18.00"
           }
         },
@@ -47,8 +47,8 @@
           "sortOrder": 2,
           "isHeader": false,
           "referenceRange": {
-            "min": 37.0,
-            "max": 55.0,
+            "min": 37,
+            "max": 55,
             "displayText": "37.00 – 55.00"
           }
         },
@@ -62,8 +62,8 @@
           "sortOrder": 3,
           "isHeader": false,
           "referenceRange": {
-            "min": 60.0,
-            "max": 77.0,
+            "min": 60,
+            "max": 77,
             "displayText": "60.00 – 77.00"
           }
         },
@@ -77,8 +77,8 @@
           "sortOrder": 4,
           "isHeader": false,
           "referenceRange": {
-            "min": 19.0,
-            "max": 26.0,
+            "min": 19,
+            "max": 26,
             "displayText": "19.00 – 26.00"
           }
         },
@@ -92,12 +92,13 @@
           "sortOrder": 5,
           "isHeader": false,
           "referenceRange": {
-            "min": 31.0,
-            "max": 36.0,
+            "min": 31,
+            "max": 36,
             "displayText": "31.00 – 36.00"
           }
         }
-      ]
+      ],
+      "code": "SERIE_ROJA"
     },
     {
       "name": "Serie Blanca",
@@ -112,8 +113,8 @@
           "sortOrder": 0,
           "isHeader": false,
           "referenceRange": {
-            "min": 6.0,
-            "max": 17.0,
+            "min": 6,
+            "max": 17,
             "displayText": "6.00 – 17.00"
           }
         },
@@ -133,8 +134,8 @@
           "sortOrder": 2,
           "isHeader": false,
           "referenceRange": {
-            "min": 50.0,
-            "max": 67.0,
+            "min": 50,
+            "max": 67,
             "displayText": "50.00 – 67.00"
           }
         },
@@ -148,7 +149,7 @@
           "sortOrder": 3,
           "isHeader": false,
           "referenceRange": {
-            "min": 3.0,
+            "min": 3,
             "max": 11.5,
             "displayText": "3.00 – 11.50"
           }
@@ -162,8 +163,8 @@
           "sortOrder": 4,
           "isHeader": false,
           "referenceRange": {
-            "min": 16.0,
-            "max": 28.0,
+            "min": 16,
+            "max": 28,
             "displayText": "16.00 – 28.00"
           }
         },
@@ -177,7 +178,7 @@
           "sortOrder": 5,
           "isHeader": false,
           "referenceRange": {
-            "min": 1.0,
+            "min": 1,
             "max": 4.8,
             "displayText": "1.00 – 4.80"
           }
@@ -191,8 +192,8 @@
           "sortOrder": 6,
           "isHeader": false,
           "referenceRange": {
-            "min": 0.0,
-            "max": 8.0,
+            "min": 0,
+            "max": 8,
             "displayText": "0.00 – 8.00"
           }
         },
@@ -206,7 +207,7 @@
           "sortOrder": 7,
           "isHeader": false,
           "referenceRange": {
-            "min": 0.0,
+            "min": 0,
             "max": 1.4,
             "displayText": "0.00 – 1.40"
           }
@@ -220,8 +221,8 @@
           "sortOrder": 8,
           "isHeader": false,
           "referenceRange": {
-            "min": 0.0,
-            "max": 5.0,
+            "min": 0,
+            "max": 5,
             "displayText": "0.00 – 5.00"
           }
         },
@@ -235,7 +236,7 @@
           "sortOrder": 9,
           "isHeader": false,
           "referenceRange": {
-            "min": 0.0,
+            "min": 0,
             "max": 0.9,
             "displayText": "0.00 – 0.90"
           }
@@ -249,8 +250,8 @@
           "sortOrder": 10,
           "isHeader": false,
           "referenceRange": {
-            "min": 0.0,
-            "max": 1.0,
+            "min": 0,
+            "max": 1,
             "displayText": "0.00 – 1.00"
           }
         },
@@ -264,7 +265,7 @@
           "sortOrder": 11,
           "isHeader": false,
           "referenceRange": {
-            "min": 0.0,
+            "min": 0,
             "max": 0.1,
             "displayText": "0.00 – 0.10"
           }
@@ -278,8 +279,8 @@
           "sortOrder": 12,
           "isHeader": false,
           "referenceRange": {
-            "min": 0.0,
-            "max": 1.0,
+            "min": 0,
+            "max": 1,
             "displayText": "0.00 – 1.00"
           }
         },
@@ -293,12 +294,13 @@
           "sortOrder": 13,
           "isHeader": false,
           "referenceRange": {
-            "min": 0.0,
+            "min": 0,
             "max": 0.1,
             "displayText": "0.00 – 0.10"
           }
         }
-      ]
+      ],
+      "code": "SERIE_BLANCA"
     },
     {
       "name": "Plaquetas",
@@ -313,8 +315,8 @@
           "sortOrder": 0,
           "isHeader": false,
           "referenceRange": {
-            "min": 150.0,
-            "max": 500.0,
+            "min": 150,
+            "max": 500,
             "displayText": "150.00 – 500.00"
           }
         },
@@ -332,7 +334,8 @@
             "displayText": "3.90 – 11.10"
           }
         }
-      ]
+      ],
+      "code": "PLAQUETAS"
     },
     {
       "name": "Proteínas plasmáticas",
@@ -347,12 +350,129 @@
           "sortOrder": 0,
           "isHeader": false,
           "referenceRange": {
-            "min": 42.0,
-            "max": 61.0,
+            "min": 42,
+            "max": 61,
             "displayText": "42.00 – 61.00"
           }
         }
-      ]
+      ],
+      "code": "PROTEINAS_PLASMATICAS"
+    }
+  ],
+  "observationPhrases": [
+    {
+      "code": "HIPOCROMIA",
+      "label": "Hipocromía",
+      "text": "Se observa hipocromía. Hallazgo compatible con deficiencia de hierro u otras causas de síntesis deficiente de hemoglobina.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "ANISOCITOSIS",
+      "label": "Anisocitosis",
+      "text": "Se observa anisocitosis (variación en el tamaño de los eritrocitos).",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "POIQUILOCITOSIS",
+      "label": "Poiquilocitosis",
+      "text": "Se observa poiquilocitosis (variación en la forma de los eritrocitos).",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "POLICROMASIA",
+      "label": "Policromasia",
+      "text": "Se observa policromasia, indicativa de respuesta regenerativa.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "ESFEROCITOS",
+      "label": "Esferocitos",
+      "text": "Se observan esferocitos. Hallazgo compatible con anemia hemolítica inmunomediada (AHIM).",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "ESQUISTOCITOS",
+      "label": "Esquistocitos",
+      "text": "Se observan esquistocitos (fragmentos eritrocitarios). Compatible con daño mecánico microangiopático (CID, hemangiosarcoma, vasculitis).",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "CUERPOS_HOWELL_JOLLY",
+      "label": "Cuerpos de Howell-Jolly",
+      "text": "Se observan cuerpos de Howell-Jolly. Hallazgo frecuente en respuesta regenerativa o post-esplenectomía.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "ROULEAUX",
+      "label": "Rouleaux",
+      "text": "Se observa formación de Rouleaux (apilamiento eritrocitario). Puede estar asociado a hiperproteinemia o proceso inflamatorio.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "AGLUTINACION",
+      "label": "Aglutinación eritrocitaria",
+      "text": "Se observa aglutinación eritrocitaria. Hallazgo sugestivo de anemia hemolítica inmunomediada (AHIM). Se recomienda test de Coombs.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "RETICULOCITOS",
+      "label": "Reticulocitosis",
+      "text": "Se observa reticulocitosis, indicativa de respuesta regenerativa medular.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "NEUTROFILIA_TOXICA",
+      "label": "Cambios tóxicos en neutrófilos",
+      "text": "Se observan cambios tóxicos en neutrófilos (basofilia citoplasmática, granulación tóxica). Compatible con proceso inflamatorio/infeccioso severo.",
+      "sectionCode": "SERIE_BLANCA"
+    },
+    {
+      "code": "DESVIACION_IZQUIERDA",
+      "label": "Desviación a la izquierda",
+      "text": "Se observa desviación a la izquierda (presencia de bandas). Compatible con respuesta inflamatoria activa.",
+      "sectionCode": "SERIE_BLANCA"
+    },
+    {
+      "code": "LINFOCITOS_REACTIVOS",
+      "label": "Linfocitos reactivos",
+      "text": "Se observan linfocitos reactivos (estimulación antigénica).",
+      "sectionCode": "SERIE_BLANCA"
+    },
+    {
+      "code": "AGREGADOS_PLAQUETARIOS",
+      "label": "Agregados plaquetarios",
+      "text": "Se observan agregados plaquetarios. El recuento puede estar subestimado.",
+      "sectionCode": "PLAQUETAS"
+    },
+    {
+      "code": "MACROPLAQUETAS",
+      "label": "Macroplaquetas",
+      "text": "Se observan macroplaquetas. Hallazgo compatible con trombopoyesis activa (respuesta regenerativa plaquetaria).",
+      "sectionCode": "PLAQUETAS"
+    },
+    {
+      "code": "LIPEMIA",
+      "label": "Muestra lipémica",
+      "text": "Muestra lipémica. Los valores de hemoglobina y proteínas pueden estar sobreestimados.",
+      "sectionCode": ""
+    },
+    {
+      "code": "HEMOLISIS",
+      "label": "Muestra hemolizada",
+      "text": "Muestra hemolizada. Los valores de hemoglobina pueden estar sobreestimados.",
+      "sectionCode": ""
+    },
+    {
+      "code": "MUESTRA_INADECUADA",
+      "label": "Muestra inadecuada",
+      "text": "Muestra recibida en condiciones inadecuadas para su procesamiento. Resultados orientativos.",
+      "sectionCode": ""
+    },
+    {
+      "code": "MORFOLOGIA_NORMAL",
+      "label": "Morfología normal",
+      "text": "Morfología eritrocitaria y leucocitaria dentro de los límites normales en el frotis sanguíneo.",
+      "sectionCode": ""
     }
   ]
 }

@@ -10,8 +10,10 @@ import {
   CreateTemplateDefinitionDto,
   UpdateDraftVersionDto,
   TemplateSectionDto,
+  ObservationPhraseDto,
 } from './dto/template-version.dto';
 import type { PatientSpecies } from '@prisma/client';
+import { toStableCode } from './code-gen.util';
 
 const VERSION_INCLUDE = {
   sections: {
@@ -82,13 +84,7 @@ export class TemplateVersionService {
       include: {
         ...DEFINITION_INCLUDE,
         versions: {
-          select: {
-            id: true,
-            version: true,
-            status: true,
-            title: true,
-            publishedAt: true,
-          },
+          include: VERSION_INCLUDE,
           orderBy: { version: 'desc' },
         },
       },
@@ -104,6 +100,8 @@ export class TemplateVersionService {
   ) {
     const ageMin = dto.ageMinWeeks ?? -1;
     const ageMax = dto.ageMaxWeeks ?? -1;
+
+    this.validatePhrasesAndSections(dto.observationPhrases, dto.sections);
 
     return this.prisma.$transaction(async (tx) => {
       const definition = await tx.resultTemplateDefinition.create({
@@ -125,6 +123,9 @@ export class TemplateVersionService {
           title: dto.title,
           status: 'DRAFT',
           defaultObservations: dto.defaultObservations,
+          observationPhrases: dto.observationPhrases
+            ? (dto.observationPhrases as unknown as Record<string, unknown>[])
+            : undefined,
         },
       });
 
@@ -195,6 +196,8 @@ export class TemplateVersionService {
           title: source.activeVersion!.title,
           status: 'DRAFT',
           defaultObservations: source.activeVersion!.defaultObservations,
+          observationPhrases:
+            source.activeVersion!.observationPhrases ?? undefined,
         },
       });
 
@@ -236,6 +239,8 @@ export class TemplateVersionService {
           title: definition.activeVersion?.title ?? 'Untitled',
           status: 'DRAFT',
           defaultObservations: definition.activeVersion?.defaultObservations,
+          observationPhrases:
+            definition.activeVersion?.observationPhrases ?? undefined,
         },
       });
 
@@ -261,6 +266,10 @@ export class TemplateVersionService {
       throw new BadRequestException('Only DRAFT versions can be edited');
     }
 
+    if (dto.sections) {
+      this.validatePhrasesAndSections(dto.observationPhrases, dto.sections);
+    }
+
     return this.prisma.$transaction(async (tx) => {
       if (dto.sections) {
         await tx.resultTemplateAnalyte.deleteMany({ where: { versionId } });
@@ -274,6 +283,10 @@ export class TemplateVersionService {
           ...(dto.title !== undefined && { title: dto.title }),
           ...(dto.defaultObservations !== undefined && {
             defaultObservations: dto.defaultObservations,
+          }),
+          ...(dto.observationPhrases !== undefined && {
+            observationPhrases:
+              dto.observationPhrases as unknown as Record<string, unknown>[],
           }),
         },
         include: VERSION_INCLUDE,
@@ -357,12 +370,10 @@ export class TemplateVersionService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      // Null out activeVersionId first to avoid FK self-reference constraint
       await tx.resultTemplateDefinition.update({
         where: { id },
         data: { activeVersionId: null },
       });
-      // Cascade deletes versions → sections + analytes automatically
       await tx.resultTemplateDefinition.delete({ where: { id } });
     });
   }
@@ -417,8 +428,67 @@ export class TemplateVersionService {
     return speciesScore + ageScore;
   }
 
+  private validatePhrasesAndSections(
+    phrases?: ObservationPhraseDto[],
+    sections?: TemplateSectionDto[]
+  ) {
+    if (!phrases?.length) return;
+
+    const phraseCodes = phrases.map((p) => p.code);
+    const codeSet = new Set<string>();
+    for (const code of phraseCodes) {
+      if (codeSet.has(code)) {
+        throw new BadRequestException(`Duplicate phrase code: '${code}'`);
+      }
+      codeSet.add(code);
+    }
+
+    for (const phrase of phrases) {
+      if (!phrase.text.trim()) {
+        throw new BadRequestException(
+          `Phrase '${phrase.code}' has empty text after trimming`
+        );
+      }
+    }
+
+    if (sections) {
+      const sectionCodes = new Set<string>();
+      for (const s of sections) {
+        if (s.code) {
+          if (sectionCodes.has(s.code)) {
+            throw new BadRequestException(
+              `Duplicate section code: '${s.code}'`
+            );
+          }
+          sectionCodes.add(s.code);
+        }
+      }
+
+      for (const phrase of phrases) {
+        if (phrase.sectionCode && !sectionCodes.has(phrase.sectionCode)) {
+          throw new BadRequestException(
+            `Phrase '${phrase.code}' references non-existent section code '${phrase.sectionCode}'`
+          );
+        }
+      }
+    }
+
+    const normalizedTexts = new Map<string, string>();
+    for (const phrase of phrases) {
+      const norm = phrase.text.trim().toLowerCase();
+      const existing = normalizedTexts.get(norm);
+      if (existing) {
+        console.warn(
+          `Duplicate phrase text detected: '${phrase.code}' and '${existing}' have identical normalized text`
+        );
+      }
+      normalizedTexts.set(norm, phrase.code);
+    }
+  }
+
   private versionToSectionDtos(version: {
     sections: Array<{
+      code?: string | null;
       name: string;
       sortOrder: number;
       analytes: Array<{
@@ -435,25 +505,38 @@ export class TemplateVersionService {
       }>;
     }>;
   }): TemplateSectionDto[] {
-    return version.sections.map((s) => ({
-      name: s.name,
-      sortOrder: s.sortOrder,
-      analytes: s.analytes.map((a) => ({
-        code: a.code,
-        name: a.name,
-        technique: a.technique ?? undefined,
-        valueType:
-          a.valueType as TemplateSectionDto['analytes'][0]['valueType'],
-        unit: a.unit ?? undefined,
-        options: a.options,
-        sortOrder: a.sortOrder,
-        isHeader: a.isHeader,
-        formula: a.formula ?? undefined,
-        referenceRange: a.referenceRange as
-          | { min?: number; max?: number; displayText: string }
-          | undefined,
-      })),
-    }));
+    const existingCodes: string[] = version.sections
+      .filter((s) => s.code)
+      .map((s) => s.code!);
+
+    return version.sections.map((s) => {
+      let code = s.code ?? undefined;
+      if (!code && s.name.trim()) {
+        code = toStableCode(s.name, existingCodes, 'SEC') ?? undefined;
+        if (code) existingCodes.push(code);
+      }
+
+      return {
+        code,
+        name: s.name,
+        sortOrder: s.sortOrder,
+        analytes: s.analytes.map((a) => ({
+          code: a.code,
+          name: a.name,
+          technique: a.technique ?? undefined,
+          valueType:
+            a.valueType as TemplateSectionDto['analytes'][0]['valueType'],
+          unit: a.unit ?? undefined,
+          options: a.options,
+          sortOrder: a.sortOrder,
+          isHeader: a.isHeader,
+          formula: a.formula ?? undefined,
+          referenceRange: a.referenceRange as
+            | { min?: number; max?: number; displayText: string }
+            | undefined,
+        })),
+      };
+    });
   }
 
   private async createSectionsAndAnalytes(
@@ -461,12 +544,25 @@ export class TemplateVersionService {
     versionId: string,
     sections: TemplateSectionDto[]
   ) {
+    const sectionCodes = new Set<string>();
+    for (const s of sections) {
+      if (s.code) {
+        if (sectionCodes.has(s.code)) {
+          throw new BadRequestException(
+            `Duplicate section code '${s.code}' in this template version`
+          );
+        }
+        sectionCodes.add(s.code);
+      }
+    }
+
     for (const section of sections) {
       const newSection = await (
         tx as PrismaService
       ).resultTemplateSection.create({
         data: {
           versionId,
+          code: section.code ?? null,
           name: section.name,
           sortOrder: section.sortOrder,
         },
