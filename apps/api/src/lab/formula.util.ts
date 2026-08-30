@@ -176,7 +176,7 @@ export function evaluateFormula(
   return result;
 }
 
-function extractCodeRefs(formula: string): string[] {
+export function extractCodeRefs(formula: string): string[] {
   const refs: string[] = [];
   const re = /\[([^\]]+)\]/g;
   let match;
@@ -238,4 +238,170 @@ export function evaluateAllFormulas(
   }
 
   return values;
+}
+
+export interface FormulaValidationError {
+  analyteCode: string;
+  analyteName: string;
+  sectionName: string | null;
+  formula: string;
+  errors: Array<{
+    code: 'SYNTAX_ERROR' | 'UNKNOWN_REF' | 'SELF_REFERENCE' | 'CIRCULAR_DEPENDENCY' | 'DUPLICATE_CODE';
+    message: string;
+    ref?: string;
+  }>;
+}
+
+export function validateTemplateFormulas(
+  sections: Array<{
+    name: string;
+    analytes: Array<{
+      code: string;
+      name: string;
+      formula?: string | null;
+      isHeader?: boolean;
+    }>;
+  }>
+): FormulaValidationError[] {
+  const knownCodes = new Set<string>();
+  const duplicateCodes = new Set<string>();
+  const formulaAnalytes: Array<{
+    code: string;
+    name: string;
+    sectionName: string;
+    formula: string;
+  }> = [];
+
+  for (const section of sections) {
+    for (const analyte of section.analytes) {
+      if (!analyte.isHeader) {
+        if (knownCodes.has(analyte.code)) {
+          duplicateCodes.add(analyte.code);
+        }
+        knownCodes.add(analyte.code);
+      }
+      if (analyte.formula?.trim() && !analyte.isHeader) {
+        formulaAnalytes.push({
+          code: analyte.code,
+          name: analyte.name,
+          sectionName: section.name,
+          formula: analyte.formula.trim(),
+        });
+      }
+    }
+  }
+
+  if (formulaAnalytes.length === 0 && duplicateCodes.size === 0) return [];
+
+  const errorsByCode = new Map<string, FormulaValidationError>();
+
+  function getOrCreateError(a: { code: string; name: string; sectionName: string; formula: string }): FormulaValidationError {
+    let entry = errorsByCode.get(a.code);
+    if (!entry) {
+      entry = {
+        analyteCode: a.code,
+        analyteName: a.name,
+        sectionName: a.sectionName,
+        formula: a.formula,
+        errors: [],
+      };
+      errorsByCode.set(a.code, entry);
+    }
+    return entry;
+  }
+
+  // Report duplicate analyte codes
+  for (const dupCode of duplicateCodes) {
+    const occurrences: Array<{ name: string; sectionName: string }> = [];
+    for (const section of sections) {
+      for (const analyte of section.analytes) {
+        if (!analyte.isHeader && analyte.code === dupCode) {
+          occurrences.push({ name: analyte.name, sectionName: section.name });
+        }
+      }
+    }
+    const conflictList = occurrences
+      .map((o) => `"${o.name}" in "${o.sectionName}"`)
+      .join(', ');
+    getOrCreateError({
+      code: dupCode,
+      name: occurrences[0].name,
+      sectionName: occurrences[0].sectionName,
+      formula: '',
+    }).errors.push({
+      code: 'DUPLICATE_CODE',
+      message: `Duplicate analyte code "${dupCode}" found in: ${conflictList}`,
+    });
+  }
+
+  for (const a of formulaAnalytes) {
+    try {
+      tokenize(a.formula);
+    } catch (e) {
+      getOrCreateError(a).errors.push({
+        code: 'SYNTAX_ERROR',
+        message: (e as Error).message,
+      });
+      continue;
+    }
+
+    const refs = extractCodeRefs(a.formula);
+    for (const ref of refs) {
+      if (ref === a.code) {
+        getOrCreateError(a).errors.push({
+          code: 'SELF_REFERENCE',
+          message: `Formula references its own code [${ref}]`,
+          ref,
+        });
+      } else if (!knownCodes.has(ref)) {
+        getOrCreateError(a).errors.push({
+          code: 'UNKNOWN_REF',
+          message: `Unknown analyte code [${ref}]`,
+          ref,
+        });
+      }
+    }
+  }
+
+  const formulaCodes = new Set(formulaAnalytes.map((a) => a.code));
+  const deps = new Map<string, string[]>();
+  for (const a of formulaAnalytes) {
+    deps.set(
+      a.code,
+      extractCodeRefs(a.formula).filter((r) => r !== a.code)
+    );
+  }
+
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+
+  function detectCycle(code: string): boolean {
+    if (visited.has(code)) return false;
+    if (visiting.has(code)) return true;
+    if (!formulaCodes.has(code)) return false;
+
+    visiting.add(code);
+    for (const dep of deps.get(code) ?? []) {
+      if (detectCycle(dep)) {
+        const a = formulaAnalytes.find((x) => x.code === code)!;
+        getOrCreateError(a).errors.push({
+          code: 'CIRCULAR_DEPENDENCY',
+          message: `Circular formula dependency involving [${code}]`,
+          ref: dep,
+        });
+        visiting.delete(code);
+        visited.add(code);
+        return true;
+      }
+    }
+    visiting.delete(code);
+    visited.add(code);
+    return false;
+  }
+
+  for (const a of formulaAnalytes) {
+    detectCycle(a.code);
+  }
+
+  return Array.from(errorsByCode.values()).filter((e) => e.errors.length > 0);
 }
