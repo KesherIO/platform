@@ -5,8 +5,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TemplateVersionService } from '../results/template-version.service';
+import { OrderStatusService } from './order-status.service';
 import type { AccessionOrderDto } from './dto/accession-order.dto';
-import type { AgeUnit, PatientSpecies, OrderStatus } from '@prisma/client';
+import type { AgeUnit, PatientSpecies } from '@prisma/client';
 
 const CONDITION_FLAG_LABELS: Record<string, string> = {
   isHemolyzed: 'hemolyzed',
@@ -65,59 +66,12 @@ function ageToWeeks(age: number, unit: AgeUnit): number {
   }
 }
 
-// Derives order status from the aggregate state of its tests and specimens.
-// Rules applied in priority order (most terminal state wins):
-//   CANCELLED (5) > COMPLETED (4) > PROCESSING (3) > RECEIVED_BY_LAB (2) > PENDING (1)
-async function deriveOrderStatusValue(
-  prisma: PrismaService,
-  orderId: string
-): Promise<OrderStatus> {
-  const order = await prisma.order.findUniqueOrThrow({
-    where: { id: orderId },
-    select: { status: true },
-  });
-  if (order.status === 'CANCELLED') return 'CANCELLED';
-
-  const [tests, specimens] = await Promise.all([
-    prisma.orderedTest.findMany({
-      where: { orderId },
-      select: { status: true },
-    }),
-    prisma.specimen.findMany({
-      where: { orderId },
-      select: { status: true },
-    }),
-  ]);
-
-  // Rule 4 — COMPLETED: any released report (checked by caller after release; not derivable here)
-  // For now derive based on test statuses only — release sets COMPLETED directly.
-
-  // Rule 3 — PROCESSING: any test is IN_PROGRESS, RESULTS_ENTERED, or IN_REVIEW
-  const processingStatuses = new Set([
-    'IN_PROGRESS',
-    'RESULTS_ENTERED',
-    'IN_REVIEW',
-  ]);
-  if (tests.some((t) => processingStatuses.has(t.status))) return 'PROCESSING';
-
-  // Rule 2 — RECEIVED_BY_LAB: specimens are resolved, OR any test is READY
-  // (READY means the sample was accessioned and a template was assigned)
-  const hasAccepted = specimens.some((s) => s.status === 'ACCEPTED');
-  const hasExpectedOrReceived = specimens.some(
-    (s) => s.status === 'EXPECTED' || s.status === 'RECEIVED'
-  );
-  const hasReadyTest = tests.some((t) => t.status === 'READY');
-  if ((hasAccepted && !hasExpectedOrReceived) || hasReadyTest)
-    return 'RECEIVED_BY_LAB';
-
-  return 'PENDING';
-}
-
 @Injectable()
 export class SpecimenService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly templateVersionService: TemplateVersionService
+    private readonly templateVersionService: TemplateVersionService,
+    private readonly orderStatusService: OrderStatusService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -622,7 +576,7 @@ export class SpecimenService {
     });
 
     // Derive and persist order status after transaction
-    await this.updateDerivedOrderStatus(orderId);
+    await this.orderStatusService.deriveAndPersist(orderId);
 
     return {
       specimens: result,
@@ -714,7 +668,7 @@ export class SpecimenService {
       });
     }
 
-    await this.updateDerivedOrderStatus(specimen.orderId);
+    await this.orderStatusService.deriveAndPersist(specimen.orderId);
     return updated;
   }
 
@@ -807,7 +761,7 @@ export class SpecimenService {
       }),
     ]);
 
-    await this.updateDerivedOrderStatus(test.orderId);
+    await this.orderStatusService.deriveAndPersist(test.orderId);
     return { resolved: true, test: { id: test.id, status: 'READY' } };
   }
 
@@ -869,30 +823,227 @@ export class SpecimenService {
       }),
     ]);
 
-    await this.updateDerivedOrderStatus(test.orderId);
+    await this.orderStatusService.deriveAndPersist(test.orderId);
     return { resolved: true, test: { id: test.id, status: 'READY' } };
   }
 
   // ---------------------------------------------------------------------------
-  // Private helper — derive and persist order status
+  // Mark a specimen as MISSING
   // ---------------------------------------------------------------------------
 
-  private async updateDerivedOrderStatus(orderId: string) {
-    const derived = await deriveOrderStatusValue(this.prisma, orderId);
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-      select: { status: true },
-    });
-    if (!order || order.status === derived) return;
+  async markMissing(
+    orderId: string,
+    specimenId: string,
+    labTenantId: string,
+    dto: { reason: string; confirm: boolean },
+    actorId: string,
+    actorName: string
+  ) {
+    if (!dto.confirm) {
+      throw new BadRequestException('Confirmation required.');
+    }
 
-    const timestamps: Record<string, Date | null> = {};
-    const now = new Date();
-    if (derived === 'RECEIVED_BY_LAB') timestamps.receivedByLabAt = now;
-    if (derived === 'PROCESSING') timestamps.processingStartedAt = now;
-
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: derived, ...timestamps },
+    const specimen = await this.prisma.specimen.findFirst({
+      where: { id: specimenId, orderId, labTenantId },
+      select: {
+        id: true,
+        orderId: true,
+        status: true,
+        accessionNumber: true,
+        specimenType: true,
+      },
     });
+    if (!specimen) throw new NotFoundException('Specimen not found.');
+
+    const allowedStatuses = new Set(['EXPECTED', 'RECEIVED']);
+    if (!allowedStatuses.has(specimen.status)) {
+      throw new BadRequestException(
+        `Cannot mark specimen as missing from status ${specimen.status}. Only EXPECTED or RECEIVED specimens can be marked missing.`
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.specimen.update({
+        where: { id: specimenId },
+        data: {
+          status: 'MISSING',
+          markedMissingAt: new Date(),
+          markedMissingById: actorId,
+        },
+      });
+
+      const linkedTests = await tx.orderedTestSpecimen.findMany({
+        where: { specimenId },
+        select: {
+          orderedTest: { select: { id: true, status: true } },
+        },
+      });
+
+      const blockableStatuses = new Set(['PENDING', 'READY']);
+      const blockedTestIds: string[] = [];
+
+      for (const link of linkedTests) {
+        if (blockableStatuses.has(link.orderedTest.status)) {
+          await tx.orderedTest.update({
+            where: { id: link.orderedTest.id },
+            data: {
+              status: 'BLOCKED',
+              blockReason: 'MISSING_SPECIMEN',
+              blockReasonDetail: `Specimen ${specimen.accessionNumber} (${specimen.specimenType}) marked missing`,
+              version: { increment: 1 },
+            },
+          });
+          blockedTestIds.push(link.orderedTest.id);
+
+          await tx.timelineEvent.create({
+            data: {
+              orderId,
+              eventType: 'TEST_BLOCKED',
+              actorId,
+              actorName,
+              description: `Test blocked: specimen ${specimen.accessionNumber} marked missing`,
+              metadata: {
+                orderedTestId: link.orderedTest.id,
+                blockReason: 'MISSING_SPECIMEN',
+                specimenId,
+              },
+            },
+          });
+        }
+      }
+
+      await tx.timelineEvent.create({
+        data: {
+          orderId,
+          eventType: 'SPECIMEN_MISSING',
+          actorId,
+          actorName,
+          description: `Specimen ${specimen.accessionNumber} (${specimen.specimenType}) marked as missing`,
+          metadata: {
+            specimenId,
+            accessionNumber: specimen.accessionNumber,
+            specimenType: specimen.specimenType,
+            blockedTestIds,
+            reason: dto.reason,
+          },
+        },
+      });
+    });
+
+    await this.orderStatusService.deriveAndPersist(orderId);
+
+    return this.prisma.specimen.findUnique({ where: { id: specimenId } });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reverse a MISSING specimen back to EXPECTED
+  // ---------------------------------------------------------------------------
+
+  async reverseMissing(
+    orderId: string,
+    specimenId: string,
+    labTenantId: string,
+    dto: { reason?: string; confirm: boolean },
+    actorId: string,
+    actorName: string
+  ) {
+    if (!dto.confirm) {
+      throw new BadRequestException('Confirmation required.');
+    }
+
+    const specimen = await this.prisma.specimen.findFirst({
+      where: { id: specimenId, orderId, labTenantId },
+      select: {
+        id: true,
+        orderId: true,
+        status: true,
+        accessionNumber: true,
+        specimenType: true,
+      },
+    });
+    if (!specimen) throw new NotFoundException('Specimen not found.');
+
+    if (specimen.status !== 'MISSING') {
+      throw new BadRequestException(
+        `Cannot reverse: specimen is ${specimen.status}, not MISSING.`
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.specimen.update({
+        where: { id: specimenId },
+        data: {
+          status: 'EXPECTED',
+          markedMissingAt: null,
+          markedMissingById: null,
+        },
+      });
+
+      // Restore tests that were BLOCKED specifically by this specimen
+      const linkedTests = await tx.orderedTestSpecimen.findMany({
+        where: { specimenId },
+        select: {
+          orderedTest: {
+            select: { id: true, status: true, blockReason: true },
+          },
+        },
+      });
+
+      const restoredTestIds: string[] = [];
+      for (const link of linkedTests) {
+        if (
+          link.orderedTest.status === 'BLOCKED' &&
+          link.orderedTest.blockReason === 'MISSING_SPECIMEN'
+        ) {
+          await tx.orderedTest.update({
+            where: { id: link.orderedTest.id },
+            data: {
+              status: 'PENDING',
+              blockReason: null,
+              blockReasonDetail: null,
+              version: { increment: 1 },
+            },
+          });
+          restoredTestIds.push(link.orderedTest.id);
+        }
+      }
+
+      await tx.timelineEvent.create({
+        data: {
+          orderId,
+          eventType: 'SPECIMEN_MISSING_REVERSED',
+          actorId,
+          actorName,
+          description: `Missing status reversed for specimen ${specimen.accessionNumber} (${specimen.specimenType})`,
+          metadata: {
+            specimenId,
+            accessionNumber: specimen.accessionNumber,
+            specimenType: specimen.specimenType,
+            reason: dto.reason ?? null,
+            restoredTestIds,
+          },
+        },
+      });
+
+      for (const testId of restoredTestIds) {
+        await tx.timelineEvent.create({
+          data: {
+            orderId,
+            eventType: 'TEST_UNBLOCKED',
+            actorId,
+            actorName,
+            description: `Test unblocked: specimen ${specimen.accessionNumber} missing status reversed`,
+            metadata: {
+              orderedTestId: testId,
+              previousBlockReason: 'MISSING_SPECIMEN',
+            },
+          },
+        });
+      }
+    });
+
+    await this.orderStatusService.deriveAndPersist(orderId);
+
+    return this.prisma.specimen.findUnique({ where: { id: specimenId } });
   }
 }

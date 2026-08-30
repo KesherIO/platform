@@ -4,14 +4,18 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { CaseStatus, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { OrderStatusService } from './order-status.service';
 import { evaluateAllFormulas } from './formula.util';
 import type { ReferenceRangeSnapshot } from '@vet-ai/shared-types';
 
 @Injectable()
 export class ReviewService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly orderStatusService: OrderStatusService
+  ) {}
 
   async submitForReview(
     orderId: string,
@@ -46,6 +50,13 @@ export class ReviewService {
     if (enteredTests.length === 0) {
       throw new BadRequestException(
         'At least one test must have results entered before submitting for review.'
+      );
+    }
+
+    const reviewers = await this.getReviewerSigners(labTenantId);
+    if (reviewers.length === 0) {
+      throw new BadRequestException(
+        'Cannot submit for review: no reviewer signers configured for this laboratory.'
       );
     }
 
@@ -222,11 +233,6 @@ export class ReviewService {
         },
       });
 
-      await tx.case.update({
-        where: { id: order.caseId },
-        data: { status: CaseStatus.COMPLETED },
-      });
-
       await tx.timelineEvent.create({
         data: {
           orderId,
@@ -242,6 +248,8 @@ export class ReviewService {
         },
       });
     });
+
+    await this.orderStatusService.deriveAndPersist(orderId);
 
     return { status: 'RELEASED', reportId };
   }

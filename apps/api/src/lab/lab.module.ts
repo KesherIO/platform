@@ -8,6 +8,8 @@ import { SpecimenService } from './specimen.service';
 import { ResultEntryService } from './result-entry.service';
 import { ReviewService } from './review.service';
 import { WorklistService } from './worklist.service';
+import { ReadinessService } from './readiness.service';
+import { OrderStatusService } from './order-status.service';
 import { LabTenantGuard } from './lab-tenant.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
@@ -33,8 +35,10 @@ import { CatalogModule } from '../catalog/catalog.module';
     ResultEntryService,
     ReviewService,
     WorklistService,
+    ReadinessService,
+    OrderStatusService,
     LabTenantGuard,
   ],
-  exports: [PickupService], // OrdersModule needs this to auto-create pickups
+  exports: [PickupService, ReadinessService, OrderStatusService],
 })
 export class LabModule {}
