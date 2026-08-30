@@ -184,6 +184,16 @@ export function CatalogPage() {
       }),
   });
 
+  const { data: readinessData } = useQuery({
+    queryKey: ['catalog-readiness'],
+    queryFn: () => labApi.readiness.bulk(),
+    staleTime: 60_000,
+  });
+
+  const readinessMap = new Map(
+    (readinessData?.items ?? []).map((r) => [r.catalogItemId, r])
+  );
+
   const items = data?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
@@ -535,76 +545,93 @@ export function CatalogPage() {
           }`}
         >
           <div className="space-y-2">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 text-sm font-medium text-white">
-                    <span className="truncate">{item.name}</span>
-                    <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
-                        KIND_COLORS[item.kind]
-                      }`}
-                    >
-                      {t(`catalog.kind.${item.kind}`)}
-                    </span>
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {item.code}
-                    {item.code && item.category && ' · '}
-                    {item.category}
-                  </p>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-4">
-                  <div className="w-44 text-right">
-                    <p className="text-xs text-gray-500">
-                      {t('catalog.columns.created')}:{' '}
-                      {formatDate(item.createdAt)}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {t('catalog.columns.updated')}:{' '}
-                      {formatDate(item.updatedAt)}
-                    </p>
-                  </div>
-                  <div className="w-20 text-center">
-                    <span
-                      className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${
-                        STATUS_COLORS[item.active ? 'active' : 'inactive']
-                      }`}
-                    >
-                      {t(
-                        item.active
-                          ? 'catalog.status.active'
-                          : 'catalog.status.inactive'
+            {items.map((item) => {
+              const readiness = readinessMap.get(item.id);
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-sm font-medium text-white">
+                      <span className="truncate">{item.name}</span>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                          KIND_COLORS[item.kind]
+                        }`}
+                      >
+                        {t(`catalog.kind.${item.kind}`)}
+                      </span>
+                      {item.kind === 'TEST' && readiness && (
+                        <span
+                          title={
+                            readiness.ready
+                              ? t('catalog.readiness.ready')
+                              : readiness.reasons
+                                  .map((r) => r.message)
+                                  .join(', ')
+                          }
+                          className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${
+                            readiness.ready ? 'bg-green-400' : 'bg-red-400'
+                          }`}
+                        />
                       )}
-                    </span>
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {item.code}
+                      {item.code && item.category && ' · '}
+                      {item.category}
+                    </p>
                   </div>
-                  {isAdmin && (
-                    <div className="flex w-24 items-center justify-end gap-1">
-                      <IconActionButton
-                        icon={Pencil}
-                        label={t('catalog.actions.edit')}
-                        onClick={() => setEditingItem(item)}
-                        variant="neutral"
-                      />
-                      <IconActionButton
-                        icon={Power}
-                        label={t(
-                          item.active
-                            ? 'catalog.actions.disable'
-                            : 'catalog.actions.enable'
-                        )}
-                        onClick={() => handleToggleActive(item)}
-                        variant={item.active ? 'danger' : 'neutral'}
-                      />
+
+                  <div className="flex shrink-0 items-center gap-4">
+                    <div className="w-44 text-right">
+                      <p className="text-xs text-gray-500">
+                        {t('catalog.columns.created')}:{' '}
+                        {formatDate(item.createdAt)}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {t('catalog.columns.updated')}:{' '}
+                        {formatDate(item.updatedAt)}
+                      </p>
                     </div>
-                  )}
+                    <div className="w-20 text-center">
+                      <span
+                        className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${
+                          STATUS_COLORS[item.active ? 'active' : 'inactive']
+                        }`}
+                      >
+                        {t(
+                          item.active
+                            ? 'catalog.status.active'
+                            : 'catalog.status.inactive'
+                        )}
+                      </span>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex w-24 items-center justify-end gap-1">
+                        <IconActionButton
+                          icon={Pencil}
+                          label={t('catalog.actions.edit')}
+                          onClick={() => setEditingItem(item)}
+                          variant="neutral"
+                        />
+                        <IconActionButton
+                          icon={Power}
+                          label={t(
+                            item.active
+                              ? 'catalog.actions.disable'
+                              : 'catalog.actions.enable'
+                          )}
+                          onClick={() => handleToggleActive(item)}
+                          variant={item.active ? 'danger' : 'neutral'}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <Pagination
             page={page}

@@ -99,6 +99,7 @@ describe('ReportComponent', () => {
       sortOrder: 0,
       id: 'h',
       reportId: 'r',
+      reportTestId: 'rt',
       code: 'H',
       name: 'H',
     };

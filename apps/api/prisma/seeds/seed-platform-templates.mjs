@@ -40,6 +40,7 @@ async function main() {
       species,
       title,
       defaultObservations,
+      observationPhrases,
       sections = [],
     } = raw;
 
@@ -83,6 +84,7 @@ async function main() {
           title,
           status: 'PUBLISHED',
           defaultObservations: defaultObservations ?? null,
+          observationPhrases: observationPhrases ?? undefined,
           publishedAt: new Date(),
         },
       });
@@ -92,6 +94,7 @@ async function main() {
           data: {
             versionId: version.id,
             name: section.name,
+            code: section.code ?? null,
             sortOrder: section.sortOrder,
           },
         });

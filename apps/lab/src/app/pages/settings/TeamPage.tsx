@@ -15,6 +15,7 @@ import type { LabMember, LabRole, WeeklySchedule } from '../../types/lab.types';
 const ROLES: LabRole[] = ['ADMIN', 'TECHNICIAN', 'MESSENGER'];
 
 const ROLE_COLORS: Record<LabRole, string> = {
+  OWNER: 'bg-amber-400/20 text-amber-300',
   ADMIN: 'bg-purple/20 text-purple',
   TECHNICIAN: 'bg-cyan/20 text-cyan',
   MESSENGER: 'bg-orange-900/30 text-orange-300',

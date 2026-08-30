@@ -6,19 +6,87 @@
   "sections": [
     {
       "name": "Resultados",
+      "code": "RESULTADOS",
       "sortOrder": 0,
       "analytes": [
         {
           "code": "CYTOLOGY",
           "name": "Citología",
           "technique": "Tinción de Wright",
-          "valueType": "TEXT",
+          "valueType": "LONG_TEXT",
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
           "referenceRange": null
         }
       ]
+    }
+  ],
+  "observationPhrases": [
+    {
+      "code": "FLORA_BACT_NORMAL",
+      "label": "Flora bacteriana normal",
+      "text": "Se observa flora bacteriana compatible con la normal para la zona anatómica evaluada."
+    },
+    {
+      "code": "FLORA_BACT_COCOS",
+      "label": "Sobrecrecimiento de cocos",
+      "text": "Se observa sobrecrecimiento bacteriano con predominio de cocos, sugestivo de infección por Staphylococcus spp."
+    },
+    {
+      "code": "FLORA_BACT_BACILOS",
+      "label": "Sobrecrecimiento de bacilos",
+      "text": "Se observa sobrecrecimiento bacteriano con predominio de bacilos gram negativos."
+    },
+    {
+      "code": "FLORA_MIXTA",
+      "label": "Flora mixta aumentada",
+      "text": "Se observa flora bacteriana mixta (cocos y bacilos) en cantidad aumentada, compatible con infección bacteriana secundaria."
+    },
+    {
+      "code": "INFLAM_NEUTROFILICA",
+      "label": "Inflamación neutrofílica",
+      "text": "Se observa proceso inflamatorio con predominio de neutrófilos, algunos degenerados, con bacterias fagocitadas. Compatible con pioderma."
+    },
+    {
+      "code": "INFLAM_PIOGRANULOMATOSA",
+      "label": "Inflamación piogranulomatosa",
+      "text": "Se observa proceso inflamatorio piogranulomatoso con presencia de neutrófilos y macrófagos."
+    },
+    {
+      "code": "INFLAM_EOSINOFILICA",
+      "label": "Inflamación eosinofílica",
+      "text": "Se observa proceso inflamatorio con predominio de eosinófilos. Compatible con reacción alérgica o parasitaria."
+    },
+    {
+      "code": "CELULAS_NEOPLASICAS",
+      "label": "Células neoplásicas (sospecha)",
+      "text": "Se observan células con características atípicas sugestivas de proceso neoplásico. Se recomienda biopsia para diagnóstico definitivo."
+    },
+    {
+      "code": "MASTOCITOMA",
+      "label": "Compatible con mastocitoma",
+      "text": "Se observan células redondas con gránulos metacromáticos, compatible con mastocitoma. Se recomienda biopsia y estadificación."
+    },
+    {
+      "code": "LIPOMA",
+      "label": "Compatible con lipoma",
+      "text": "Se observan adipocitos maduros sin atipias, compatible con lipoma."
+    },
+    {
+      "code": "LINFOMA",
+      "label": "Compatible con linfoma",
+      "text": "Se observa población monomórfica de linfocitos grandes con nucléolos prominentes, compatible con linfoma. Se recomienda citometría de flujo o biopsia."
+    },
+    {
+      "code": "MALASSEZIA_CYTO",
+      "label": "Malassezia spp.",
+      "text": "Se observan levaduras compatibles con Malassezia spp. en cantidad aumentada."
+    },
+    {
+      "code": "CYTO_NORMAL",
+      "label": "Citología sin alteraciones",
+      "text": "Citología sin alteraciones significativas. Celularidad normal para la zona anatómica evaluada."
     }
   ]
 }

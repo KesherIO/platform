@@ -10,11 +10,16 @@ import { CatalogService } from '../catalog/catalog.service';
 import { ResultEntryService } from './result-entry.service';
 import { ResultsService } from '../results/results.service';
 import { WorklistService } from './worklist.service';
+import { ReviewService } from './review.service';
+import { ReleaseService } from './release.service';
+import { AmendmentService } from './amendment.service';
+import { ReadinessService } from './readiness.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('LabController', () => {
   let controller: LabController;
   let service: jest.Mocked<LabService>;
+  let module: TestingModule;
 
   const tenant = {
     tenantId: 'lab-1',
@@ -95,7 +100,7 @@ describe('LabController', () => {
         .mockResolvedValue({ resolved: false }),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       controllers: [LabController],
       providers: [
         { provide: LabService, useValue: serviceMock },
@@ -125,6 +130,61 @@ describe('LabController', () => {
             unclaimTest: jest.fn(),
             startTest: jest.fn(),
             reassignTest: jest.fn(),
+          },
+        },
+        {
+          provide: ReviewService,
+          useValue: {
+            submitForReview: jest.fn(),
+            requestCorrections: jest.fn(),
+            getReviewerSigners: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: ReleaseService,
+          useValue: {
+            approveAndRelease: jest.fn().mockResolvedValue({
+              releaseId: 'rel-1',
+              releaseSequence: 1,
+              releaseType: 'PARTIAL',
+            }),
+            getReleaseHistory: jest.fn().mockResolvedValue({
+              releases: [],
+              aggregateReportStatus: 'PARTIAL_RESULTS',
+            }),
+            getCurrentResults: jest.fn().mockResolvedValue({ tests: [] }),
+          },
+        },
+        {
+          provide: AmendmentService,
+          useValue: {
+            initiateAmendment: jest.fn().mockResolvedValue({
+              amendmentId: 'amend-1',
+              status: 'DRAFT',
+              analytes: [],
+            }),
+            getAmendment: jest.fn().mockResolvedValue({
+              amendment: {},
+              sourceAnalytes: [],
+            }),
+            editAmendmentAnalytes: jest.fn().mockResolvedValue({ updated: 1 }),
+            submitForReview: jest
+              .fn()
+              .mockResolvedValue({ status: 'IN_REVIEW' }),
+            approveAmendment: jest.fn().mockResolvedValue({
+              releaseId: 'rel-2',
+              releaseType: 'AMENDMENT',
+            }),
+            cancelAmendment: jest
+              .fn()
+              .mockResolvedValue({ status: 'CANCELLED' }),
+          },
+        },
+        {
+          provide: ReadinessService,
+          useValue: {
+            checkReadiness: jest.fn(),
+            checkBulkReadiness: jest.fn(),
           },
         },
         {
@@ -175,6 +235,152 @@ describe('LabController', () => {
     });
     expect(service.updateOrderStatus).toHaveBeenCalledWith('lab-1', 'order-1', {
       status: 'PROCESSING',
+    });
+  });
+
+  describe('release endpoints', () => {
+    const user = {
+      id: 'user-1',
+      email: 'admin@lab.com',
+      firstName: 'Admin',
+      lastName: 'User',
+    } as any;
+
+    let releaseService: any;
+    let amendmentService: any;
+    let reviewService: any;
+
+    beforeEach(() => {
+      releaseService = module.get(ReleaseService);
+      amendmentService = module.get(AmendmentService);
+      reviewService = module.get(ReviewService);
+    });
+
+    it('approveAndRelease delegates to releaseService with testIds', async () => {
+      await controller.approveAndRelease(tenant, user, 'order-1', {
+        signerId: 'signer-1',
+        testIds: ['rt-1', 'rt-2'],
+        reviewNotes: 'OK',
+      });
+
+      expect(releaseService.approveAndRelease).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: 'order-1',
+          labTenantId: 'lab-1',
+          signerId: 'signer-1',
+          testIds: ['rt-1', 'rt-2'],
+        })
+      );
+    });
+
+    it('submitForReview passes optional testIds', async () => {
+      await controller.submitForReview(tenant, user, 'order-1', {
+        testIds: ['ot-1'],
+      });
+
+      expect(reviewService.submitForReview).toHaveBeenCalledWith(
+        'order-1',
+        'lab-1',
+        'user-1',
+        'Admin User',
+        ['ot-1']
+      );
+    });
+
+    it('getReleaseHistory delegates to releaseService', async () => {
+      await controller.getReleaseHistory(tenant, 'order-1');
+      expect(releaseService.getReleaseHistory).toHaveBeenCalledWith(
+        'order-1',
+        'lab-1'
+      );
+    });
+
+    it('getCurrentResults delegates to releaseService', async () => {
+      await controller.getCurrentResults(tenant, 'order-1');
+      expect(releaseService.getCurrentResults).toHaveBeenCalledWith(
+        'order-1',
+        'lab-1'
+      );
+    });
+
+    it('initiateAmendment delegates to amendmentService', async () => {
+      await controller.initiateAmendment(tenant, user, 'order-1', {
+        reportTestId: 'rt-1',
+        reason: 'Wrong value',
+      });
+
+      expect(amendmentService.initiateAmendment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: 'order-1',
+          labTenantId: 'lab-1',
+          reportTestId: 'rt-1',
+          reason: 'Wrong value',
+        })
+      );
+    });
+
+    it('getAmendment delegates to amendmentService', async () => {
+      await controller.getAmendment(tenant, 'order-1', 'amend-1');
+      expect(amendmentService.getAmendment).toHaveBeenCalledWith(
+        'order-1',
+        'lab-1',
+        'amend-1'
+      );
+    });
+
+    it('editAmendmentAnalytes delegates to amendmentService', async () => {
+      await controller.editAmendmentAnalytes(tenant, 'order-1', 'amend-1', {
+        analytes: [{ id: 'ama-1', numericValue: 15.0 }],
+      });
+
+      expect(amendmentService.editAmendmentAnalytes).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: 'order-1',
+          amendmentId: 'amend-1',
+          analytes: [{ id: 'ama-1', numericValue: 15.0 }],
+        })
+      );
+    });
+
+    it('submitAmendmentForReview delegates to amendmentService', async () => {
+      await controller.submitAmendmentForReview(
+        tenant,
+        user,
+        'order-1',
+        'amend-1'
+      );
+
+      expect(amendmentService.submitForReview).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: 'order-1',
+          amendmentId: 'amend-1',
+        })
+      );
+    });
+
+    it('approveAmendment delegates to amendmentService', async () => {
+      await controller.approveAmendment(tenant, user, 'order-1', 'amend-1', {
+        signerId: 'signer-1',
+      });
+
+      expect(amendmentService.approveAmendment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: 'order-1',
+          amendmentId: 'amend-1',
+          signerId: 'signer-1',
+        })
+      );
+    });
+
+    it('cancelAmendment delegates to amendmentService', async () => {
+      await controller.cancelAmendment(tenant, user, 'order-1', 'amend-1');
+
+      expect(amendmentService.cancelAmendment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: 'order-1',
+          amendmentId: 'amend-1',
+        })
+      );
     });
   });
 });

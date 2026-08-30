@@ -159,6 +159,11 @@ export class LabService {
             status: true;
             observations: true;
             releasedAt: true;
+            submittedForReviewAt: true;
+            reviewedAt: true;
+            reviewNotes: true;
+            correctionNotes: true;
+            reviewedBySignerId: true;
           };
         };
         pickup: {
@@ -204,6 +209,12 @@ export class LabService {
             status: true,
             observations: true,
             releasedAt: true,
+            submittedForReviewAt: true,
+            reviewedAt: true,
+            reviewNotes: true,
+            correctionNotes: true,
+            reviewedBySignerId: true,
+            approvedByName: true,
           },
         },
         pickup: {

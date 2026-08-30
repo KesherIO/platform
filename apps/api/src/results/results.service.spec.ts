@@ -124,7 +124,7 @@ function makeReport(overrides: Record<string, unknown> = {}) {
     releasedByUserId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-    analytes: [],
+    tests: [],
     ...overrides,
   };
 }
@@ -132,7 +132,7 @@ function makeReport(overrides: Record<string, unknown> = {}) {
 function makeAnalyte(overrides: Record<string, unknown> = {}) {
   return {
     id: 'ra-1',
-    reportId: 'report-1',
+    reportTestId: 'rt-1',
     templateAnalyteId: 'ta-1',
     code: 'HGB',
     name: 'Hemoglobina',
@@ -188,6 +188,11 @@ function makePrismaMock() {
       findUniqueOrThrow: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+    },
+    resultReportTest: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
     },
     resultReportAnalyte: {
       createMany: jest.fn(),
@@ -364,9 +369,12 @@ describe('ResultsService', () => {
       prisma.catalogItem.findMany.mockResolvedValue([CATALOG_ITEM]);
       templateVersionService.resolveTemplate.mockResolvedValue(DEFINITION);
       prisma.resultReport.create.mockResolvedValue({ id: 'report-1' });
+      prisma.resultReportTest.create.mockResolvedValue({ id: 'rt-1' });
       prisma.resultReportAnalyte.createMany.mockResolvedValue({});
       prisma.resultReport.findUniqueOrThrow.mockResolvedValue(
-        makeReport({ analytes: [makeAnalyte()] })
+        makeReport({
+          tests: [{ id: 'rt-1', analytes: [makeAnalyte()] }],
+        })
       );
 
       const result = await service.createReport(dto);
@@ -427,16 +435,21 @@ describe('ResultsService', () => {
       prisma.resultReport.findUnique.mockResolvedValue(
         makeReport({ status: 'DRAFT' })
       );
+      prisma.resultReportTest.findMany.mockResolvedValue([{ id: 'rt-1' }]);
       prisma.resultReportAnalyte.updateMany.mockResolvedValue({ count: 1 });
       prisma.resultReport.findUniqueOrThrow.mockResolvedValue(
-        makeReport({ analytes: [makeAnalyte({ numericValue: 15.2 })] })
+        makeReport({
+          tests: [
+            { id: 'rt-1', analytes: [makeAnalyte({ numericValue: 15.2 })] },
+          ],
+        })
       );
 
       const result = await service.saveAnalytes('report-1', dto);
 
       expect(prisma.resultReportAnalyte.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'ra-1', reportId: 'report-1' },
+          where: { id: 'ra-1', reportTestId: { in: ['rt-1'] } },
           data: expect.objectContaining({ numericValue: 15.2 }),
         })
       );
@@ -476,8 +489,11 @@ describe('ResultsService', () => {
       prisma.resultReport.findUnique.mockResolvedValue(
         makeReport({ status: 'DRAFT', caseId: 'case-1' })
       );
-      prisma.resultReportAnalyte.findMany.mockResolvedValue([
-        makeAnalyte({ numericValue: 8.2 }),
+      prisma.resultReportTest.findMany.mockResolvedValue([
+        {
+          id: 'rt-1',
+          analytes: [makeAnalyte({ numericValue: 8.2 })],
+        },
       ]);
       prisma.resultReportAnalyte.update.mockResolvedValue({});
       prisma.resultReport.update.mockResolvedValue({});
@@ -485,7 +501,12 @@ describe('ResultsService', () => {
       prisma.resultReport.findUniqueOrThrow.mockResolvedValue(
         makeReport({
           status: 'RELEASED',
-          analytes: [makeAnalyte({ numericValue: 8.2, flag: 'L' })],
+          tests: [
+            {
+              id: 'rt-1',
+              analytes: [makeAnalyte({ numericValue: 8.2, flag: 'L' })],
+            },
+          ],
         })
       );
     });
@@ -511,8 +532,11 @@ describe('ResultsService', () => {
     });
 
     it('computes flag H when value is above reference max', async () => {
-      prisma.resultReportAnalyte.findMany.mockResolvedValue([
-        makeAnalyte({ numericValue: 22.0 }),
+      prisma.resultReportTest.findMany.mockResolvedValue([
+        {
+          id: 'rt-1',
+          analytes: [makeAnalyte({ numericValue: 22.0 })],
+        },
       ]);
 
       await service.releaseReport('report-1', dto);
@@ -525,8 +549,11 @@ describe('ResultsService', () => {
     });
 
     it('computes flag N when value is within range', async () => {
-      prisma.resultReportAnalyte.findMany.mockResolvedValue([
-        makeAnalyte({ numericValue: 15.2 }),
+      prisma.resultReportTest.findMany.mockResolvedValue([
+        {
+          id: 'rt-1',
+          analytes: [makeAnalyte({ numericValue: 15.2 })],
+        },
       ]);
 
       await service.releaseReport('report-1', dto);
@@ -539,12 +566,17 @@ describe('ResultsService', () => {
     });
 
     it('sets null flag for non-numeric analytes', async () => {
-      prisma.resultReportAnalyte.findMany.mockResolvedValue([
-        makeAnalyte({
-          valueType: 'TEXT',
-          textValue: 'Ligeramente turbio',
-          numericValue: null,
-        }),
+      prisma.resultReportTest.findMany.mockResolvedValue([
+        {
+          id: 'rt-1',
+          analytes: [
+            makeAnalyte({
+              valueType: 'TEXT',
+              textValue: 'Ligeramente turbio',
+              numericValue: null,
+            }),
+          ],
+        },
       ]);
 
       await service.releaseReport('report-1', dto);

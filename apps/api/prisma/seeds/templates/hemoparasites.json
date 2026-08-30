@@ -3,8 +3,53 @@
   "species": "ANY",
   "title": "Hemoparásitos",
   "defaultObservations": "Tipo de muestra: sangre capilar o sangre central.",
+  "observationPhrases": [
+    {
+      "code": "SIN_HEMOPARASITOS",
+      "label": "Sin hemoparásitos",
+      "text": "No se observan hemoparásitos en la muestra analizada.",
+      "sectionCode": "RESULTADOS"
+    },
+    {
+      "code": "FORMAS_COMPATIBLES",
+      "label": "Formas compatibles con...",
+      "text": "Se observan formas compatibles con ...",
+      "sectionCode": "RESULTADOS"
+    },
+    {
+      "code": "CARGA_BAJA",
+      "label": "Carga parasitaria baja",
+      "text": "Carga parasitaria baja. Una carga baja no descarta infección activa. Se recomienda correlacionar con pruebas moleculares (PCR).",
+      "sectionCode": "RESULTADOS"
+    },
+    {
+      "code": "CONFIRMAR_PCR",
+      "label": "Confirmar con PCR",
+      "text": "Se recomienda confirmar mediante PCR para identificación de especie.",
+      "sectionCode": ""
+    },
+    {
+      "code": "REPETIR_EXAMEN",
+      "label": "Repetir examen",
+      "text": "Se recomienda repetir el examen con una nueva muestra.",
+      "sectionCode": ""
+    },
+    {
+      "code": "ANEMIA_HEMOLITICA",
+      "label": "Compatible con anemia hemolítica",
+      "text": "Hallazgos compatibles con proceso hemolítico asociado a hemoparásitos. Se recomienda hemograma completo y perfil bioquímico.",
+      "sectionCode": ""
+    },
+    {
+      "code": "MUESTRA_INADECUADA",
+      "label": "Muestra inadecuada",
+      "text": "Muestra recibida en condiciones inadecuadas para su procesamiento. Resultados orientativos.",
+      "sectionCode": ""
+    }
+  ],
   "sections": [
     {
+      "code": "RESULTADOS",
       "name": "Resultados",
       "sortOrder": 0,
       "analytes": [
@@ -16,6 +61,10 @@
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
+          "options": [
+            "No se observan hemoparásitos",
+            "Se observan formas compatibles"
+          ],
           "referenceRange": null
         },
         {
@@ -26,6 +75,10 @@
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
+          "options": [
+            "No se observan hemoparásitos",
+            "Se observan formas compatibles"
+          ],
           "referenceRange": null
         }
       ]

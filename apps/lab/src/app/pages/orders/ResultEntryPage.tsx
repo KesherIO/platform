@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { useToast } from '../../shared/components/ToastProvider';
 import { Skeleton } from '../../shared/components/Skeleton';
+import { Combobox } from '../../shared/components/Combobox';
+import { ObservationPhrasesPicker } from '../../shared/components/ObservationPhrasesPicker';
+import { evaluateAllFormulas } from '../../shared/formula';
 
 type Analyte = {
   id: string;
@@ -77,21 +80,62 @@ export function ResultEntryPage() {
         };
       }
     }
-    const initialObs =
-      session.report?.observations ??
-      session.template.defaultObservations ??
-      '';
+    const hasSavedValues = session.sections.some((s) =>
+      s.analytes.some((a) => a.savedValueId)
+    );
+    const initialObs = hasSavedValues
+      ? session.report?.observations ??
+        session.template.defaultObservations ??
+        ''
+      : session.template.defaultObservations ?? '';
     setValues(initial);
     setObservations(initialObs);
     savedValuesRef.current = initial;
     savedObservationsRef.current = initialObs;
   }, [session]);
 
+  const allAnalytes = useMemo(() => {
+    if (!session) return [];
+    return session.sections.flatMap((s: { analytes: Analyte[] }) => s.analytes);
+  }, [session]);
+
+  const formulaCodes = useMemo(() => {
+    return new Set(
+      allAnalytes
+        .filter((a: Analyte) => a.formula && !a.isHeader)
+        .map((a: Analyte) => a.id)
+    );
+  }, [allAnalytes]);
+
+  const formulaValues = useMemo(() => {
+    if (!allAnalytes.length) return {};
+    const forEval = allAnalytes
+      .filter((a: Analyte) => !a.isHeader)
+      .map((a: Analyte) => ({
+        code: a.code,
+        formula: a.formula,
+        numericValue: values[a.id]?.numericValue ?? null,
+      }));
+    return evaluateAllFormulas(forEval);
+  }, [allAnalytes, values]);
+
+  const formulaByAnalyteId = useMemo(() => {
+    const map: Record<string, number | null> = {};
+    for (const a of allAnalytes) {
+      if (a.formula && !a.isHeader) {
+        map[a.id] = formulaValues[a.code] ?? null;
+      }
+    }
+    return map;
+  }, [allAnalytes, formulaValues]);
+
   const buildAnalytePayload = () =>
-    Object.entries(values).map(([templateAnalyteId, v]) => ({
-      templateAnalyteId,
-      ...v,
-    }));
+    Object.entries(values)
+      .filter(([id]) => !formulaCodes.has(id))
+      .map(([templateAnalyteId, v]) => ({
+        templateAnalyteId,
+        ...v,
+      }));
 
   const handleSave = useCallback(async () => {
     if (!testId || !session) return;
@@ -212,7 +256,9 @@ export function ResultEntryPage() {
     const val = values[analyte.id] ?? {};
 
     const refRange = analyte.referenceRange;
-    const numVal = val.numericValue;
+    const numVal = analyte.formula
+      ? formulaByAnalyteId[analyte.id] ?? null
+      : val.numericValue;
     const isHigh =
       refRange?.max !== undefined &&
       numVal !== null &&
@@ -247,8 +293,10 @@ export function ResultEntryPage() {
               type="number"
               readOnly
               placeholder="—"
-              value={val.numericValue ?? ''}
-              className="w-24 rounded-lg border border-gray-700 bg-gray-800/50 px-2 py-1.5 text-right text-sm text-gray-400 focus:outline-none"
+              value={formulaByAnalyteId[analyte.id] ?? ''}
+              className={`w-24 rounded-lg border border-gray-700 bg-gray-800/50 px-2 py-1.5 text-right text-sm text-gray-400 focus:outline-none ${
+                isHigh || isLow ? flagColor : ''
+              }`}
             />
           ) : analyte.valueType === 'NUMERIC' ? (
             <input
@@ -271,23 +319,82 @@ export function ResultEntryPage() {
               } ${isHigh || isLow ? flagColor : ''}`}
             />
           ) : analyte.valueType === 'TEXT' ? (
-            <input
-              type="text"
-              readOnly={isReadOnly}
-              value={val.textValue ?? ''}
-              onChange={(e) =>
-                setValues((prev) => ({
-                  ...prev,
-                  [analyte.id]: {
-                    ...prev[analyte.id],
-                    textValue: e.target.value || null,
-                  },
-                }))
-              }
-              className={`w-40 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none ${
-                isReadOnly ? 'opacity-60' : ''
-              }`}
-            />
+            analyte.options.length > 0 ? (
+              <Combobox
+                value={val.textValue ?? ''}
+                options={analyte.options}
+                readOnly={isReadOnly}
+                onChange={(v) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    [analyte.id]: {
+                      ...prev[analyte.id],
+                      textValue: v || null,
+                    },
+                  }))
+                }
+                className={`w-40 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none ${
+                  isReadOnly ? 'opacity-60' : ''
+                }`}
+              />
+            ) : (
+              <input
+                type="text"
+                readOnly={isReadOnly}
+                value={val.textValue ?? ''}
+                onChange={(e) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    [analyte.id]: {
+                      ...prev[analyte.id],
+                      textValue: e.target.value || null,
+                    },
+                  }))
+                }
+                className={`w-40 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none ${
+                  isReadOnly ? 'opacity-60' : ''
+                }`}
+              />
+            )
+          ) : analyte.valueType === 'LONG_TEXT' ? (
+            analyte.options.length > 0 ? (
+              <Combobox
+                value={val.textValue ?? ''}
+                options={analyte.options}
+                readOnly={isReadOnly}
+                multiLine
+                onChange={(v) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    [analyte.id]: {
+                      ...prev[analyte.id],
+                      textValue: v || null,
+                    },
+                  }))
+                }
+                className={`w-56 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none ${
+                  isReadOnly ? 'opacity-60' : ''
+                }`}
+              />
+            ) : (
+              <textarea
+                readOnly={isReadOnly}
+                rows={3}
+                value={val.textValue ?? ''}
+                onChange={(e) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    [analyte.id]: {
+                      ...prev[analyte.id],
+                      textValue: e.target.value || null,
+                    },
+                  }))
+                }
+                className={`w-56 rounded-lg border border-gray-700 bg-gray-800 px-2 py-1.5 text-sm text-white focus:border-cyan focus:outline-none resize-none ${
+                  isReadOnly ? 'opacity-60' : ''
+                }`}
+              />
+            )
           ) : analyte.valueType === 'SELECT' ? (
             <select
               disabled={isReadOnly}
@@ -312,7 +419,7 @@ export function ResultEntryPage() {
                 </option>
               ))}
             </select>
-          ) : analyte.valueType === 'BOOLEAN' ? (
+          ) : analyte.valueType === 'POSITIVE_NEGATIVE' ? (
             <div className="flex gap-1">
               {['Positivo', 'Negativo'].map((opt) => {
                 const isPos = opt === 'Positivo';
@@ -415,6 +522,20 @@ export function ResultEntryPage() {
         )}
       </div>
 
+      {session.report?.correctionNotes && (
+        <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
+          <p className="text-sm font-semibold text-yellow-300">
+            {t('review.correction_banner')}
+          </p>
+          <p className="mt-1 text-xs text-yellow-400">
+            {t('review.correction_banner_notes')}
+          </p>
+          <p className="mt-1 text-sm text-yellow-200 whitespace-pre-wrap">
+            {session.report.correctionNotes}
+          </p>
+        </div>
+      )}
+
       {session.sections.map((section, si) => (
         <div
           key={section.id ?? si}
@@ -437,6 +558,19 @@ export function ResultEntryPage() {
         <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">
           {t('result_entry.observations')}
         </label>
+        {session.template.observationPhrases &&
+          session.template.observationPhrases.length > 0 && (
+            <ObservationPhrasesPicker
+              phrases={session.template.observationPhrases}
+              disabled={isReadOnly}
+              onInsert={(text) => {
+                setObservations((prev) => {
+                  if (!prev.trim()) return text;
+                  return prev.trimEnd() + '\n' + text;
+                });
+              }}
+            />
+          )}
         <textarea
           readOnly={isReadOnly}
           rows={3}

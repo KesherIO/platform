@@ -3,6 +3,7 @@ import {
   Get,
   Patch,
   Post,
+  Put,
   Delete,
   Param,
   Body,
@@ -44,14 +45,32 @@ import { SavePushSubscriptionDto } from './dto/save-push-subscription.dto';
 import { UpdateCollectionSettingsDto } from './dto/update-collection-settings.dto';
 import { AccessionOrderDto } from './dto/accession-order.dto';
 import { AssignTemplateDto } from './dto/assign-template.dto';
+import {
+  MarkSpecimenMissingDto,
+  ReverseSpecimenMissingDto,
+} from './dto/mark-missing.dto';
 import { ImportLabCatalogDto } from './dto/import-lab-catalog.dto';
 import { CatalogService } from '../catalog/catalog.service';
 import { ResultEntryService } from './result-entry.service';
 import { ResultsService } from '../results/results.service';
+import { ReviewService } from './review.service';
+import { ReleaseService } from './release.service';
+import { AmendmentService } from './amendment.service';
 import { WorklistService } from './worklist.service';
 import { ListWorklistDto } from './dto/list-worklist.dto';
 import { ClaimOrderedTestDto } from './dto/claim-ordered-test.dto';
 import { ReassignOrderedTestDto } from './dto/reassign-ordered-test.dto';
+import {
+  ApproveReleaseDto,
+  SubmitForReviewDto,
+  RequestCorrectionsDto,
+} from './dto/review.dto';
+import {
+  InitiateAmendmentDto,
+  EditAmendmentAnalytesDto,
+  ApproveAmendmentDto,
+} from './dto/amendment.dto';
+import { ReadinessService } from './readiness.service';
 
 @Controller('lab')
 export class LabController {
@@ -64,7 +83,11 @@ export class LabController {
     private readonly catalogService: CatalogService,
     private readonly resultEntryService: ResultEntryService,
     private readonly resultsService: ResultsService,
-    private readonly worklistService: WorklistService
+    private readonly reviewService: ReviewService,
+    private readonly releaseService: ReleaseService,
+    private readonly amendmentService: AmendmentService,
+    private readonly worklistService: WorklistService,
+    private readonly readinessService: ReadinessService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -259,6 +282,59 @@ export class LabController {
     );
   }
 
+  // POST /api/lab/orders/:orderId/specimens/:specimenId/mark-missing
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(
+    TenantRole.RECEPTIONIST,
+    TenantRole.TECHNICIAN,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
+  @Post('orders/:orderId/specimens/:specimenId/mark-missing')
+  @HttpCode(HttpStatus.OK)
+  markSpecimenMissing(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Param('specimenId') specimenId: string,
+    @Body() dto: MarkSpecimenMissingDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.specimenService.markMissing(
+      orderId,
+      specimenId,
+      tenant.tenantId,
+      dto,
+      user.id,
+      actorName
+    );
+  }
+
+  // POST /api/lab/orders/:orderId/specimens/:specimenId/reverse-missing
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/specimens/:specimenId/reverse-missing')
+  @HttpCode(HttpStatus.OK)
+  reverseSpecimenMissing(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Param('specimenId') specimenId: string,
+    @Body() dto: ReverseSpecimenMissingDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.specimenService.reverseMissing(
+      orderId,
+      specimenId,
+      tenant.tenantId,
+      dto,
+      user.id,
+      actorName
+    );
+  }
+
   // POST /api/lab/ordered-tests/:testId/resolve-template
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Roles(TenantRole.ADMIN, TenantRole.OWNER)
@@ -365,6 +441,23 @@ export class LabController {
     );
   }
 
+  // GET /api/lab/reports/by-order/:orderId
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('reports/by-order/:orderId')
+  getReportByOrder(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string
+  ) {
+    return this.resultsService.findReportByOrder(tenant.tenantId, orderId);
+  }
+
+  // GET /api/lab/reports/:reportId
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('reports/:reportId')
+  getReport(@Param('reportId') reportId: string) {
+    return this.resultsService.findReport(reportId);
+  }
+
   // POST /api/lab/reports/:reportId/release
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Post('reports/:reportId/release')
@@ -376,6 +469,243 @@ export class LabController {
     const processedByName =
       [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
     return this.resultsService.releaseReport(reportId, { processedByName });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Review workflow
+  // ---------------------------------------------------------------------------
+
+  // POST /api/lab/orders/:orderId/submit-for-review
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/submit-for-review')
+  @HttpCode(HttpStatus.OK)
+  submitForReview(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Body() dto: SubmitForReviewDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.reviewService.submitForReview(
+      orderId,
+      tenant.tenantId,
+      user.id,
+      actorName,
+      dto.testIds
+    );
+  }
+
+  // POST /api/lab/orders/:orderId/approve-release
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/approve-release')
+  @HttpCode(HttpStatus.OK)
+  approveAndRelease(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Body() dto: ApproveReleaseDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.releaseService.approveAndRelease({
+      orderId,
+      labTenantId: tenant.tenantId,
+      signerId: dto.signerId,
+      testIds: dto.testIds,
+      reviewNotes: dto.reviewNotes,
+      observations: dto.observations,
+      actorId: user.id,
+      actorName,
+    });
+  }
+
+  // POST /api/lab/orders/:orderId/request-corrections
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/request-corrections')
+  @HttpCode(HttpStatus.OK)
+  requestCorrections(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Body() dto: RequestCorrectionsDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.reviewService.requestCorrections(
+      orderId,
+      tenant.tenantId,
+      dto.correctionNotes,
+      dto.testIds,
+      user.id,
+      actorName
+    );
+  }
+
+  // GET /api/lab/signers/reviewers
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('signers/reviewers')
+  getReviewerSigners(@CurrentTenant() tenant: TenantContext) {
+    return this.reviewService.getReviewerSigners(tenant.tenantId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Release history & current results
+  // ---------------------------------------------------------------------------
+
+  // GET /api/lab/orders/:orderId/releases
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('orders/:orderId/releases')
+  getReleaseHistory(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string
+  ) {
+    return this.releaseService.getReleaseHistory(orderId, tenant.tenantId);
+  }
+
+  // GET /api/lab/orders/:orderId/current-results
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('orders/:orderId/current-results')
+  getCurrentResults(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string
+  ) {
+    return this.releaseService.getCurrentResults(orderId, tenant.tenantId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Amendment workflow
+  // ---------------------------------------------------------------------------
+
+  // POST /api/lab/orders/:orderId/amendments
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/amendments')
+  initiateAmendment(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Body() dto: InitiateAmendmentDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.amendmentService.initiateAmendment({
+      orderId,
+      labTenantId: tenant.tenantId,
+      reportTestId: dto.reportTestId,
+      reason: dto.reason,
+      actorId: user.id,
+      actorName,
+    });
+  }
+
+  // GET /api/lab/orders/:orderId/amendments/:amendmentId
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('orders/:orderId/amendments/:amendmentId')
+  getAmendment(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string,
+    @Param('amendmentId') amendmentId: string
+  ) {
+    return this.amendmentService.getAmendment(
+      orderId,
+      tenant.tenantId,
+      amendmentId
+    );
+  }
+
+  // PUT /api/lab/orders/:orderId/amendments/:amendmentId/analytes
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Put('orders/:orderId/amendments/:amendmentId/analytes')
+  editAmendmentAnalytes(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string,
+    @Param('amendmentId') amendmentId: string,
+    @Body() dto: EditAmendmentAnalytesDto
+  ) {
+    return this.amendmentService.editAmendmentAnalytes({
+      orderId,
+      labTenantId: tenant.tenantId,
+      amendmentId,
+      analytes: dto.analytes,
+    });
+  }
+
+  // POST /api/lab/orders/:orderId/amendments/:amendmentId/submit
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/amendments/:amendmentId/submit')
+  @HttpCode(HttpStatus.OK)
+  submitAmendmentForReview(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Param('amendmentId') amendmentId: string
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.amendmentService.submitForReview({
+      orderId,
+      labTenantId: tenant.tenantId,
+      amendmentId,
+      actorId: user.id,
+      actorName,
+    });
+  }
+
+  // POST /api/lab/orders/:orderId/amendments/:amendmentId/approve
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/amendments/:amendmentId/approve')
+  @HttpCode(HttpStatus.OK)
+  approveAmendment(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Param('amendmentId') amendmentId: string,
+    @Body() dto: ApproveAmendmentDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.amendmentService.approveAmendment({
+      orderId,
+      labTenantId: tenant.tenantId,
+      amendmentId,
+      signerId: dto.signerId,
+      reviewNotes: dto.reviewNotes,
+      observations: dto.observations,
+      actorId: user.id,
+      actorName,
+    });
+  }
+
+  // POST /api/lab/orders/:orderId/amendments/:amendmentId/cancel
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('orders/:orderId/amendments/:amendmentId/cancel')
+  @HttpCode(HttpStatus.OK)
+  cancelAmendment(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('orderId') orderId: string,
+    @Param('amendmentId') amendmentId: string
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.amendmentService.cancelAmendment({
+      orderId,
+      labTenantId: tenant.tenantId,
+      amendmentId,
+      actorId: user.id,
+      actorName,
+    });
   }
 
   // GET /api/lab/settings/laboratory
@@ -909,5 +1239,26 @@ export class LabController {
       dto.targetUserId,
       dto.version
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Catalog readiness
+  // ---------------------------------------------------------------------------
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('catalog/readiness')
+  getBulkReadiness(@CurrentTenant() tenant: TenantContext) {
+    return this.readinessService.checkBulkReadiness(tenant.tenantId);
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('catalog/:id/readiness')
+  getItemReadiness(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') catalogItemId: string
+  ) {
+    return this.readinessService.checkReadiness(tenant.tenantId, catalogItemId);
   }
 }

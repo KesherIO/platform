@@ -86,7 +86,18 @@
     "ACCEPTED": "Accepted",
     "IN_TRANSIT": "In transit",
     "RECEIVED_AT_LAB": "Received",
-    "FAILED": "Failed"
+    "FAILED": "Failed",
+    "MISSING": "Missing",
+    "EXPECTED": "Expected",
+    "RECEIVED": "Received",
+    "REJECTED": "Rejected",
+    "PARTIAL": "Partial",
+    "FINAL": "Final",
+    "AMENDMENT": "Amendment",
+    "PARTIAL_RESULTS": "Partial results",
+    "ALL_RELEASED": "All released",
+    "AMENDMENT_PENDING": "Amendment pending",
+    "APPROVED": "Approved"
   },
   "species": {
     "ANY": "Any species",
@@ -205,7 +216,10 @@
     "update": "Update results",
     "updated": "Results updated.",
     "observations": "Observations",
-    "observations_placeholder": "Free-text notes (optional)"
+    "observations_placeholder": "Free-text notes (optional)",
+    "validation_missing": "The following fields are required: {{fields}}",
+    "validation_formula": "The following formulas could not be computed: {{fields}}",
+    "quick_phrases": "Quick phrases"
   },
   "review": {
     "back": "← Back to order",
@@ -219,7 +233,63 @@
     "release_error": "Error releasing report:",
     "released_success": "Report released to clinic.",
     "edit_results": "Edit",
-    "loading_results": "Loading results..."
+    "loading_results": "Loading results...",
+    "submit_for_review_btn": "Submit for review",
+    "submit_for_review_success": "Report submitted for review.",
+    "submit_for_review_error": "Error submitting for review:",
+    "in_review_status": "This report is under review.",
+    "submitted_at": "Submitted for review",
+    "select_signer": "Select reviewing signer",
+    "select_signer_placeholder": "Choose a signer…",
+    "review_notes_label": "Review notes (optional)",
+    "review_notes_placeholder": "Add notes about this review…",
+    "approve_btn": "Approve & release",
+    "approve_confirm_title": "Release report?",
+    "approve_confirm": "This will release the report to the clinic. This action cannot be undone.",
+    "approve_success": "Report approved and released.",
+    "approve_error": "Error approving report:",
+    "corrections_btn": "Request corrections",
+    "corrections_notes_label": "Correction notes",
+    "corrections_notes_placeholder": "Describe what needs to be corrected…",
+    "corrections_notes_required": "Please provide correction notes.",
+    "corrections_success": "Report returned for corrections.",
+    "corrections_error": "Error requesting corrections:",
+    "correction_banner": "Corrections requested",
+    "correction_banner_notes": "The reviewer requested corrections:",
+    "no_reviewer_signers": "No reviewer signers configured. Add a signer with the Reviewer role in laboratory settings.",
+    "reviewer_panel_title": "Review decision",
+    "pending_tests_cannot_submit": "All tests must have results entered before submitting for review.",
+    "approver_info": "Approved by {{name}}",
+    "no_reviewer_warning": "No reviewer signers are configured. You must add at least one signer with the Reviewer role before submitting for review.",
+    "select_tests": "Select tests to release",
+    "select_all": "Select all",
+    "deselect_all": "Deselect all",
+    "selected_count": "{{count}} test(s) selected",
+    "release_type_partial": "This will be a partial release.",
+    "release_type_final": "This will be a final release (all tests).",
+    "release_history": "Release history",
+    "release_sequence": "Release #{{seq}}",
+    "no_releases_yet": "No releases yet.",
+    "amend_btn": "Amend",
+    "amend_reason_label": "Reason for amendment",
+    "amend_reason_placeholder": "Describe what needs to be corrected...",
+    "amend_initiate": "Start amendment",
+    "amend_cancel": "Cancel amendment",
+    "amend_submit_for_review": "Submit amendment for review",
+    "amend_approve": "Approve amendment",
+    "amendment_initiated": "Amendment created.",
+    "amendment_cancelled": "Amendment cancelled.",
+    "amendment_submitted": "Amendment submitted for review.",
+    "amendment_approved": "Amendment approved and released.",
+    "amendment_error": "Amendment error:",
+    "current_results": "Current released results",
+    "no_released_results": "No results have been released yet.",
+    "test_already_released": "Already released",
+    "approve_confirm_partial": "This will release {{count}} selected test(s) as a PARTIAL release. Other tests will remain pending.",
+    "approve_confirm_final": "This will release all remaining tests as a FINAL release.",
+    "submit_selected_btn": "Submit selected for review",
+    "original_value": "Original",
+    "corrected_value": "Corrected"
   },
   "settings": {
     "title": "Laboratory settings",
@@ -320,6 +390,11 @@
     "status": {
       "active": "Active",
       "inactive": "Inactive"
+    },
+    "readiness": {
+      "ready": "Ready",
+      "not_ready": "Not ready",
+      "issues": "{{count}} issue(s)"
     },
     "result_type": {
       "NUMERIC": "Numeric",
@@ -822,7 +897,22 @@
       "ARCHIVED": "Archived"
     },
     "age_min": "Age min (wk)",
-    "age_max": "Age max (wk)"
+    "age_max": "Age max (wk)",
+    "section_code": "Section code",
+    "observation_phrases": "Observation Phrases",
+    "add_phrase": "Add Phrase",
+    "no_phrases": "No observation phrases. Add reusable text snippets that technicians can quickly insert into the observations field.",
+    "phrase_label": "Label",
+    "phrase_label_placeholder": "e.g. Repeat exam",
+    "phrase_text": "Full text",
+    "phrase_text_placeholder": "e.g. It is recommended to repeat the exam with a new sample.",
+    "phrase_section": "Section",
+    "phrase_general": "General",
+    "duplicate_phrase_warning": "Two or more phrases have identical text. Consider removing duplicates before saving.",
+    "options_label": "Options",
+    "option_add_placeholder": "Add option...",
+    "formula_issues": "Formula issues detected",
+    "formula_errors_block_publish": "Template contains invalid formulas and cannot be published."
   },
   "worklist": {
     "title": "Department Worklist",
@@ -889,5 +979,15 @@
       "MICROBIOLOGY": "Microbiology",
       "OTHER": "Other"
     }
+  },
+  "specimens": {
+    "title": "Specimens",
+    "mark_missing": "Mark missing",
+    "reverse_missing": "Undo missing",
+    "missing_reason_placeholder": "Reason...",
+    "marked_missing_success": "Specimen marked as missing.",
+    "marked_missing_error": "Error marking specimen:",
+    "reverse_missing_success": "Missing status reversed.",
+    "reverse_missing_error": "Error reversing missing status:"
   }
 }

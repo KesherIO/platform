@@ -1,10 +1,97 @@
 {
   "catalogItemCode": "URINALYSIS",
   "species": "ANY",
-  "title": "Urianálisis Completo",
+  "title": "Uroanálisis Completo",
   "defaultObservations": "Tipo de muestra: orina.",
+  "observationPhrases": [
+    {
+      "code": "MUESTRA_INADECUADA",
+      "label": "Muestra inadecuada",
+      "text": "Muestra recibida en condiciones inadecuadas para su procesamiento. Resultados orientativos.",
+      "sectionCode": ""
+    },
+    {
+      "code": "REPETIR_EXAMEN",
+      "label": "Repetir examen",
+      "text": "Se recomienda repetir el examen con una nueva muestra.",
+      "sectionCode": ""
+    },
+    {
+      "code": "ORINA_CONCENTRADA",
+      "label": "Orina concentrada",
+      "text": "Orina altamente concentrada. Los valores semicuantitativos pueden estar sobreestimados.",
+      "sectionCode": "QUIMICA_DE_LA_ORINA"
+    },
+    {
+      "code": "ORINA_DILUIDA",
+      "label": "Orina diluida",
+      "text": "Orina diluida (densidad baja). Los valores semicuantitativos pueden estar subestimados.",
+      "sectionCode": "QUIMICA_DE_LA_ORINA"
+    },
+    {
+      "code": "PROTEINURIA",
+      "label": "Proteinuria — correlacionar",
+      "text": "Se detecta proteinuria. Se recomienda correlacionar con relación proteína/creatinina urinaria (UPC).",
+      "sectionCode": "QUIMICA_DE_LA_ORINA"
+    },
+    {
+      "code": "HEMATURIA",
+      "label": "Hematuria — confirmar",
+      "text": "Se detecta sangre en orina. Se recomienda confirmar con sedimento urinario y correlacionar clínicamente.",
+      "sectionCode": "QUIMICA_DE_LA_ORINA"
+    },
+    {
+      "code": "GLUCOSURIA",
+      "label": "Glucosuria — evaluar glucemia",
+      "text": "Se detecta glucosa en orina. Se recomienda evaluar glucemia para descartar diabetes mellitus u otras causas.",
+      "sectionCode": "QUIMICA_DE_LA_ORINA"
+    },
+    {
+      "code": "CRISTALES_ALMACENAMIENTO",
+      "label": "Cristales por almacenamiento",
+      "text": "La presencia de cristales puede estar relacionada con almacenamiento prolongado o refrigeración de la muestra.",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "BACTERIAS_UROCULTIVO",
+      "label": "Bacterias — sugerir urocultivo",
+      "text": "Se observan bacterias en el sedimento. Se sugiere urocultivo y antibiograma para confirmación e identificación.",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "CILINDROS_OBSERVADOS",
+      "label": "Cilindros — daño renal",
+      "text": "Se observan cilindros en el sedimento urinario. La presencia de cilindros sugiere compromiso tubular renal. Se recomienda correlacionar con perfil renal.",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "SEDIMENTO_ACTIVO",
+      "label": "Sedimento activo",
+      "text": "Sedimento urinario activo con presencia de leucocitos y bacterias. Compatible con infección del tracto urinario.",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "MUESTRA_CISTOCENTESIS",
+      "label": "Muestra por cistocentesis",
+      "text": "Muestra obtenida por cistocentesis.",
+      "sectionCode": ""
+    },
+    {
+      "code": "MUESTRA_CATETERIZACION",
+      "label": "Muestra por cateterización",
+      "text": "Muestra obtenida por cateterización uretral.",
+      "sectionCode": ""
+    },
+    {
+      "code": "MUESTRA_MICCION",
+      "label": "Muestra por micción",
+      "text": "Muestra obtenida por micción espontánea (chorro medio).",
+      "sectionCode": ""
+    }
+  ],
   "sections": [
     {
+      "code": "EXAMEN_MACROSCOPICO",
       "name": "Examen Macroscópico",
       "sortOrder": 0,
       "analytes": [
@@ -16,6 +103,7 @@
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
+          "options": ["Claro", "Ligeramente turbio", "Turbio", "Muy turbio"],
           "referenceRange": null
         },
         {
@@ -26,18 +114,28 @@
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
+          "options": [
+            "Amarillo claro",
+            "Amarillo",
+            "Amarillo oscuro",
+            "Ámbar",
+            "Naranja",
+            "Rojo",
+            "Marrón"
+          ],
           "referenceRange": null
         }
       ]
     },
     {
+      "code": "QUIMICA_DE_LA_ORINA",
       "name": "Química de la Orina",
       "sortOrder": 1,
       "analytes": [
         {
           "code": "UA_PH",
           "name": "pH",
-          "technique": "Método cromatográfico / Q",
+          "technique": "Tiras reactivas (Química seca)",
           "valueType": "TEXT",
           "unit": null,
           "sortOrder": 0,
@@ -57,86 +155,95 @@
         {
           "code": "UA_PROT",
           "name": "Proteínas",
-          "technique": "Método cromatográfico / Q",
+          "technique": "Tiras reactivas (Química seca)",
           "valueType": "TEXT",
           "unit": "g/L",
           "sortOrder": 2,
           "isHeader": false,
+          "options": ["Negativo", "Trazas", "+", "++", "+++"],
           "referenceRange": null
         },
         {
           "code": "UA_GLU",
           "name": "Glucosa",
-          "technique": "Método cromatográfico / Q",
+          "technique": "Tiras reactivas (Química seca)",
           "valueType": "TEXT",
           "unit": "mmol/L",
           "sortOrder": 3,
           "isHeader": false,
+          "options": ["Negativo", "Trazas", "+", "++", "+++", "++++"],
           "referenceRange": null
         },
         {
           "code": "UA_KETONES",
           "name": "Cuerpos Cetónicos",
-          "technique": "Método cromatográfico / Q",
+          "technique": "Tiras reactivas (Química seca)",
           "valueType": "TEXT",
           "unit": "mmol/L",
           "sortOrder": 4,
           "isHeader": false,
+          "options": ["Negativo", "Trazas", "+", "++", "+++"],
           "referenceRange": null
         },
         {
           "code": "UA_BLOOD",
           "name": "Sangre",
-          "technique": "Método cromatográfico / Q",
+          "technique": "Tiras reactivas (Química seca)",
           "valueType": "TEXT",
           "unit": "RBC/µL",
           "sortOrder": 5,
           "isHeader": false,
+          "options": ["Negativo", "Trazas", "+", "++", "+++"],
           "referenceRange": null
         },
         {
           "code": "UA_BILI",
           "name": "Bilirrubina",
-          "technique": "Método cromatográfico / Q",
+          "technique": "Tiras reactivas (Química seca)",
           "valueType": "TEXT",
           "unit": "µmol/L",
           "sortOrder": 6,
           "isHeader": false,
+          "options": ["Negativo", "+", "++", "+++"],
           "referenceRange": null
         },
         {
           "code": "UA_UBILI",
           "name": "Urobilinógeno",
-          "technique": "Método cromatográfico / Q",
+          "technique": "Tiras reactivas (Química seca)",
           "valueType": "TEXT",
           "unit": "µmol/L",
           "sortOrder": 7,
           "isHeader": false,
+          "options": ["Normal", "+", "++", "+++"],
           "referenceRange": null
         },
         {
           "code": "UA_WBC_DIP",
           "name": "Leucocitos",
-          "technique": "Método cromatográfico / Q",
+          "technique": "Tiras reactivas (Química seca)",
           "valueType": "TEXT",
           "unit": "WBC/µL",
           "sortOrder": 8,
           "isHeader": false,
+          "options": ["Negativo", "Trazas", "+", "++", "+++"],
           "referenceRange": null
         },
         {
           "code": "UA_NITRITOS",
           "name": "Nitritos",
-          "technique": "Método cromatográfico / Q",
+          "technique": "Tiras reactivas (Química seca)",
           "valueType": "TEXT",
           "unit": null,
           "sortOrder": 9,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": null
         }
       ]
     },
     {
+      "code": "EXAMEN_MICROSCOPICO",
       "name": "Examen Microscópico",
       "sortOrder": 2,
       "analytes": [
@@ -148,6 +255,7 @@
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
+          "options": ["No se observan", "Escasos", "Moderados", "Abundantes"],
           "referenceRange": null
         },
         {
@@ -158,6 +266,7 @@
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
+          "options": ["No se observan", "Escasos", "Moderados", "Abundantes"],
           "referenceRange": null
         },
         {
@@ -168,6 +277,7 @@
           "unit": null,
           "sortOrder": 2,
           "isHeader": false,
+          "options": ["No se observan", "Escasas", "Moderadas", "Abundantes"],
           "referenceRange": null
         },
         {
@@ -178,6 +288,7 @@
           "unit": null,
           "sortOrder": 3,
           "isHeader": false,
+          "options": ["No se observan", "Escasas", "Moderadas", "Abundantes"],
           "referenceRange": null
         },
         {
@@ -188,6 +299,7 @@
           "unit": null,
           "sortOrder": 4,
           "isHeader": false,
+          "options": ["No se observan", "Escasas", "Moderadas", "Abundantes"],
           "referenceRange": null
         },
         {
@@ -198,6 +310,7 @@
           "unit": null,
           "sortOrder": 5,
           "isHeader": false,
+          "options": ["No se observan", "Escasas", "Moderadas", "Abundantes"],
           "referenceRange": null
         },
         {
@@ -208,6 +321,15 @@
           "unit": null,
           "sortOrder": 6,
           "isHeader": false,
+          "options": [
+            "No se observan",
+            "Oxalato de calcio",
+            "Fosfato triple",
+            "Urato amorfo",
+            "Fosfato amorfo",
+            "Estruvita",
+            "Cistina"
+          ],
           "referenceRange": null
         },
         {
@@ -218,6 +340,7 @@
           "unit": null,
           "sortOrder": 7,
           "isHeader": false,
+          "options": ["No se observa", "Escaso", "Moderado", "Abundante"],
           "referenceRange": null
         },
         {
@@ -228,6 +351,7 @@
           "unit": null,
           "sortOrder": 8,
           "isHeader": false,
+          "options": ["No se observan", "Presentes"],
           "referenceRange": null
         },
         {
@@ -238,6 +362,13 @@
           "unit": null,
           "sortOrder": 9,
           "isHeader": false,
+          "options": [
+            "No se observan",
+            "Hialinos",
+            "Granulosos",
+            "Céreos",
+            "Celulares"
+          ],
           "referenceRange": null
         },
         {
@@ -248,6 +379,7 @@
           "unit": null,
           "sortOrder": 10,
           "isHeader": false,
+          "options": ["No se observan", "Presentes"],
           "referenceRange": null
         }
       ]

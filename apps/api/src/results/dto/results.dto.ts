@@ -7,6 +7,9 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
+  MaxLength,
+  ArrayMaxSize,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -95,7 +98,9 @@ export class ImportTemplateAnalyteDto {
   })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(30)
   @IsString({ each: true })
+  @MaxLength(200, { each: true })
   options?: string[];
 
   @ApiProperty({ example: 1 })
@@ -126,7 +131,43 @@ export class ImportTemplateAnalyteDto {
   referenceRange?: ReferenceRangeDto;
 }
 
+export class ImportObservationPhraseDto {
+  @ApiProperty({ example: 'REPETIR_EXAMEN' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  @Matches(/^[A-Z][A-Z0-9_]*$/)
+  code!: string;
+
+  @ApiProperty({ example: 'Repetir examen' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  label!: string;
+
+  @ApiProperty({
+    example: 'Se recomienda repetir el examen con una nueva muestra.',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  text!: string;
+
+  @ApiPropertyOptional({ example: 'EXAMEN_MICROSCOPICO' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  sectionCode?: string;
+}
+
 export class ImportTemplateSectionDto {
+  @ApiPropertyOptional({ example: 'EXAMEN_MACROSCOPICO' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  @Matches(/^[A-Z][A-Z0-9_]*$/)
+  code?: string;
+
   @ApiProperty({ example: 'Serie Roja' })
   @IsString()
   name!: string;
@@ -189,6 +230,7 @@ export class ImportTemplateDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   defaultObservations?: string;
 
   @ApiProperty({ type: [ImportTemplateSectionDto] })
@@ -196,6 +238,14 @@ export class ImportTemplateDto {
   @ValidateNested({ each: true })
   @Type(() => ImportTemplateSectionDto)
   sections!: ImportTemplateSectionDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => ImportObservationPhraseDto)
+  observationPhrases?: ImportObservationPhraseDto[];
 }
 
 // ---------------------------------------------------------------------------
