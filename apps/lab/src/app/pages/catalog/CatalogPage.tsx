@@ -15,7 +15,6 @@ import type {
   CatalogCounts,
   CatalogItem,
   ImportCatalogItemInput,
-  ReadinessResult,
 } from '../../types/lab.types';
 
 const STATUS_COLORS: Record<'active' | 'inactive', string> = {

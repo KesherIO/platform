@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '@prisma/client';
 import {
   CreateTemplateDefinitionDto,
   UpdateDraftVersionDto,
@@ -128,7 +129,7 @@ export class TemplateVersionService {
           status: 'DRAFT',
           defaultObservations: dto.defaultObservations,
           observationPhrases: dto.observationPhrases
-            ? (dto.observationPhrases as unknown as Record<string, unknown>[])
+            ? (dto.observationPhrases as unknown as Prisma.InputJsonValue)
             : undefined,
         },
       });
@@ -291,10 +292,7 @@ export class TemplateVersionService {
             defaultObservations: dto.defaultObservations,
           }),
           ...(dto.observationPhrases !== undefined && {
-            observationPhrases: dto.observationPhrases as unknown as Record<
-              string,
-              unknown
-            >[],
+            observationPhrases: dto.observationPhrases as unknown as Prisma.InputJsonValue,
           }),
         },
         include: VERSION_INCLUDE,

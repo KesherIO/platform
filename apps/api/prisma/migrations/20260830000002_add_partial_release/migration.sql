@@ -346,16 +346,18 @@ BEGIN
     WHERE r."status" = 'RELEASED'
       AND r."currentReleaseSequence" = 0
   LOOP
-    -- Fail loudly if a RELEASED report has no tests
+    -- Skip RELEASED reports with no tests (legacy records from before KAN-5)
     IF NOT EXISTS (
       SELECT 1 FROM "result_report_tests" WHERE "reportId" = rpt.report_id
     ) THEN
-      RAISE EXCEPTION 'RELEASED report % has no result_report_tests — cannot backfill release snapshot', rpt.report_id;
+      RAISE NOTICE 'Skipping RELEASED report % — no result_report_tests (legacy)', rpt.report_id;
+      CONTINUE;
     END IF;
 
-    -- Fail loudly if no signer was recorded
+    -- Skip RELEASED reports with no signer (legacy records from before KAN-6)
     IF rpt."reviewedBySignerId" IS NULL THEN
-      RAISE EXCEPTION 'RELEASED report % has no reviewedBySignerId — cannot create release snapshot without signer', rpt.report_id;
+      RAISE NOTICE 'Skipping RELEASED report % — no reviewedBySignerId (legacy)', rpt.report_id;
+      CONTINUE;
     END IF;
 
     release_id := gen_random_uuid()::text;

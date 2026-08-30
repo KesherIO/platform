@@ -280,7 +280,6 @@ describe('ReleaseService', () => {
     function buildTxMock(overrides?: {
       currentSeq?: number;
       staleCheck?: Array<{ id: string; status: string }>;
-      allTests?: Array<{ id: string; status: string }>;
       updatedTests?: Array<{ id: string; status: string }>;
       orderedTests?: Array<{ id: string; status: string }>;
       releaseId?: string;
@@ -288,7 +287,6 @@ describe('ReleaseService', () => {
       const opts = {
         currentSeq: 0,
         staleCheck: [{ id: 'rt-1', status: 'IN_REVIEW' }],
-        allTests: [{ id: 'rt-1', status: 'IN_REVIEW' }],
         updatedTests: [{ id: 'rt-1', status: 'RELEASED' }],
         orderedTests: [
           { id: 'ot-1', status: 'IN_REVIEW' },
@@ -304,7 +302,6 @@ describe('ReleaseService', () => {
       });
       tx.resultReportTest.findMany
         .mockResolvedValueOnce(opts.staleCheck)
-        .mockResolvedValueOnce(opts.allTests)
         .mockResolvedValueOnce(opts.updatedTests);
       tx.orderedTest.findMany.mockResolvedValue(opts.orderedTests);
       tx.resultReportRelease.create.mockResolvedValue({ id: opts.releaseId });
@@ -419,10 +416,6 @@ describe('ReleaseService', () => {
         fn(
           buildTxMock({
             staleCheck: [
-              { id: 'rt-1', status: 'IN_REVIEW' },
-              { id: 'rt-2', status: 'IN_REVIEW' },
-            ],
-            allTests: [
               { id: 'rt-1', status: 'IN_REVIEW' },
               { id: 'rt-2', status: 'IN_REVIEW' },
             ],

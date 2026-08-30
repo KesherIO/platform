@@ -2,12 +2,12 @@ import { IsString, IsOptional, IsArray, ArrayNotEmpty } from 'class-validator';
 
 export class ApproveReleaseDto {
   @IsString()
-  signerId: string;
+  signerId!: string;
 
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })
-  testIds: string[];
+  testIds!: string[];
 
   @IsString()
   @IsOptional()
@@ -27,7 +27,7 @@ export class SubmitForReviewDto {
 
 export class RequestCorrectionsDto {
   @IsString()
-  correctionNotes: string;
+  correctionNotes!: string;
 
   @IsArray()
   @IsString({ each: true })

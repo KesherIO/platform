@@ -11,7 +11,7 @@ import { Transform, Type } from 'class-transformer';
 
 class AmendmentAnalyteInput {
   @IsString()
-  id: string;
+  id!: string;
 
   @IsNumber()
   @IsOptional()
@@ -32,24 +32,24 @@ class AmendmentAnalyteInput {
 
 export class InitiateAmendmentDto {
   @IsString()
-  reportTestId: string;
+  reportTestId!: string;
 
   @IsString()
   @IsNotEmpty()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  reason: string;
+  reason!: string;
 }
 
 export class EditAmendmentAnalytesDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AmendmentAnalyteInput)
-  analytes: AmendmentAnalyteInput[];
+  analytes!: AmendmentAnalyteInput[];
 }
 
 export class ApproveAmendmentDto {
   @IsString()
-  signerId: string;
+  signerId!: string;
 
   @IsString()
   @IsOptional()

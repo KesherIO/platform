@@ -302,7 +302,7 @@ export const labApi = {
     getSession: (testId: string) =>
       get<{
         test: { id: string; name: string; code: string | null; status: string };
-        template: { title: string; defaultObservations: string | null };
+        template: { title: string; defaultObservations: string | null; observationPhrases: string[] | null };
         report: {
           id: string;
           observations: string | null;

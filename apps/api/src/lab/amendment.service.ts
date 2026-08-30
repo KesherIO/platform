@@ -5,7 +5,7 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
-import type { Prisma, ReleaseType } from '@prisma/client';
+import { Prisma, type ReleaseType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStatusService } from './order-status.service';
 import { evaluateAllFormulas } from './formula.util';

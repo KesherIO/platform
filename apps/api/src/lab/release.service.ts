@@ -5,7 +5,7 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
-import type { Prisma, ReleaseType } from '@prisma/client';
+import { Prisma, type ReleaseType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStatusService } from './order-status.service';
 import { evaluateAllFormulas } from './formula.util';
@@ -204,10 +204,6 @@ export class ReleaseService {
 
         const newSequence = report.currentReleaseSequence + 1;
 
-        const allTests = await tx.resultReportTest.findMany({
-          where: { reportId },
-          select: { id: true, status: true },
-        });
         const allOrderedTests = await tx.orderedTest.findMany({
           where: { orderId },
           select: { id: true, status: true },
