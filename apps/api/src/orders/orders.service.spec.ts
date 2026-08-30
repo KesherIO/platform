@@ -158,14 +158,12 @@ describe('OrdersService', () => {
       { catalogItem: pkgItem },
     ]);
     prisma.catalogItemComposition = {
-      findMany: jest
-        .fn()
-        .mockResolvedValue([
-          {
-            packageId: 'pkg-1',
-            component: { id: 'comp-1', name: 'Reticulocyte Count' },
-          },
-        ]),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          packageId: 'pkg-1',
+          component: { id: 'comp-1', name: 'Reticulocyte Count' },
+        },
+      ]),
     };
     readinessService.checkBulkReadiness.mockResolvedValue({
       items: [
