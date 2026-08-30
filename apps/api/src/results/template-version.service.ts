@@ -292,7 +292,8 @@ export class TemplateVersionService {
             defaultObservations: dto.defaultObservations,
           }),
           ...(dto.observationPhrases !== undefined && {
-            observationPhrases: dto.observationPhrases as unknown as Prisma.InputJsonValue,
+            observationPhrases:
+              dto.observationPhrases as unknown as Prisma.InputJsonValue,
           }),
         },
         include: VERSION_INCLUDE,
