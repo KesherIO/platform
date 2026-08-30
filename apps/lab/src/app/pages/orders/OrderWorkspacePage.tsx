@@ -7,7 +7,8 @@ import { StatusBadge } from '../../shared/components/StatusBadge';
 import { Skeleton } from '../../shared/components/Skeleton';
 import { AccessionDialog } from './AccessionDialog';
 import { useToast } from '../../shared/components/ToastProvider';
-import type { OrderedTest } from '../../types/lab.types';
+import { useAuth } from '../../auth/AuthContext';
+import type { OrderedTest, Specimen } from '../../types/lab.types';
 
 const TECHNICAL_EVENT_TYPES = new Set([
   'NOTIFICATION_SENT',
@@ -119,6 +120,7 @@ export function OrderWorkspacePage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { isAdmin } = useAuth();
   const [transitioning, setTransitioning] = useState(false);
   const [retryingTestId, setRetryingTestId] = useState<string | null>(null);
   const [pickingTemplateForTestId, setPickingTemplateForTestId] = useState<
@@ -131,6 +133,11 @@ export function OrderWorkspacePage() {
   const [templateSearch, setTemplateSearch] = useState('');
   const [confirmingReceived, setConfirmingReceived] = useState(false);
   const [showAccessionDialog, setShowAccessionDialog] = useState(false);
+  const [missingReason, setMissingReason] = useState('');
+  const [markingMissingId, setMarkingMissingId] = useState<string | null>(null);
+  const [reversingMissingId, setReversingMissingId] = useState<string | null>(
+    null
+  );
 
   const {
     data: order,
@@ -168,6 +175,43 @@ export function OrderWorkspacePage() {
       setShowAccessionDialog(true);
     } finally {
       setConfirmingReceived(false);
+    }
+  };
+
+  const handleMarkMissing = async (specimen: Specimen) => {
+    if (!orderId || !missingReason.trim()) return;
+    setMarkingMissingId(specimen.id);
+    try {
+      await labApi.specimens.markMissing(
+        orderId,
+        specimen.id,
+        missingReason.trim()
+      );
+      toast.success(t('specimens.marked_missing_success'));
+      setMissingReason('');
+      invalidateOrder();
+    } catch (err) {
+      toast.error(
+        `${t('specimens.marked_missing_error')} ${(err as Error).message}`
+      );
+    } finally {
+      setMarkingMissingId(null);
+    }
+  };
+
+  const handleReverseMissing = async (specimen: Specimen) => {
+    if (!orderId) return;
+    setReversingMissingId(specimen.id);
+    try {
+      await labApi.specimens.reverseMissing(orderId, specimen.id);
+      toast.success(t('specimens.reverse_missing_success'));
+      invalidateOrder();
+    } catch (err) {
+      toast.error(
+        `${t('specimens.reverse_missing_error')} ${(err as Error).message}`
+      );
+    } finally {
+      setReversingMissingId(null);
     }
   };
 
@@ -562,6 +606,71 @@ export function OrderWorkspacePage() {
                     : t('collections.confirm_received')}
                 </button>
               )}
+            </section>
+          )}
+
+          {order.specimens && order.specimens.length > 0 && (
+            <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+              <h2 className="mb-3 text-sm font-semibold text-gray-300">
+                {t('specimens.title')}
+              </h2>
+              <div className="space-y-2">
+                {order.specimens.map((specimen) => (
+                  <div
+                    key={specimen.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-950 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm text-white">
+                        {specimen.accessionNumber}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {specimen.specimenType} · {specimen.containerType}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={specimen.status} size="sm" />
+                      {(specimen.status === 'EXPECTED' ||
+                        specimen.status === 'RECEIVED') && (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            placeholder={t(
+                              'specimens.missing_reason_placeholder'
+                            )}
+                            value={missingReason}
+                            onChange={(e) => setMissingReason(e.target.value)}
+                            className="w-32 rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-white placeholder-gray-500"
+                          />
+                          <button
+                            onClick={() => handleMarkMissing(specimen)}
+                            disabled={
+                              markingMissingId === specimen.id ||
+                              !missingReason.trim()
+                            }
+                            className="rounded bg-amber-600/20 px-2 py-1 text-xs font-medium text-amber-300 hover:bg-amber-600/30 disabled:opacity-50"
+                          >
+                            {markingMissingId === specimen.id
+                              ? '...'
+                              : t('specimens.mark_missing')}
+                          </button>
+                        </div>
+                      )}
+                      {specimen.status === 'MISSING' && isAdmin && (
+                        <button
+                          onClick={() => handleReverseMissing(specimen)}
+                          disabled={reversingMissingId === specimen.id}
+                          className="rounded bg-gray-700 px-2 py-1 text-xs font-medium text-gray-300 hover:bg-gray-600 disabled:opacity-50"
+                        >
+                          {reversingMissingId === specimen.id
+                            ? '...'
+                            : t('specimens.reverse_missing')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
 

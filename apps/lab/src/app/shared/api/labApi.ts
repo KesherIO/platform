@@ -26,6 +26,12 @@ import type {
   WorklistQuery,
   WorklistCountsResponse,
   LabSigner,
+  ReadinessResult,
+  BulkReadinessResponse,
+  ReleaseHistoryResponse,
+  CurrentResultsResponse,
+  AmendmentInfo,
+  AmendmentAnalyteInfo,
 } from '../../types/lab.types';
 
 async function authHeaders(): Promise<HeadersInit> {
@@ -46,6 +52,16 @@ async function get<T>(path: string): Promise<T> {
 async function patch<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`/api/${path}`, {
     method: 'PATCH',
+    headers: await authHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<T>;
+}
+
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api/${path}`, {
+    method: 'PUT',
     headers: await authHeaders(),
     body: JSON.stringify(body),
   });
@@ -262,6 +278,16 @@ export const labApi = {
       ),
     update: (specimenId: string, data: Record<string, unknown>) =>
       patch<Specimen>(`lab/specimens/${specimenId}`, data),
+    markMissing: (orderId: string, specimenId: string, reason: string) =>
+      post<Specimen>(
+        `lab/orders/${orderId}/specimens/${specimenId}/mark-missing`,
+        { reason, confirm: true }
+      ),
+    reverseMissing: (orderId: string, specimenId: string, reason?: string) =>
+      post<Specimen>(
+        `lab/orders/${orderId}/specimens/${specimenId}/reverse-missing`,
+        { reason, confirm: true }
+      ),
     resolveTemplate: (orderedTestId: string) =>
       post<{ resolved: boolean; test: { id: string; status: string } }>(
         `lab/ordered-tests/${orderedTestId}/resolve-template`
@@ -277,7 +303,11 @@ export const labApi = {
       get<{
         test: { id: string; name: string; code: string | null; status: string };
         template: { title: string; defaultObservations: string | null };
-        report: { id: string; observations: string | null; correctionNotes?: string | null } | null;
+        report: {
+          id: string;
+          observations: string | null;
+          correctionNotes?: string | null;
+        } | null;
         sections: Array<{
           id: string | null;
           name: string | null;
@@ -326,25 +356,31 @@ export const labApi = {
       post<{ id: string; status: string }>(`lab/reports/${reportId}/release`),
   },
   reports: {
-    getById: (reportId: string) =>
-      get<unknown>(`lab/reports/${reportId}`),
+    getById: (reportId: string) => get<unknown>(`lab/reports/${reportId}`),
     getByOrderId: (orderId: string) =>
       get<unknown>(`lab/reports/by-order/${orderId}`),
   },
   review: {
-    submitForReview: (orderId: string) =>
+    submitForReview: (orderId: string, testIds?: string[]) =>
       post<{ status: string; reportId: string }>(
-        `lab/orders/${orderId}/submit-for-review`
+        `lab/orders/${orderId}/submit-for-review`,
+        testIds ? { testIds } : {}
       ),
     approveAndRelease: (
       orderId: string,
-      signerId: string,
-      reviewNotes?: string
+      data: {
+        signerId: string;
+        testIds: string[];
+        reviewNotes?: string;
+        observations?: string;
+      }
     ) =>
-      post<{ status: string; reportId: string }>(
-        `lab/orders/${orderId}/approve-release`,
-        { signerId, reviewNotes }
-      ),
+      post<{
+        releaseId: string;
+        releaseSequence: number;
+        releaseType: string;
+        aggregateReportStatus: string;
+      }>(`lab/orders/${orderId}/approve-release`, data),
     requestCorrections: (
       orderId: string,
       correctionNotes: string,
@@ -354,8 +390,60 @@ export const labApi = {
         `lab/orders/${orderId}/request-corrections`,
         { correctionNotes, testIds }
       ),
-    getReviewerSigners: () =>
-      get<LabSigner[]>('lab/signers/reviewers'),
+    getReviewerSigners: () => get<LabSigner[]>('lab/signers/reviewers'),
+  },
+  release: {
+    getHistory: (orderId: string) =>
+      get<ReleaseHistoryResponse>(`lab/orders/${orderId}/releases`),
+    getCurrentResults: (orderId: string) =>
+      get<CurrentResultsResponse>(`lab/orders/${orderId}/current-results`),
+  },
+  amendment: {
+    initiate: (
+      orderId: string,
+      data: { reportTestId: string; reason: string }
+    ) =>
+      post<{
+        amendmentId: string;
+        status: string;
+        analytes: AmendmentAnalyteInfo[];
+      }>(`lab/orders/${orderId}/amendments`, data),
+    get: (orderId: string, amendmentId: string) =>
+      get<{ amendment: AmendmentInfo; sourceAnalytes: AmendmentAnalyteInfo[] }>(
+        `lab/orders/${orderId}/amendments/${amendmentId}`
+      ),
+    editAnalytes: (
+      orderId: string,
+      amendmentId: string,
+      analytes: Array<{
+        id: string;
+        numericValue?: number | null;
+        textValue?: string | null;
+        booleanValue?: boolean | null;
+        selectValue?: string | null;
+      }>
+    ) =>
+      put<{ updated: number }>(
+        `lab/orders/${orderId}/amendments/${amendmentId}/analytes`,
+        { analytes }
+      ),
+    submitForReview: (orderId: string, amendmentId: string) =>
+      post<{ status: string }>(
+        `lab/orders/${orderId}/amendments/${amendmentId}/submit`
+      ),
+    approve: (
+      orderId: string,
+      amendmentId: string,
+      data: { signerId: string; reviewNotes?: string; observations?: string }
+    ) =>
+      post<unknown>(
+        `lab/orders/${orderId}/amendments/${amendmentId}/approve`,
+        data
+      ),
+    cancel: (orderId: string, amendmentId: string) =>
+      post<{ status: string }>(
+        `lab/orders/${orderId}/amendments/${amendmentId}/cancel`
+      ),
   },
   worklist: {
     list: (params?: WorklistQuery) => {
@@ -411,5 +499,11 @@ export const labApi = {
     archive: (versionId: string) =>
       post<TemplateVersion>(`lab/template-versions/${versionId}/archive`),
     delete: (id: string) => del(`lab/templates/${id}`),
+  },
+
+  readiness: {
+    single: (catalogItemId: string) =>
+      get<ReadinessResult>(`lab/catalog/${catalogItemId}/readiness`),
+    bulk: () => get<BulkReadinessResponse>('lab/catalog/readiness'),
   },
 };

@@ -1037,8 +1037,7 @@ export class SpecimenService {
           continue;
         }
 
-        const targetStatus =
-          test.reportTests.length > 0 ? 'READY' : 'PENDING';
+        const targetStatus = test.reportTests.length > 0 ? 'READY' : 'PENDING';
         await tx.orderedTest.update({
           where: { id: test.id },
           data: {

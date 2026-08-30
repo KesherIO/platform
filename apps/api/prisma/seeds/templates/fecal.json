@@ -97,7 +97,14 @@
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
-          "options": ["Normal", "Blando", "Líquido", "Diarreico", "Mucoso", "Sanguinolento"],
+          "options": [
+            "Normal",
+            "Blando",
+            "Líquido",
+            "Diarreico",
+            "Mucoso",
+            "Sanguinolento"
+          ],
           "referenceRange": null
         },
         {
@@ -108,7 +115,14 @@
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
-          "options": ["Marrón", "Marrón oscuro", "Amarillo", "Verde", "Negro", "Rojo"],
+          "options": [
+            "Marrón",
+            "Marrón oscuro",
+            "Amarillo",
+            "Verde",
+            "Negro",
+            "Rojo"
+          ],
           "referenceRange": null
         },
         {
@@ -119,7 +133,13 @@
           "unit": null,
           "sortOrder": 2,
           "isHeader": false,
-          "options": ["No se observan", "Restos de alimento", "Moco", "Sangre", "Parásitos macroscópicos"],
+          "options": [
+            "No se observan",
+            "Restos de alimento",
+            "Moco",
+            "Sangre",
+            "Parásitos macroscópicos"
+          ],
           "referenceRange": null
         }
       ]

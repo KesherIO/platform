@@ -105,33 +105,42 @@ export class OrdersService {
         ({ catalogItem: ci }) => ci.kind === 'PACKAGE'
       );
       if (packageSelections.length > 0) {
-        const compositions =
-          await this.prisma.catalogItemComposition.findMany({
-            where: {
-              packageId: { in: packageSelections.map(({ catalogItem }) => catalogItem.id) },
+        const compositions = await this.prisma.catalogItemComposition.findMany({
+          where: {
+            packageId: {
+              in: packageSelections.map(({ catalogItem }) => catalogItem.id),
             },
-            select: {
-              packageId: true,
-              component: { select: { id: true, name: true } },
-            },
-          });
+          },
+          select: {
+            packageId: true,
+            component: { select: { id: true, name: true } },
+          },
+        });
 
         const unreadyComponents: Array<{
           packageName: string;
           componentId: string;
           componentName: string;
-          reasons: Array<{ code: string; message: string; resourceId?: string }>;
+          reasons: Array<{
+            code: string;
+            message: string;
+            resourceId?: string;
+          }>;
         }> = [];
 
         const packageNameById = new Map(
-          packageSelections.map(({ catalogItem }) => [catalogItem.id, catalogItem.name])
+          packageSelections.map(({ catalogItem }) => [
+            catalogItem.id,
+            catalogItem.name,
+          ])
         );
 
         for (const comp of compositions) {
           const r = readinessMap.get(comp.component.id);
           if (r && !r.ready) {
             unreadyComponents.push({
-              packageName: packageNameById.get(comp.packageId) ?? comp.packageId,
+              packageName:
+                packageNameById.get(comp.packageId) ?? comp.packageId,
               componentId: comp.component.id,
               componentName: comp.component.name,
               reasons: r.reasons,
@@ -140,20 +149,27 @@ export class OrdersService {
         }
 
         if (unreadyComponents.length > 0) {
-          const byPackage = new Map<string, {
-            packageId: string;
-            packageName: string;
-            unreadyComponents: Array<{
-              componentId: string;
-              componentName: string;
-              reasons: Array<{ code: string; message: string; resourceId?: string }>;
-            }>;
-          }>();
+          const byPackage = new Map<
+            string,
+            {
+              packageId: string;
+              packageName: string;
+              unreadyComponents: Array<{
+                componentId: string;
+                componentName: string;
+                reasons: Array<{
+                  code: string;
+                  message: string;
+                  resourceId?: string;
+                }>;
+              }>;
+            }
+          >();
 
           for (const comp of unreadyComponents) {
-            const pkgId = compositions.find(
-              (c) => c.component.id === comp.componentId
-            )?.packageId ?? 'unknown';
+            const pkgId =
+              compositions.find((c) => c.component.id === comp.componentId)
+                ?.packageId ?? 'unknown';
             let pkg = byPackage.get(pkgId);
             if (!pkg) {
               pkg = {

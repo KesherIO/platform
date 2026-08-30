@@ -86,7 +86,18 @@
     "ACCEPTED": "Accepted",
     "IN_TRANSIT": "In transit",
     "RECEIVED_AT_LAB": "Received",
-    "FAILED": "Failed"
+    "FAILED": "Failed",
+    "MISSING": "Missing",
+    "EXPECTED": "Expected",
+    "RECEIVED": "Received",
+    "REJECTED": "Rejected",
+    "PARTIAL": "Partial",
+    "FINAL": "Final",
+    "AMENDMENT": "Amendment",
+    "PARTIAL_RESULTS": "Partial results",
+    "ALL_RELEASED": "All released",
+    "AMENDMENT_PENDING": "Amendment pending",
+    "APPROVED": "Approved"
   },
   "species": {
     "ANY": "Any species",
@@ -248,7 +259,37 @@
     "no_reviewer_signers": "No reviewer signers configured. Add a signer with the Reviewer role in laboratory settings.",
     "reviewer_panel_title": "Review decision",
     "pending_tests_cannot_submit": "All tests must have results entered before submitting for review.",
-    "approver_info": "Approved by {{name}}"
+    "approver_info": "Approved by {{name}}",
+    "no_reviewer_warning": "No reviewer signers are configured. You must add at least one signer with the Reviewer role before submitting for review.",
+    "select_tests": "Select tests to release",
+    "select_all": "Select all",
+    "deselect_all": "Deselect all",
+    "selected_count": "{{count}} test(s) selected",
+    "release_type_partial": "This will be a partial release.",
+    "release_type_final": "This will be a final release (all tests).",
+    "release_history": "Release history",
+    "release_sequence": "Release #{{seq}}",
+    "no_releases_yet": "No releases yet.",
+    "amend_btn": "Amend",
+    "amend_reason_label": "Reason for amendment",
+    "amend_reason_placeholder": "Describe what needs to be corrected...",
+    "amend_initiate": "Start amendment",
+    "amend_cancel": "Cancel amendment",
+    "amend_submit_for_review": "Submit amendment for review",
+    "amend_approve": "Approve amendment",
+    "amendment_initiated": "Amendment created.",
+    "amendment_cancelled": "Amendment cancelled.",
+    "amendment_submitted": "Amendment submitted for review.",
+    "amendment_approved": "Amendment approved and released.",
+    "amendment_error": "Amendment error:",
+    "current_results": "Current released results",
+    "no_released_results": "No results have been released yet.",
+    "test_already_released": "Already released",
+    "approve_confirm_partial": "This will release {{count}} selected test(s) as a PARTIAL release. Other tests will remain pending.",
+    "approve_confirm_final": "This will release all remaining tests as a FINAL release.",
+    "submit_selected_btn": "Submit selected for review",
+    "original_value": "Original",
+    "corrected_value": "Corrected"
   },
   "settings": {
     "title": "Laboratory settings",
@@ -349,6 +390,11 @@
     "status": {
       "active": "Active",
       "inactive": "Inactive"
+    },
+    "readiness": {
+      "ready": "Ready",
+      "not_ready": "Not ready",
+      "issues": "{{count}} issue(s)"
     },
     "result_type": {
       "NUMERIC": "Numeric",
@@ -864,7 +910,9 @@
     "phrase_general": "General",
     "duplicate_phrase_warning": "Two or more phrases have identical text. Consider removing duplicates before saving.",
     "options_label": "Options",
-    "option_add_placeholder": "Add option..."
+    "option_add_placeholder": "Add option...",
+    "formula_issues": "Formula issues detected",
+    "formula_errors_block_publish": "Template contains invalid formulas and cannot be published."
   },
   "worklist": {
     "title": "Department Worklist",
@@ -931,5 +979,15 @@
       "MICROBIOLOGY": "Microbiology",
       "OTHER": "Other"
     }
+  },
+  "specimens": {
+    "title": "Specimens",
+    "mark_missing": "Mark missing",
+    "reverse_missing": "Undo missing",
+    "missing_reason_placeholder": "Reason...",
+    "marked_missing_success": "Specimen marked as missing.",
+    "marked_missing_error": "Error marking specimen:",
+    "reverse_missing_success": "Missing status reversed.",
+    "reverse_missing_error": "Error reversing missing status:"
   }
 }

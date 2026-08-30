@@ -20,7 +20,12 @@ export type OrderedTestStatus =
   | 'BLOCKED'
   | 'CANCELLED';
 export type ResultEntryMethod = 'MANUAL' | 'INSTRUMENT' | 'IMPORTED';
-export type SpecimenStatus = 'EXPECTED' | 'RECEIVED' | 'ACCEPTED' | 'REJECTED';
+export type SpecimenStatus =
+  | 'EXPECTED'
+  | 'RECEIVED'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'MISSING';
 export type BlockReason =
   | 'MISSING_SPECIMEN'
   | 'REJECTED_SPECIMEN'
@@ -31,6 +36,13 @@ export type BlockReason =
   | 'MISSING_RESULT_TEMPLATE'
   | 'OTHER';
 export type ReportStatus = 'DRAFT' | 'IN_REVIEW' | 'RELEASED';
+export type ReleaseType = 'PARTIAL' | 'FINAL' | 'AMENDMENT';
+export type AggregateReportStatus =
+  | 'PARTIAL_RESULTS'
+  | 'ALL_RELEASED'
+  | 'AMENDMENT_PENDING';
+export type ResultReportTestStatus = 'DRAFT' | 'IN_REVIEW' | 'RELEASED';
+export type AmendmentStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'CANCELLED';
 export type Priority = 'ROUTINE' | 'URGENT' | 'STAT';
 
 export type DeliveryMethod = 'LAB_PICKUP' | 'CLIENT_DELIVERY';
@@ -122,6 +134,8 @@ export interface Specimen {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  markedMissingAt: string | null;
+  markedMissingById: string | null;
 }
 
 export interface ExpectedSpecimenGroup {
@@ -656,6 +670,19 @@ export interface TemplateVersion {
   createdAt: string;
   sections?: TemplateSection[];
   analytes?: TemplateAnalyte[];
+  formulaWarnings?: FormulaValidationError[];
+}
+
+export interface FormulaValidationError {
+  analyteCode: string;
+  analyteName: string;
+  sectionName: string | null;
+  formula: string;
+  errors: Array<{
+    code: string;
+    message: string;
+    ref?: string;
+  }>;
 }
 
 export interface TemplateDefinition {
@@ -728,4 +755,124 @@ export interface WorklistCountsResponse {
   departments: DepartmentCount[];
   totalReady: number;
   noDepartment: { ready: number; inProgress: number; total: number } | null;
+}
+
+// ---------------------------------------------------------------------------
+// Operational Readiness
+// ---------------------------------------------------------------------------
+
+export type ReadinessReasonCode =
+  | 'CATALOG_ITEM_INACTIVE'
+  | 'NO_PUBLISHED_TEMPLATE'
+  | 'NO_SPECIMEN_CONFIG'
+  | 'NO_PROCESSING_METHOD'
+  | 'ANALYZER_REQUIRED_BUT_MISSING'
+  | 'NO_REVIEWER_SIGNER';
+
+export interface ReadinessCheck {
+  code: ReadinessReasonCode;
+  message: string;
+  resourceId?: string;
+}
+
+export interface ReadinessResult {
+  catalogItemId: string;
+  catalogItemCode: string | null;
+  catalogItemName: string;
+  ready: boolean;
+  reasons: ReadinessCheck[];
+}
+
+export interface BulkReadinessResponse {
+  items: ReadinessResult[];
+  summary: { total: number; ready: number; notReady: number };
+}
+
+// ---------------------------------------------------------------------------
+// Release & Amendment types
+// ---------------------------------------------------------------------------
+
+export interface ReleaseTestInfo {
+  catalogItemName: string;
+  catalogItemCode: string | null;
+  amendsReleaseTestId: string | null;
+}
+
+export interface ReleaseInfo {
+  id: string;
+  releaseSequence: number;
+  releaseType: ReleaseType;
+  signerName: string;
+  releasedAt: string;
+  tests: ReleaseTestInfo[];
+  artifacts: Array<{
+    status: string;
+    storageUrl: string | null;
+  }>;
+}
+
+export interface ReleaseHistoryResponse {
+  releases: ReleaseInfo[];
+  aggregateReportStatus: AggregateReportStatus;
+}
+
+export interface AmendmentAnalyteInfo {
+  id: string;
+  code: string;
+  name: string;
+  sectionName: string | null;
+  sortOrder: number;
+  isHeader: boolean;
+  valueType: string;
+  numericValue: number | null;
+  textValue: string | null;
+  booleanValue: boolean | null;
+  selectValue: string | null;
+  unit: string | null;
+  flag: string | null;
+  referenceSnapshot: unknown;
+}
+
+export interface AmendmentInfo {
+  id: string;
+  status: AmendmentStatus;
+  reason: string;
+  reportTestId: string;
+  sourceReleaseId: string;
+  analytes: AmendmentAnalyteInfo[];
+  reportTest?: {
+    id: string;
+    orderedTestId: string;
+    templateVersion?: { title: string };
+  };
+}
+
+export interface CurrentResultAnalyte {
+  code: string;
+  name: string;
+  sectionName: string | null;
+  sortOrder: number;
+  isHeader: boolean;
+  valueType: string;
+  numericValue: number | null;
+  textValue: string | null;
+  booleanValue: boolean | null;
+  selectValue: string | null;
+  unit: string | null;
+  flag: string | null;
+  referenceSnapshot: unknown;
+}
+
+export interface CurrentResultTest {
+  catalogItemName: string;
+  catalogItemCode: string | null;
+  releaseSequence: number;
+  releaseType: ReleaseType;
+  releasedAt: string;
+  signerName: string;
+  analytes: CurrentResultAnalyte[];
+}
+
+export interface CurrentResultsResponse {
+  tests: CurrentResultTest[];
 }

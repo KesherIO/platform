@@ -32,7 +32,10 @@ describe('evaluateFormula', () => {
   });
 
   it('evaluates MCH formula: ([HGB]*10)/[RBC]', () => {
-    const result = evaluateFormula('([HGB]*10)/[RBC]', { HGB: 14.7, RBC: 6.76 });
+    const result = evaluateFormula('([HGB]*10)/[RBC]', {
+      HGB: 14.7,
+      RBC: 6.76,
+    });
     expect(result).toBeCloseTo(21.746, 2);
   });
 
@@ -50,10 +53,12 @@ describe('evaluateFormula', () => {
   });
 
   it('evaluates complex osmolarity formula', () => {
-    const result = evaluateFormula(
-      '(2*([NA]+[K]))+([GLU]/18)+([BUN]/2.8)',
-      { NA: 145, K: 4.5, GLU: 100, BUN: 15 }
-    );
+    const result = evaluateFormula('(2*([NA]+[K]))+([GLU]/18)+([BUN]/2.8)', {
+      NA: 145,
+      K: 4.5,
+      GLU: 100,
+      BUN: 15,
+    });
     expect(result).toBeCloseTo(309.913, 1);
   });
 
@@ -82,7 +87,9 @@ describe('evaluateFormula', () => {
   });
 
   it('propagates null through operations', () => {
-    expect(evaluateFormula('([A]+[B])*[C]', { A: 10, B: null, C: 5 })).toBeNull();
+    expect(
+      evaluateFormula('([A]+[B])*[C]', { A: 10, B: null, C: 5 })
+    ).toBeNull();
   });
 
   it('returns null for empty formula', () => {
@@ -183,32 +190,47 @@ describe('extractCodeRefs', () => {
 });
 
 describe('validateTemplateFormulas', () => {
-  const section = (analytes: Array<{ code: string; name: string; formula?: string | null; isHeader?: boolean }>) => [
-    { name: 'Section A', analytes },
-  ];
+  const section = (
+    analytes: Array<{
+      code: string;
+      name: string;
+      formula?: string | null;
+      isHeader?: boolean;
+    }>
+  ) => [{ name: 'Section A', analytes }];
 
   it('returns empty array for valid template without formulas', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'WBC', name: 'White Blood Cells' },
-      { code: 'RBC', name: 'Red Blood Cells' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([
+        { code: 'WBC', name: 'White Blood Cells' },
+        { code: 'RBC', name: 'Red Blood Cells' },
+      ])
+    );
     expect(errors).toEqual([]);
   });
 
   it('returns empty array for valid formulas referencing known codes', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'HCT', name: 'Hematocrit' },
-      { code: 'RBC', name: 'Red Blood Cells' },
-      { code: 'MCV', name: 'Mean Corpuscular Volume', formula: '([HCT]*10)/[RBC]' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([
+        { code: 'HCT', name: 'Hematocrit' },
+        { code: 'RBC', name: 'Red Blood Cells' },
+        {
+          code: 'MCV',
+          name: 'Mean Corpuscular Volume',
+          formula: '([HCT]*10)/[RBC]',
+        },
+      ])
+    );
     expect(errors).toEqual([]);
   });
 
   it('detects unknown code references', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'HCT', name: 'Hematocrit' },
-      { code: 'MCV', name: 'MCV', formula: '([HCT]*10)/[RBC]' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([
+        { code: 'HCT', name: 'Hematocrit' },
+        { code: 'MCV', name: 'MCV', formula: '([HCT]*10)/[RBC]' },
+      ])
+    );
     expect(errors).toHaveLength(1);
     expect(errors[0].analyteCode).toBe('MCV');
     expect(errors[0].errors).toHaveLength(1);
@@ -217,44 +239,55 @@ describe('validateTemplateFormulas', () => {
   });
 
   it('detects self-references', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'A', name: 'A', formula: '[A]+1' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([{ code: 'A', name: 'A', formula: '[A]+1' }])
+    );
     expect(errors).toHaveLength(1);
     expect(errors[0].errors[0].code).toBe('SELF_REFERENCE');
     expect(errors[0].errors[0].ref).toBe('A');
   });
 
   it('detects circular dependencies between two formulas', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'A', name: 'A', formula: '[B]*2' },
-      { code: 'B', name: 'B', formula: '[A]+1' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([
+        { code: 'A', name: 'A', formula: '[B]*2' },
+        { code: 'B', name: 'B', formula: '[A]+1' },
+      ])
+    );
     const allCodes = errors.flatMap((e) => e.errors.map((err) => err.code));
     expect(allCodes).toContain('CIRCULAR_DEPENDENCY');
   });
 
   it('detects syntax errors in formulas', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'WBC', name: 'WBC' },
-      { code: 'CALC', name: 'Calc', formula: '[WBC] @ 5' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([
+        { code: 'WBC', name: 'WBC' },
+        { code: 'CALC', name: 'Calc', formula: '[WBC] @ 5' },
+      ])
+    );
     expect(errors).toHaveLength(1);
     expect(errors[0].errors[0].code).toBe('SYNTAX_ERROR');
   });
 
   it('skips header analytes', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'HEADER', name: 'Header Row', isHeader: true, formula: '[MISSING]' },
-      { code: 'WBC', name: 'WBC' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([
+        {
+          code: 'HEADER',
+          name: 'Header Row',
+          isHeader: true,
+          formula: '[MISSING]',
+        },
+        { code: 'WBC', name: 'WBC' },
+      ])
+    );
     expect(errors).toEqual([]);
   });
 
   it('detects multiple errors on the same analyte', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'A', name: 'A', formula: '[A]+[MISSING]' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([{ code: 'A', name: 'A', formula: '[A]+[MISSING]' }])
+    );
     expect(errors).toHaveLength(1);
     const codes = errors[0].errors.map((e) => e.code);
     expect(codes).toContain('SELF_REFERENCE');
@@ -272,20 +305,20 @@ describe('validateTemplateFormulas', () => {
       },
       {
         name: 'Section 2',
-        analytes: [
-          { code: 'C', name: 'C', formula: '[A]+[B]' },
-        ],
+        analytes: [{ code: 'C', name: 'C', formula: '[A]+[B]' }],
       },
     ]);
     expect(errors).toEqual([]);
   });
 
   it('returns empty for templates with null/empty formulas', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'A', name: 'A', formula: null },
-      { code: 'B', name: 'B', formula: '' },
-      { code: 'C', name: 'C', formula: '  ' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([
+        { code: 'A', name: 'A', formula: null },
+        { code: 'B', name: 'B', formula: '' },
+        { code: 'C', name: 'C', formula: '  ' },
+      ])
+    );
     expect(errors).toEqual([]);
   });
 
@@ -327,10 +360,12 @@ describe('validateTemplateFormulas', () => {
   });
 
   it('detects duplicate codes within same section and reports both analytes', () => {
-    const errors = validateTemplateFormulas(section([
-      { code: 'A', name: 'Analyte A' },
-      { code: 'A', name: 'Analyte A duplicate' },
-    ]));
+    const errors = validateTemplateFormulas(
+      section([
+        { code: 'A', name: 'Analyte A' },
+        { code: 'A', name: 'Analyte A duplicate' },
+      ])
+    );
     expect(errors).toHaveLength(1);
     expect(errors[0].errors[0].code).toBe('DUPLICATE_CODE');
     expect(errors[0].errors[0].message).toContain('Analyte A');

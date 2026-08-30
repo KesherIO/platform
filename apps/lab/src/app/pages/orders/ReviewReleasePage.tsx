@@ -178,9 +178,13 @@ function TestResultSection({
 
 function ReviewerPanel({
   orderId,
+  selectedTestIds,
+  totalEligible,
   onDone,
 }: {
   orderId: string;
+  selectedTestIds: string[];
+  totalEligible: number;
   onDone: () => void;
 }) {
   const { t } = useTranslation();
@@ -198,15 +202,17 @@ function ReviewerPanel({
     staleTime: 0,
   });
 
+  const isPartial = selectedTestIds.length < totalEligible;
+
   const handleApprove = async () => {
-    if (!selectedSignerId) return;
+    if (!selectedSignerId || selectedTestIds.length === 0) return;
     setBusy(true);
     try {
-      await labApi.review.approveAndRelease(
-        orderId,
-        selectedSignerId,
-        reviewNotes || undefined
-      );
+      await labApi.review.approveAndRelease(orderId, {
+        signerId: selectedSignerId,
+        testIds: selectedTestIds,
+        reviewNotes: reviewNotes || undefined,
+      });
       toast.success(t('review.approve_success'));
       onDone();
     } catch (e) {
@@ -264,6 +270,16 @@ function ReviewerPanel({
         {t('review.reviewer_panel_title')}
       </h3>
 
+      {/* Release type indicator */}
+      <div className="flex items-center gap-2">
+        <StatusBadge status={isPartial ? 'PARTIAL' : 'FINAL'} size="sm" />
+        <span className="text-xs text-gray-400">
+          {isPartial
+            ? t('review.release_type_partial')
+            : t('review.release_type_final')}
+        </span>
+      </div>
+
       {/* Signer dropdown */}
       <div>
         <label className="mb-1 block text-xs text-gray-400">
@@ -287,9 +303,7 @@ function ReviewerPanel({
         {selectedSigner && (
           <p className="mt-1 text-xs text-gray-500">
             {selectedSigner.specialty}
-            {selectedSigner.university
-              ? ` · ${selectedSigner.university}`
-              : ''}
+            {selectedSigner.university ? ` · ${selectedSigner.university}` : ''}
           </p>
         )}
       </div>
@@ -312,7 +326,7 @@ function ReviewerPanel({
       <div className="flex items-center gap-3">
         <button
           onClick={() => setShowConfirm(true)}
-          disabled={!selectedSignerId || busy}
+          disabled={!selectedSignerId || busy || selectedTestIds.length === 0}
           className="rounded-lg bg-purple px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {t('review.approve_btn')}
@@ -356,7 +370,11 @@ function ReviewerPanel({
             {t('review.approve_confirm_title')}
           </p>
           <p className="text-xs text-gray-400">
-            {t('review.approve_confirm')}
+            {isPartial
+              ? t('review.approve_confirm_partial', {
+                  count: selectedTestIds.length,
+                })
+              : t('review.approve_confirm_final')}
           </p>
           <div className="flex gap-2">
             <button
@@ -396,6 +414,292 @@ function CorrectionBanner({ notes }: { notes: string }) {
   );
 }
 
+function ReleaseHistorySection({ orderId }: { orderId: string }) {
+  const { t } = useTranslation();
+  const { data } = useQuery({
+    queryKey: ['release-history', orderId],
+    queryFn: () => labApi.release.getHistory(orderId),
+    staleTime: 30_000,
+  });
+
+  if (!data || data.releases.length === 0) return null;
+
+  return (
+    <div className="mt-6 rounded-xl border border-gray-800 bg-gray-900 p-5">
+      <h3 className="mb-3 text-sm font-semibold text-white">
+        {t('review.release_history')}
+      </h3>
+      <div className="space-y-3">
+        {data.releases.map((release) => (
+          <div
+            key={release.id}
+            className="flex items-center justify-between border-b border-gray-800/40 pb-2 last:border-0"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-200">
+                {t('review.release_sequence', {
+                  seq: release.releaseSequence,
+                })}
+              </span>
+              <StatusBadge status={release.releaseType} size="sm" />
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-400">{release.signerName}</p>
+              <p className="text-xs text-gray-500">
+                {new Date(release.releasedAt).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Aggregate status */}
+      <div className="mt-3 flex items-center gap-2 border-t border-gray-800 pt-2">
+        <StatusBadge status={data.aggregateReportStatus} size="sm" />
+      </div>
+    </div>
+  );
+}
+
+function AmendmentPanel({
+  orderId,
+  reportTestId,
+  testName,
+  onDone,
+}: {
+  orderId: string;
+  reportTestId: string;
+  testName: string;
+  onDone: () => void;
+}) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const { isAdmin } = useAuth();
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [amendmentId, setAmendmentId] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [analytes, setAnalytes] = useState<
+    Array<{
+      id: string;
+      name: string;
+      sectionName: string | null;
+      isHeader: boolean;
+      valueType: string;
+      numericValue: number | null;
+      textValue: string | null;
+      booleanValue: boolean | null;
+      selectValue: string | null;
+      unit: string | null;
+      flag: string | null;
+    }>
+  >([]);
+
+  const handleInitiate = async () => {
+    if (!reason.trim()) return;
+    setBusy(true);
+    try {
+      const result = await labApi.amendment.initiate(orderId, {
+        reportTestId,
+        reason,
+      });
+      setAmendmentId(result.amendmentId);
+      setStatus(result.status);
+      setAnalytes(result.analytes);
+      toast.success(t('review.amendment_initiated'));
+    } catch (e) {
+      toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSubmitForReview = async () => {
+    if (!amendmentId) return;
+    setBusy(true);
+    try {
+      const result = await labApi.amendment.submitForReview(
+        orderId,
+        amendmentId
+      );
+      setStatus(result.status);
+      toast.success(t('review.amendment_submitted'));
+    } catch (e) {
+      toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!amendmentId) return;
+    // For MVP, use the first available reviewer signer
+    setBusy(true);
+    try {
+      const signers = await labApi.review.getReviewerSigners();
+      if (!signers.length) {
+        toast.error(t('review.no_reviewer_signers'));
+        return;
+      }
+      await labApi.amendment.approve(orderId, amendmentId, {
+        signerId: signers[0].id,
+      });
+      toast.success(t('review.amendment_approved'));
+      onDone();
+    } catch (e) {
+      toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!amendmentId) return;
+    setBusy(true);
+    try {
+      await labApi.amendment.cancel(orderId, amendmentId);
+      toast.success(t('review.amendment_cancelled'));
+      setAmendmentId(null);
+      setStatus(null);
+      setAnalytes([]);
+      setReason('');
+    } catch (e) {
+      toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // State: not started — show reason input + initiate button
+  if (!amendmentId) {
+    return (
+      <div className="mt-3 rounded-lg border border-blue-800/40 bg-blue-900/10 p-4 space-y-3">
+        <p className="text-sm font-medium text-blue-300">
+          {t('review.amend_btn')} — {testName}
+        </p>
+        <div>
+          <label className="mb-1 block text-xs text-gray-400">
+            {t('review.amend_reason_label')}
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={t('review.amend_reason_placeholder')}
+            rows={2}
+            className="w-full rounded-lg border border-blue-800/50 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handleInitiate}
+            disabled={busy || !reason.trim()}
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? '...' : t('review.amend_initiate')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // State: initiated (DRAFT) — show analytes read-only, submit/cancel
+  if (status === 'DRAFT') {
+    return (
+      <div className="mt-3 rounded-lg border border-blue-800/40 bg-blue-900/10 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-blue-300">
+            {t('review.amend_btn')} — {testName}
+          </p>
+          <StatusBadge status="DRAFT" size="sm" />
+        </div>
+
+        {/* Read-only analyte values */}
+        <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
+          {analytes
+            .filter((a) => !a.isHeader)
+            .map((a) => {
+              const displayVal =
+                a.numericValue !== null
+                  ? String(a.numericValue)
+                  : a.textValue ??
+                    a.selectValue ??
+                    a.booleanValue?.toString() ??
+                    '—';
+              return (
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between border-b border-gray-800/40 py-1.5 last:border-0"
+                >
+                  <span className="text-sm text-gray-300">{a.name}</span>
+                  <span className="text-sm text-gray-200">
+                    {displayVal}
+                    {a.unit && (
+                      <span className="ml-1 text-xs text-gray-500">
+                        {a.unit}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={handleSubmitForReview}
+            disabled={busy}
+            className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {busy ? '...' : t('review.amend_submit_for_review')}
+          </button>
+          <button
+            onClick={handleCancel}
+            disabled={busy}
+            className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+          >
+            {t('review.amend_cancel')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // State: IN_REVIEW — waiting, or approve if admin
+  if (status === 'IN_REVIEW') {
+    return (
+      <div className="mt-3 rounded-lg border border-indigo-800/40 bg-indigo-900/10 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-indigo-300">
+            {t('review.amend_btn')} — {testName}
+          </p>
+          <StatusBadge status="IN_REVIEW" size="sm" />
+        </div>
+
+        {isAdmin && (
+          <div className="flex gap-2">
+            <button
+              onClick={handleApprove}
+              disabled={busy}
+              className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {busy ? '...' : t('review.amend_approve')}
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={busy}
+              className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+            >
+              {t('review.amend_cancel')}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // State: APPROVED or CANCELLED — done
+  return null;
+}
+
 export function ReviewReleasePage() {
   const { orderId } = useParams<{ orderId: string }>();
   const { t } = useTranslation();
@@ -403,6 +707,8 @@ export function ReviewReleasePage() {
   const queryClient = useQueryClient();
   const { isAdmin } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [amendingTestId, setAmendingTestId] = useState<string | null>(null);
 
   const { data: order, isLoading: loading } = useQuery({
     queryKey: ['order', orderId],
@@ -410,21 +716,30 @@ export function ReviewReleasePage() {
     enabled: !!orderId,
   });
 
+  const { data: reviewerSigners } = useQuery({
+    queryKey: ['reviewer-signers-check'],
+    queryFn: () => labApi.review.getReviewerSigners(),
+  });
+  const hasReviewers = (reviewerSigners?.length ?? 0) > 0;
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['order', orderId] });
     queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
-    order?.orderedTests.forEach((test) => {
+    queryClient.invalidateQueries({ queryKey: ['release-history', orderId] });
+    order?.orderedTests.forEach((ot) => {
       queryClient.invalidateQueries({
-        queryKey: ['result-session', test.id],
+        queryKey: ['result-session', ot.id],
       });
     });
+    setSelectedTestIds([]);
+    setAmendingTestId(null);
   };
 
-  const handleSubmitForReview = async () => {
+  const handleSubmitForReview = async (testIds?: string[]) => {
     if (!orderId) return;
     setSubmitting(true);
     try {
-      await labApi.review.submitForReview(orderId);
+      await labApi.review.submitForReview(orderId, testIds);
       toast.success(t('review.submit_for_review_success'));
       invalidate();
     } catch (e) {
@@ -434,6 +749,14 @@ export function ReviewReleasePage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const toggleTestSelection = (testId: string) => {
+    setSelectedTestIds((prev) =>
+      prev.includes(testId)
+        ? prev.filter((id) => id !== testId)
+        : [...prev, testId]
+    );
   };
 
   if (loading) {
@@ -474,21 +797,47 @@ export function ReviewReleasePage() {
 
   const report = order.resultReport;
   const reportStatus = report?.status;
-  const isReleased = reportStatus === 'RELEASED';
-  const isInReview = reportStatus === 'IN_REVIEW';
   const isDraft = reportStatus === 'DRAFT';
 
-  const enteredTests = order.orderedTests.filter((t) =>
-    ['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED'].includes(t.status)
+  // Categorize tests by status
+  const inReviewTests = order.orderedTests.filter(
+    (ot) => ot.status === 'IN_REVIEW'
   );
-  const pendingTests = order.orderedTests.filter(
-    (t) =>
+  const completedTests = order.orderedTests.filter(
+    (ot) => ot.status === 'COMPLETED'
+  );
+  const enteredTests = order.orderedTests.filter(
+    (ot) => ot.status === 'RESULTS_ENTERED'
+  );
+  const draftOrPendingTests = order.orderedTests.filter(
+    (ot) =>
       !['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED', 'CANCELLED'].includes(
-        t.status
+        ot.status
       )
   );
 
-  const readOnly = isReleased || isInReview;
+  // Tests that have results (shown in the results area)
+  const testsWithResults = order.orderedTests.filter((ot) =>
+    ['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED'].includes(ot.status)
+  );
+
+  // Select all / deselect all for IN_REVIEW tests
+  const allInReviewSelected =
+    inReviewTests.length > 0 &&
+    inReviewTests.every((ot) => selectedTestIds.includes(ot.id));
+
+  const toggleSelectAll = () => {
+    if (allInReviewSelected) {
+      setSelectedTestIds([]);
+    } else {
+      setSelectedTestIds(inReviewTests.map((ot) => ot.id));
+    }
+  };
+
+  // Any test is selectable (IN_REVIEW)?
+  const hasSelectableTests = inReviewTests.length > 0;
+  const hasCompletedTests = completedTests.length > 0;
+  const hasAnyResults = testsWithResults.length > 0;
 
   return (
     <div className="p-6 max-w-3xl">
@@ -507,36 +856,39 @@ export function ReviewReleasePage() {
           {t('review.title', { patient: order.case.patientName })}
         </h1>
 
-        {isReleased && (
+        {hasCompletedTests && !hasSelectableTests && (
           <span className="rounded-full bg-green-900/30 px-3 py-1 text-sm font-medium text-green-400">
             {t('review.already_released')}
           </span>
         )}
-        {isInReview && !isAdmin && (
+        {hasSelectableTests && !isAdmin && (
           <span className="rounded-full bg-blue-900/30 px-3 py-1 text-sm font-medium text-blue-400">
             {t('review.in_review_status')}
           </span>
         )}
       </div>
 
-      {/* Released: approver info */}
-      {isReleased && report?.approvedByName && report.reviewedAt && (
-        <div className="mb-4 rounded-lg border border-green-800/40 bg-green-900/10 px-4 py-3">
-          <p className="text-xs text-green-400">
-            {t('review.approver_info', {
-              name: report.approvedByName,
-            })}
-            {' · '}
-            {new Date(report.reviewedAt).toLocaleString()}
-          </p>
-          {report.reviewNotes && (
-            <p className="mt-1 text-sm text-gray-300">{report.reviewNotes}</p>
-          )}
-        </div>
-      )}
+      {/* Released: approver info (only when fully released, no pending tests) */}
+      {hasCompletedTests &&
+        !hasSelectableTests &&
+        report?.approvedByName &&
+        report.reviewedAt && (
+          <div className="mb-4 rounded-lg border border-green-800/40 bg-green-900/10 px-4 py-3">
+            <p className="text-xs text-green-400">
+              {t('review.approver_info', {
+                name: report.approvedByName,
+              })}
+              {' · '}
+              {new Date(report.reviewedAt).toLocaleString()}
+            </p>
+            {report.reviewNotes && (
+              <p className="mt-1 text-sm text-gray-300">{report.reviewNotes}</p>
+            )}
+          </div>
+        )}
 
       {/* Submitted timestamp for IN_REVIEW */}
-      {isInReview && report?.submittedForReviewAt && (
+      {hasSelectableTests && report?.submittedForReviewAt && (
         <div className="mb-4 rounded-lg border border-blue-800/40 bg-blue-900/10 px-4 py-3">
           <p className="text-xs text-blue-400">
             {t('review.submitted_at')}
@@ -551,14 +903,14 @@ export function ReviewReleasePage() {
         <CorrectionBanner notes={report.correctionNotes} />
       )}
 
-      {/* Pending tests warning */}
-      {pendingTests.length > 0 && !isReleased && (
+      {/* Pending/in-progress tests warning */}
+      {draftOrPendingTests.length > 0 && (
         <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
           <p className="text-sm text-yellow-300">
             {t('review.pending_warning')}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {pendingTests.map((test) => (
+            {draftOrPendingTests.map((test) => (
               <span key={test.id} className="flex items-center gap-1.5">
                 <span className="text-xs text-yellow-400">
                   {test.catalogItemName}
@@ -570,28 +922,103 @@ export function ReviewReleasePage() {
         </div>
       )}
 
+      {/* Select all / deselect all for IN_REVIEW tests */}
+      {hasSelectableTests && isAdmin && (
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-sm text-gray-400">
+            {t('review.selected_count', { count: selectedTestIds.length })}
+          </p>
+          <button
+            onClick={toggleSelectAll}
+            className="text-xs text-cyan hover:underline"
+          >
+            {allInReviewSelected
+              ? t('review.deselect_all')
+              : t('review.select_all')}
+          </button>
+        </div>
+      )}
+
       {/* Test results */}
-      {enteredTests.length > 0 ? (
-        enteredTests.map((test) => (
-          <TestResultSection
-            key={test.id}
-            orderId={order.id}
-            testId={test.id}
-            readOnly={readOnly}
-          />
-        ))
+      {hasAnyResults ? (
+        testsWithResults.map((test) => {
+          const isTestInReview = test.status === 'IN_REVIEW';
+          const isTestCompleted = test.status === 'COMPLETED';
+          const isSelected = selectedTestIds.includes(test.id);
+          const readOnly = isTestInReview || isTestCompleted;
+
+          return (
+            <div key={test.id}>
+              {/* Checkbox / status row */}
+              <div className="mb-1 flex items-center gap-2">
+                {isTestInReview && isAdmin ? (
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleTestSelection(test.id)}
+                      className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-cyan accent-cyan"
+                    />
+                    <span className="text-xs text-gray-400">
+                      {test.catalogItemName}
+                    </span>
+                  </label>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={test.status} size="sm" />
+                    <span className="text-xs text-gray-400">
+                      {test.catalogItemName}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <TestResultSection
+                orderId={order.id}
+                testId={test.id}
+                readOnly={readOnly}
+              />
+
+              {/* Amend button for COMPLETED tests */}
+              {isTestCompleted && (
+                <div className="mb-4">
+                  {amendingTestId === test.id ? (
+                    <AmendmentPanel
+                      orderId={order.id}
+                      reportTestId={test.id}
+                      testName={test.catalogItemName}
+                      onDone={invalidate}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setAmendingTestId(test.id)}
+                      className="rounded-lg border border-blue-800/50 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-900/20"
+                    >
+                      {t('review.amend_btn')}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })
       ) : (
         <div className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-8 text-center text-sm text-gray-500">
           {t('review.no_report')}
         </div>
       )}
 
-      {/* DRAFT: Submit for review button */}
+      {/* DRAFT: Submit for review button (for RESULTS_ENTERED tests) */}
       {isDraft && enteredTests.length > 0 && (
         <div className="mt-6">
+          {!hasReviewers && (
+            <p className="mb-2 text-sm text-yellow-400">
+              {t('review.no_reviewer_warning')}
+            </p>
+          )}
           <button
-            onClick={handleSubmitForReview}
-            disabled={submitting}
+            onClick={() => handleSubmitForReview()}
+            disabled={submitting || !hasReviewers}
             className="rounded-lg bg-purple px-5 py-2.5 font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? '...' : t('review.submit_for_review_btn')}
@@ -600,11 +1027,19 @@ export function ReviewReleasePage() {
       )}
 
       {/* IN_REVIEW + admin: Reviewer panel */}
-      {isInReview && isAdmin && (
+      {hasSelectableTests && isAdmin && (
         <div className="mt-6">
-          <ReviewerPanel orderId={order.id} onDone={invalidate} />
+          <ReviewerPanel
+            orderId={order.id}
+            selectedTestIds={selectedTestIds}
+            totalEligible={inReviewTests.length}
+            onDone={invalidate}
+          />
         </div>
       )}
+
+      {/* Release history */}
+      <ReleaseHistorySection orderId={order.id} />
     </div>
   );
 }

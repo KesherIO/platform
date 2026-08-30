@@ -20,21 +20,27 @@ describe('SpecimenService — reverseMissing', () => {
   let orderStatusService: { deriveAndPersist: jest.Mock };
 
   beforeEach(async () => {
-    orderStatusService = { deriveAndPersist: jest.fn().mockResolvedValue({ changed: false }) };
+    orderStatusService = {
+      deriveAndPersist: jest.fn().mockResolvedValue({ changed: false }),
+    };
 
     prisma = {
       specimen: {
         findFirst: jest.fn(),
-        findUnique: jest.fn().mockResolvedValue({ id: 'sp-1', status: 'EXPECTED' }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 'sp-1', status: 'EXPECTED' }),
       },
       orderedTest: { update: jest.fn() },
       orderedTestSpecimen: { findMany: jest.fn() },
       timelineEvent: { create: jest.fn() },
-      $transaction: jest.fn(async (cb: (tx: ReturnType<typeof makeTx>) => Promise<void>) => {
-        const tx = makeTx();
-        prisma._lastTx = tx;
-        await cb(tx as any);
-      }),
+      $transaction: jest.fn(
+        async (cb: (tx: ReturnType<typeof makeTx>) => Promise<void>) => {
+          const tx = makeTx();
+          prisma._lastTx = tx;
+          await cb(tx as any);
+        }
+      ),
       _lastTx: null as ReturnType<typeof makeTx> | null,
     };
 
@@ -63,10 +69,20 @@ describe('SpecimenService — reverseMissing', () => {
   }
 
   it('throws if specimen is not MISSING', async () => {
-    prisma.specimen.findFirst.mockResolvedValue({ ...baseSpecimen, status: 'ACCEPTED' });
+    prisma.specimen.findFirst.mockResolvedValue({
+      ...baseSpecimen,
+      status: 'ACCEPTED',
+    });
 
     await expect(
-      service.reverseMissing('order-1', 'sp-1', 'lab-1', { confirm: true }, 'user-1', 'User')
+      service.reverseMissing(
+        'order-1',
+        'sp-1',
+        'lab-1',
+        { confirm: true },
+        'user-1',
+        'User'
+      )
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -81,7 +97,13 @@ describe('SpecimenService — reverseMissing', () => {
         blockReason: 'MISSING_SPECIMEN',
         blockReasonDetail: 'Specimen SPEC-001 (EDTA_BLOOD) marked missing',
         specimens: [
-          { specimen: { id: 'sp-1', status: 'MISSING', accessionNumber: 'SPEC-001' } },
+          {
+            specimen: {
+              id: 'sp-1',
+              status: 'MISSING',
+              accessionNumber: 'SPEC-001',
+            },
+          },
         ],
         reportTests: [],
       },
@@ -94,7 +116,14 @@ describe('SpecimenService — reverseMissing', () => {
       await cb(tx);
     });
 
-    await service.reverseMissing('order-1', 'sp-1', 'lab-1', { confirm: true }, 'user-1', 'User');
+    await service.reverseMissing(
+      'order-1',
+      'sp-1',
+      'lab-1',
+      { confirm: true },
+      'user-1',
+      'User'
+    );
 
     const tx = prisma._lastTx!;
     expect(tx.orderedTest.update).toHaveBeenCalledWith(
@@ -115,7 +144,13 @@ describe('SpecimenService — reverseMissing', () => {
         blockReason: 'MISSING_SPECIMEN',
         blockReasonDetail: 'Specimen SPEC-001 (EDTA_BLOOD) marked missing',
         specimens: [
-          { specimen: { id: 'sp-1', status: 'MISSING', accessionNumber: 'SPEC-001' } },
+          {
+            specimen: {
+              id: 'sp-1',
+              status: 'MISSING',
+              accessionNumber: 'SPEC-001',
+            },
+          },
         ],
         reportTests: [{ id: 'rrt-1' }],
       },
@@ -128,7 +163,14 @@ describe('SpecimenService — reverseMissing', () => {
       await cb(tx);
     });
 
-    await service.reverseMissing('order-1', 'sp-1', 'lab-1', { confirm: true }, 'user-1', 'User');
+    await service.reverseMissing(
+      'order-1',
+      'sp-1',
+      'lab-1',
+      { confirm: true },
+      'user-1',
+      'User'
+    );
 
     const tx = prisma._lastTx!;
     expect(tx.orderedTest.update).toHaveBeenCalledWith(
@@ -149,8 +191,20 @@ describe('SpecimenService — reverseMissing', () => {
         blockReason: 'MISSING_SPECIMEN',
         blockReasonDetail: 'Specimen SPEC-001 (EDTA_BLOOD) marked missing',
         specimens: [
-          { specimen: { id: 'sp-1', status: 'MISSING', accessionNumber: 'SPEC-001' } },
-          { specimen: { id: 'sp-2', status: 'MISSING', accessionNumber: 'SPEC-002' } },
+          {
+            specimen: {
+              id: 'sp-1',
+              status: 'MISSING',
+              accessionNumber: 'SPEC-001',
+            },
+          },
+          {
+            specimen: {
+              id: 'sp-2',
+              status: 'MISSING',
+              accessionNumber: 'SPEC-002',
+            },
+          },
         ],
         reportTests: [],
       },
@@ -163,7 +217,14 @@ describe('SpecimenService — reverseMissing', () => {
       await cb(tx);
     });
 
-    await service.reverseMissing('order-1', 'sp-1', 'lab-1', { confirm: true }, 'user-1', 'User');
+    await service.reverseMissing(
+      'order-1',
+      'sp-1',
+      'lab-1',
+      { confirm: true },
+      'user-1',
+      'User'
+    );
 
     const tx = prisma._lastTx!;
     const updateCalls = tx.orderedTest.update.mock.calls;
@@ -186,8 +247,20 @@ describe('SpecimenService — reverseMissing', () => {
         blockReason: 'MISSING_SPECIMEN',
         blockReasonDetail: 'Specimen SPEC-999 (SERUM) marked missing',
         specimens: [
-          { specimen: { id: 'sp-1', status: 'MISSING', accessionNumber: 'SPEC-001' } },
-          { specimen: { id: 'sp-999', status: 'MISSING', accessionNumber: 'SPEC-999' } },
+          {
+            specimen: {
+              id: 'sp-1',
+              status: 'MISSING',
+              accessionNumber: 'SPEC-001',
+            },
+          },
+          {
+            specimen: {
+              id: 'sp-999',
+              status: 'MISSING',
+              accessionNumber: 'SPEC-999',
+            },
+          },
         ],
         reportTests: [],
       },
@@ -200,7 +273,14 @@ describe('SpecimenService — reverseMissing', () => {
       await cb(tx);
     });
 
-    await service.reverseMissing('order-1', 'sp-1', 'lab-1', { confirm: true }, 'user-1', 'User');
+    await service.reverseMissing(
+      'order-1',
+      'sp-1',
+      'lab-1',
+      { confirm: true },
+      'user-1',
+      'User'
+    );
 
     const tx = prisma._lastTx!;
     expect(tx.orderedTest.update).not.toHaveBeenCalled();
@@ -216,7 +296,13 @@ describe('SpecimenService — reverseMissing', () => {
         blockReason: 'REJECTED_SPECIMEN',
         blockReasonDetail: 'Specimen SPEC-001 rejected',
         specimens: [
-          { specimen: { id: 'sp-1', status: 'MISSING', accessionNumber: 'SPEC-001' } },
+          {
+            specimen: {
+              id: 'sp-1',
+              status: 'MISSING',
+              accessionNumber: 'SPEC-001',
+            },
+          },
         ],
         reportTests: [],
       },
@@ -229,7 +315,14 @@ describe('SpecimenService — reverseMissing', () => {
       await cb(tx);
     });
 
-    await service.reverseMissing('order-1', 'sp-1', 'lab-1', { confirm: true }, 'user-1', 'User');
+    await service.reverseMissing(
+      'order-1',
+      'sp-1',
+      'lab-1',
+      { confirm: true },
+      'user-1',
+      'User'
+    );
 
     const tx = prisma._lastTx!;
     expect(tx.orderedTest.update).not.toHaveBeenCalled();
@@ -245,7 +338,14 @@ describe('SpecimenService — reverseMissing', () => {
       await cb(tx);
     });
 
-    await service.reverseMissing('order-1', 'sp-1', 'lab-1', { confirm: true }, 'user-1', 'User');
+    await service.reverseMissing(
+      'order-1',
+      'sp-1',
+      'lab-1',
+      { confirm: true },
+      'user-1',
+      'User'
+    );
 
     expect(orderStatusService.deriveAndPersist).toHaveBeenCalledWith('order-1');
   });

@@ -14,6 +14,10 @@ import {
 } from './dto/template-version.dto';
 import type { PatientSpecies } from '@prisma/client';
 import { toStableCode } from './code-gen.util';
+import {
+  validateTemplateFormulas,
+  type FormulaValidationError,
+} from '../lab/formula.util';
 
 const VERSION_INCLUDE = {
   sections: {
@@ -270,7 +274,9 @@ export class TemplateVersionService {
       this.validatePhrasesAndSections(dto.observationPhrases, dto.sections);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    let formulaWarnings: FormulaValidationError[] | undefined;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
       if (dto.sections) {
         await tx.resultTemplateAnalyte.deleteMany({ where: { versionId } });
         await tx.resultTemplateSection.deleteMany({ where: { versionId } });
@@ -285,24 +291,56 @@ export class TemplateVersionService {
             defaultObservations: dto.defaultObservations,
           }),
           ...(dto.observationPhrases !== undefined && {
-            observationPhrases:
-              dto.observationPhrases as unknown as Record<string, unknown>[],
+            observationPhrases: dto.observationPhrases as unknown as Record<
+              string,
+              unknown
+            >[],
           }),
         },
         include: VERSION_INCLUDE,
       });
     });
+
+    if (dto.sections) {
+      formulaWarnings = validateTemplateFormulas(
+        dto.sections.map((s) => ({
+          name: s.name,
+          analytes: s.analytes.map((a) => ({
+            code: a.code,
+            name: a.name,
+            formula: a.formula,
+            isHeader: a.isHeader,
+          })),
+        }))
+      );
+      if (formulaWarnings.length === 0) formulaWarnings = undefined;
+    }
+
+    return { ...updated, formulaWarnings };
   }
 
   async publishVersion(versionId: string) {
     const version = await this.prisma.resultTemplateVersion.findUnique({
       where: { id: versionId },
-      include: { definition: true },
+      include: { definition: true, ...VERSION_INCLUDE },
     });
 
     if (!version) throw new NotFoundException('Version not found');
     if (version.status !== 'DRAFT') {
       throw new BadRequestException('Only DRAFT versions can be published');
+    }
+
+    const formulaErrors = validateTemplateFormulas(
+      version.sections.map((s) => ({
+        name: s.name,
+        analytes: s.analytes,
+      }))
+    );
+    if (formulaErrors.length > 0) {
+      throw new BadRequestException({
+        message: 'Template contains invalid formulas and cannot be published',
+        formulaErrors,
+      });
     }
 
     return this.prisma.$transaction(async (tx) => {

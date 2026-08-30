@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type { OrderStatus, CaseStatus } from '@prisma/client';
+import type { OrderStatus, CaseStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+type TxClient = Prisma.TransactionClient;
 
 const TERMINAL_TEST_STATUSES = new Set(['COMPLETED', 'CANCELLED']);
 
@@ -14,19 +16,23 @@ const PROCESSING_TEST_STATUSES = new Set([
 export class OrderStatusService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async deriveOrderStatus(orderId: string): Promise<OrderStatus> {
-    const order = await this.prisma.order.findUniqueOrThrow({
+  async deriveOrderStatus(
+    orderId: string,
+    tx?: TxClient
+  ): Promise<OrderStatus> {
+    const db = tx ?? this.prisma;
+    const order = await db.order.findUniqueOrThrow({
       where: { id: orderId },
       select: { status: true },
     });
     if (order.status === 'CANCELLED') return 'CANCELLED';
 
     const [tests, specimens] = await Promise.all([
-      this.prisma.orderedTest.findMany({
+      db.orderedTest.findMany({
         where: { orderId },
         select: { status: true },
       }),
-      this.prisma.specimen.findMany({
+      db.specimen.findMany({
         where: { orderId },
         select: { status: true },
       }),
@@ -49,21 +55,28 @@ export class OrderStatusService {
     );
     const hasMissing = specimens.some((s) => s.status === 'MISSING');
     const hasReadyTest = tests.some((t) => t.status === 'READY');
-    if ((hasAccepted && !hasExpectedOrReceived && !hasMissing) || hasReadyTest) {
+    if (
+      (hasAccepted && !hasExpectedOrReceived && !hasMissing) ||
+      hasReadyTest
+    ) {
       return 'RECEIVED_BY_LAB';
     }
 
     return 'PENDING';
   }
 
-  async deriveAndPersist(orderId: string): Promise<{
+  async deriveAndPersist(
+    orderId: string,
+    tx?: TxClient
+  ): Promise<{
     orderStatus: OrderStatus;
     caseStatus: CaseStatus | null;
     changed: boolean;
   }> {
-    const derivedOrder = await this.deriveOrderStatus(orderId);
+    const db = tx ?? this.prisma;
+    const derivedOrder = await this.deriveOrderStatus(orderId, tx);
 
-    const order = await this.prisma.order.findUniqueOrThrow({
+    const order = await db.order.findUniqueOrThrow({
       where: { id: orderId },
       select: { status: true, caseId: true },
     });
@@ -76,7 +89,7 @@ export class OrderStatusService {
       if (derivedOrder === 'PROCESSING') timestamps.processingStartedAt = now;
       if (derivedOrder === 'COMPLETED') timestamps.completedAt = now;
 
-      await this.prisma.order.update({
+      await db.order.update({
         where: { id: orderId },
         data: { status: derivedOrder, ...timestamps },
       });
@@ -85,12 +98,16 @@ export class OrderStatusService {
 
     let derivedCase: CaseStatus | null = null;
     if (derivedOrder === 'COMPLETED') {
-      const caseRow = await this.prisma.case.findUnique({
+      const caseRow = await db.case.findUnique({
         where: { id: order.caseId },
         select: { status: true },
       });
-      if (caseRow && caseRow.status !== 'CANCELLED' && caseRow.status !== 'COMPLETED') {
-        await this.prisma.case.update({
+      if (
+        caseRow &&
+        caseRow.status !== 'CANCELLED' &&
+        caseRow.status !== 'COMPLETED'
+      ) {
+        await db.case.update({
           where: { id: order.caseId },
           data: { status: 'COMPLETED' },
         });

@@ -11,6 +11,7 @@ describe('ResultEntryService — BLOCKED/CANCELLED guards', () => {
   beforeEach(async () => {
     prisma = {
       orderedTest: { findFirst: jest.fn() },
+      resultReportTest: { findFirst: jest.fn() },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -34,32 +35,44 @@ describe('ResultEntryService — BLOCKED/CANCELLED guards', () => {
         id: 'test-1',
         status: 'BLOCKED',
         blockReason: 'MISSING_SPECIMEN',
-        order: { case: { patientSpecies: 'CANINE', patientAge: 5, patientAgeUnit: 'YEARS' } },
+        order: {
+          case: {
+            patientSpecies: 'CANINE',
+            patientAge: 5,
+            patientAgeUnit: 'YEARS',
+          },
+        },
       });
 
-      await expect(
-        service.getResultSession('test-1', 'lab-1')
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.getResultSession('test-1', 'lab-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws BadRequestException for CANCELLED test', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
         id: 'test-1',
         status: 'CANCELLED',
-        order: { case: { patientSpecies: 'CANINE', patientAge: 5, patientAgeUnit: 'YEARS' } },
+        order: {
+          case: {
+            patientSpecies: 'CANINE',
+            patientAge: 5,
+            patientAgeUnit: 'YEARS',
+          },
+        },
       });
 
-      await expect(
-        service.getResultSession('test-1', 'lab-1')
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.getResultSession('test-1', 'lab-1')).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('throws NotFoundException when test does not exist', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.getResultSession('bad-id', 'lab-1')
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getResultSession('bad-id', 'lab-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -69,7 +82,13 @@ describe('ResultEntryService — BLOCKED/CANCELLED guards', () => {
         id: 'test-1',
         status: 'BLOCKED',
         blockReason: 'MISSING_SPECIMEN',
-        order: { case: { patientSpecies: 'CANINE', patientAge: 5, patientAgeUnit: 'YEARS' } },
+        order: {
+          case: {
+            patientSpecies: 'CANINE',
+            patientAge: 5,
+            patientAgeUnit: 'YEARS',
+          },
+        },
       });
 
       await expect(
@@ -81,7 +100,13 @@ describe('ResultEntryService — BLOCKED/CANCELLED guards', () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
         id: 'test-1',
         status: 'CANCELLED',
-        order: { case: { patientSpecies: 'CANINE', patientAge: 5, patientAgeUnit: 'YEARS' } },
+        order: {
+          case: {
+            patientSpecies: 'CANINE',
+            patientAge: 5,
+            patientAgeUnit: 'YEARS',
+          },
+        },
       });
 
       await expect(

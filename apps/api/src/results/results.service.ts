@@ -16,7 +16,10 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagService, RetrievedChunk } from '../rag/rag.service';
 import { TemplateVersionService } from './template-version.service';
-import { evaluateAllFormulas } from '../lab/formula.util';
+import {
+  evaluateAllFormulas,
+  validateTemplateFormulas,
+} from '../lab/formula.util';
 import { toStableCode } from './code-gen.util';
 import type {
   ResultTemplateModel,
@@ -128,6 +131,26 @@ export class ResultsService {
     const species = dto.species as unknown as PatientSpecies;
     const ageMin = dto.ageMinWeeks ?? -1;
     const ageMax = dto.ageMaxWeeks ?? -1;
+
+    if (dto.sections) {
+      const formulaErrors = validateTemplateFormulas(
+        dto.sections.map((s) => ({
+          name: s.name,
+          analytes: s.analytes.map((a) => ({
+            code: a.code,
+            name: a.name,
+            formula: a.formula,
+            isHeader: a.isHeader,
+          })),
+        }))
+      );
+      if (formulaErrors.length > 0) {
+        throw new BadRequestException({
+          message: 'Template contains invalid formulas and cannot be imported',
+          formulaErrors,
+        });
+      }
+    }
 
     const result = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.resultTemplateDefinition.findUnique({
@@ -439,7 +462,8 @@ export class ResultsService {
           select: { id: true },
         });
 
-        const analytesToCreate: Prisma.ResultReportAnalyteCreateManyInput[] = [];
+        const analytesToCreate: Prisma.ResultReportAnalyteCreateManyInput[] =
+          [];
         for (const analyte of version.analytes) {
           analytesToCreate.push({
             reportTestId: reportTest.id,
@@ -600,9 +624,7 @@ export class ResultsService {
         .map((a) => ({
           code: a.code,
           formula: a.formula ?? null,
-          numericValue: a.numericValue
-            ? Number(a.numericValue)
-            : null,
+          numericValue: a.numericValue ? Number(a.numericValue) : null,
         }));
 
       const computed = evaluateAllFormulas(allForEval);

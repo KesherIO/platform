@@ -61,7 +61,10 @@
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
-          "options": ["No se observan hemoparásitos", "Se observan formas compatibles"],
+          "options": [
+            "No se observan hemoparásitos",
+            "Se observan formas compatibles"
+          ],
           "referenceRange": null
         },
         {
@@ -72,7 +75,10 @@
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
-          "options": ["No se observan hemoparásitos", "Se observan formas compatibles"],
+          "options": [
+            "No se observan hemoparásitos",
+            "Se observan formas compatibles"
+          ],
           "referenceRange": null
         }
       ]

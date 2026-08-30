@@ -158,9 +158,14 @@ describe('OrdersService', () => {
       { catalogItem: pkgItem },
     ]);
     prisma.catalogItemComposition = {
-      findMany: jest.fn().mockResolvedValue([
-        { packageId: 'pkg-1', component: { id: 'comp-1', name: 'Reticulocyte Count' } },
-      ]),
+      findMany: jest
+        .fn()
+        .mockResolvedValue([
+          {
+            packageId: 'pkg-1',
+            component: { id: 'comp-1', name: 'Reticulocyte Count' },
+          },
+        ]),
     };
     readinessService.checkBulkReadiness.mockResolvedValue({
       items: [
@@ -185,7 +190,9 @@ describe('OrdersService', () => {
       expect(response.packages[0].packageId).toBe('pkg-1');
       expect(response.packages[0].packageName).toBe('Hemogram Panel');
       expect(response.packages[0].unreadyComponents).toHaveLength(1);
-      expect(response.packages[0].unreadyComponents[0].componentName).toBe('Reticulocyte Count');
+      expect(response.packages[0].unreadyComponents[0].componentName).toBe(
+        'Reticulocyte Count'
+      );
     }
   });
 });

@@ -96,14 +96,14 @@ export function ResultEntryPage() {
 
   const allAnalytes = useMemo(() => {
     if (!session) return [];
-    return session.sections.flatMap(
-      (s: { analytes: Analyte[] }) => s.analytes
-    );
+    return session.sections.flatMap((s: { analytes: Analyte[] }) => s.analytes);
   }, [session]);
 
   const formulaCodes = useMemo(() => {
     return new Set(
-      allAnalytes.filter((a: Analyte) => a.formula && !a.isHeader).map((a: Analyte) => a.id)
+      allAnalytes
+        .filter((a: Analyte) => a.formula && !a.isHeader)
+        .map((a: Analyte) => a.id)
     );
   }, [allAnalytes]);
 
@@ -133,9 +133,9 @@ export function ResultEntryPage() {
     Object.entries(values)
       .filter(([id]) => !formulaCodes.has(id))
       .map(([templateAnalyteId, v]) => ({
-      templateAnalyteId,
-      ...v,
-    }));
+        templateAnalyteId,
+        ...v,
+      }));
 
   const handleSave = useCallback(async () => {
     if (!testId || !session) return;

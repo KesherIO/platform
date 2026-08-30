@@ -35,7 +35,9 @@ async function main() {
       const { count: analytes } = await prisma.resultReportAnalyte.deleteMany({
         where: { reportTestId: { in: rtIds } },
       });
-      console.log(`✓ Deleted ${analytes} report analytes referencing PLATFORM templates`);
+      console.log(
+        `✓ Deleted ${analytes} report analytes referencing PLATFORM templates`
+      );
     }
 
     const { count: rts } = await prisma.resultReportTest.deleteMany({

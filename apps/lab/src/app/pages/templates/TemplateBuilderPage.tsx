@@ -340,10 +340,7 @@ export function TemplateBuilderPage() {
     setPhrases((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const updatePhrase = (
-    index: number,
-    updates: Partial<PhraseFormState>
-  ) => {
+  const updatePhrase = (index: number, updates: Partial<PhraseFormState>) => {
     setPhrases((prev) =>
       prev.map((p, i) => {
         if (i !== index) return p;
@@ -368,11 +365,28 @@ export function TemplateBuilderPage() {
     .map((p) => p.text.trim().toLowerCase())
     .filter((t, i, arr) => t && arr.indexOf(t) !== i);
 
+  const [formulaWarnings, setFormulaWarnings] = useState<
+    Array<{
+      analyteCode: string;
+      analyteName: string;
+      sectionName: string | null;
+      formula: string;
+      errors: Array<{ code: string; message: string; ref?: string }>;
+    }>
+  >([]);
+
   const handleSave = async () => {
     if (!versionId) return;
     setSaving(true);
+    setFormulaWarnings([]);
     try {
-      await labApi.templates.updateDraft(versionId, buildPayload());
+      const result = await labApi.templates.updateDraft(
+        versionId,
+        buildPayload()
+      );
+      if (result.formulaWarnings?.length) {
+        setFormulaWarnings(result.formulaWarnings);
+      }
       toast.success(t('templates.saved_success'));
     } catch (err) {
       toast.error((err as Error).message);
@@ -383,6 +397,7 @@ export function TemplateBuilderPage() {
 
   const handlePublish = async () => {
     if (!versionId) return;
+    setFormulaWarnings([]);
     try {
       const confirmed = await confirm({
         title: t('templates.confirm_publish'),
@@ -399,7 +414,20 @@ export function TemplateBuilderPage() {
       toast.success(t('templates.published_success'));
       navigate('/templates');
     } catch (err) {
-      toast.error((err as Error).message);
+      const msg = (err as Error).message;
+      try {
+        const parsed = JSON.parse(msg);
+        if (parsed.formulaErrors?.length) {
+          setFormulaWarnings(parsed.formulaErrors);
+          toast.error(
+            parsed.message || t('templates.formula_errors_block_publish')
+          );
+          return;
+        }
+        toast.error(parsed.message || msg);
+      } catch {
+        toast.error(msg);
+      }
     }
   };
 
@@ -474,6 +502,31 @@ export function TemplateBuilderPage() {
           </button>
         </div>
       </div>
+
+      {/* Formula Warnings / Errors */}
+      {formulaWarnings.length > 0 && (
+        <div className="mb-6 rounded-xl border border-yellow-700/50 bg-yellow-900/20 p-4">
+          <p className="mb-2 text-sm font-semibold text-yellow-300">
+            {t('templates.formula_issues')}
+          </p>
+          <ul className="space-y-1 text-sm text-yellow-200/80">
+            {formulaWarnings.map((w) => (
+              <li key={w.analyteCode}>
+                <span className="font-medium text-yellow-200">
+                  {w.analyteName}
+                </span>
+                {w.sectionName && (
+                  <span className="text-yellow-400"> ({w.sectionName})</span>
+                )}
+                {' — '}
+                <code className="text-xs text-yellow-300">{w.formula}</code>
+                {': '}
+                {w.errors.map((e) => e.message).join('; ')}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Title & Observations */}
       <div className="mb-6 space-y-4 rounded-xl border border-gray-800 bg-gray-900 p-5">
@@ -651,9 +704,7 @@ export function TemplateBuilderPage() {
           </div>
         )}
         {phrases.length === 0 ? (
-          <p className="text-xs text-gray-500">
-            {t('templates.no_phrases')}
-          </p>
+          <p className="text-xs text-gray-500">{t('templates.no_phrases')}</p>
         ) : (
           <div className="space-y-3">
             {phrases.map((phrase, idx) => (

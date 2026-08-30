@@ -13,8 +13,19 @@ const STATUS_COLORS: Record<string, string> = {
   RESULTS_ENTERED: 'bg-purple-400/15 text-purple-300',
   IN_REVIEW: 'bg-indigo-400/15 text-indigo-300',
   BLOCKED: 'bg-red-400/15 text-red-300',
+  MISSING: 'bg-amber-400/15 text-amber-300',
   DRAFT: 'bg-yellow-400/15 text-yellow-300',
   RELEASED: 'bg-green-400/15 text-green-300',
+  // Release types
+  PARTIAL: 'bg-amber-400/15 text-amber-300',
+  FINAL: 'bg-green-400/15 text-green-300',
+  AMENDMENT: 'bg-blue-400/15 text-blue-300',
+  // Aggregate report statuses
+  PARTIAL_RESULTS: 'bg-amber-400/15 text-amber-300',
+  ALL_RELEASED: 'bg-green-400/15 text-green-300',
+  AMENDMENT_PENDING: 'bg-blue-400/15 text-blue-300',
+  // Amendment statuses
+  APPROVED: 'bg-green-400/15 text-green-300',
   // Pickup statuses
   REQUESTED: 'bg-yellow-400/15 text-yellow-300',
   ASSIGNED: 'bg-blue-400/15 text-blue-300',

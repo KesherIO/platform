@@ -67,6 +67,15 @@ enum TimelineEventType {
   SUBMITTED_FOR_REVIEW
   REVIEW_APPROVED
   REVIEW_CORRECTIONS
+  // Specimen missing lifecycle
+  SPECIMEN_MISSING
+  SPECIMEN_MISSING_REVERSED
+  // Partial release + amendment lifecycle
+  RELEASE_CREATED
+  AMENDMENT_INITIATED
+  AMENDMENT_SUBMITTED_FOR_REVIEW
+  AMENDMENT_APPROVED
+  AMENDMENT_CANCELLED
 }
 
 enum OnboardingTokenType {
@@ -153,6 +162,32 @@ enum ResultReportStatus {
   RELEASED // final and immutable — clinic can see it
 }
 
+enum ReleaseType {
+  PARTIAL // subset of tests released; other tests remain pending
+  FINAL // last batch; all non-cancelled tests are now terminal
+  AMENDMENT // correction to a previously released test
+}
+
+enum AmendmentStatus {
+  DRAFT // technician editing corrected values
+  IN_REVIEW // submitted for reviewer approval
+  APPROVED // reviewer approved; release snapshot created
+  CANCELLED // amendment abandoned without releasing
+}
+
+enum ResultReportTestStatus {
+  DRAFT // analytes being entered / not yet submitted
+  IN_REVIEW // submitted for reviewer approval
+  RELEASED // frozen; immutable via normal result-entry flow
+}
+
+enum ReleaseArtifactStatus {
+  PENDING // PDF generation not yet attempted
+  GENERATING // generation in progress
+  COMPLETED // PDF available at storageUrl
+  FAILED // generation failed; see errorMessage
+}
+
 enum KnowledgeScope {
   GLOBAL // shared across all tenants — platform-owned
   TENANT // specific to one clinic/lab
@@ -203,6 +238,7 @@ enum SpecimenStatus {
   RECEIVED // physical tube logged — transitional, pending accept/reject
   ACCEPTED // usable — linked tests transition PENDING → READY
   REJECTED // unusable — linked tests transition to BLOCKED
+  MISSING // physical tube lost or never arrived — reversible to EXPECTED
 }
 
 enum BlockReason {
@@ -331,6 +367,7 @@ model User {
   createdCases       Case[]
   assignedTests      OrderedTest[]
   receivedSpecimens  Specimen[]             @relation("SpecimensReceivedBy")
+  missingSpecimens   Specimen[]             @relation("SpecimensMarkedMissingBy")
   pickupsAsMessenger Pickup[]               @relation("MessengerPickups")
   pushSubscriptions  PushSubscription[]
 
@@ -590,7 +627,7 @@ model Order {
 
 /// Named group of analytes within a template version (e.g. "Serie Roja", "Examen Macroscópico").
 model ResultTemplateSection {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   versionId String
   code      String?
   name      String
@@ -647,12 +684,13 @@ model ResultTemplateDefinition {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
-  labTenant        Tenant?                    @relation("LabTemplateDefinitions", fields: [labTenantId], references: [id])
-  parentDefinition ResultTemplateDefinition?  @relation("TemplateInheritance", fields: [parentDefinitionId], references: [id])
-  childDefinitions ResultTemplateDefinition[] @relation("TemplateInheritance")
-  activeVersion    ResultTemplateVersion?     @relation("ActiveVersion", fields: [activeVersionId], references: [id])
-  versions         ResultTemplateVersion[]    @relation("DefinitionVersions")
-  reportTests      ResultReportTest[]
+  labTenant            Tenant?                    @relation("LabTemplateDefinitions", fields: [labTenantId], references: [id])
+  parentDefinition     ResultTemplateDefinition?  @relation("TemplateInheritance", fields: [parentDefinitionId], references: [id])
+  childDefinitions     ResultTemplateDefinition[] @relation("TemplateInheritance")
+  activeVersion        ResultTemplateVersion?     @relation("ActiveVersion", fields: [activeVersionId], references: [id])
+  versions             ResultTemplateVersion[]    @relation("DefinitionVersions")
+  reportTests          ResultReportTest[]
+  releaseTestSnapshots ResultReportReleaseTest[]  @relation("ReleaseTestTemplateDef")
 
   @@unique([catalogItemCode, species, ageMinWeeks, ageMaxWeeks, ownerKey])
   @@index([ownerKey])
@@ -671,11 +709,12 @@ model ResultTemplateVersion {
   publishedAt         DateTime?
   createdAt           DateTime       @default(now())
 
-  definition          ResultTemplateDefinition  @relation("DefinitionVersions", fields: [definitionId], references: [id], onDelete: Cascade)
-  activeForDefinition ResultTemplateDefinition? @relation("ActiveVersion")
-  sections            ResultTemplateSection[]   @relation("VersionSections")
-  analytes            ResultTemplateAnalyte[]   @relation("VersionAnalytes")
-  reportTests         ResultReportTest[]
+  definition           ResultTemplateDefinition  @relation("DefinitionVersions", fields: [definitionId], references: [id], onDelete: Cascade)
+  activeForDefinition  ResultTemplateDefinition? @relation("ActiveVersion")
+  sections             ResultTemplateSection[]   @relation("VersionSections")
+  analytes             ResultTemplateAnalyte[]   @relation("VersionAnalytes")
+  reportTests          ResultReportTest[]
+  releaseTestSnapshots ResultReportReleaseTest[] @relation("ReleaseTestTemplateVer")
 
   @@unique([definitionId, version])
   @@index([definitionId])
@@ -804,15 +843,18 @@ model ResultReport {
   // PDF export — generated from structured data on release; not source of truth
   pdfUrl String?
 
-  releasedAt       DateTime?
-  releasedByUserId String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  releasedAt             DateTime?
+  releasedByUserId       String?
+  currentReleaseSequence Int       @default(0)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  reviewedBySigner  LabSigner?         @relation(fields: [reviewedBySignerId], references: [id], onDelete: SetNull)
+  order             Order                   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reviewedBySigner  LabSigner?              @relation(fields: [reviewedBySignerId], references: [id], onDelete: SetNull)
   tests             ResultReportTest[]
   aiInterpretations AiInterpretation[]
+  releases          ResultReportRelease[]
+  amendments        ResultReportAmendment[]
 
   @@index([caseId])
   @@index([tenantId, status])
@@ -822,19 +864,25 @@ model ResultReport {
 /// Per-test template provenance within a result report.
 /// Links each OrderedTest to the exact ResultTemplateVersion used for its analytes.
 model ResultReportTest {
-  id                   String   @id @default(cuid())
+  id                   String                 @id @default(cuid())
   reportId             String
   orderedTestId        String?
   templateVersionId    String
   templateDefinitionId String
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  status               ResultReportTestStatus @default(DRAFT)
+  latestReleaseId      String?
+  latestReleasedAt     DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
 
-  report             ResultReport             @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  orderedTest        OrderedTest?             @relation(fields: [orderedTestId], references: [id])
-  templateVersion    ResultTemplateVersion    @relation(fields: [templateVersionId], references: [id])
-  templateDefinition ResultTemplateDefinition @relation(fields: [templateDefinitionId], references: [id])
+  report             ResultReport              @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  orderedTest        OrderedTest?              @relation(fields: [orderedTestId], references: [id])
+  templateVersion    ResultTemplateVersion     @relation(fields: [templateVersionId], references: [id])
+  templateDefinition ResultTemplateDefinition  @relation(fields: [templateDefinitionId], references: [id])
+  latestRelease      ResultReportRelease?      @relation("LatestTestRelease", fields: [latestReleaseId], references: [id], onDelete: SetNull)
   analytes           ResultReportAnalyte[]
+  releaseSnapshots   ResultReportReleaseTest[] @relation("ReleaseSnapshotOfTest")
+  amendments         ResultReportAmendment[]
 
   @@unique([reportId, orderedTestId])
   @@index([reportId])
@@ -914,8 +962,9 @@ model LabSigner {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  laboratoryProfile LaboratoryProfile @relation(fields: [laboratoryProfileId], references: [id], onDelete: Cascade)
+  laboratoryProfile LaboratoryProfile     @relation(fields: [laboratoryProfileId], references: [id], onDelete: Cascade)
   reviewedReports   ResultReport[]
+  releases          ResultReportRelease[] @relation("ReleaseSignerRef")
 
   @@map("lab_signers")
 }
@@ -1041,13 +1090,14 @@ model OrderedTest {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  order       Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  catalogItem CatalogItem           @relation(fields: [catalogItemId], references: [id])
-  assignedTo  User?                 @relation(fields: [assignedUserId], references: [id])
-  analyzer    Analyzer?             @relation(fields: [analyzerId], references: [id])
-  sources     OrderedTestSource[]
-  reportTests ResultReportTest[]
-  specimens   OrderedTestSpecimen[]
+  order            Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogItem      CatalogItem               @relation(fields: [catalogItemId], references: [id])
+  assignedTo       User?                     @relation(fields: [assignedUserId], references: [id])
+  analyzer         Analyzer?                 @relation(fields: [analyzerId], references: [id])
+  sources          OrderedTestSource[]
+  reportTests      ResultReportTest[]
+  specimens        OrderedTestSpecimen[]
+  releaseSnapshots ResultReportReleaseTest[] @relation("ReleaseSnapshotForOrderedTest")
 
   @@index([orderId])
   @@index([catalogItemId])
@@ -1110,12 +1160,16 @@ model Specimen {
   rejectionReason String?
   notes           String?
 
+  markedMissingAt   DateTime?
+  markedMissingById String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  order        Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  receivedBy   User?                 @relation("SpecimensReceivedBy", fields: [receivedById], references: [id])
-  orderedTests OrderedTestSpecimen[]
+  order           Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  receivedBy      User?                 @relation("SpecimensReceivedBy", fields: [receivedById], references: [id])
+  markedMissingBy User?                 @relation("SpecimensMarkedMissingBy", fields: [markedMissingById], references: [id])
+  orderedTests    OrderedTestSpecimen[]
 
   @@unique([labTenantId, accessionNumber])
   @@index([orderId])
@@ -1220,4 +1274,265 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+// ---------------------------------------------------------------------------
+// Partial Release & Amendment (immutable audit snapshots)
+// ---------------------------------------------------------------------------
+
+/// One release event — immutable clinical/identity/result snapshot.
+/// Only operational fields (artifacts) are mutable, via ResultReportReleaseArtifact.
+model ResultReportRelease {
+  id              String      @id @default(cuid())
+  reportId        String
+  releaseSequence Int
+  releaseType     ReleaseType
+
+  // ── Signer snapshot (frozen at release time) ──
+  signerId                 String
+  signerName               String
+  signerTitle              String?
+  signerSpecialty          String?
+  signerUniversity         String?
+  signerRegistrationNumber String?
+  signerSignatureUrl       String?
+
+  // ── Released-by actor ──
+  releasedByUserId String
+  releasedByName   String
+  reviewNotes      String?
+
+  // ── Lab identity snapshot ──
+  labTenantId            String
+  labName                String
+  labAccreditationNumber String?
+  labDirectorName        String?
+  labDirectorCredentials String?
+  labLogoUrl             String?
+  labAddress             String?
+  labPhone               String?
+
+  // ── Order identity snapshot ──
+  orderId           String
+  requisitionNumber String
+  orderPriority     String
+  orderClinicNotes  String?
+  orderCreatedAt    DateTime
+
+  // ── Patient identity snapshot ──
+  patientName        String
+  patientSpecies     String
+  patientSex         String?
+  patientBreed       String?
+  patientAge         Int?
+  patientAgeUnit     String?
+  patientDateOfBirth DateTime?
+  patientWeight      Float?
+  ownerName          String
+  ownerPhone         String?
+
+  // ── Clinic identity snapshot ──
+  clinicTenantId String
+  clinicName     String
+  clinicAddress  String?
+  clinicPhone    String?
+  clinicLogoUrl  String?
+
+  // ── Release-level content ──
+  observations String?
+
+  // ── Timestamps ──
+  releasedAt DateTime @default(now())
+
+  // ── Relations ──
+  report           ResultReport                  @relation(fields: [reportId], references: [id], onDelete: Restrict)
+  signer           LabSigner                     @relation("ReleaseSignerRef", fields: [signerId], references: [id], onDelete: Restrict)
+  tests            ResultReportReleaseTest[]
+  artifacts        ResultReportReleaseArtifact[]
+  latestForTests   ResultReportTest[]            @relation("LatestTestRelease")
+  sourceAmendments ResultReportAmendment[]       @relation("AmendmentSourceRelease")
+
+  @@unique([reportId, releaseSequence])
+  @@index([reportId])
+  @@index([orderId])
+  @@map("result_report_releases")
+}
+
+/// Immutable snapshot of one test as released.
+model ResultReportReleaseTest {
+  id        String @id @default(cuid())
+  releaseId String
+
+  // ── Traceability FKs (not the source for rendering) ──
+  sourceReportTestId String
+  orderedTestId      String?
+
+  // ── Per-test amendment lineage ──
+  amendsReleaseTestId String?
+
+  // ── Test identity snapshot ──
+  catalogItemCode  String?
+  catalogItemName  String
+  department       String?
+  processingMethod String?
+  entryMethod      String
+
+  // ── Template provenance snapshot ──
+  templateDefinitionId String
+  templateVersionId    String
+  templateTitle        String
+  templateVersion      Int
+
+  // ── Specimen snapshot ──
+  specimenAccessionNumbers String[]
+  specimenTypes            String[]
+
+  // ── Test-level content ──
+  observations String?
+  conclusion   String?
+
+  // ── Result dates ──
+  resultsEnteredAt DateTime?
+  testStartedAt    DateTime?
+  testCompletedAt  DateTime
+
+  // ── Relations ──
+  release            ResultReportRelease          @relation(fields: [releaseId], references: [id], onDelete: Restrict)
+  sourceReportTest   ResultReportTest             @relation("ReleaseSnapshotOfTest", fields: [sourceReportTestId], references: [id], onDelete: Restrict)
+  orderedTest        OrderedTest?                 @relation("ReleaseSnapshotForOrderedTest", fields: [orderedTestId], references: [id], onDelete: SetNull)
+  amendsReleaseTest  ResultReportReleaseTest?     @relation("TestAmendmentChain", fields: [amendsReleaseTestId], references: [id], onDelete: Restrict)
+  amendedBy          ResultReportReleaseTest[]    @relation("TestAmendmentChain")
+  templateDefinition ResultTemplateDefinition     @relation("ReleaseTestTemplateDef", fields: [templateDefinitionId], references: [id], onDelete: Restrict)
+  templateVersionRef ResultTemplateVersion        @relation("ReleaseTestTemplateVer", fields: [templateVersionId], references: [id], onDelete: Restrict)
+  analytes           ResultReportReleaseAnalyte[]
+
+  @@unique([releaseId, sourceReportTestId])
+  @@index([releaseId])
+  @@index([sourceReportTestId])
+  @@index([amendsReleaseTestId])
+  @@map("result_report_release_tests")
+}
+
+/// Immutable snapshot of one analyte value as released.
+model ResultReportReleaseAnalyte {
+  id            String @id @default(cuid())
+  releaseTestId String
+
+  // ── Analyte identity snapshot ──
+  code        String
+  name        String
+  sectionName String?
+  sortOrder   Int
+  isHeader    Boolean @default(false)
+
+  // ── Value snapshot ──
+  valueType    AnalyteValueType
+  numericValue Float?
+  textValue    String?
+  booleanValue Boolean?
+  selectValue  String?
+
+  // ── Metadata snapshot ──
+  unit      String?
+  technique String?
+  formula   String?
+
+  // ── Clinical interpretation snapshot ──
+  flag              String?
+  referenceSnapshot Json?
+
+  // ── Relations ──
+  releaseTest ResultReportReleaseTest @relation(fields: [releaseTestId], references: [id], onDelete: Restrict)
+
+  @@index([releaseTestId])
+  @@map("result_report_release_analytes")
+}
+
+/// Mutable operational artifact for a release (PDF, HL7, FHIR).
+/// Separated from the immutable release so PDF generation retries do not touch audit data.
+model ResultReportReleaseArtifact {
+  id           String                @id @default(cuid())
+  releaseId    String
+  artifactType String                @default("PDF")
+  status       ReleaseArtifactStatus @default(PENDING)
+  storageUrl   String?
+  errorMessage String?
+  retryCount   Int                   @default(0)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  release ResultReportRelease @relation(fields: [releaseId], references: [id], onDelete: Restrict)
+
+  @@unique([releaseId, artifactType])
+  @@map("result_report_release_artifacts")
+}
+
+/// Isolated amendment workspace. The live ResultReportTest stays RELEASED and
+/// OrderedTest stays COMPLETED while an amendment is in progress.
+model ResultReportAmendment {
+  id              String @id @default(cuid())
+  reportId        String
+  reportTestId    String
+  sourceReleaseId String
+
+  status AmendmentStatus @default(DRAFT)
+  reason String
+
+  // ── Review fields ──
+  submittedForReviewAt DateTime?
+  submittedByUserId    String?
+  reviewedBySignerId   String?
+  reviewedAt           DateTime?
+  reviewNotes          String?
+
+  // ── Outcome ──
+  resultingReleaseId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  report        ResultReport                   @relation(fields: [reportId], references: [id], onDelete: Restrict)
+  reportTest    ResultReportTest               @relation(fields: [reportTestId], references: [id], onDelete: Restrict)
+  sourceRelease ResultReportRelease            @relation("AmendmentSourceRelease", fields: [sourceReleaseId], references: [id], onDelete: Restrict)
+  analytes      ResultReportAmendmentAnalyte[]
+
+  @@index([reportId])
+  @@index([reportTestId])
+  @@map("result_report_amendments")
+}
+
+/// Editable copy of analyte values within an amendment workspace.
+/// Initialized from the source release snapshot. On approval, becomes the
+/// source for the new immutable release snapshot.
+model ResultReportAmendmentAnalyte {
+  id          String @id @default(cuid())
+  amendmentId String
+
+  // ── Analyte identity (copied from release snapshot) ──
+  code        String
+  name        String
+  sectionName String?
+  sortOrder   Int
+  isHeader    Boolean @default(false)
+
+  // ── Editable value fields ──
+  valueType    AnalyteValueType
+  numericValue Float?
+  textValue    String?
+  booleanValue Boolean?
+  selectValue  String?
+
+  // ── Metadata (copied from release snapshot) ──
+  unit      String?
+  technique String?
+  formula   String?
+
+  // ── Computed on amendment approval ──
+  flag              String?
+  referenceSnapshot Json?
+
+  amendment ResultReportAmendment @relation(fields: [amendmentId], references: [id], onDelete: Cascade)
+
+  @@index([amendmentId])
+  @@map("result_report_amendment_analytes")
 }

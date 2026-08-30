@@ -52,7 +52,12 @@ export class ResultEntryService {
               },
             },
             resultReport: {
-              select: { id: true, status: true, observations: true, correctionNotes: true },
+              select: {
+                id: true,
+                status: true,
+                observations: true,
+                correctionNotes: true,
+              },
             },
           },
         },
@@ -60,6 +65,12 @@ export class ResultEntryService {
     });
 
     if (!test) throw new NotFoundException('Ordered test not found.');
+
+    if (test.status === 'BLOCKED' || test.status === 'CANCELLED') {
+      throw new BadRequestException(
+        `Cannot open result session: test is ${test.status}.`
+      );
+    }
 
     const species = test.order.case.patientSpecies as PatientSpecies;
     const ageWeeks =
@@ -229,6 +240,22 @@ export class ResultEntryService {
     });
 
     if (!test) throw new NotFoundException('Ordered test not found.');
+
+    if (test.status === 'BLOCKED' || test.status === 'CANCELLED') {
+      throw new BadRequestException(
+        `Cannot save analytes: test is ${test.status}.`
+      );
+    }
+
+    const releaseCheck = await this.prisma.resultReportTest.findFirst({
+      where: { orderedTestId: test.id },
+      select: { status: true },
+    });
+    if (releaseCheck?.status === 'RELEASED') {
+      throw new BadRequestException(
+        'Cannot edit results: test has been released. Use the amendment workflow.'
+      );
+    }
 
     const species = test.order.case.patientSpecies as PatientSpecies;
     const ageWeeks =
@@ -486,7 +513,9 @@ export class ResultEntryService {
     });
 
     if (!reportTest) {
-      throw new BadRequestException('No report test exists — save analytes first.');
+      throw new BadRequestException(
+        'No report test exists — save analytes first.'
+      );
     }
 
     const species = test.order.case.patientSpecies as PatientSpecies;
@@ -506,7 +535,9 @@ export class ResultEntryService {
     );
 
     if (!templateDef?.activeVersion) {
-      throw new NotFoundException('No active result template found for this test.');
+      throw new NotFoundException(
+        'No active result template found for this test.'
+      );
     }
 
     const version = templateDef.activeVersion;

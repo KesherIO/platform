@@ -114,7 +114,15 @@
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
-          "options": ["Amarillo claro", "Amarillo", "Amarillo oscuro", "Ámbar", "Naranja", "Rojo", "Marrón"],
+          "options": [
+            "Amarillo claro",
+            "Amarillo",
+            "Amarillo oscuro",
+            "Ámbar",
+            "Naranja",
+            "Rojo",
+            "Marrón"
+          ],
           "referenceRange": null
         }
       ]
@@ -313,7 +321,15 @@
           "unit": null,
           "sortOrder": 6,
           "isHeader": false,
-          "options": ["No se observan", "Oxalato de calcio", "Fosfato triple", "Urato amorfo", "Fosfato amorfo", "Estruvita", "Cistina"],
+          "options": [
+            "No se observan",
+            "Oxalato de calcio",
+            "Fosfato triple",
+            "Urato amorfo",
+            "Fosfato amorfo",
+            "Estruvita",
+            "Cistina"
+          ],
           "referenceRange": null
         },
         {
@@ -346,7 +362,13 @@
           "unit": null,
           "sortOrder": 9,
           "isHeader": false,
-          "options": ["No se observan", "Hialinos", "Granulosos", "Céreos", "Celulares"],
+          "options": [
+            "No se observan",
+            "Hialinos",
+            "Granulosos",
+            "Céreos",
+            "Celulares"
+          ],
           "referenceRange": null
         },
         {

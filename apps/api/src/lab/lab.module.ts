@@ -10,6 +10,8 @@ import { ReviewService } from './review.service';
 import { WorklistService } from './worklist.service';
 import { ReadinessService } from './readiness.service';
 import { OrderStatusService } from './order-status.service';
+import { ReleaseService } from './release.service';
+import { AmendmentService } from './amendment.service';
 import { LabTenantGuard } from './lab-tenant.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
@@ -37,6 +39,8 @@ import { CatalogModule } from '../catalog/catalog.module';
     WorklistService,
     ReadinessService,
     OrderStatusService,
+    ReleaseService,
+    AmendmentService,
     LabTenantGuard,
   ],
   exports: [PickupService, ReadinessService, OrderStatusService],

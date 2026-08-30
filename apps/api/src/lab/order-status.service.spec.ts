@@ -38,7 +38,9 @@ describe('OrderStatusService', () => {
 
   describe('deriveOrderStatus', () => {
     it('returns COMPLETED when all tests are in terminal states', async () => {
-      prisma.order.findUniqueOrThrow.mockResolvedValue({ status: 'PROCESSING' });
+      prisma.order.findUniqueOrThrow.mockResolvedValue({
+        status: 'PROCESSING',
+      });
       prisma.orderedTest.findMany.mockResolvedValue([
         { status: 'COMPLETED' },
         { status: 'CANCELLED' },
@@ -51,7 +53,9 @@ describe('OrderStatusService', () => {
     });
 
     it('returns COMPLETED when all tests are COMPLETED (no CANCELLED)', async () => {
-      prisma.order.findUniqueOrThrow.mockResolvedValue({ status: 'PROCESSING' });
+      prisma.order.findUniqueOrThrow.mockResolvedValue({
+        status: 'PROCESSING',
+      });
       prisma.orderedTest.findMany.mockResolvedValue([
         { status: 'COMPLETED' },
         { status: 'COMPLETED' },
@@ -63,7 +67,9 @@ describe('OrderStatusService', () => {
     });
 
     it('does NOT return COMPLETED when a BLOCKED test exists among COMPLETED', async () => {
-      prisma.order.findUniqueOrThrow.mockResolvedValue({ status: 'PROCESSING' });
+      prisma.order.findUniqueOrThrow.mockResolvedValue({
+        status: 'PROCESSING',
+      });
       prisma.orderedTest.findMany.mockResolvedValue([
         { status: 'COMPLETED' },
         { status: 'BLOCKED' },
@@ -76,7 +82,9 @@ describe('OrderStatusService', () => {
     });
 
     it('returns PROCESSING when any test is IN_PROGRESS', async () => {
-      prisma.order.findUniqueOrThrow.mockResolvedValue({ status: 'RECEIVED_BY_LAB' });
+      prisma.order.findUniqueOrThrow.mockResolvedValue({
+        status: 'RECEIVED_BY_LAB',
+      });
       prisma.orderedTest.findMany.mockResolvedValue([
         { status: 'IN_PROGRESS' },
         { status: 'PENDING' },

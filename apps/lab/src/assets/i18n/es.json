@@ -86,7 +86,18 @@
     "ACCEPTED": "Aceptado",
     "IN_TRANSIT": "En tránsito",
     "RECEIVED_AT_LAB": "Recibido",
-    "FAILED": "Fallido"
+    "FAILED": "Fallido",
+    "MISSING": "Extraviado",
+    "EXPECTED": "Esperado",
+    "RECEIVED": "Recibido",
+    "REJECTED": "Rechazado",
+    "PARTIAL": "Parcial",
+    "FINAL": "Final",
+    "AMENDMENT": "Enmienda",
+    "PARTIAL_RESULTS": "Resultados parciales",
+    "ALL_RELEASED": "Todos liberados",
+    "AMENDMENT_PENDING": "Enmienda pendiente",
+    "APPROVED": "Aprobado"
   },
   "species": {
     "ANY": "Cualquier especie",
@@ -248,7 +259,37 @@
     "no_reviewer_signers": "No hay firmantes revisores configurados. Agregue un firmante con el rol de Revisor en la configuración del laboratorio.",
     "reviewer_panel_title": "Decisión de revisión",
     "pending_tests_cannot_submit": "Todos los exámenes deben tener resultados ingresados antes de enviar a revisión.",
-    "approver_info": "Aprobado por {{name}}"
+    "approver_info": "Aprobado por {{name}}",
+    "no_reviewer_warning": "No hay firmantes revisores configurados. Debe agregar al menos un firmante con el rol de Revisor antes de enviar a revisión.",
+    "select_tests": "Seleccionar pruebas a liberar",
+    "select_all": "Seleccionar todo",
+    "deselect_all": "Deseleccionar todo",
+    "selected_count": "{{count}} prueba(s) seleccionada(s)",
+    "release_type_partial": "Esta será una liberación parcial.",
+    "release_type_final": "Esta será una liberación final (todas las pruebas).",
+    "release_history": "Historial de liberaciones",
+    "release_sequence": "Liberación #{{seq}}",
+    "no_releases_yet": "Aún no hay liberaciones.",
+    "amend_btn": "Enmendar",
+    "amend_reason_label": "Motivo de la enmienda",
+    "amend_reason_placeholder": "Describa qué necesita ser corregido...",
+    "amend_initiate": "Iniciar enmienda",
+    "amend_cancel": "Cancelar enmienda",
+    "amend_submit_for_review": "Enviar enmienda a revisión",
+    "amend_approve": "Aprobar enmienda",
+    "amendment_initiated": "Enmienda creada.",
+    "amendment_cancelled": "Enmienda cancelada.",
+    "amendment_submitted": "Enmienda enviada a revisión.",
+    "amendment_approved": "Enmienda aprobada y liberada.",
+    "amendment_error": "Error de enmienda:",
+    "current_results": "Resultados liberados actuales",
+    "no_released_results": "Aún no se han liberado resultados.",
+    "test_already_released": "Ya liberado",
+    "approve_confirm_partial": "Esto liberará {{count}} prueba(s) seleccionada(s) como liberación PARCIAL. Las demás pruebas permanecerán pendientes.",
+    "approve_confirm_final": "Esto liberará todas las pruebas restantes como liberación FINAL.",
+    "submit_selected_btn": "Enviar seleccionadas a revisión",
+    "original_value": "Original",
+    "corrected_value": "Corregido"
   },
   "settings": {
     "title": "Configuración del laboratorio",
@@ -349,6 +390,11 @@
     "status": {
       "active": "Activo",
       "inactive": "Inactivo"
+    },
+    "readiness": {
+      "ready": "Listo",
+      "not_ready": "No listo",
+      "issues": "{{count}} problema(s)"
     },
     "result_type": {
       "NUMERIC": "Numérico",
@@ -864,7 +910,9 @@
     "phrase_general": "General",
     "duplicate_phrase_warning": "Dos o más frases tienen texto idéntico. Considere eliminar los duplicados antes de guardar.",
     "options_label": "Opciones",
-    "option_add_placeholder": "Agregar opción..."
+    "option_add_placeholder": "Agregar opción...",
+    "formula_issues": "Problemas de fórmulas detectados",
+    "formula_errors_block_publish": "La plantilla contiene fórmulas inválidas y no puede ser publicada."
   },
   "worklist": {
     "title": "Worklist por Departamento",
@@ -931,5 +979,15 @@
       "MICROBIOLOGY": "Microbiología",
       "OTHER": "Otro"
     }
+  },
+  "specimens": {
+    "title": "Muestras",
+    "mark_missing": "Marcar extraviada",
+    "reverse_missing": "Deshacer extravío",
+    "missing_reason_placeholder": "Razón...",
+    "marked_missing_success": "Muestra marcada como extraviada.",
+    "marked_missing_error": "Error al marcar la muestra:",
+    "reverse_missing_success": "Estado de extravío revertido.",
+    "reverse_missing_error": "Error al revertir estado:"
   }
 }

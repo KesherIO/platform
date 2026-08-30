@@ -38,7 +38,10 @@ function tokenize(formula: string): Token[] {
     }
     if (/\d/.test(ch) || ch === '.') {
       let num = '';
-      while (i < formula.length && (/\d/.test(formula[i]) || formula[i] === '.')) {
+      while (
+        i < formula.length &&
+        (/\d/.test(formula[i]) || formula[i] === '.')
+      ) {
         num += formula[i];
         i++;
       }
@@ -50,7 +53,9 @@ function tokenize(formula: string): Token[] {
   return tokens;
 }
 
-type EvalFn = (values: Record<string, number | null | undefined>) => number | null;
+type EvalFn = (
+  values: Record<string, number | null | undefined>
+) => number | null;
 
 function parse(tokens: Token[]): EvalFn {
   let pos = 0;
@@ -65,7 +70,10 @@ function parse(tokens: Token[]): EvalFn {
 
   function parseExpr(): EvalFn {
     let left = parseTerm();
-    while (peek()?.type === 'OP' && (peek() as Token & { type: 'OP' }).value in { '+': 1, '-': 1 }) {
+    while (
+      peek()?.type === 'OP' &&
+      (peek() as Token & { type: 'OP' }).value in { '+': 1, '-': 1 }
+    ) {
       const op = (consume() as Token & { type: 'OP' }).value;
       const right = parseTerm();
       const prevLeft = left;
@@ -88,7 +96,10 @@ function parse(tokens: Token[]): EvalFn {
 
   function parseTerm(): EvalFn {
     let left = parseFactor();
-    while (peek()?.type === 'OP' && (peek() as Token & { type: 'OP' }).value in { '*': 1, '/': 1 }) {
+    while (
+      peek()?.type === 'OP' &&
+      (peek() as Token & { type: 'OP' }).value in { '*': 1, '/': 1 }
+    ) {
       const op = (consume() as Token & { type: 'OP' }).value;
       const right = parseFactor();
       const prevLeft = left;
@@ -182,7 +193,11 @@ function extractCodeRefs(formula: string): string[] {
 }
 
 export function evaluateAllFormulas(
-  analytes: Array<{ code: string; formula: string | null; numericValue: number | null }>
+  analytes: Array<{
+    code: string;
+    formula: string | null;
+    numericValue: number | null;
+  }>
 ): Record<string, number | null> {
   const formulaAnalytes = analytes.filter((a) => a.formula);
   const inputAnalytes = analytes.filter((a) => !a.formula);
@@ -207,7 +222,9 @@ export function evaluateAllFormulas(
   function visit(code: string) {
     if (visited.has(code)) return;
     if (visiting.has(code)) {
-      throw new Error(`Circular formula dependency detected involving '${code}'`);
+      throw new Error(
+        `Circular formula dependency detected involving '${code}'`
+      );
     }
     if (!formulaCodes.has(code)) return;
 
@@ -224,7 +241,9 @@ export function evaluateAllFormulas(
     visit(a.code);
   }
 
-  const formulaByCode = new Map(formulaAnalytes.map((a) => [a.code, a.formula!]));
+  const formulaByCode = new Map(
+    formulaAnalytes.map((a) => [a.code, a.formula!])
+  );
   for (const code of sorted) {
     const formula = formulaByCode.get(code)!;
     values[code] = evaluateFormula(formula, values);
