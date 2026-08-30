@@ -979,33 +979,76 @@ export class SpecimenService {
         },
       });
 
-      // Restore tests that were BLOCKED specifically by this specimen
       const linkedTests = await tx.orderedTestSpecimen.findMany({
         where: { specimenId },
         select: {
           orderedTest: {
-            select: { id: true, status: true, blockReason: true },
+            select: {
+              id: true,
+              status: true,
+              blockReason: true,
+              blockReasonDetail: true,
+              specimens: {
+                select: {
+                  specimen: {
+                    select: { id: true, status: true, accessionNumber: true },
+                  },
+                },
+              },
+              reportTests: { select: { id: true }, take: 1 },
+            },
           },
         },
       });
 
       const restoredTestIds: string[] = [];
       for (const link of linkedTests) {
+        const test = link.orderedTest;
         if (
-          link.orderedTest.status === 'BLOCKED' &&
-          link.orderedTest.blockReason === 'MISSING_SPECIMEN'
+          test.status !== 'BLOCKED' ||
+          test.blockReason !== 'MISSING_SPECIMEN'
         ) {
+          continue;
+        }
+
+        if (
+          test.blockReasonDetail &&
+          !test.blockReasonDetail.includes(specimen.accessionNumber)
+        ) {
+          continue;
+        }
+
+        const otherProblems = test.specimens.filter(
+          (s) =>
+            s.specimen.id !== specimenId &&
+            (s.specimen.status === 'MISSING' ||
+              s.specimen.status === 'REJECTED')
+        );
+
+        if (otherProblems.length > 0) {
+          const prob = otherProblems[0].specimen;
           await tx.orderedTest.update({
-            where: { id: link.orderedTest.id },
+            where: { id: test.id },
             data: {
-              status: 'PENDING',
-              blockReason: null,
-              blockReasonDetail: null,
+              blockReasonDetail: `Specimen ${prob.accessionNumber} still ${prob.status}`,
               version: { increment: 1 },
             },
           });
-          restoredTestIds.push(link.orderedTest.id);
+          continue;
         }
+
+        const targetStatus =
+          test.reportTests.length > 0 ? 'READY' : 'PENDING';
+        await tx.orderedTest.update({
+          where: { id: test.id },
+          data: {
+            status: targetStatus,
+            blockReason: null,
+            blockReasonDetail: null,
+            version: { increment: 1 },
+          },
+        });
+        restoredTestIds.push(test.id);
       }
 
       await tx.timelineEvent.create({
