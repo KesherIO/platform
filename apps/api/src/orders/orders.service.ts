@@ -7,6 +7,7 @@ import {
 import { CaseStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PickupService } from '../lab/pickup.service';
+import { ReadinessService } from '../lab/readiness.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
 
@@ -17,7 +18,8 @@ const ORDERABLE_STATUSES: CaseStatus[] = [CaseStatus.OPEN, CaseStatus.TRIAGED];
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pickupService: PickupService
+    private readonly pickupService: PickupService,
+    private readonly readinessService: ReadinessService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -75,6 +77,106 @@ export class OrdersService {
       orderBy: { isDefault: 'desc' },
       select: { labId: true },
     });
+
+    // 5 — Readiness enforcement: block if any test is not ready
+    if (labConnection?.labId) {
+      const readiness = await this.readinessService.checkBulkReadiness(
+        labConnection.labId
+      );
+      const readinessMap = new Map(
+        readiness.items.map((r) => [r.catalogItemId, r])
+      );
+
+      for (const { catalogItem: ci } of selections) {
+        if (ci.kind === 'TEST') {
+          const r = readinessMap.get(ci.id);
+          if (r && !r.ready) {
+            throw new BadRequestException({
+              message: `Test "${ci.name}" is not operationally ready and cannot be ordered.`,
+              readinessReasons: r.reasons,
+              catalogItemId: ci.id,
+            });
+          }
+        }
+      }
+
+      // For packages: block if ANY component test is not ready
+      const packageSelections = selections.filter(
+        ({ catalogItem: ci }) => ci.kind === 'PACKAGE'
+      );
+      if (packageSelections.length > 0) {
+        const compositions =
+          await this.prisma.catalogItemComposition.findMany({
+            where: {
+              packageId: { in: packageSelections.map(({ catalogItem }) => catalogItem.id) },
+            },
+            select: {
+              packageId: true,
+              component: { select: { id: true, name: true } },
+            },
+          });
+
+        const unreadyComponents: Array<{
+          packageName: string;
+          componentId: string;
+          componentName: string;
+          reasons: Array<{ code: string; message: string; resourceId?: string }>;
+        }> = [];
+
+        const packageNameById = new Map(
+          packageSelections.map(({ catalogItem }) => [catalogItem.id, catalogItem.name])
+        );
+
+        for (const comp of compositions) {
+          const r = readinessMap.get(comp.component.id);
+          if (r && !r.ready) {
+            unreadyComponents.push({
+              packageName: packageNameById.get(comp.packageId) ?? comp.packageId,
+              componentId: comp.component.id,
+              componentName: comp.component.name,
+              reasons: r.reasons,
+            });
+          }
+        }
+
+        if (unreadyComponents.length > 0) {
+          const byPackage = new Map<string, {
+            packageId: string;
+            packageName: string;
+            unreadyComponents: Array<{
+              componentId: string;
+              componentName: string;
+              reasons: Array<{ code: string; message: string; resourceId?: string }>;
+            }>;
+          }>();
+
+          for (const comp of unreadyComponents) {
+            const pkgId = compositions.find(
+              (c) => c.component.id === comp.componentId
+            )?.packageId ?? 'unknown';
+            let pkg = byPackage.get(pkgId);
+            if (!pkg) {
+              pkg = {
+                packageId: pkgId,
+                packageName: comp.packageName,
+                unreadyComponents: [],
+              };
+              byPackage.set(pkgId, pkg);
+            }
+            pkg.unreadyComponents.push({
+              componentId: comp.componentId,
+              componentName: comp.componentName,
+              reasons: comp.reasons,
+            });
+          }
+
+          throw new BadRequestException({
+            message: 'Package contains tests that are not operationally ready.',
+            packages: Array.from(byPackage.values()),
+          });
+        }
+      }
+    }
 
     // 5 — Create order + requisition number atomically
     const order = await this.prisma.$transaction(async (tx) => {

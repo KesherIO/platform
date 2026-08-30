@@ -7,6 +7,7 @@ import {
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PickupService } from '../lab/pickup.service';
+import { ReadinessService } from '../lab/readiness.service';
 import { CaseStatus } from '@prisma/client';
 
 const MOCK_CASE = {
@@ -80,15 +81,23 @@ describe('OrdersService', () => {
   let service: OrdersService;
   let prisma: ReturnType<typeof makePrismaMock>;
   let pickupService: { createPickup: jest.Mock };
+  let readinessService: { checkBulkReadiness: jest.Mock };
 
   beforeEach(async () => {
     prisma = makePrismaMock();
     pickupService = { createPickup: jest.fn().mockResolvedValue({}) };
+    readinessService = {
+      checkBulkReadiness: jest.fn().mockResolvedValue({
+        items: [{ catalogItemId: 'ci-1', ready: true, reasons: [] }],
+        summary: { total: 1, ready: 1, notReady: 0 },
+      }),
+    };
     const module = await Test.createTestingModule({
       providers: [
         OrdersService,
         { provide: PrismaService, useValue: prisma },
         { provide: PickupService, useValue: pickupService },
+        { provide: ReadinessService, useValue: readinessService },
       ],
     }).compile();
     service = module.get(OrdersService);
@@ -134,5 +143,49 @@ describe('OrdersService', () => {
     await expect(
       service.createOrderForCase('tenant-1', 'case-1', {})
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejects package with unready component, grouped by package', async () => {
+    const pkgItem = {
+      id: 'pkg-1',
+      kind: 'PACKAGE',
+      code: 'HEMO_PKG',
+      name: 'Hemogram Panel',
+      category: 'Hematology',
+      turnaroundHours: 4,
+    };
+    prisma.caseCatalogItem.findMany.mockResolvedValue([
+      { catalogItem: pkgItem },
+    ]);
+    prisma.catalogItemComposition = {
+      findMany: jest.fn().mockResolvedValue([
+        { packageId: 'pkg-1', component: { id: 'comp-1', name: 'Reticulocyte Count' } },
+      ]),
+    };
+    readinessService.checkBulkReadiness.mockResolvedValue({
+      items: [
+        { catalogItemId: 'pkg-1', ready: true, reasons: [] },
+        {
+          catalogItemId: 'comp-1',
+          ready: false,
+          reasons: [{ code: 'NO_PUBLISHED_TEMPLATE', message: 'No template' }],
+        },
+      ],
+      summary: { total: 2, ready: 1, notReady: 1 },
+    });
+
+    try {
+      await service.createOrderForCase('tenant-1', 'case-1', {});
+      fail('Expected BadRequestException');
+    } catch (err) {
+      expect(err).toBeInstanceOf(BadRequestException);
+      const response = (err as BadRequestException).getResponse() as any;
+      expect(response.packages).toBeDefined();
+      expect(response.packages).toHaveLength(1);
+      expect(response.packages[0].packageId).toBe('pkg-1');
+      expect(response.packages[0].packageName).toBe('Hemogram Panel');
+      expect(response.packages[0].unreadyComponents).toHaveLength(1);
+      expect(response.packages[0].unreadyComponents[0].componentName).toBe('Reticulocyte Count');
+    }
   });
 });
