@@ -305,7 +305,12 @@ export const labApi = {
         template: {
           title: string;
           defaultObservations: string | null;
-          observationPhrases: Array<{ code: string; label: string; text: string; sectionCode?: string }> | null;
+          observationPhrases: Array<{
+            code: string;
+            label: string;
+            text: string;
+            sectionCode?: string;
+          }> | null;
         };
         report: {
           id: string;
