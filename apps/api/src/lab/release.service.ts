@@ -1,0 +1,709 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
+import type { Prisma, ReleaseType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { OrderStatusService } from './order-status.service';
+import { evaluateAllFormulas } from './formula.util';
+import type { ReferenceRangeSnapshot } from '@vet-ai/shared-types';
+
+type TxClient = Prisma.TransactionClient;
+
+interface ApproveReleaseInput {
+  orderId: string;
+  labTenantId: string;
+  signerId: string;
+  testIds: string[];
+  reviewNotes?: string;
+  observations?: string;
+  actorId: string;
+  actorName: string;
+}
+
+@Injectable()
+export class ReleaseService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly orderStatusService: OrderStatusService
+  ) {}
+
+  async approveAndRelease(input: ApproveReleaseInput) {
+    const {
+      orderId,
+      labTenantId,
+      signerId,
+      testIds,
+      reviewNotes,
+      observations,
+      actorId,
+      actorName,
+    } = input;
+
+    if (!testIds || testIds.length === 0) {
+      throw new BadRequestException(
+        'At least one test must be selected for release.'
+      );
+    }
+
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, labTenantId },
+      select: {
+        id: true,
+        caseId: true,
+        requisitionNumber: true,
+        priority: true,
+        clinicNotes: true,
+        createdAt: true,
+        tenantId: true,
+        labTenantId: true,
+        resultReport: {
+          select: { id: true, status: true, currentReleaseSequence: true },
+        },
+        orderedTests: {
+          select: {
+            id: true,
+            status: true,
+            catalogItemCode: true,
+            catalogItemName: true,
+            department: true,
+            processingMethod: true,
+            entryMethod: true,
+            startedAt: true,
+            completedAt: true,
+            specimens: {
+              select: {
+                specimen: {
+                  select: { accessionNumber: true, specimenType: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!order) throw new NotFoundException('Order not found.');
+    if (!order.resultReport) {
+      throw new BadRequestException('No report exists for this order.');
+    }
+
+    const reportId = order.resultReport.id;
+
+    const reportTests = await this.prisma.resultReportTest.findMany({
+      where: { reportId, id: { in: testIds } },
+      include: {
+        analytes: {
+          include: { templateAnalyte: { select: { referenceRange: true } } },
+          orderBy: { sortOrder: 'asc' },
+        },
+        templateVersion: { select: { id: true, title: true, version: true } },
+        templateDefinition: { select: { id: true } },
+      },
+    });
+
+    if (reportTests.length !== testIds.length) {
+      const found = new Set(reportTests.map((t) => t.id));
+      const missing = testIds.filter((id) => !found.has(id));
+      throw new NotFoundException(
+        `Report tests not found: ${missing.join(', ')}`
+      );
+    }
+
+    const nonInReview = reportTests.filter((t) => t.status !== 'IN_REVIEW');
+    if (nonInReview.length > 0) {
+      throw new BadRequestException(
+        `All selected tests must be IN_REVIEW. Found: ${nonInReview
+          .map((t) => `${t.id}=${t.status}`)
+          .join(', ')}`
+      );
+    }
+
+    const activeAmendments = await this.prisma.resultReportAmendment.findMany({
+      where: {
+        reportTestId: { in: testIds },
+        status: { in: ['DRAFT', 'IN_REVIEW'] },
+      },
+      select: { reportTestId: true },
+    });
+    if (activeAmendments.length > 0) {
+      throw new ConflictException(
+        'Cannot release tests with active amendments. Cancel or complete the amendments first.'
+      );
+    }
+
+    await this.validateReviewerAuthorization(labTenantId, signerId);
+
+    const signer = await this.prisma.labSigner.findUnique({
+      where: { id: signerId },
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        specialty: true,
+        university: true,
+        registrationNumber: true,
+        signatureUrl: true,
+      },
+    });
+    if (!signer) throw new NotFoundException('Signer not found.');
+
+    for (const rt of reportTests) {
+      const hasFormulas = rt.analytes.some((a) => a.formula && !a.isHeader);
+      if (!hasFormulas) continue;
+
+      const allForEval = rt.analytes
+        .filter((a) => !a.isHeader)
+        .map((a) => ({
+          code: a.code,
+          formula: a.formula ?? null,
+          numericValue: a.numericValue ? Number(a.numericValue) : null,
+        }));
+
+      const computed = evaluateAllFormulas(allForEval);
+
+      for (const a of rt.analytes) {
+        if (!a.formula || a.isHeader) continue;
+        const value = computed[a.code] ?? null;
+        if (value !== null) {
+          await this.prisma.resultReportAnalyte.update({
+            where: { id: a.id },
+            data: { numericValue: value },
+          });
+          (a as { numericValue: typeof value }).numericValue = value;
+        }
+      }
+    }
+
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM result_reports WHERE id = ${reportId} FOR UPDATE`;
+
+        const report = await tx.resultReport.findUniqueOrThrow({
+          where: { id: reportId },
+          select: { currentReleaseSequence: true },
+        });
+
+        const staleCheck = await tx.resultReportTest.findMany({
+          where: { id: { in: testIds } },
+          select: { id: true, status: true },
+        });
+        const alreadyReleased = staleCheck.filter(
+          (t) => t.status === 'RELEASED'
+        );
+        if (alreadyReleased.length > 0) {
+          throw new ConflictException({
+            message:
+              'One or more tests have already been released by another reviewer.',
+            alreadyReleasedTestIds: alreadyReleased.map((t) => t.id),
+          });
+        }
+
+        const newSequence = report.currentReleaseSequence + 1;
+
+        const allTests = await tx.resultReportTest.findMany({
+          where: { reportId },
+          select: { id: true, status: true },
+        });
+        const allOrderedTests = await tx.orderedTest.findMany({
+          where: { orderId },
+          select: { id: true, status: true },
+        });
+
+        const remainingNonTerminal = allOrderedTests.filter((ot) => {
+          const isBeingReleased = reportTests.some(
+            (rt) => rt.orderedTestId === ot.id
+          );
+          if (isBeingReleased) return false;
+          return ot.status !== 'COMPLETED' && ot.status !== 'CANCELLED';
+        });
+
+        const releaseType: ReleaseType =
+          remainingNonTerminal.length === 0 ? 'FINAL' : 'PARTIAL';
+
+        const snapshots = await this.buildSnapshotFields(tx, order, signer);
+
+        const release = await tx.resultReportRelease.create({
+          data: {
+            reportId,
+            releaseSequence: newSequence,
+            releaseType,
+            signerId: signer.id,
+            signerName: signer.name,
+            signerTitle: signer.title || null,
+            signerSpecialty: signer.specialty || null,
+            signerUniversity: signer.university || null,
+            signerRegistrationNumber: signer.registrationNumber || null,
+            signerSignatureUrl: signer.signatureUrl ?? null,
+            releasedByUserId: actorId,
+            releasedByName: actorName,
+            reviewNotes: reviewNotes ?? null,
+            observations: observations ?? null,
+            ...snapshots,
+          },
+        });
+
+        const now = new Date();
+
+        for (const rt of reportTests) {
+          const ot = order.orderedTests.find((t) => t.id === rt.orderedTestId);
+          const specimens = ot?.specimens ?? [];
+
+          const releaseTest = await tx.resultReportReleaseTest.create({
+            data: {
+              releaseId: release.id,
+              sourceReportTestId: rt.id,
+              orderedTestId: rt.orderedTestId,
+              catalogItemCode: ot?.catalogItemCode ?? null,
+              catalogItemName: ot?.catalogItemName ?? rt.templateVersion.title,
+              department: ot?.department ?? null,
+              processingMethod: ot?.processingMethod ?? null,
+              entryMethod: ot?.entryMethod ?? 'MANUAL',
+              templateDefinitionId: rt.templateDefinition.id,
+              templateVersionId: rt.templateVersion.id,
+              templateTitle: rt.templateVersion.title,
+              templateVersion: rt.templateVersion.version,
+              specimenAccessionNumbers: specimens.map(
+                (s) => s.specimen.accessionNumber
+              ),
+              specimenTypes: specimens.map((s) => s.specimen.specimenType),
+              testStartedAt: ot?.startedAt ?? null,
+              testCompletedAt: now,
+              resultsEnteredAt: ot?.completedAt ?? null,
+            },
+          });
+
+          for (const a of rt.analytes) {
+            const ref = a.templateAnalyte
+              ?.referenceRange as ReferenceRangeSnapshot | null;
+            const flag =
+              a.valueType === 'NUMERIC' && a.numericValue != null
+                ? this.computeFlag(ref, Number(a.numericValue))
+                : null;
+
+            await tx.resultReportAnalyte.update({
+              where: { id: a.id },
+              data: {
+                flag,
+                referenceSnapshot:
+                  (ref as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+              },
+            });
+
+            await tx.resultReportReleaseAnalyte.create({
+              data: {
+                releaseTestId: releaseTest.id,
+                code: a.code,
+                name: a.name,
+                sectionName: a.sectionName ?? null,
+                sortOrder: a.sortOrder,
+                isHeader: a.isHeader,
+                valueType: a.valueType,
+                numericValue: a.numericValue ?? null,
+                textValue: a.textValue ?? null,
+                booleanValue: a.booleanValue ?? null,
+                selectValue: a.selectValue ?? null,
+                unit: a.unit ?? null,
+                technique: a.technique ?? null,
+                formula: a.formula ?? null,
+                flag,
+                referenceSnapshot:
+                  (ref as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+              },
+            });
+          }
+
+          await tx.resultReportTest.update({
+            where: { id: rt.id },
+            data: {
+              status: 'RELEASED',
+              latestReleaseId: release.id,
+              latestReleasedAt: now,
+            },
+          });
+
+          if (rt.orderedTestId) {
+            await tx.orderedTest.update({
+              where: { id: rt.orderedTestId },
+              data: {
+                status: 'COMPLETED',
+                completedAt: now,
+                version: { increment: 1 },
+              },
+            });
+          }
+        }
+
+        const updatedTests = await tx.resultReportTest.findMany({
+          where: { reportId },
+          select: { status: true },
+        });
+        const allReleased = updatedTests.every((t) => t.status === 'RELEASED');
+        const anyInReview = updatedTests.some((t) => t.status === 'IN_REVIEW');
+
+        const reportStatus = allReleased
+          ? 'RELEASED'
+          : anyInReview
+          ? 'IN_REVIEW'
+          : 'DRAFT';
+
+        await tx.resultReport.update({
+          where: { id: reportId },
+          data: {
+            currentReleaseSequence: newSequence,
+            status: reportStatus,
+            ...(reportStatus === 'RELEASED' ? { releasedAt: now } : {}),
+          },
+        });
+
+        await tx.resultReportReleaseArtifact.create({
+          data: { releaseId: release.id, artifactType: 'PDF' },
+        });
+
+        await tx.timelineEvent.create({
+          data: {
+            orderId,
+            eventType: 'RELEASE_CREATED',
+            actorId,
+            actorName,
+            description: `${releaseType} release #${newSequence} approved by ${signer.name}`,
+            metadata: {
+              releaseId: release.id,
+              releaseSequence: newSequence,
+              releaseType,
+              signerId: signer.id,
+              signerName: signer.name,
+              releasedTestIds: testIds,
+            },
+          },
+        });
+
+        await this.orderStatusService.deriveAndPersist(orderId, tx);
+
+        const aggregateReportStatus = allReleased
+          ? 'ALL_RELEASED'
+          : 'PARTIAL_RESULTS';
+
+        return {
+          releaseId: release.id,
+          releaseSequence: newSequence,
+          releaseType,
+          aggregateReportStatus,
+          releasedTests: reportTests.map((rt) => ({
+            reportTestId: rt.id,
+            orderedTestId: rt.orderedTestId,
+          })),
+        };
+      },
+      { timeout: 15000 }
+    );
+
+    return result;
+  }
+
+  async getReleaseHistory(orderId: string, labTenantId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, labTenantId },
+      select: { id: true, resultReport: { select: { id: true } } },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+    if (!order.resultReport)
+      return {
+        releases: [],
+        aggregateReportStatus: 'PARTIAL_RESULTS' as const,
+      };
+
+    const releases = await this.prisma.resultReportRelease.findMany({
+      where: { reportId: order.resultReport.id },
+      include: {
+        tests: {
+          select: {
+            catalogItemName: true,
+            catalogItemCode: true,
+            amendsReleaseTestId: true,
+          },
+        },
+        artifacts: {
+          where: { artifactType: 'PDF' },
+          select: { status: true, storageUrl: true },
+          take: 1,
+        },
+      },
+      orderBy: { releaseSequence: 'asc' },
+    });
+
+    const reportTests = await this.prisma.resultReportTest.findMany({
+      where: { reportId: order.resultReport.id },
+      select: { status: true },
+    });
+    const amendments = await this.prisma.resultReportAmendment.findMany({
+      where: {
+        reportId: order.resultReport.id,
+        status: { in: ['DRAFT', 'IN_REVIEW'] },
+      },
+      select: { id: true },
+    });
+
+    let aggregateReportStatus: string;
+    if (amendments.length > 0) {
+      aggregateReportStatus = 'AMENDMENT_PENDING';
+    } else if (reportTests.every((t) => t.status === 'RELEASED')) {
+      aggregateReportStatus = 'ALL_RELEASED';
+    } else {
+      aggregateReportStatus = 'PARTIAL_RESULTS';
+    }
+
+    return {
+      releases: releases.map((r) => ({
+        id: r.id,
+        releaseSequence: r.releaseSequence,
+        releaseType: r.releaseType,
+        signerName: r.signerName,
+        releasedAt: r.releasedAt.toISOString(),
+        pdfStatus: r.artifacts[0]?.status ?? 'PENDING',
+        pdfUrl: r.artifacts[0]?.storageUrl ?? null,
+        tests: r.tests.map((t) => ({
+          catalogItemName: t.catalogItemName,
+          catalogItemCode: t.catalogItemCode,
+          amendsReleaseTestId: t.amendsReleaseTestId,
+        })),
+      })),
+      aggregateReportStatus,
+    };
+  }
+
+  async getCurrentResults(orderId: string, labTenantId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, labTenantId },
+      select: {
+        id: true,
+        requisitionNumber: true,
+        resultReport: { select: { id: true } },
+        case: {
+          select: {
+            patientName: true,
+            patientSpecies: true,
+            patientBreed: true,
+            patientSex: true,
+            patientAge: true,
+            patientAgeUnit: true,
+            patientWeight: true,
+            ownerName: true,
+          },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+    if (!order.resultReport)
+      return {
+        orderId,
+        requisitionNumber: order.requisitionNumber,
+        patient: order.case,
+        tests: [],
+      };
+
+    const reportTests = await this.prisma.resultReportTest.findMany({
+      where: { reportId: order.resultReport.id, status: 'RELEASED' },
+      select: {
+        id: true,
+        latestReleaseId: true,
+        orderedTestId: true,
+      },
+    });
+
+    const releaseTestMap = new Map<string, string>();
+    for (const rt of reportTests) {
+      if (rt.latestReleaseId) {
+        releaseTestMap.set(rt.id, rt.latestReleaseId);
+      }
+    }
+
+    const releaseTests = await this.prisma.resultReportReleaseTest.findMany({
+      where: {
+        sourceReportTestId: { in: reportTests.map((rt) => rt.id) },
+        releaseId: { in: Array.from(releaseTestMap.values()) },
+      },
+      include: {
+        analytes: { orderBy: { sortOrder: 'asc' } },
+        release: {
+          select: {
+            releaseSequence: true,
+            releaseType: true,
+            releasedAt: true,
+            signerName: true,
+          },
+        },
+      },
+    });
+
+    const latestByTest = new Map<string, (typeof releaseTests)[0]>();
+    for (const rt of releaseTests) {
+      if (releaseTestMap.get(rt.sourceReportTestId) === rt.releaseId) {
+        latestByTest.set(rt.sourceReportTestId, rt);
+      }
+    }
+
+    return {
+      orderId,
+      requisitionNumber: order.requisitionNumber,
+      patient: order.case,
+      tests: Array.from(latestByTest.values()).map((rt) => ({
+        catalogItemName: rt.catalogItemName,
+        catalogItemCode: rt.catalogItemCode,
+        releaseId: rt.releaseId,
+        releaseSequence: rt.release.releaseSequence,
+        releaseType: rt.release.releaseType,
+        releasedAt: rt.release.releasedAt.toISOString(),
+        signerName: rt.release.signerName,
+        analytes: rt.analytes.map((a) => ({
+          code: a.code,
+          name: a.name,
+          sectionName: a.sectionName,
+          sortOrder: a.sortOrder,
+          isHeader: a.isHeader,
+          valueType: a.valueType,
+          numericValue: a.numericValue,
+          textValue: a.textValue,
+          booleanValue: a.booleanValue,
+          selectValue: a.selectValue,
+          unit: a.unit,
+          flag: a.flag,
+          referenceSnapshot: a.referenceSnapshot,
+        })),
+      })),
+    };
+  }
+
+  private async buildSnapshotFields(
+    tx: TxClient,
+    order: {
+      id: string;
+      caseId: string;
+      requisitionNumber: string;
+      priority: string;
+      clinicNotes: string | null;
+      createdAt: Date;
+      tenantId: string;
+      labTenantId: string | null;
+    },
+    _signer: { id: string }
+  ) {
+    const caseData = await tx.case.findUniqueOrThrow({
+      where: { id: order.caseId },
+      select: {
+        patientName: true,
+        patientSpecies: true,
+        patientSex: true,
+        patientBreed: true,
+        patientAge: true,
+        patientAgeUnit: true,
+        patientDateOfBirth: true,
+        patientWeight: true,
+        ownerName: true,
+        ownerPhone: true,
+      },
+    });
+
+    const clinicTenant = await tx.tenant.findUniqueOrThrow({
+      where: { id: order.tenantId },
+      select: { name: true, address: true, phone: true, logoUrl: true },
+    });
+
+    let labSnapshot = {
+      labTenantId: order.labTenantId ?? order.tenantId,
+      labName: '',
+      labAccreditationNumber: null as string | null,
+      labDirectorName: null as string | null,
+      labDirectorCredentials: null as string | null,
+      labLogoUrl: null as string | null,
+      labAddress: null as string | null,
+      labPhone: null as string | null,
+    };
+
+    if (order.labTenantId) {
+      const labTenant = await tx.tenant.findUnique({
+        where: { id: order.labTenantId },
+        select: { name: true, address: true, phone: true, logoUrl: true },
+      });
+      const labProfile = await tx.laboratoryProfile.findUnique({
+        where: { tenantId: order.labTenantId },
+        select: {
+          accreditationNumber: true,
+          directorName: true,
+          directorCredentials: true,
+        },
+      });
+      labSnapshot = {
+        labTenantId: order.labTenantId,
+        labName: labTenant?.name ?? '',
+        labAccreditationNumber: labProfile?.accreditationNumber ?? null,
+        labDirectorName: labProfile?.directorName ?? null,
+        labDirectorCredentials: labProfile?.directorCredentials ?? null,
+        labLogoUrl: labTenant?.logoUrl ?? null,
+        labAddress: labTenant?.address ?? null,
+        labPhone: labTenant?.phone ?? null,
+      };
+    }
+
+    return {
+      ...labSnapshot,
+      orderId: order.id,
+      requisitionNumber: order.requisitionNumber,
+      orderPriority: order.priority,
+      orderClinicNotes: order.clinicNotes ?? null,
+      orderCreatedAt: order.createdAt,
+      patientName: caseData.patientName,
+      patientSpecies: caseData.patientSpecies,
+      patientSex: caseData.patientSex ?? null,
+      patientBreed: caseData.patientBreed ?? null,
+      patientAge: caseData.patientAge ?? null,
+      patientAgeUnit: caseData.patientAgeUnit ?? null,
+      patientDateOfBirth: caseData.patientDateOfBirth ?? null,
+      patientWeight: caseData.patientWeight ?? null,
+      ownerName: caseData.ownerName,
+      ownerPhone: caseData.ownerPhone ?? null,
+      clinicTenantId: order.tenantId,
+      clinicName: clinicTenant.name,
+      clinicAddress: clinicTenant.address ?? null,
+      clinicPhone: clinicTenant.phone ?? null,
+      clinicLogoUrl: clinicTenant.logoUrl ?? null,
+    };
+  }
+
+  private async validateReviewerAuthorization(
+    labTenantId: string,
+    signerId: string
+  ) {
+    const signer = await this.prisma.labSigner.findUnique({
+      where: { id: signerId },
+      select: {
+        roles: true,
+        laboratoryProfile: { select: { tenantId: true } },
+      },
+    });
+    if (!signer) throw new NotFoundException('Signer not found.');
+    if (signer.laboratoryProfile.tenantId !== labTenantId) {
+      throw new ForbiddenException(
+        'Signer does not belong to this laboratory.'
+      );
+    }
+    if (!signer.roles.includes('REVIEWER')) {
+      throw new ForbiddenException(
+        'Selected signer does not have the REVIEWER role.'
+      );
+    }
+  }
+
+  private computeFlag(
+    ref: ReferenceRangeSnapshot | null,
+    value: number
+  ): string | null {
+    if (!ref || (ref.min == null && ref.max == null)) return null;
+    if (ref.min != null && value < ref.min) return 'L';
+    if (ref.max != null && value > ref.max) return 'H';
+    return 'N';
+  }
+}
