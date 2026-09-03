@@ -732,6 +732,8 @@ export interface WorklistItem {
   assignedUserName: string | null;
   analyzerName: string | null;
   accessionNumber: string | null;
+  packageOriginId: string | null;
+  packageOriginName: string | null;
 }
 
 export interface WorklistQuery {

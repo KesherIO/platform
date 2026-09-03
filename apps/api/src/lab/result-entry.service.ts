@@ -683,4 +683,10 @@ export class ResultEntryService {
 
     return { status: 'RESULTS_ENTERED' };
   }
+
+  async batchGetResultSessions(testIds: string[], labTenantId: string) {
+    return Promise.all(
+      testIds.map((id) => this.getResultSession(id, labTenantId))
+    );
+  }
 }

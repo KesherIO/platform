@@ -229,6 +229,19 @@
     "validation_formula": "The following formulas could not be computed: {{fields}}",
     "quick_phrases": "Quick phrases"
   },
+  "batch_result_entry": {
+    "back": "← Back",
+    "not_found": "No tests found for this panel.",
+    "subtitle": "{{count}} tests in this panel",
+    "save_draft": "Save draft",
+    "submit_all": "Submit all results",
+    "update_all": "Update all results",
+    "saved": "All results saved.",
+    "submitted": "All results submitted.",
+    "section_empty": "Empty",
+    "section_partial": "Partial",
+    "section_complete": "Complete"
+  },
   "review": {
     "back": "← Back to order",
     "title": "Review & release — {{patient}}",
@@ -949,7 +962,9 @@
       "assigned_to": "Assigned to",
       "method_manual": "Manual",
       "method_analyzer": "Analyzer",
-      "waiting": "Waiting"
+      "waiting": "Waiting",
+      "package_tests": "{{count}} tests",
+      "package_status_mixed": "Mixed"
     },
     "actions": {
       "claim": "Claim",
@@ -959,7 +974,10 @@
       "start": "Start",
       "starting": "Starting...",
       "reassign": "Reassign",
-      "enter_results": "Enter Results"
+      "enter_results": "Enter Results",
+      "enter_all_results": "Enter All Results",
+      "claim_all": "Claim All",
+      "start_all": "Start All"
     },
     "success": {
       "claimed": "Test claimed successfully.",

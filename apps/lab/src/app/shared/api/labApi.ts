@@ -361,6 +361,8 @@ export const labApi = {
       ),
     submit: (testId: string) =>
       post<{ status: string }>(`lab/ordered-tests/${testId}/submit-results`),
+    batchGetSessions: (testIds: string[]) =>
+      post<unknown[]>('lab/ordered-tests/batch-result-sessions', { testIds }),
     releaseReport: (reportId: string) =>
       post<{ id: string; status: string }>(`lab/reports/${reportId}/release`),
   },
@@ -486,6 +488,10 @@ export const labApi = {
         targetUserId,
         version,
       }),
+    batchClaim: (tests: { testId: string; version: number }[]) =>
+      post<unknown[]>('lab/ordered-tests/batch-claim', { tests }),
+    batchStart: (testIds: string[]) =>
+      post<unknown[]>('lab/ordered-tests/batch-start', { testIds }),
   },
   templates: {
     list: (params?: { catalogItemCode?: string; species?: string }) => {

@@ -229,6 +229,19 @@
     "validation_formula": "Las siguientes fórmulas no se pudieron calcular: {{fields}}",
     "quick_phrases": "Frases rápidas"
   },
+  "batch_result_entry": {
+    "back": "← Regresar",
+    "not_found": "No se encontraron pruebas para este panel.",
+    "subtitle": "{{count}} pruebas en este panel",
+    "save_draft": "Guardar borrador",
+    "submit_all": "Enviar todos los resultados",
+    "update_all": "Actualizar todos los resultados",
+    "saved": "Todos los resultados guardados.",
+    "submitted": "Todos los resultados enviados.",
+    "section_empty": "Vacío",
+    "section_partial": "Parcial",
+    "section_complete": "Completo"
+  },
   "review": {
     "back": "← Regresar a la orden",
     "title": "Revisar y liberar — {{patient}}",
@@ -949,7 +962,9 @@
       "assigned_to": "Asignado a",
       "method_manual": "Manual",
       "method_analyzer": "Analizador",
-      "waiting": "Esperando"
+      "waiting": "Esperando",
+      "package_tests": "{{count}} pruebas",
+      "package_status_mixed": "Mixto"
     },
     "actions": {
       "claim": "Reclamar",
@@ -959,7 +974,10 @@
       "start": "Iniciar",
       "starting": "Iniciando...",
       "reassign": "Reasignar",
-      "enter_results": "Ingresar Resultados"
+      "enter_results": "Ingresar Resultados",
+      "enter_all_results": "Ingresar Todos los Resultados",
+      "claim_all": "Reclamar Todos",
+      "start_all": "Iniciar Todos"
     },
     "success": {
       "claimed": "Prueba reclamada exitosamente.",

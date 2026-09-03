@@ -903,14 +903,32 @@ export function OrderWorkspacePage() {
                     }`}
                     className="rounded-xl border border-gray-800 bg-gray-900"
                   >
-                    <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-2.5">
-                      <span className="text-sm">📦</span>
-                      <span className="text-sm font-semibold text-gray-300">
-                        {group.originName}
-                      </span>
-                      <span className="text-xs text-gray-600">
-                        ({group.tests.length})
-                      </span>
+                    <div className="flex items-center justify-between border-b border-gray-800 px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">📦</span>
+                        <span className="text-sm font-semibold text-gray-300">
+                          {group.originName}
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          ({group.tests.length})
+                        </span>
+                      </div>
+                      {group.tests.some(
+                        (t) =>
+                          t.status === 'IN_PROGRESS' ||
+                          t.status === 'RESULTS_ENTERED'
+                      ) && (
+                        <Link
+                          to={`/orders/${orderId}/batch-results?packageOriginId=${
+                            group.tests[0].sources.find(
+                              (s) => s.sourceType === 'PACKAGE'
+                            )!.originCatalogItemId
+                          }`}
+                          className="rounded-md bg-purple-500/15 px-2.5 py-1 text-xs font-medium text-purple-400 hover:bg-purple-500/25"
+                        >
+                          {t('worklist.actions.enter_all_results')}
+                        </Link>
+                      )}
                     </div>
                     <div className="divide-y divide-gray-800/50">
                       {group.tests.map((test) => {

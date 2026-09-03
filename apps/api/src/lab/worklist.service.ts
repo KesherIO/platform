@@ -121,6 +121,14 @@ export class WorklistService {
             },
             take: 1,
           },
+          sources: {
+            where: { sourceType: 'PACKAGE' },
+            select: {
+              originCatalogItemId: true,
+              originName: true,
+            },
+            take: 1,
+          },
         },
       }),
       this.prisma.orderedTest.count({ where }),
@@ -164,6 +172,8 @@ export class WorklistService {
         : null,
       analyzerName: t.analyzer?.name ?? null,
       accessionNumber: t.specimens[0]?.specimen?.accessionNumber ?? null,
+      packageOriginId: t.sources[0]?.originCatalogItemId ?? null,
+      packageOriginName: t.sources[0]?.originName ?? null,
     }));
 
     return {
@@ -511,6 +521,162 @@ export class WorklistService {
         assignedUserId: true,
         version: true,
         claimedAt: true,
+      },
+    });
+  }
+
+  async batchClaimTests(
+    labTenantId: string,
+    tests: { testId: string; version: number }[],
+    userId: string
+  ) {
+    const testIds = tests.map((t) => t.testId);
+    const versionMap = new Map(tests.map((t) => [t.testId, t.version]));
+
+    const found = await this.prisma.orderedTest.findMany({
+      where: { id: { in: testIds }, order: { labTenantId } },
+      select: {
+        id: true,
+        status: true,
+        assignedUserId: true,
+        version: true,
+      },
+    });
+
+    if (found.length !== testIds.length) {
+      throw new NotFoundException('One or more tests not found');
+    }
+
+    for (const test of found) {
+      if (test.status !== 'READY' && test.status !== 'IN_PROGRESS') {
+        throw new BadRequestException(
+          `Cannot claim test ${test.id} with status ${test.status}`
+        );
+      }
+      if (test.assignedUserId) {
+        throw new ConflictException(
+          `Test ${test.id} is already claimed by another user.`
+        );
+      }
+    }
+
+    const now = new Date();
+
+    await this.prisma.$transaction(
+      found.map((test) =>
+        this.prisma.orderedTest.updateMany({
+          where: {
+            id: test.id,
+            version: versionMap.get(test.id),
+            assignedUserId: null,
+          },
+          data: {
+            assignedUserId: userId,
+            claimedAt: now,
+            version: { increment: 1 },
+          },
+        })
+      )
+    );
+
+    return this.prisma.orderedTest.findMany({
+      where: { id: { in: testIds } },
+      select: {
+        id: true,
+        status: true,
+        assignedUserId: true,
+        version: true,
+        claimedAt: true,
+      },
+    });
+  }
+
+  async batchStartTests(
+    labTenantId: string,
+    testIds: string[],
+    userId: string
+  ) {
+    const found = await this.prisma.orderedTest.findMany({
+      where: { id: { in: testIds }, order: { labTenantId } },
+      select: {
+        id: true,
+        orderId: true,
+        status: true,
+        assignedUserId: true,
+        version: true,
+        catalogItemName: true,
+      },
+    });
+
+    if (found.length !== testIds.length) {
+      throw new NotFoundException('One or more tests not found');
+    }
+
+    for (const test of found) {
+      if (test.status !== 'READY') {
+        throw new BadRequestException(
+          `Cannot start test ${test.id} with status ${test.status}. Test must be READY.`
+        );
+      }
+      if (test.assignedUserId !== userId) {
+        throw new BadRequestException(
+          `You must claim test ${test.id} before starting it.`
+        );
+      }
+    }
+
+    const now = new Date();
+    const orderId = found[0].orderId;
+
+    await this.prisma.$transaction([
+      ...found.map((test) =>
+        this.prisma.orderedTest.update({
+          where: { id: test.id },
+          data: {
+            status: 'IN_PROGRESS',
+            startedAt: now,
+            version: { increment: 1 },
+          },
+        })
+      ),
+      ...found.map((test) =>
+        this.prisma.timelineEvent.create({
+          data: {
+            orderId: test.orderId,
+            eventType: 'PROCESSING_STARTED',
+            actorId: userId,
+            actorName: '',
+            description: `Processing started for ${test.catalogItemName}`,
+            metadata: { orderedTestId: test.id },
+          },
+        })
+      ),
+    ]);
+
+    const order = await this.prisma.order.findUniqueOrThrow({
+      where: { id: orderId },
+      select: { status: true },
+    });
+
+    if (
+      order.status !== 'PROCESSING' &&
+      order.status !== 'COMPLETED' &&
+      order.status !== 'CANCELLED'
+    ) {
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { status: 'PROCESSING', processingStartedAt: now },
+      });
+    }
+
+    return this.prisma.orderedTest.findMany({
+      where: { id: { in: testIds } },
+      select: {
+        id: true,
+        status: true,
+        assignedUserId: true,
+        version: true,
+        startedAt: true,
       },
     });
   }

@@ -10,6 +10,7 @@ import { Layout } from './shared/components/Layout';
 import { OrdersQueuePage } from './pages/orders/OrdersQueuePage';
 import { OrderWorkspacePage } from './pages/orders/OrderWorkspacePage';
 import { ResultEntryPage } from './pages/orders/ResultEntryPage';
+import { BatchResultEntryPage } from './pages/orders/BatchResultEntryPage';
 import { ReviewReleasePage } from './pages/orders/ReviewReleasePage';
 import { LaboratorySettingsPage } from './pages/settings/LaboratorySettingsPage';
 import { TeamPage } from './pages/settings/TeamPage';
@@ -48,6 +49,10 @@ export function App() {
               <Route
                 path="/orders/:orderId/tests/:testId/results"
                 element={<ResultEntryPage />}
+              />
+              <Route
+                path="/orders/:orderId/batch-results"
+                element={<BatchResultEntryPage />}
               />
               <Route
                 path="/orders/:orderId/review"
