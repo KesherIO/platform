@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "DBIL",
+  "species": "ANY",
+  "title": "Bilirrubina Directa (sin valores de referencia)",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Bilirrubina Directa",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "DBIL",
+          "name": "Bilirrubina Directa",
+          "technique": "Colorimétrico",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

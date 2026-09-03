@@ -9,6 +9,8 @@ import {
   AgeUnit,
   ResultReportModel,
   AiInterpretationModel,
+  ClinicReleasedResultsModel,
+  OrderPriority,
 } from '@vet-ai/shared-types';
 import { AuthService } from '../../../../core/services/auth.service';
 import { MOCK_REPORT, MOCK_DELAY } from './cases.mocks';
@@ -147,12 +149,13 @@ export class CasesService {
 
   createOrder(
     id: string,
-    deliveryMethod?: 'LAB_PICKUP' | 'CLIENT_DELIVERY'
+    deliveryMethod?: 'LAB_PICKUP' | 'CLIENT_DELIVERY',
+    priority?: OrderPriority
   ): Observable<{ orderId: string; requisitionUrl: string }> {
     return this.http
       .post<{ id: string; requisitionNumber: string; requisitionUrl: string }>(
         `/api/cases/${id}/order`,
-        { deliveryMethod },
+        { deliveryMethod, priority },
         this.tenantHeaders
       )
       .pipe(
@@ -184,6 +187,13 @@ export class CasesService {
     }
     return this.http.get<ResultReportModel>(
       `/api/results/by-order/${orderId}`,
+      this.tenantHeaders
+    );
+  }
+
+  getReleasedResults(orderId: string): Observable<ClinicReleasedResultsModel> {
+    return this.http.get<ClinicReleasedResultsModel>(
+      `/api/results/by-order/${orderId}/released`,
       this.tenantHeaders
     );
   }

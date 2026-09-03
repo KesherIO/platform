@@ -379,6 +379,7 @@ export const labApi = {
       orderId: string,
       data: {
         signerId: string;
+        analystId?: string;
         testIds: string[];
         reviewNotes?: string;
         observations?: string;
@@ -400,6 +401,7 @@ export const labApi = {
         { correctionNotes, testIds }
       ),
     getReviewerSigners: () => get<LabSigner[]>('lab/signers/reviewers'),
+    getAnalystSigners: () => get<LabSigner[]>('lab/signers/analysts'),
   },
   release: {
     getHistory: (orderId: string) =>

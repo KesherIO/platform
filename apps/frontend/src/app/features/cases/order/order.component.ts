@@ -3,7 +3,12 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { take } from 'rxjs';
-import { CaseModel, CaseStatus, DeliveryMethod } from '@vet-ai/shared-types';
+import {
+  CaseModel,
+  CaseStatus,
+  DeliveryMethod,
+  OrderPriority,
+} from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
 import { CaseWizardLayoutComponent } from '../shared/components/case-wizard-layout/case-wizard-layout.component';
 import { ButtonComponent, ToggleComponent } from '../../../shared/components';
@@ -34,10 +39,16 @@ export class OrderComponent implements OnInit {
   cancelling = signal(false);
   case = signal<CaseModel | null>(null);
   deliveryMethod = signal<DeliveryMethod>('LAB_PICKUP');
+  priority = signal<OrderPriority>('ROUTINE');
 
   deliveryMethodOptions = [
     { label: 'CASES.ORDER.DELIVERY_CLIENT', value: 'CLIENT_DELIVERY' },
     { label: 'CASES.ORDER.DELIVERY_LAB_PICKUP', value: 'LAB_PICKUP' },
+  ];
+
+  priorityOptions = [
+    { label: 'CASES.ORDER.PRIORITY_ROUTINE', value: 'ROUTINE' },
+    { label: 'CASES.ORDER.PRIORITY_URGENT', value: 'URGENT' },
   ];
 
   selectedItems = computed(() => this.case()?.selectedCatalogItems ?? []);
@@ -81,11 +92,15 @@ export class OrderComponent implements OnInit {
     this.deliveryMethod.set(value as DeliveryMethod);
   }
 
+  onPriorityChange(value: string): void {
+    this.priority.set(value as OrderPriority);
+  }
+
   generateRequisition(): void {
     if (this.sending()) return;
     this.sending.set(true);
     this.casesService
-      .createOrder(this.caseId(), this.deliveryMethod())
+      .createOrder(this.caseId(), this.deliveryMethod(), this.priority())
       .pipe(take(1))
       .subscribe({
         next: (result) => {

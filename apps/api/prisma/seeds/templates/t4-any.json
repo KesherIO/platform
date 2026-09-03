@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "T4",
+  "species": "ANY",
+  "title": "T4 Total Canino (sin valores de referencia)",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "T4",
+          "name": "T4 Total",
+          "technique": "Quimioluminiscencia enzimática",
+          "valueType": "NUMERIC",
+          "unit": "µg/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

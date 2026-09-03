@@ -17,6 +17,7 @@ interface ApproveReleaseInput {
   orderId: string;
   labTenantId: string;
   signerId: string;
+  analystId?: string;
   testIds: string[];
   reviewNotes?: string;
   observations?: string;
@@ -36,6 +37,7 @@ export class ReleaseService {
       orderId,
       labTenantId,
       signerId,
+      analystId,
       testIds,
       reviewNotes,
       observations,
@@ -94,7 +96,7 @@ export class ReleaseService {
     const reportId = order.resultReport.id;
 
     const reportTests = await this.prisma.resultReportTest.findMany({
-      where: { reportId, id: { in: testIds } },
+      where: { reportId, orderedTestId: { in: testIds } },
       include: {
         analytes: {
           include: { templateAnalyte: { select: { referenceRange: true } } },
@@ -106,10 +108,10 @@ export class ReleaseService {
     });
 
     if (reportTests.length !== testIds.length) {
-      const found = new Set(reportTests.map((t) => t.id));
+      const found = new Set(reportTests.map((t) => t.orderedTestId));
       const missing = testIds.filter((id) => !found.has(id));
       throw new NotFoundException(
-        `Report tests not found: ${missing.join(', ')}`
+        `Report tests not found for ordered tests: ${missing.join(', ')}`
       );
     }
 
@@ -122,9 +124,10 @@ export class ReleaseService {
       );
     }
 
+    const reportTestIds = reportTests.map((t) => t.id);
     const activeAmendments = await this.prisma.resultReportAmendment.findMany({
       where: {
-        reportTestId: { in: testIds },
+        reportTestId: { in: reportTestIds },
         status: { in: ['DRAFT', 'IN_REVIEW'] },
       },
       select: { reportTestId: true },
@@ -150,6 +153,32 @@ export class ReleaseService {
       },
     });
     if (!signer) throw new NotFoundException('Signer not found.');
+
+    let analyst: {
+      id: string;
+      name: string;
+      title: string;
+      specialty: string;
+      university: string;
+      registrationNumber: string;
+      signatureUrl: string | null;
+    } | null = null;
+
+    if (analystId) {
+      analyst = await this.prisma.labSigner.findUnique({
+        where: { id: analystId },
+        select: {
+          id: true,
+          name: true,
+          title: true,
+          specialty: true,
+          university: true,
+          registrationNumber: true,
+          signatureUrl: true,
+        },
+      });
+      if (!analyst) throw new NotFoundException('Analyst not found.');
+    }
 
     for (const rt of reportTests) {
       const hasFormulas = rt.analytes.some((a) => a.formula && !a.isHeader);
@@ -184,11 +213,11 @@ export class ReleaseService {
 
         const report = await tx.resultReport.findUniqueOrThrow({
           where: { id: reportId },
-          select: { currentReleaseSequence: true },
+          select: { currentReleaseSequence: true, observations: true },
         });
 
         const staleCheck = await tx.resultReportTest.findMany({
-          where: { id: { in: testIds } },
+          where: { id: { in: reportTestIds } },
           select: { id: true, status: true },
         });
         const alreadyReleased = staleCheck.filter(
@@ -234,6 +263,13 @@ export class ReleaseService {
             signerUniversity: signer.university || null,
             signerRegistrationNumber: signer.registrationNumber || null,
             signerSignatureUrl: signer.signatureUrl ?? null,
+            analystId: analyst?.id ?? null,
+            analystName: analyst?.name ?? null,
+            analystTitle: analyst?.title || null,
+            analystSpecialty: analyst?.specialty || null,
+            analystUniversity: analyst?.university || null,
+            analystRegistrationNumber: analyst?.registrationNumber || null,
+            analystSignatureUrl: analyst?.signatureUrl ?? null,
             releasedByUserId: actorId,
             releasedByName: actorName,
             reviewNotes: reviewNotes ?? null,
@@ -266,6 +302,7 @@ export class ReleaseService {
                 (s) => s.specimen.accessionNumber
               ),
               specimenTypes: specimens.map((s) => s.specimen.specimenType),
+              observations: report.observations ?? null,
               testStartedAt: ot?.startedAt ?? null,
               testCompletedAt: now,
               resultsEnteredAt: ot?.completedAt ?? null,
@@ -394,7 +431,7 @@ export class ReleaseService {
           })),
         };
       },
-      { timeout: 15000 }
+      { timeout: 30000 }
     );
 
     return result;
@@ -617,6 +654,7 @@ export class ReleaseService {
       labLogoUrl: null as string | null,
       labAddress: null as string | null,
       labPhone: null as string | null,
+      reportDisclaimer: null as string | null,
     };
 
     if (order.labTenantId) {
@@ -630,6 +668,7 @@ export class ReleaseService {
           accreditationNumber: true,
           directorName: true,
           directorCredentials: true,
+          reportDisclaimer: true,
         },
       });
       labSnapshot = {
@@ -641,6 +680,7 @@ export class ReleaseService {
         labLogoUrl: labTenant?.logoUrl ?? null,
         labAddress: labTenant?.address ?? null,
         labPhone: labTenant?.phone ?? null,
+        reportDisclaimer: labProfile?.reportDisclaimer ?? null,
       };
     }
 

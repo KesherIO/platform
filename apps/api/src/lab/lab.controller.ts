@@ -180,10 +180,17 @@ export class LabController {
   @Patch('ordered-tests/:testId')
   updateOrderedTest(
     @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('testId') testId: string,
     @Body() dto: UpdateOrderedTestDto
   ) {
-    return this.labService.updateOrderedTest(tenant.tenantId, testId, dto);
+    return this.labService.updateOrderedTest(
+      tenant.tenantId,
+      testId,
+      dto,
+      user.id,
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
+    );
   }
 
   // PATCH /api/lab/ordered-tests/:testId/receive
@@ -514,6 +521,7 @@ export class LabController {
       orderId,
       labTenantId: tenant.tenantId,
       signerId: dto.signerId,
+      analystId: dto.analystId,
       testIds: dto.testIds,
       reviewNotes: dto.reviewNotes,
       observations: dto.observations,
@@ -550,6 +558,13 @@ export class LabController {
   @Get('signers/reviewers')
   getReviewerSigners(@CurrentTenant() tenant: TenantContext) {
     return this.reviewService.getReviewerSigners(tenant.tenantId);
+  }
+
+  // GET /api/lab/signers/analysts
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('signers/analysts')
+  getAnalystSigners(@CurrentTenant() tenant: TenantContext) {
+    return this.reviewService.getAnalystSigners(tenant.tenantId);
   }
 
   // ---------------------------------------------------------------------------

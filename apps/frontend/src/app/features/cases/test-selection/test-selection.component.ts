@@ -52,6 +52,11 @@ export class TestSelectionComponent implements OnInit {
 
   hasSelection = computed(() => this.selectedItemIds().size > 0);
 
+  selectedItems = computed(() => {
+    const ids = this.selectedItemIds();
+    return this.catalog().filter((i) => ids.has(i.id));
+  });
+
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
 

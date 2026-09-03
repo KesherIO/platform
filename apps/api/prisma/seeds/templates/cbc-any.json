@@ -1,0 +1,390 @@
+{
+  "catalogItemCode": "CBC",
+  "species": "ANY",
+  "title": "Hemograma Completo (sin valores de referencia)",
+  "defaultObservations": "Tipo de muestra: sangre entera anticoagulada con EDTA.",
+  "sections": [
+    {
+      "name": "Serie Roja",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "RBC",
+          "name": "Recuento total de eritrocitos",
+          "technique": "Impedancia eléctrica",
+          "valueType": "NUMERIC",
+          "unit": "10^6/µL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "HGB",
+          "name": "Hemoglobina",
+          "technique": "Colorimétrico",
+          "valueType": "NUMERIC",
+          "unit": "g/dL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "HCT",
+          "name": "Hematocrito",
+          "technique": "Parámetro calculado",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "MCV",
+          "name": "Volumen Corpuscular Medio (VCM)",
+          "technique": "Derivado histogramas",
+          "formula": "([HCT]*10)/[RBC]",
+          "valueType": "NUMERIC",
+          "unit": "fL",
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "MCH",
+          "name": "Hemoglobina Corpuscular Media (HCM)",
+          "technique": "Parámetro calculado",
+          "formula": "([HGB]*10)/[RBC]",
+          "valueType": "NUMERIC",
+          "unit": "pg",
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "MCHC",
+          "name": "Concentración de Hemoglobina Corpuscular Media (CHCM)",
+          "technique": "Parámetro calculado",
+          "formula": "([HGB]*100)/[HCT]",
+          "valueType": "NUMERIC",
+          "unit": "g/dL",
+          "sortOrder": 5,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ],
+      "code": "SERIE_ROJA"
+    },
+    {
+      "name": "Serie Blanca",
+      "sortOrder": 1,
+      "analytes": [
+        {
+          "code": "WBC",
+          "name": "Recuento total de leucocitos",
+          "technique": "Impedancia eléctrica",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "DIFF_HEADER",
+          "name": "Recuento diferencial",
+          "valueType": "TEXT",
+          "sortOrder": 1,
+          "isHeader": true
+        },
+        {
+          "code": "NEU_PCT",
+          "name": "Neutrófilos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 2,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "NEU",
+          "name": "Neutrófilos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([NEU_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 3,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "LYM_PCT",
+          "name": "Linfocitos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 4,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "LYM",
+          "name": "Linfocitos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([LYM_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 5,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "MON_PCT",
+          "name": "Monocitos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 6,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "MON",
+          "name": "Monocitos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([MON_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 7,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "EOS_PCT",
+          "name": "Eosinófilos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 8,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "EOS",
+          "name": "Eosinófilos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([EOS_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 9,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "BAS_PCT",
+          "name": "Basófilos porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 10,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "BAS",
+          "name": "Basófilos absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([BAS_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 11,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "BAND_PCT",
+          "name": "Bandas porcentaje",
+          "technique": "Recuento en placa",
+          "valueType": "NUMERIC",
+          "unit": "%",
+          "sortOrder": 12,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "BAND",
+          "name": "Bandas absoluto",
+          "technique": "Parámetro calculado",
+          "formula": "([BAND_PCT]*[WBC])/100",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 13,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ],
+      "code": "SERIE_BLANCA"
+    },
+    {
+      "name": "Plaquetas",
+      "sortOrder": 2,
+      "analytes": [
+        {
+          "code": "PLT",
+          "name": "Recuento total de plaquetas",
+          "technique": "Impedancia eléctrica",
+          "valueType": "NUMERIC",
+          "unit": "10^3/µL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        },
+        {
+          "code": "MPV",
+          "name": "Volumen plaquetario medio (VPM)",
+          "technique": "Derivado histogramas",
+          "valueType": "NUMERIC",
+          "unit": "fL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "referenceRange": null,
+          "isRequired": false
+        }
+      ],
+      "code": "PLAQUETAS"
+    },
+    {
+      "name": "Proteínas plasmáticas",
+      "sortOrder": 3,
+      "analytes": [
+        {
+          "code": "TP",
+          "name": "Proteínas plasmáticas",
+          "technique": "Colorimétrico Biuret",
+          "valueType": "NUMERIC",
+          "unit": "g/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null,
+          "isRequired": false
+        }
+      ],
+      "code": "PROTEINAS_PLASMATICAS"
+    }
+  ],
+  "observationPhrases": [
+    {
+      "code": "HIPOCROMIA",
+      "label": "Hipocromía",
+      "text": "Se observa hipocromía. Hallazgo compatible con deficiencia de hierro u otras causas de síntesis deficiente de hemoglobina.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "ANISOCITOSIS",
+      "label": "Anisocitosis",
+      "text": "Se observa anisocitosis (variación en el tamaño de los eritrocitos).",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "POIQUILOCITOSIS",
+      "label": "Poiquilocitosis",
+      "text": "Se observa poiquilocitosis (variación en la forma de los eritrocitos).",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "POLICROMASIA",
+      "label": "Policromasia",
+      "text": "Se observa policromasia, indicativa de respuesta regenerativa.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "ESFEROCITOS",
+      "label": "Esferocitos",
+      "text": "Se observan esferocitos. Hallazgo compatible con anemia hemolítica inmunomediada (AHIM).",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "ESQUISTOCITOS",
+      "label": "Esquistocitos",
+      "text": "Se observan esquistocitos (fragmentos eritrocitarios). Compatible con daño mecánico microangiopático (CID, hemangiosarcoma, vasculitis).",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "CUERPOS_HOWELL_JOLLY",
+      "label": "Cuerpos de Howell-Jolly",
+      "text": "Se observan cuerpos de Howell-Jolly. Hallazgo frecuente en respuesta regenerativa o post-esplenectomía.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "ROULEAUX",
+      "label": "Rouleaux",
+      "text": "Se observa formación de Rouleaux (apilamiento eritrocitario). Puede estar asociado a hiperproteinemia o proceso inflamatorio.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "AGLUTINACION",
+      "label": "Aglutinación eritrocitaria",
+      "text": "Se observa aglutinación eritrocitaria. Hallazgo sugestivo de anemia hemolítica inmunomediada (AHIM). Se recomienda test de Coombs.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "RETICULOCITOS",
+      "label": "Reticulocitosis",
+      "text": "Se observa reticulocitosis, indicativa de respuesta regenerativa medular.",
+      "sectionCode": "SERIE_ROJA"
+    },
+    {
+      "code": "NEUTROFILIA_TOXICA",
+      "label": "Cambios tóxicos en neutrófilos",
+      "text": "Se observan cambios tóxicos en neutrófilos (basofilia citoplasmática, granulación tóxica). Compatible con proceso inflamatorio/infeccioso severo.",
+      "sectionCode": "SERIE_BLANCA"
+    },
+    {
+      "code": "DESVIACION_IZQUIERDA",
+      "label": "Desviación a la izquierda",
+      "text": "Se observa desviación a la izquierda (presencia de bandas). Compatible con respuesta inflamatoria activa.",
+      "sectionCode": "SERIE_BLANCA"
+    },
+    {
+      "code": "LINFOCITOS_REACTIVOS",
+      "label": "Linfocitos reactivos",
+      "text": "Se observan linfocitos reactivos (estimulación antigénica).",
+      "sectionCode": "SERIE_BLANCA"
+    },
+    {
+      "code": "AGREGADOS_PLAQUETARIOS",
+      "label": "Agregados plaquetarios",
+      "text": "Se observan agregados plaquetarios. El recuento puede estar subestimado.",
+      "sectionCode": "PLAQUETAS"
+    },
+    {
+      "code": "MACROPLAQUETAS",
+      "label": "Macroplaquetas",
+      "text": "Se observan macroplaquetas. Hallazgo compatible con trombopoyesis activa (respuesta regenerativa plaquetaria).",
+      "sectionCode": "PLAQUETAS"
+    },
+    {
+      "code": "LIPEMIA",
+      "label": "Muestra lipémica",
+      "text": "Muestra lipémica. Los valores de hemoglobina y proteínas pueden estar sobreestimados.",
+      "sectionCode": ""
+    },
+    {
+      "code": "HEMOLISIS",
+      "label": "Muestra hemolizada",
+      "text": "Muestra hemolizada. Los valores de hemoglobina pueden estar sobreestimados.",
+      "sectionCode": ""
+    },
+    {
+      "code": "MUESTRA_INADECUADA",
+      "label": "Muestra inadecuada",
+      "text": "Muestra recibida en condiciones inadecuadas para su procesamiento. Resultados orientativos.",
+      "sectionCode": ""
+    },
+    {
+      "code": "MORFOLOGIA_NORMAL",
+      "label": "Morfología normal",
+      "text": "Morfología eritrocitaria y leucocitaria dentro de los límites normales en el frotis sanguíneo.",
+      "sectionCode": ""
+    }
+  ]
+}

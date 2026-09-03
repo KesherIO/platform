@@ -56,6 +56,11 @@ export class AiResultsComponent implements OnInit {
 
   hasSelection = computed(() => this.selectedItemIds().size > 0);
 
+  selectedItems = computed(() => {
+    const ids = this.selectedItemIds();
+    return this.catalog().filter((i) => ids.has(i.id));
+  });
+
   isSuggested(id: string): boolean {
     return (
       this.case()?.triageResult?.suggestedCatalogItemIds?.includes(id) ?? false

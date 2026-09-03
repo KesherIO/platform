@@ -171,7 +171,9 @@ describe('OrdersService', () => {
         {
           catalogItemId: 'comp-1',
           ready: false,
-          reasons: [{ code: 'NO_PUBLISHED_TEMPLATE', message: 'No template' }],
+          reasons: [
+            { code: 'CATALOG_ITEM_INACTIVE', message: 'Item inactive' },
+          ],
         },
       ],
       summary: { total: 2, ready: 1, notReady: 1 },

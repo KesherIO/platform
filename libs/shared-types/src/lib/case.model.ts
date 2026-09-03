@@ -64,6 +64,9 @@ export interface CaseModel {
   orderSentAt?: Date | string;
   order?: { orderId: string; status: string };
 
+  // Results availability (true when any test has been released by the lab)
+  hasReleasedResults?: boolean;
+
   // Audit
   createdByUserId: string;
   createdAt: Date;

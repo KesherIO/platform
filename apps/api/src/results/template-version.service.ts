@@ -537,6 +537,7 @@ export class TemplateVersionService {
         options: string[];
         sortOrder: number;
         isHeader: boolean;
+        isRequired: boolean;
         formula: string | null;
         referenceRange: unknown;
       }>;
@@ -567,6 +568,7 @@ export class TemplateVersionService {
           options: a.options,
           sortOrder: a.sortOrder,
           isHeader: a.isHeader,
+          isRequired: a.isRequired,
           formula: a.formula ?? undefined,
           referenceRange: a.referenceRange as
             | { min?: number; max?: number; displayText: string }
@@ -593,6 +595,8 @@ export class TemplateVersionService {
       }
     }
 
+    let globalSortOrder = 0;
+
     for (const section of sections) {
       const newSection = await (
         tx as PrismaService
@@ -616,8 +620,9 @@ export class TemplateVersionService {
             valueType: analyte.valueType,
             unit: analyte.unit,
             options: analyte.options ?? [],
-            sortOrder: analyte.sortOrder,
+            sortOrder: globalSortOrder++,
             isHeader: analyte.isHeader ?? false,
+            isRequired: analyte.isRequired ?? true,
             formula: analyte.formula,
             referenceRange: analyte.referenceRange ?? undefined,
           },

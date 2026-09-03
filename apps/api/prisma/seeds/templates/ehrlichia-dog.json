@@ -12,10 +12,11 @@
           "code": "EHRLICHIA",
           "name": "Ehrlichia canis",
           "technique": "Inmunoensayo cromatográfico",
-          "valueType": "TEXT",
+          "valueType": "SELECT",
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": { "displayText": "Negativo" }
         }
       ]

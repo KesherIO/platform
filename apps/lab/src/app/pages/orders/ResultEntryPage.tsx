@@ -185,7 +185,7 @@ export function ResultEntryPage() {
     }
   };
 
-  if (loading) {
+  if (loading || submitting || saving) {
     return (
       <div className="p-6 max-w-3xl">
         <Skeleton className="mb-6 h-4 w-24" />
@@ -476,111 +476,119 @@ export function ResultEntryPage() {
   };
 
   return (
-    <div className="p-6 max-w-3xl">
-      <div className="mb-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="text-sm text-gray-400 hover:text-white"
-        >
-          {t('result_entry.back')}
-        </button>
+    <div className="flex h-full flex-col max-w-3xl">
+      <div className="sticky top-0 z-10 bg-gray-950 px-6 pt-6 pb-4 border-b border-gray-800">
+        <div className="mb-2">
+          <button
+            onClick={() => navigate(-1)}
+            className="text-sm text-gray-400 hover:text-white"
+          >
+            {t('result_entry.back')}
+          </button>
+        </div>
+
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-white">
+              {session.test.name}
+            </h1>
+            {session.test.code && (
+              <p className="font-mono text-sm text-gray-400">
+                {session.test.code}
+              </p>
+            )}
+            <p className="mt-1 text-sm text-gray-500">
+              {session.template.title}
+            </p>
+          </div>
+          {!isReadOnly && (
+            <div className="flex gap-2">
+              {!isUpdate && (
+                <button
+                  onClick={handleSave}
+                  disabled={saving || submitting}
+                  className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {saving ? '...' : t('result_entry.save_draft')}
+                </button>
+              )}
+              <button
+                onClick={handleSubmit}
+                disabled={saving || submitting || (isUpdate && !isDirty)}
+                className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
+              >
+                {submitting
+                  ? '...'
+                  : isUpdate
+                  ? t('result_entry.update')
+                  : t('result_entry.submit')}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-white">{session.test.name}</h1>
-          {session.test.code && (
-            <p className="font-mono text-sm text-gray-400">
-              {session.test.code}
+      <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">
+        {session.report?.correctionNotes && (
+          <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
+            <p className="text-sm font-semibold text-yellow-300">
+              {t('review.correction_banner')}
             </p>
-          )}
-          <p className="mt-1 text-sm text-gray-500">{session.template.title}</p>
-        </div>
-        {!isReadOnly && (
-          <div className="flex gap-2">
-            {!isUpdate && (
-              <button
-                onClick={handleSave}
-                disabled={saving || submitting}
-                className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 disabled:opacity-50"
-              >
-                {saving ? '...' : t('result_entry.save_draft')}
-              </button>
-            )}
-            <button
-              onClick={handleSubmit}
-              disabled={saving || submitting || (isUpdate && !isDirty)}
-              className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
-            >
-              {submitting
-                ? '...'
-                : isUpdate
-                ? t('result_entry.update')
-                : t('result_entry.submit')}
-            </button>
+            <p className="mt-1 text-xs text-yellow-400">
+              {t('review.correction_banner_notes')}
+            </p>
+            <p className="mt-1 text-sm text-yellow-200 whitespace-pre-wrap">
+              {session.report.correctionNotes}
+            </p>
           </div>
         )}
-      </div>
 
-      {session.report?.correctionNotes && (
-        <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/20 px-4 py-3">
-          <p className="text-sm font-semibold text-yellow-300">
-            {t('review.correction_banner')}
-          </p>
-          <p className="mt-1 text-xs text-yellow-400">
-            {t('review.correction_banner_notes')}
-          </p>
-          <p className="mt-1 text-sm text-yellow-200 whitespace-pre-wrap">
-            {session.report.correctionNotes}
-          </p>
-        </div>
-      )}
-
-      {session.sections.map((section, si) => (
-        <div
-          key={section.id ?? si}
-          className="mb-4 rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
-        >
-          {section.name && (
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              {section.name}
-            </h2>
-          )}
-          <div className="divide-y divide-gray-800/40">
-            {section.analytes.map((analyte) => (
-              <div key={analyte.id}>{renderAnalyteInput(analyte)}</div>
-            ))}
+        {session.sections.map((section, si) => (
+          <div
+            key={section.id ?? si}
+            className="mb-4 rounded-xl border border-gray-800 bg-gray-900 px-5 py-4"
+          >
+            {section.name && (
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                {section.name}
+              </h2>
+            )}
+            <div className="divide-y divide-gray-800/40">
+              {section.analytes.map((analyte) => (
+                <div key={analyte.id}>{renderAnalyteInput(analyte)}</div>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
 
-      <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900 px-5 py-4">
-        <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">
-          {t('result_entry.observations')}
-        </label>
-        {session.template.observationPhrases &&
-          session.template.observationPhrases.length > 0 && (
-            <ObservationPhrasesPicker
-              phrases={session.template.observationPhrases}
-              disabled={isReadOnly}
-              onInsert={(text) => {
-                setObservations((prev) => {
-                  if (!prev.trim()) return text;
-                  return prev.trimEnd() + '\n' + text;
-                });
-              }}
-            />
-          )}
-        <textarea
-          readOnly={isReadOnly}
-          rows={3}
-          value={observations}
-          onChange={(e) => setObservations(e.target.value)}
-          className={`w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-cyan focus:outline-none resize-none ${
-            isReadOnly ? 'opacity-60' : ''
-          }`}
-          placeholder={t('result_entry.observations_placeholder')}
-        />
+        <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900 px-5 py-4">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+            {t('result_entry.observations')}
+          </label>
+          {session.template.observationPhrases &&
+            session.template.observationPhrases.length > 0 && (
+              <ObservationPhrasesPicker
+                phrases={session.template.observationPhrases}
+                disabled={isReadOnly}
+                onInsert={(text) => {
+                  setObservations((prev) => {
+                    if (!prev.trim()) return text;
+                    return prev.trimEnd() + '\n' + text;
+                  });
+                }}
+              />
+            )}
+          <textarea
+            readOnly={isReadOnly}
+            rows={3}
+            value={observations}
+            onChange={(e) => setObservations(e.target.value)}
+            className={`w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-cyan focus:outline-none resize-none ${
+              isReadOnly ? 'opacity-60' : ''
+            }`}
+            placeholder={t('result_entry.observations_placeholder')}
+          />
+        </div>
       </div>
     </div>
   );

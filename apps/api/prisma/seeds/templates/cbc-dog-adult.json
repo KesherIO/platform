@@ -330,7 +330,8 @@
             "min": 3.9,
             "max": 11.1,
             "displayText": "3.90 – 11.10"
-          }
+          },
+          "isRequired": false
         }
       ],
       "code": "PLAQUETAS"
@@ -351,7 +352,8 @@
             "min": 54,
             "max": 71,
             "displayText": "54.00 – 71.00"
-          }
+          },
+          "isRequired": false
         }
       ],
       "code": "PROTEINAS_PLASMATICAS"

@@ -131,6 +131,9 @@ export class WorklistService {
       const wa = PRIORITY_WEIGHT[a.order.priority] ?? 2;
       const wb = PRIORITY_WEIGHT[b.order.priority] ?? 2;
       if (wa !== wb) return wa - wb;
+      const aMine = a.assignedUserId === currentUserId ? 0 : 1;
+      const bMine = b.assignedUserId === currentUserId ? 0 : 1;
+      if (aMine !== bMine) return aMine - bMine;
       return a.createdAt.getTime() - b.createdAt.getTime();
     });
 

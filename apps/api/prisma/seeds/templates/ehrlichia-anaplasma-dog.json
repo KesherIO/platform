@@ -12,20 +12,22 @@
           "code": "EA_EHRLICHIA",
           "name": "Ehrlichia canis (Ab)",
           "technique": "Inmunoensayo cromatográfico",
-          "valueType": "TEXT",
+          "valueType": "SELECT",
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": { "displayText": "Negativo" }
         },
         {
           "code": "EA_ANAPLASMA",
           "name": "Anaplasma phagocytophilum (Ab)",
           "technique": "Inmunoensayo cromatográfico",
-          "valueType": "TEXT",
+          "valueType": "SELECT",
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": { "displayText": "Negativo" }
         }
       ]

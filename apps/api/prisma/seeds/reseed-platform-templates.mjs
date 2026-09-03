@@ -24,7 +24,38 @@ async function main() {
   const defIds = platformDefs.map((d) => d.id);
 
   if (defIds.length > 0) {
-    // Delete analytes on report-tests that point at platform definitions
+    // Delete release snapshots referencing PLATFORM templates
+    const releaseTests = await prisma.resultReportReleaseTest.findMany({
+      where: { templateDefinitionId: { in: defIds } },
+      select: { id: true },
+    });
+    const rltIds = releaseTests.map((rt) => rt.id);
+
+    if (rltIds.length > 0) {
+      // Clear self-referencing amendment chain first
+      await prisma.resultReportReleaseTest.updateMany({
+        where: { id: { in: rltIds } },
+        data: { amendsReleaseTestId: null },
+      });
+
+      const { count: releaseAnalytes } =
+        await prisma.resultReportReleaseAnalyte.deleteMany({
+          where: { releaseTestId: { in: rltIds } },
+        });
+      console.log(
+        `✓ Deleted ${releaseAnalytes} release analytes referencing PLATFORM templates`
+      );
+
+      const { count: relTests } =
+        await prisma.resultReportReleaseTest.deleteMany({
+          where: { id: { in: rltIds } },
+        });
+      console.log(
+        `✓ Deleted ${relTests} release tests referencing PLATFORM templates`
+      );
+    }
+
+    // Delete report analytes + report tests referencing PLATFORM templates
     const reportTests = await prisma.resultReportTest.findMany({
       where: { templateDefinitionId: { in: defIds } },
       select: { id: true },
@@ -133,6 +164,7 @@ async function main() {
               options: analyte.options ?? [],
               sortOrder: analyte.sortOrder,
               isHeader: analyte.isHeader ?? false,
+              isRequired: analyte.isRequired ?? true,
               formula: analyte.formula ?? null,
               referenceRange: analyte.referenceRange ?? undefined,
             },

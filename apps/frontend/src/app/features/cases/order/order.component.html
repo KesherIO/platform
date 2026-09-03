@@ -50,6 +50,13 @@
       [ngModel]="deliveryMethod()"
       (ngModelChange)="onDeliveryMethodChange($event)"
     />
+
+    <app-toggle
+      label="CASES.ORDER.PRIORITY_LABEL"
+      [options]="priorityOptions"
+      [ngModel]="priority()"
+      (ngModelChange)="onPriorityChange($event)"
+    />
     }
 
     <!-- ── Selected tests ─────────────────────────────────── -->

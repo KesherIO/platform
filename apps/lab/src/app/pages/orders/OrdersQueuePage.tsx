@@ -56,6 +56,7 @@ export function OrdersQueuePage() {
         page,
         pageSize: PAGE_SIZE,
       }),
+    staleTime: 0,
   });
 
   const orders = data?.data ?? [];

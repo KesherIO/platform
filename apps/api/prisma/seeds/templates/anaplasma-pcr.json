@@ -12,11 +12,12 @@
           "code": "ANAPLASMA_PCR",
           "name": "Anaplasma sp.",
           "technique": "PCR Tiempo Real Cualitativo (Sonda)",
-          "valueType": "TEXT",
+          "valueType": "SELECT",
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": null
+          "options": ["No detectado", "Detectado"],
+          "referenceRange": { "displayText": "No detectado" }
         }
       ]
     }

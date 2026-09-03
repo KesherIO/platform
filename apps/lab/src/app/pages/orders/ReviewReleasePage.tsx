@@ -190,6 +190,7 @@ function ReviewerPanel({
   const { t } = useTranslation();
   const toast = useToast();
   const [selectedSignerId, setSelectedSignerId] = useState('');
+  const [selectedAnalystId, setSelectedAnalystId] = useState('');
   const [reviewNotes, setReviewNotes] = useState('');
   const [correctionNotes, setCorrectionNotes] = useState('');
   const [showCorrections, setShowCorrections] = useState(false);
@@ -202,6 +203,12 @@ function ReviewerPanel({
     staleTime: 0,
   });
 
+  const { data: analysts, isLoading: loadingAnalysts } = useQuery({
+    queryKey: ['analyst-signers'],
+    queryFn: () => labApi.review.getAnalystSigners(),
+    staleTime: 0,
+  });
+
   const isPartial = selectedTestIds.length < totalEligible;
 
   const handleApprove = async () => {
@@ -210,6 +217,7 @@ function ReviewerPanel({
     try {
       await labApi.review.approveAndRelease(orderId, {
         signerId: selectedSignerId,
+        analystId: selectedAnalystId || undefined,
         testIds: selectedTestIds,
         reviewNotes: reviewNotes || undefined,
       });
@@ -240,7 +248,7 @@ function ReviewerPanel({
     }
   };
 
-  if (loadingSigners) {
+  if (loadingSigners || loadingAnalysts) {
     return (
       <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-3">
         <Skeleton className="h-5 w-40" />
@@ -263,6 +271,22 @@ function ReviewerPanel({
   const selectedSigner = signers.find(
     (s: LabSigner) => s.id === selectedSignerId
   );
+
+  if (busy) {
+    return (
+      <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <div className="flex gap-3">
+          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
@@ -308,6 +332,30 @@ function ReviewerPanel({
         )}
       </div>
 
+      {/* Analyst dropdown */}
+      {analysts && analysts.length > 0 && (
+        <div>
+          <label className="mb-1 block text-xs text-gray-400">
+            {t('review.select_analyst')}
+          </label>
+          <select
+            value={selectedAnalystId}
+            onChange={(e) => setSelectedAnalystId(e.target.value)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+          >
+            <option value="">{t('review.select_analyst_placeholder')}</option>
+            {analysts.map((analyst: LabSigner) => (
+              <option key={analyst.id} value={analyst.id}>
+                {analyst.name} — {analyst.title}
+                {analyst.registrationNumber
+                  ? ` (${analyst.registrationNumber})`
+                  : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Review notes */}
       <div>
         <label className="mb-1 block text-xs text-gray-400">
@@ -326,15 +374,14 @@ function ReviewerPanel({
       <div className="flex items-center gap-3">
         <button
           onClick={() => setShowConfirm(true)}
-          disabled={!selectedSignerId || busy || selectedTestIds.length === 0}
+          disabled={!selectedSignerId || selectedTestIds.length === 0}
           className="rounded-lg bg-purple px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {t('review.approve_btn')}
         </button>
         <button
           onClick={() => setShowCorrections(!showCorrections)}
-          disabled={busy}
-          className="rounded-lg border border-yellow-700 px-4 py-2.5 text-sm font-medium text-yellow-300 hover:bg-yellow-900/30 disabled:opacity-50"
+          className="rounded-lg border border-yellow-700 px-4 py-2.5 text-sm font-medium text-yellow-300 hover:bg-yellow-900/30"
         >
           {t('review.corrections_btn')}
         </button>
@@ -355,10 +402,10 @@ function ReviewerPanel({
           />
           <button
             onClick={handleCorrections}
-            disabled={busy || !correctionNotes.trim()}
+            disabled={!correctionNotes.trim()}
             className="rounded-lg bg-yellow-700 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? '...' : t('review.corrections_btn')}
+            {t('review.corrections_btn')}
           </button>
         </div>
       )}
@@ -379,10 +426,9 @@ function ReviewerPanel({
           <div className="flex gap-2">
             <button
               onClick={handleApprove}
-              disabled={busy}
-              className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
             >
-              {busy ? '...' : t('common.confirm')}
+              {t('common.confirm')}
             </button>
             <button
               onClick={() => setShowConfirm(false)}
@@ -569,6 +615,16 @@ function AmendmentPanel({
     }
   };
 
+  if (busy) {
+    return (
+      <div className="mt-3 rounded-lg border border-blue-800/40 bg-blue-900/10 p-4 space-y-3">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-9 w-28" />
+      </div>
+    );
+  }
+
   // State: not started — show reason input + initiate button
   if (!amendmentId) {
     return (
@@ -591,10 +647,10 @@ function AmendmentPanel({
         <div className="flex gap-2">
           <button
             onClick={handleInitiate}
-            disabled={busy || !reason.trim()}
+            disabled={!reason.trim()}
             className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? '...' : t('review.amend_initiate')}
+            {t('review.amend_initiate')}
           </button>
         </div>
       </div>
@@ -646,15 +702,13 @@ function AmendmentPanel({
         <div className="flex gap-2">
           <button
             onClick={handleSubmitForReview}
-            disabled={busy}
-            className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           >
-            {busy ? '...' : t('review.amend_submit_for_review')}
+            {t('review.amend_submit_for_review')}
           </button>
           <button
             onClick={handleCancel}
-            disabled={busy}
-            className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+            className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
           >
             {t('review.amend_cancel')}
           </button>
@@ -678,15 +732,13 @@ function AmendmentPanel({
           <div className="flex gap-2">
             <button
               onClick={handleApprove}
-              disabled={busy}
-              className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
             >
-              {busy ? '...' : t('review.amend_approve')}
+              {t('review.amend_approve')}
             </button>
             <button
               onClick={handleCancel}
-              disabled={busy}
-              className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+              className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
             >
               {t('review.amend_cancel')}
             </button>
@@ -856,11 +908,14 @@ export function ReviewReleasePage() {
           {t('review.title', { patient: order.case.patientName })}
         </h1>
 
-        {hasCompletedTests && !hasSelectableTests && (
-          <span className="rounded-full bg-green-900/30 px-3 py-1 text-sm font-medium text-green-400">
-            {t('review.already_released')}
-          </span>
-        )}
+        {hasCompletedTests &&
+          !hasSelectableTests &&
+          enteredTests.length === 0 &&
+          draftOrPendingTests.length === 0 && (
+            <span className="rounded-full bg-green-900/30 px-3 py-1 text-sm font-medium text-green-400">
+              {t('review.already_released')}
+            </span>
+          )}
         {hasSelectableTests && !isAdmin && (
           <span className="rounded-full bg-blue-900/30 px-3 py-1 text-sm font-medium text-blue-400">
             {t('review.in_review_status')}
@@ -871,6 +926,8 @@ export function ReviewReleasePage() {
       {/* Released: approver info (only when fully released, no pending tests) */}
       {hasCompletedTests &&
         !hasSelectableTests &&
+        enteredTests.length === 0 &&
+        draftOrPendingTests.length === 0 &&
         report?.approvedByName &&
         report.reviewedAt && (
           <div className="mb-4 rounded-lg border border-green-800/40 bg-green-900/10 px-4 py-3">
@@ -1008,21 +1065,25 @@ export function ReviewReleasePage() {
         </div>
       )}
 
-      {/* DRAFT: Submit for review button (for RESULTS_ENTERED tests) */}
-      {isDraft && enteredTests.length > 0 && (
+      {/* Submit for review button (for RESULTS_ENTERED tests) */}
+      {enteredTests.length > 0 && (
         <div className="mt-6">
           {!hasReviewers && (
             <p className="mb-2 text-sm text-yellow-400">
               {t('review.no_reviewer_warning')}
             </p>
           )}
-          <button
-            onClick={() => handleSubmitForReview()}
-            disabled={submitting || !hasReviewers}
-            className="rounded-lg bg-purple px-5 py-2.5 font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitting ? '...' : t('review.submit_for_review_btn')}
-          </button>
+          {submitting ? (
+            <Skeleton className="h-10 w-48 rounded-lg" />
+          ) : (
+            <button
+              onClick={() => handleSubmitForReview()}
+              disabled={!hasReviewers}
+              className="rounded-lg bg-purple px-5 py-2.5 font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('review.submit_for_review_btn')}
+            </button>
+          )}
         </div>
       )}
 

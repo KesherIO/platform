@@ -21,6 +21,7 @@ const EMPTY_PROFILE: LaboratoryProfile = {
   directorName: '',
   directorCredentials: '',
   defaultObservations: '',
+  reportDisclaimer: '',
   signatureUrl: '',
 };
 
@@ -724,19 +725,20 @@ export function LaboratorySettingsPage() {
             </div>
             <div>
               <label className={labelClass}>
-                {t('settings.default_observations')}
+                {t('settings.report_disclaimer')}
               </label>
               <textarea
                 rows={3}
-                value={profile.defaultObservations ?? ''}
+                value={profile.reportDisclaimer ?? ''}
                 readOnly={!isAdmin}
                 onChange={(e) =>
                   setProfile({
                     ...profile,
-                    defaultObservations: e.target.value,
+                    reportDisclaimer: e.target.value,
                   })
                 }
                 className={inputClass}
+                placeholder={t('settings.report_disclaimer_placeholder')}
               />
             </div>
             <div>

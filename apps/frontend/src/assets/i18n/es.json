@@ -336,7 +336,8 @@
       "VIEW_ORDER": "Ver orden",
       "VIEW_RESULTS": "Ver resultados",
       "NEW_CASE_FOR_PATIENT": "Nuevo caso para este paciente",
-      "DELETE": "Eliminar caso"
+      "DELETE": "Eliminar caso",
+      "VIEW_PARTIAL_RESULTS": "Ver resultados parciales"
     },
     "AI_RESULTS": {
       "TITLE": "Diagnósticos Diferenciales (DDx)",
@@ -386,7 +387,10 @@
       "CANCEL_CASE": "Cancelar Caso",
       "DELIVERY_METHOD_LABEL": "¿Cómo llegará la muestra al laboratorio?",
       "DELIVERY_CLIENT": "Yo la entrego",
-      "DELIVERY_LAB_PICKUP": "Recolección por el laboratorio"
+      "DELIVERY_LAB_PICKUP": "Recolección por el laboratorio",
+      "PRIORITY_LABEL": "Prioridad",
+      "PRIORITY_ROUTINE": "Rutina",
+      "PRIORITY_URGENT": "Urgente"
     },
     "ORDER_SUCCESS": {
       "TITLE": "¡Orden Enviada!",
@@ -405,10 +409,11 @@
   },
   "RESULTS_INBOX": {
     "TITLE": "Resultados",
-    "SUBTITLE": "Resultados de laboratorio de casos completados",
+    "SUBTITLE": "Resultados de laboratorio de tus casos",
     "EMPTY_TITLE": "Aún no hay resultados",
     "EMPTY_BODY": "Los resultados aparecerán aquí una vez que el laboratorio los libere.",
-    "VIEW_REPORT": "Ver informe"
+    "VIEW_REPORT": "Ver informe",
+    "VIEW_PARTIAL": "Ver parcial"
   },
   "REPORT": {
     "TITLE": "Informe de Resultados",
@@ -427,16 +432,34 @@
     "FIELD_PHONE": "Teléfono",
     "COL_ANALYTE": "Análisis",
     "COL_TECHNIQUE": "Técnica",
-    "COL_RESULT": "Resultado",
-    "COL_UNIT": "Unidades",
-    "COL_REF": "Valores de Referencia",
+    "COL_RESULT": "Res.",
+    "COL_UNIT": "Uds.",
+    "COL_REF": "Ref.",
     "OBSERVATIONS": "Observaciones",
     "PROCESSED_BY": "Analizó",
     "APPROVED_BY": "Revisó y autorizó",
+    "ANALYZED_BY": "Analizó",
+    "REVIEWED_BY": "Revisó y autorizó",
+    "DIGITALLY_SIGNED": "Firmado digitalmente",
+    "DISCLAIMER_LABEL": "NOTA",
     "TAB_RESULTS": "Resultados",
     "TAB_AI": "Interpretación IA",
     "ERROR_NO_ORDER": "Este caso no tiene una orden asociada.",
     "ERROR_NOT_FOUND": "Los resultados del laboratorio aún no están disponibles.",
+    "PARTIAL_RESULTS": "Resultados Parciales",
+    "PARTIAL_BANNER_TITLE": "Algunas pruebas aún están en proceso",
+    "PARTIAL_BANNER_TESTS": "Pendientes: {{tests}}",
+    "TEST_RELEASED_BY": "Liberado por {{name}}",
+    "DEPT": {
+      "HEMATOLOGY": "Hematología",
+      "CHEMISTRY": "Química Clínica",
+      "URINALYSIS": "Urianálisis",
+      "PARASITOLOGY": "Parasitología",
+      "SEROLOGY": "Serología",
+      "ENDOCRINOLOGY": "Endocrinología",
+      "MICROBIOLOGY": "Microbiología",
+      "OTHER": "Otros"
+    },
     "AI_INTERPRETATION": {
       "BUTTON": "Interpretar con IA",
       "LOADING": "Generando interpretación con IA...",

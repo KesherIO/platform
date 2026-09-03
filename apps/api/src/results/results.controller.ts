@@ -185,6 +185,28 @@ export class ResultsController {
   }
 
   // ---------------------------------------------------------------------------
+  // GET /results/by-order/:orderId/released
+  // Clinic reads only RELEASED results from immutable snapshots.
+  // Supports both partial and final releases.
+  // ---------------------------------------------------------------------------
+
+  @Get('by-order/:orderId/released')
+  @ApiBearerAuth()
+  @UseGuards(TenantGuard)
+  @ApiOperation({
+    summary: 'Get released results for an order (clinic view, snapshot data)',
+  })
+  findReleasedResultsByOrder(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string
+  ) {
+    return this.resultsService.findReleasedResultsByOrder(
+      tenant.tenantId,
+      orderId
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // GET /results/reports/:id/interpret
   // Return the stored AI interpretation if it exists — no Claude call.
   // Returns null when none has been generated yet.

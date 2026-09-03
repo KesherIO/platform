@@ -81,6 +81,12 @@
       "label": "Ooquistes observados",
       "text": "Se observan ooquistes compatibles con ...",
       "sectionCode": "EXAMEN_MICROSCOPICO"
+    },
+    {
+      "code": "TROFOZOITOS_OBSERVADOS",
+      "label": "Trofozoitos observados",
+      "text": "Se observan trofozoitos compatibles con ...",
+      "sectionCode": "EXAMEN_MICROSCOPICO"
     }
   ],
   "sections": [
@@ -153,22 +159,44 @@
           "code": "FECAL_DIRECTO",
           "name": "Examen Directo",
           "technique": "Microscopía directa",
-          "valueType": "TEXT",
+          "valueType": "LONG_TEXT",
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
-          "options": ["Negativo", "Positivo"],
+          "options": [
+            "Negativo",
+            "No se observan parásitos ni huevos en la muestra analizada.",
+            "Se observan escasos huevos de ...",
+            "Se observan moderados huevos de ...",
+            "Se observan abundantes huevos de ...",
+            "Se observan trofozoitos compatibles con ...",
+            "Se observan larvas compatibles con ...",
+            "Se observan ooquistes compatibles con ...",
+            "Flora bacteriana aumentada.",
+            "Flora bacteriana dentro de los límites normales."
+          ],
           "referenceRange": null
         },
         {
           "code": "FECAL_FLOTACION",
           "name": "Examen por Flotación Simple",
           "technique": "Flotación simple",
-          "valueType": "TEXT",
+          "valueType": "LONG_TEXT",
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
-          "options": ["Negativo", "Positivo"],
+          "options": [
+            "Negativo",
+            "No se observan parásitos ni huevos en la muestra analizada.",
+            "Se observan escasos huevos de ...",
+            "Se observan moderados huevos de ...",
+            "Se observan abundantes huevos de ...",
+            "Se observan trofozoitos compatibles con ...",
+            "Se observan larvas compatibles con ...",
+            "Se observan ooquistes compatibles con ...",
+            "Flora bacteriana aumentada.",
+            "Flora bacteriana dentro de los límites normales."
+          ],
           "referenceRange": null
         }
       ]

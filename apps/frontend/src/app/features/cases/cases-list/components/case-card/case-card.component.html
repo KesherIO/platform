@@ -79,7 +79,15 @@
       >
         {{ 'CASES.MENU.VIEW_ORDER' | translate }}
       </button>
-      } @case (CaseStatus.COMPLETED) {
+      @if (case().hasReleasedResults) {
+      <button
+        type="button"
+        (click)="navigate(['/cases', case().id, 'report'])"
+        class="menu-item text-amber-600"
+      >
+        {{ 'CASES.MENU.VIEW_PARTIAL_RESULTS' | translate }}
+      </button>
+      } } @case (CaseStatus.COMPLETED) {
       <button
         type="button"
         (click)="navigate(['/cases', case().id, 'report'])"
