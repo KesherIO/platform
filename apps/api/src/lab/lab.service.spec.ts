@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { LabService } from './lab.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { OrderStatusService } from './order-status.service';
 
 const LAB_TENANT_ID = 'lab-tenant-1';
 const ORDER_ID = 'order-1';
@@ -62,8 +63,17 @@ describe('LabService', () => {
       $transaction: jest.fn(),
     };
 
+    const orderStatusMock = {
+      deriveOrderStatus: jest.fn(),
+      deriveAndPersist: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [LabService, { provide: PrismaService, useValue: prismaMock }],
+      providers: [
+        LabService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: OrderStatusService, useValue: orderStatusMock },
+      ],
     }).compile();
 
     service = module.get<LabService>(LabService);

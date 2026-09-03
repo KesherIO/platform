@@ -90,7 +90,8 @@ describe('OrderComponent', () => {
     fixture.componentInstance.generateRequisition();
     expect(casesServiceSpy.createOrder).toHaveBeenCalledWith(
       'c2',
-      'LAB_PICKUP'
+      'LAB_PICKUP',
+      'ROUTINE'
     );
     expect(routerSpy.navigate).toHaveBeenCalledWith(
       ['/cases', 'c2', 'order', 'success'],
