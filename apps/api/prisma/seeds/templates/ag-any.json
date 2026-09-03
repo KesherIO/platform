@@ -1,0 +1,23 @@
+{
+  "catalogItemCode": "AG",
+  "species": "ANY",
+  "title": "Brecha Aniónica (sin valores de referencia)",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "AG",
+          "name": "Brecha Aniónica",
+          "technique": "Parámetro calculado",
+          "formula": "([NA]+[K])-([CL]+[CO2])",
+          "valueType": "NUMERIC",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

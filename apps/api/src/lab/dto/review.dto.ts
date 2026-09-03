@@ -4,6 +4,10 @@ export class ApproveReleaseDto {
   @IsString()
   signerId!: string;
 
+  @IsString()
+  @IsOptional()
+  analystId?: string;
+
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })

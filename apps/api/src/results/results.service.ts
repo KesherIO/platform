@@ -30,6 +30,7 @@ import type {
   ReferenceRangeSnapshot,
   AiInterpretationModel,
   AiInterpretationFlaggedAnalyte,
+  ClinicReleasedResultsModel,
 } from '@vet-ai/shared-types';
 import type {
   ImportTemplateDto,
@@ -913,7 +914,7 @@ export class ResultsService {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const response = await this.anthropic.messages.create({
         model: AI_INTERPRETATION_MODEL,
-        max_tokens: 1400,
+        max_tokens: 4096,
         system: [
           {
             type: 'text',
@@ -923,6 +924,18 @@ export class ResultsService {
         ],
         messages: [{ role: 'user', content: userMessage }],
       });
+
+      if (response.stop_reason === 'max_tokens') {
+        console.warn(
+          `[AI Interpretation] Attempt ${attempt}/${MAX_ATTEMPTS} hit max_tokens limit.`
+        );
+        if (attempt === MAX_ATTEMPTS) {
+          throw new InternalServerErrorException(
+            'AI interpretation response was truncated.'
+          );
+        }
+        continue;
+      }
 
       const text =
         response.content[0].type === 'text' ? response.content[0].text : '';
@@ -1030,6 +1043,206 @@ export class ResultsService {
         : undefined,
       sections,
       analytes: (version.analytes ?? []).map(mapAnalyte),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Clinic-facing released results — only RELEASED data from immutable snapshots
+  // ---------------------------------------------------------------------------
+
+  async findReleasedResultsByOrder(
+    tenantId: string,
+    requisitionNumber: string
+  ): Promise<ClinicReleasedResultsModel> {
+    const order = await this.prisma.order.findFirst({
+      where: { requisitionNumber, tenantId },
+      select: { id: true, caseId: true, labTenantId: true },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+
+    const report = await this.prisma.resultReport.findFirst({
+      where: { orderId: order.id, tenantId },
+      select: { id: true },
+    });
+    if (!report) throw new NotFoundException('Result report not found.');
+
+    const allReportTests = await this.prisma.resultReportTest.findMany({
+      where: { reportId: report.id },
+      select: {
+        id: true,
+        status: true,
+        latestReleaseId: true,
+        orderedTest: {
+          select: {
+            catalogItemName: true,
+            department: true,
+            catalogItemId: true,
+          },
+        },
+      },
+    });
+
+    const releasedTests = allReportTests.filter(
+      (t) => t.status === 'RELEASED' && t.latestReleaseId
+    );
+    const pendingTests = allReportTests.filter((t) => t.status !== 'RELEASED');
+
+    if (releasedTests.length === 0) {
+      return {
+        reportId: report.id,
+        orderId: order.id,
+        caseId: order.caseId,
+        releaseStatus: 'NO_RESULTS',
+        releasedTests: [],
+        pendingTestNames: pendingTests.map(
+          (t) => t.orderedTest?.catalogItemName ?? 'Unknown'
+        ),
+        latestReleasedAt: null,
+      };
+    }
+
+    const releaseTestMap = new Map<string, string>();
+    for (const rt of releasedTests) {
+      releaseTestMap.set(rt.id, rt.latestReleaseId!);
+    }
+
+    const snapshotTests = await this.prisma.resultReportReleaseTest.findMany({
+      where: {
+        sourceReportTestId: { in: releasedTests.map((rt) => rt.id) },
+        releaseId: { in: Array.from(releaseTestMap.values()) },
+      },
+      include: {
+        analytes: { orderBy: { sortOrder: 'asc' } },
+        release: {
+          select: {
+            releaseType: true,
+            releasedAt: true,
+            signerName: true,
+            signerTitle: true,
+            signerSpecialty: true,
+            signerUniversity: true,
+            signerRegistrationNumber: true,
+            signerSignatureUrl: true,
+            analystName: true,
+            analystTitle: true,
+            analystSpecialty: true,
+            analystUniversity: true,
+            analystRegistrationNumber: true,
+            analystSignatureUrl: true,
+            reportDisclaimer: true,
+          },
+        },
+      },
+    });
+
+    const latestByTest = new Map<string, (typeof snapshotTests)[0]>();
+    for (const st of snapshotTests) {
+      if (releaseTestMap.get(st.sourceReportTestId) === st.releaseId) {
+        latestByTest.set(st.sourceReportTestId, st);
+      }
+    }
+
+    // Fallback department: OrderedTest.department → LabTestConfiguration.department
+    const catalogItemIds = [
+      ...new Set(
+        allReportTests
+          .map((rt) => rt.orderedTest?.catalogItemId)
+          .filter((id): id is string => !!id)
+      ),
+    ];
+    const labConfigs =
+      catalogItemIds.length && order.labTenantId
+        ? await this.prisma.labTestConfiguration.findMany({
+            where: {
+              catalogItemId: { in: catalogItemIds },
+              labTenantId: order.labTenantId,
+            },
+            select: { catalogItemId: true, department: true },
+          })
+        : [];
+    const configDeptMap = new Map<string, string>();
+    for (const lc of labConfigs) {
+      configDeptMap.set(lc.catalogItemId, lc.department);
+    }
+
+    const deptFallback = new Map<string, string | null>();
+    for (const rt of allReportTests) {
+      const dept =
+        rt.orderedTest?.department ??
+        (rt.orderedTest?.catalogItemId
+          ? configDeptMap.get(rt.orderedTest.catalogItemId) ?? null
+          : null);
+      deptFallback.set(rt.id, dept);
+    }
+
+    const tests = Array.from(latestByTest.values())
+      .sort((a, b) => a.catalogItemName.localeCompare(b.catalogItemName))
+      .map((rt) => ({
+        testName: rt.catalogItemName ?? '',
+        catalogItemCode: rt.catalogItemCode,
+        department:
+          rt.department ?? deptFallback.get(rt.sourceReportTestId) ?? null,
+        releaseType: rt.release.releaseType,
+        releasedAt: rt.release.releasedAt.toISOString(),
+        signerName: rt.release.signerName,
+        signerTitle: rt.release.signerTitle ?? undefined,
+        signerSpecialty: rt.release.signerSpecialty ?? undefined,
+        signerUniversity: rt.release.signerUniversity ?? undefined,
+        signerRegistrationNumber:
+          rt.release.signerRegistrationNumber ?? undefined,
+        signerSignatureUrl: rt.release.signerSignatureUrl ?? undefined,
+        analystName: rt.release.analystName ?? undefined,
+        analystTitle: rt.release.analystTitle ?? undefined,
+        analystSpecialty: rt.release.analystSpecialty ?? undefined,
+        analystUniversity: rt.release.analystUniversity ?? undefined,
+        analystRegistrationNumber:
+          rt.release.analystRegistrationNumber ?? undefined,
+        analystSignatureUrl: rt.release.analystSignatureUrl ?? undefined,
+        reportDisclaimer: rt.release.reportDisclaimer ?? undefined,
+        observations: rt.observations ?? undefined,
+        analytes: rt.analytes.map(
+          (a): ResultReportAnalyteModel => ({
+            id: a.id,
+            reportTestId: rt.sourceReportTestId,
+            code: a.code,
+            name: a.name,
+            technique: a.technique ?? undefined,
+            unit: a.unit ?? undefined,
+            valueType: a.valueType as ResultReportAnalyteModel['valueType'],
+            sectionName: a.sectionName ?? undefined,
+            sortOrder: a.sortOrder,
+            isHeader: a.isHeader,
+            formula: a.formula ?? undefined,
+            numericValue: a.numericValue ? Number(a.numericValue) : undefined,
+            textValue: a.textValue ?? undefined,
+            booleanValue: a.booleanValue ?? undefined,
+            selectValue: a.selectValue ?? undefined,
+            flag: (a.flag as ResultReportAnalyteModel['flag']) ?? undefined,
+            referenceSnapshot:
+              (a.referenceSnapshot as unknown as ReferenceRangeSnapshot) ??
+              undefined,
+          })
+        ),
+      }));
+
+    const releaseStatus =
+      pendingTests.length === 0 ? 'ALL_RELEASED' : 'PARTIAL_RESULTS';
+
+    const latestDate = tests.reduce<string | null>((max, t) => {
+      if (!max || t.releasedAt > max) return t.releasedAt;
+      return max;
+    }, null);
+
+    return {
+      reportId: report.id,
+      orderId: order.id,
+      caseId: order.caseId,
+      releaseStatus,
+      releasedTests: tests,
+      pendingTestNames: pendingTests.map(
+        (t) => t.orderedTest?.catalogItemName ?? 'Unknown'
+      ),
+      latestReleasedAt: latestDate,
     };
   }
 

@@ -12,40 +12,44 @@
           "code": "4DX_ANAPLASMA",
           "name": "Anaplasma phagocytophilum",
           "technique": "Inmunoensayo cromatográfico",
-          "valueType": "TEXT",
+          "valueType": "SELECT",
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": { "displayText": "Negativo" }
         },
         {
           "code": "4DX_EHRLICHIA",
           "name": "Ehrlichia canis / Ehrlichia ewingii",
           "technique": "Inmunoensayo cromatográfico",
-          "valueType": "TEXT",
+          "valueType": "SELECT",
           "unit": null,
           "sortOrder": 1,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": { "displayText": "Negativo" }
         },
         {
           "code": "4DX_BORRELIA",
           "name": "Borrelia burgdorferi",
           "technique": "Inmunoensayo cromatográfico",
-          "valueType": "TEXT",
+          "valueType": "SELECT",
           "unit": null,
           "sortOrder": 2,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": { "displayText": "Negativo" }
         },
         {
           "code": "4DX_HEARTWORM",
           "name": "Dirofilaria immitis (Ag)",
           "technique": "Inmunoensayo cromatográfico",
-          "valueType": "TEXT",
+          "valueType": "SELECT",
           "unit": null,
           "sortOrder": 3,
           "isHeader": false,
+          "options": ["Negativo", "Positivo"],
           "referenceRange": { "displayText": "Negativo" }
         }
       ]

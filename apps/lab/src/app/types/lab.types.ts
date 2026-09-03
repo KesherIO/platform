@@ -286,6 +286,7 @@ export interface LaboratoryProfile {
   directorName: string | null;
   directorCredentials: string | null;
   defaultObservations: string | null;
+  reportDisclaimer: string | null;
   signatureUrl: string | null;
   signers?: LabSigner[];
 }
@@ -731,6 +732,8 @@ export interface WorklistItem {
   assignedUserName: string | null;
   analyzerName: string | null;
   accessionNumber: string | null;
+  packageOriginId: string | null;
+  packageOriginName: string | null;
 }
 
 export interface WorklistQuery {
@@ -761,13 +764,7 @@ export interface WorklistCountsResponse {
 // Operational Readiness
 // ---------------------------------------------------------------------------
 
-export type ReadinessReasonCode =
-  | 'CATALOG_ITEM_INACTIVE'
-  | 'NO_PUBLISHED_TEMPLATE'
-  | 'NO_SPECIMEN_CONFIG'
-  | 'NO_PROCESSING_METHOD'
-  | 'ANALYZER_REQUIRED_BUT_MISSING'
-  | 'NO_REVIEWER_SIGNER';
+export type ReadinessReasonCode = 'CATALOG_ITEM_INACTIVE';
 
 export interface ReadinessCheck {
   code: ReadinessReasonCode;

@@ -76,6 +76,7 @@ enum TimelineEventType {
   AMENDMENT_SUBMITTED_FOR_REVIEW
   AMENDMENT_APPROVED
   AMENDMENT_CANCELLED
+  TEST_CANCELLED
 }
 
 enum OnboardingTokenType {
@@ -654,6 +655,7 @@ model ResultTemplateAnalyte {
   options   String[] // SELECT only — valid option values
   sortOrder Int
   isHeader  Boolean          @default(false) // bold label row — no value input, no flag
+  isRequired Boolean         @default(true)  // false → lab can submit without filling this analyte
   formula   String? // e.g. "([HCT]*10)/[RBC]" — computed on frontend, read-only input
 
   /// MVP shape: { min?: number, max?: number, displayText: string }
@@ -940,6 +942,7 @@ model LaboratoryProfile {
   directorCredentials String?
   signatureUrl        String? // default signature image URL for released reports
   defaultObservations String? // default footer text pre-filled in result reports
+  reportDisclaimer    String? // legal disclaimer shown at bottom of released reports
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -965,6 +968,7 @@ model LabSigner {
   laboratoryProfile LaboratoryProfile     @relation(fields: [laboratoryProfileId], references: [id], onDelete: Cascade)
   reviewedReports   ResultReport[]
   releases          ResultReportRelease[] @relation("ReleaseSignerRef")
+  analystReleases   ResultReportRelease[] @relation("ReleaseAnalystRef")
 
   @@map("lab_signers")
 }
@@ -1297,6 +1301,15 @@ model ResultReportRelease {
   signerRegistrationNumber String?
   signerSignatureUrl       String?
 
+  // ── Analyst snapshot (frozen at release time) ──
+  analystId                 String?
+  analystName               String?
+  analystTitle              String?
+  analystSpecialty          String?
+  analystUniversity         String?
+  analystRegistrationNumber String?
+  analystSignatureUrl       String?
+
   // ── Released-by actor ──
   releasedByUserId String
   releasedByName   String
@@ -1311,6 +1324,7 @@ model ResultReportRelease {
   labLogoUrl             String?
   labAddress             String?
   labPhone               String?
+  reportDisclaimer       String?
 
   // ── Order identity snapshot ──
   orderId           String
@@ -1347,6 +1361,7 @@ model ResultReportRelease {
   // ── Relations ──
   report           ResultReport                  @relation(fields: [reportId], references: [id], onDelete: Restrict)
   signer           LabSigner                     @relation("ReleaseSignerRef", fields: [signerId], references: [id], onDelete: Restrict)
+  analyst          LabSigner?                    @relation("ReleaseAnalystRef", fields: [analystId], references: [id], onDelete: Restrict)
   tests            ResultReportReleaseTest[]
   artifacts        ResultReportReleaseArtifact[]
   latestForTests   ResultReportTest[]            @relation("LatestTestRelease")

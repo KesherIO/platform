@@ -414,9 +414,16 @@ export function AccessionDialog({
                 (forms.length === 0 &&
                   (expectedData?.unconfiguredTests.length ?? 0) === 0)
               }
-              className="rounded-lg bg-cyan px-5 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-lg bg-cyan px-5 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
             >
-              {submitting ? '...' : t('accession.confirm')}
+              {submitting ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-950 border-t-transparent" />
+                  {t('accession.confirming')}
+                </>
+              ) : (
+                t('accession.confirm')
+              )}
             </button>
           </div>
         </div>

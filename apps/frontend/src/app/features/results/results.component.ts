@@ -20,14 +20,22 @@ export class ResultsComponent implements OnInit {
   error = signal<string | null>(null);
   allCases = signal<CaseModel[]>([]);
 
-  completedCases = computed(() =>
+  casesWithResults = computed(() =>
     this.allCases()
-      .filter((c) => c.status === CaseStatus.COMPLETED)
+      .filter(
+        (c) =>
+          c.status === CaseStatus.COMPLETED ||
+          (c.status === CaseStatus.ORDERED && c.hasReleasedResults)
+      )
       .sort(
         (a, b) =>
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       )
   );
+
+  isPartial(c: CaseModel): boolean {
+    return c.status === CaseStatus.ORDERED && !!c.hasReleasedResults;
+  }
 
   ngOnInit(): void {
     this.casesService

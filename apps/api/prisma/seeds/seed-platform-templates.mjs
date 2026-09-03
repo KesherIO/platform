@@ -89,6 +89,8 @@ async function main() {
         },
       });
 
+      let globalSortOrder = 0;
+
       for (const section of sections) {
         const newSection = await tx.resultTemplateSection.create({
           data: {
@@ -110,8 +112,9 @@ async function main() {
               valueType: analyte.valueType,
               unit: analyte.unit ?? null,
               options: analyte.options ?? [],
-              sortOrder: analyte.sortOrder,
+              sortOrder: globalSortOrder++,
               isHeader: analyte.isHeader ?? false,
+              isRequired: analyte.isRequired ?? true,
               formula: analyte.formula ?? null,
               referenceRange: analyte.referenceRange ?? undefined,
             },

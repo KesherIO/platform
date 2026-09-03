@@ -42,7 +42,9 @@ export class OrderStatusService {
       tests.length > 0 &&
       tests.every((t) => TERMINAL_TEST_STATUSES.has(t.status))
     ) {
-      return 'COMPLETED';
+      return tests.every((t) => t.status === 'CANCELLED')
+        ? 'CANCELLED'
+        : 'COMPLETED';
     }
 
     if (tests.some((t) => PROCESSING_TEST_STATUSES.has(t.status))) {
@@ -89,6 +91,8 @@ export class OrderStatusService {
       if (derivedOrder === 'PROCESSING') timestamps.processingStartedAt = now;
       if (derivedOrder === 'COMPLETED') timestamps.completedAt = now;
 
+      if (derivedOrder === 'CANCELLED') timestamps.cancelledAt = now;
+
       await db.order.update({
         where: { id: orderId },
         data: { status: derivedOrder, ...timestamps },
@@ -97,7 +101,7 @@ export class OrderStatusService {
     }
 
     let derivedCase: CaseStatus | null = null;
-    if (derivedOrder === 'COMPLETED') {
+    if (derivedOrder === 'COMPLETED' || derivedOrder === 'CANCELLED') {
       const caseRow = await db.case.findUnique({
         where: { id: order.caseId },
         select: { status: true },
@@ -107,11 +111,13 @@ export class OrderStatusService {
         caseRow.status !== 'CANCELLED' &&
         caseRow.status !== 'COMPLETED'
       ) {
+        const caseStatus: CaseStatus =
+          derivedOrder === 'CANCELLED' ? 'CANCELLED' : 'COMPLETED';
         await db.case.update({
           where: { id: order.caseId },
-          data: { status: 'COMPLETED' },
+          data: { status: caseStatus },
         });
-        derivedCase = 'COMPLETED';
+        derivedCase = caseStatus;
         changed = true;
       }
     }

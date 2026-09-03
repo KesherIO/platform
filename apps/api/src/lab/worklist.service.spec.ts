@@ -41,6 +41,7 @@ describe('WorklistService', () => {
     assignedTo: null,
     analyzer: null,
     specimens: [],
+    sources: [],
   };
 
   beforeEach(async () => {

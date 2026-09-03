@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
@@ -8,6 +8,8 @@ import { Skeleton } from '../../shared/components/Skeleton';
 import { AccessionDialog } from './AccessionDialog';
 import { useToast } from '../../shared/components/ToastProvider';
 import { useAuth } from '../../auth/AuthContext';
+import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
+import { Trash2 } from 'lucide-react';
 import type { OrderedTest, Specimen } from '../../types/lab.types';
 
 const TECHNICAL_EVENT_TYPES = new Set([
@@ -29,11 +31,34 @@ const STATUS_TRANSITIONS: Record<
   string,
   { labelKey: string; next: string; variant?: 'danger' }[]
 > = {
-  PENDING: [],
-  READY_FOR_PICKUP: [],
-  COLLECTED: [],
+  PENDING: [
+    {
+      labelKey: 'orders.actions.cancel_order',
+      next: 'CANCELLED',
+      variant: 'danger',
+    },
+  ],
+  READY_FOR_PICKUP: [
+    {
+      labelKey: 'orders.actions.cancel_order',
+      next: 'CANCELLED',
+      variant: 'danger',
+    },
+  ],
+  COLLECTED: [
+    {
+      labelKey: 'orders.actions.cancel_order',
+      next: 'CANCELLED',
+      variant: 'danger',
+    },
+  ],
   RECEIVED_BY_LAB: [
     { labelKey: 'orders.actions.start_processing', next: 'PROCESSING' },
+    {
+      labelKey: 'orders.actions.cancel_order',
+      next: 'CANCELLED',
+      variant: 'danger',
+    },
   ],
   PROCESSING: [
     {
@@ -118,8 +143,10 @@ function getOtherPackageNames(
 export function OrderWorkspacePage() {
   const { orderId } = useParams<{ orderId: string }>();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const confirm = useConfirm();
   const { isAdmin } = useAuth();
   const [transitioning, setTransitioning] = useState(false);
   const [retryingTestId, setRetryingTestId] = useState<string | null>(null);
@@ -150,6 +177,7 @@ export function OrderWorkspacePage() {
         import('../../types/lab.types').LabOrderDetail
       >,
     enabled: !!orderId,
+    staleTime: 0,
   });
 
   const { data: timeline = [] } = useQuery({
@@ -281,6 +309,31 @@ export function OrderWorkspacePage() {
     }
   };
 
+  const cancelTest = async (test: OrderedTest) => {
+    try {
+      const confirmed = await confirm({
+        title: t('workspace.cancel_test_title'),
+        message: t('workspace.cancel_test_message', {
+          name: test.catalogItemName,
+        }),
+        confirmLabel: t('workspace.cancel_test'),
+        cancelLabel: t('common.keep'),
+        variant: 'destructive',
+        onConfirm: async () => {
+          await labApi.orderedTests.update(test.id, { status: 'CANCELLED' });
+        },
+      });
+      if (confirmed) {
+        toast.success(t('workspace.test_cancelled_success'));
+        invalidateOrder();
+      }
+    } catch (err) {
+      toast.error(
+        `${t('workspace.test_cancel_error')} ${(err as Error).message}`
+      );
+    }
+  };
+
   const testGroups = useMemo(
     () => (order ? buildTestGroups(order.orderedTests) : []),
     [order]
@@ -338,18 +391,28 @@ export function OrderWorkspacePage() {
   const hasReadyTests = order.orderedTests.some((t) => t.status === 'READY');
   const c = order.case;
 
+  const hasCompletedTest = order.orderedTests.some(
+    (t) => t.status === 'COMPLETED'
+  );
+
   const transitions = (() => {
-    const base = STATUS_TRANSITIONS[order.status] ?? [];
-    if (base.length > 0) return base;
-    if (order.status === 'PENDING' && hasReadyTests) {
-      return STATUS_TRANSITIONS['RECEIVED_BY_LAB'];
+    let base = STATUS_TRANSITIONS[order.status] ?? [];
+    if (base.length === 0 && order.status === 'PENDING' && hasReadyTests) {
+      base = STATUS_TRANSITIONS['RECEIVED_BY_LAB'];
+    }
+    if (hasCompletedTest) {
+      return base.filter((tr) => tr.next !== 'CANCELLED');
     }
     return base;
   })();
 
   const renderTestActions = (test: OrderedTest) => (
     <>
-      {test.status === 'BLOCKED' ? (
+      {test.status === 'CANCELLED' ? (
+        <span className="text-xs text-gray-500">
+          {t('workspace.test_cancelled')}
+        </span>
+      ) : test.status === 'BLOCKED' ? (
         <div className="flex items-center gap-2">
           <span className="max-w-[200px] text-right text-xs text-red-400">
             {t(`accession.block_reason.${test.blockReason ?? 'OTHER'}`, {
@@ -374,6 +437,15 @@ export function OrderWorkspacePage() {
               >
                 {t('workspace.pick_template')}
               </button>
+              {!hasCompletedTest && (
+                <button
+                  onClick={() => cancelTest(test)}
+                  title={t('workspace.cancel_test')}
+                  className="rounded-lg border border-red-900/50 p-1.5 text-red-400 hover:bg-red-900/20"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -470,6 +542,18 @@ export function OrderWorkspacePage() {
           {t('workspace.view_results')}
         </Link>
       )}
+      {!hasCompletedTest &&
+        test.status !== 'CANCELLED' &&
+        test.status !== 'COMPLETED' &&
+        test.status !== 'BLOCKED' && (
+          <button
+            onClick={() => cancelTest(test)}
+            title={t('workspace.cancel_test')}
+            className="rounded-lg border border-red-900/50 p-1.5 text-red-400 hover:bg-red-900/20"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
     </>
   );
 
@@ -780,20 +864,30 @@ export function OrderWorkspacePage() {
                   {t('workspace.init_tests')}
                 </button>
               )}
-              {hasTests && order.resultReport && (
-                <Link
-                  to={`/orders/${order.id}/review`}
-                  className={
-                    order.resultReport.status === 'RELEASED'
-                      ? 'rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800'
-                      : 'rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90'
-                  }
-                >
-                  {order.resultReport.status === 'RELEASED'
-                    ? t('workspace.view_report')
-                    : t('workspace.review_release')}
-                </Link>
-              )}
+              {hasTests &&
+                order.resultReport &&
+                (() => {
+                  const allTerminal = order.orderedTests.every(
+                    (ot) =>
+                      ot.status === 'COMPLETED' || ot.status === 'CANCELLED'
+                  );
+                  const isFullyReleased =
+                    order.resultReport.status === 'RELEASED' && allTerminal;
+                  return (
+                    <Link
+                      to={`/orders/${order.id}/review`}
+                      className={
+                        isFullyReleased
+                          ? 'rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800'
+                          : 'rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90'
+                      }
+                    >
+                      {isFullyReleased
+                        ? t('workspace.view_report')
+                        : t('workspace.review_release')}
+                    </Link>
+                  );
+                })()}
             </div>
           </div>
 
@@ -809,14 +903,32 @@ export function OrderWorkspacePage() {
                     }`}
                     className="rounded-xl border border-gray-800 bg-gray-900"
                   >
-                    <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-2.5">
-                      <span className="text-sm">📦</span>
-                      <span className="text-sm font-semibold text-gray-300">
-                        {group.originName}
-                      </span>
-                      <span className="text-xs text-gray-600">
-                        ({group.tests.length})
-                      </span>
+                    <div className="flex items-center justify-between border-b border-gray-800 px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">📦</span>
+                        <span className="text-sm font-semibold text-gray-300">
+                          {group.originName}
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          ({group.tests.length})
+                        </span>
+                      </div>
+                      {group.tests.some(
+                        (t) =>
+                          t.status === 'IN_PROGRESS' ||
+                          t.status === 'RESULTS_ENTERED'
+                      ) && (
+                        <Link
+                          to={`/orders/${orderId}/batch-results?packageOriginId=${
+                            group.tests[0].sources.find(
+                              (s) => s.sourceType === 'PACKAGE'
+                            )!.originCatalogItemId
+                          }`}
+                          className="rounded-md bg-purple-500/15 px-2.5 py-1 text-xs font-medium text-purple-400 hover:bg-purple-500/25"
+                        >
+                          {t('worklist.actions.enter_all_results')}
+                        </Link>
+                      )}
                     </div>
                     <div className="divide-y divide-gray-800/50">
                       {group.tests.map((test) => {
@@ -831,7 +943,9 @@ export function OrderWorkspacePage() {
                         return (
                           <div
                             key={test.id}
-                            className="flex items-center justify-between px-4 py-3"
+                            className={`flex items-center justify-between px-4 py-3${
+                              test.status === 'CANCELLED' ? ' opacity-50' : ''
+                            }`}
                           >
                             <div>
                               <p className="font-medium text-white">
@@ -869,7 +983,9 @@ export function OrderWorkspacePage() {
                 ) : (
                   <div
                     key={group.test.id}
-                    className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-4 py-3"
+                    className={`flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-4 py-3${
+                      group.test.status === 'CANCELLED' ? ' opacity-50' : ''
+                    }`}
                   >
                     <div>
                       <p className="font-medium text-white">
@@ -903,7 +1019,7 @@ export function OrderWorkspacePage() {
           onClose={() => setShowAccessionDialog(false)}
           onSuccess={() => {
             setShowAccessionDialog(false);
-            invalidateOrder();
+            navigate('/orders');
           }}
         />
       )}

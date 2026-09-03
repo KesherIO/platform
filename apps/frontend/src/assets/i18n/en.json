@@ -335,6 +335,7 @@
       "CONTINUE": "Continue case",
       "VIEW_ORDER": "View order",
       "VIEW_RESULTS": "View results",
+      "VIEW_PARTIAL_RESULTS": "View partial results",
       "NEW_CASE_FOR_PATIENT": "New case for this patient",
       "DELETE": "Delete case"
     },
@@ -386,7 +387,10 @@
       "CANCEL_CASE": "Cancel Case",
       "DELIVERY_METHOD_LABEL": "How will the sample get to the lab?",
       "DELIVERY_CLIENT": "I'll deliver it",
-      "DELIVERY_LAB_PICKUP": "Lab pickup"
+      "DELIVERY_LAB_PICKUP": "Lab pickup",
+      "PRIORITY_LABEL": "Priority",
+      "PRIORITY_ROUTINE": "Routine",
+      "PRIORITY_URGENT": "Urgent"
     },
     "ORDER_SUCCESS": {
       "TITLE": "Order Sent!",
@@ -405,10 +409,11 @@
   },
   "RESULTS_INBOX": {
     "TITLE": "Results",
-    "SUBTITLE": "Lab results for completed cases",
+    "SUBTITLE": "Lab results for your cases",
     "EMPTY_TITLE": "No results yet",
     "EMPTY_BODY": "Results will appear here once the lab releases them.",
-    "VIEW_REPORT": "View report"
+    "VIEW_REPORT": "View report",
+    "VIEW_PARTIAL": "View partial"
   },
   "REPORT": {
     "TITLE": "Lab Results Report",
@@ -429,14 +434,32 @@
     "COL_TECHNIQUE": "Technique",
     "COL_RESULT": "Result",
     "COL_UNIT": "Units",
-    "COL_REF": "Reference",
+    "COL_REF": "Ref.",
     "OBSERVATIONS": "Observations",
     "PROCESSED_BY": "Processed by",
     "APPROVED_BY": "Reviewed & approved by",
+    "ANALYZED_BY": "Analyzed by",
+    "REVIEWED_BY": "Reviewed and authorized by",
+    "DIGITALLY_SIGNED": "Digitally signed",
+    "DISCLAIMER_LABEL": "NOTE",
     "TAB_RESULTS": "Results",
     "TAB_AI": "AI Interpretation",
     "ERROR_NO_ORDER": "This case has no order associated.",
     "ERROR_NOT_FOUND": "Lab results not available yet.",
+    "PARTIAL_RESULTS": "Partial Results",
+    "PARTIAL_BANNER_TITLE": "Some tests are still in progress",
+    "PARTIAL_BANNER_TESTS": "Pending: {{tests}}",
+    "TEST_RELEASED_BY": "Released by {{name}}",
+    "DEPT": {
+      "HEMATOLOGY": "Hematology",
+      "CHEMISTRY": "Clinical Chemistry",
+      "URINALYSIS": "Urinalysis",
+      "PARASITOLOGY": "Parasitology",
+      "SEROLOGY": "Serology",
+      "ENDOCRINOLOGY": "Endocrinology",
+      "MICROBIOLOGY": "Microbiology",
+      "OTHER": "Other"
+    },
     "AI_INTERPRETATION": {
       "BUTTON": "Interpret with AI",
       "LOADING": "Generating AI interpretation...",

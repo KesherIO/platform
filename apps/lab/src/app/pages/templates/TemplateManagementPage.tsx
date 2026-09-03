@@ -19,7 +19,6 @@ import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import type {
   TemplateDefinition,
-  TemplateScope,
   TemplateStatus,
   Species,
 } from '../../types/lab.types';
@@ -42,11 +41,6 @@ const STATUS_COLORS: Record<TemplateStatus, string> = {
   ARCHIVED: 'bg-gray-800 text-gray-400',
 };
 
-const SCOPE_COLORS: Record<TemplateScope, string> = {
-  PLATFORM: 'bg-blue-900/30 text-blue-300',
-  LABORATORY: 'bg-purple-900/30 text-purple-300',
-};
-
 function formatAge(weeks: number, t: (key: string) => string): string {
   if (weeks === -1) return t('templates.age_any');
   return String(weeks);
@@ -61,6 +55,9 @@ export function TemplateManagementPage() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'PLATFORM' | 'LABORATORY'>(
+    'PLATFORM'
+  );
   const [showNewModal, setShowNewModal] = useState(false);
   const [newForm, setNewForm] = useState({
     title: '',
@@ -234,6 +231,15 @@ export function TemplateManagementPage() {
     }
   };
 
+  const activeTemplates =
+    activeTab === 'PLATFORM' ? platformTemplates : labTemplates;
+
+  const TAB_BASE =
+    'flex h-9 items-center rounded-lg border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950';
+  const TAB_ACTIVE = 'border-cyan/30 bg-cyan/10 text-cyan';
+  const TAB_INACTIVE =
+    'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200';
+
   const renderRow = (def: TemplateDefinition) => {
     // activeVersion = the published version. For draft-only templates it's null,
     // so fall back to the latest draft returned in the versions array.
@@ -330,31 +336,6 @@ export function TemplateManagementPage() {
     );
   };
 
-  const renderSection = (
-    titleKey: string,
-    scopeBadgeKey: string,
-    scope: TemplateScope,
-    items: TemplateDefinition[]
-  ) => (
-    <div className="mb-8">
-      <div className="mb-3 flex items-center gap-2">
-        <h2 className="text-base font-semibold text-white">{t(titleKey)}</h2>
-        <span
-          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${SCOPE_COLORS[scope]}`}
-        >
-          {t(scopeBadgeKey)}
-        </span>
-      </div>
-      {items.length === 0 ? (
-        <div className="py-8 text-center text-sm text-gray-500">
-          {t('templates.no_results')}
-        </div>
-      ) : (
-        <div className="space-y-2">{items.map(renderRow)}</div>
-      )}
-    </div>
-  );
-
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -404,6 +385,34 @@ export function TemplateManagementPage() {
         />
       </div>
 
+      <div className="mb-4 flex items-center gap-2">
+        {(
+          [
+            {
+              key: 'PLATFORM' as const,
+              label: t('templates.platform_section'),
+              count: platformTemplates.length,
+            },
+            {
+              key: 'LABORATORY' as const,
+              label: t('templates.lab_section'),
+              count: labTemplates.length,
+            },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`${TAB_BASE} ${
+              activeTab === tab.key ? TAB_ACTIVE : TAB_INACTIVE
+            }`}
+          >
+            {tab.label}
+            <span className="ml-1.5 text-xs opacity-70">({tab.count})</span>
+          </button>
+        ))}
+      </div>
+
       {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -433,17 +442,12 @@ export function TemplateManagementPage() {
             isFetching ? 'opacity-60' : 'opacity-100'
           }`}
         >
-          {renderSection(
-            'templates.platform_section',
-            'templates.scope.PLATFORM',
-            'PLATFORM',
-            platformTemplates
-          )}
-          {renderSection(
-            'templates.lab_section',
-            'templates.scope.LABORATORY',
-            'LABORATORY',
-            labTemplates
+          {activeTemplates.length === 0 ? (
+            <div className="py-8 text-center text-sm text-gray-500">
+              {t('templates.no_results')}
+            </div>
+          ) : (
+            <div className="space-y-2">{activeTemplates.map(renderRow)}</div>
           )}
         </div>
       )}

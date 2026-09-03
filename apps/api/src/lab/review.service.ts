@@ -63,44 +63,47 @@ export class ReviewService {
     const submittedTestIds = enteredTests.map((t) => t.id);
     const reportId = order.resultReport.id;
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.orderedTest.updateMany({
-        where: { id: { in: submittedTestIds } },
-        data: { status: 'IN_REVIEW', version: { increment: 1 } },
-      });
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.orderedTest.updateMany({
+          where: { id: { in: submittedTestIds } },
+          data: { status: 'IN_REVIEW', version: { increment: 1 } },
+        });
 
-      await tx.resultReportTest.updateMany({
-        where: { orderedTestId: { in: submittedTestIds } },
-        data: { status: 'IN_REVIEW' },
-      });
+        await tx.resultReportTest.updateMany({
+          where: { orderedTestId: { in: submittedTestIds } },
+          data: { status: 'IN_REVIEW' },
+        });
 
-      if (order.resultReport!.status === 'DRAFT') {
-        await tx.resultReport.update({
-          where: { id: reportId },
+        if (order.resultReport!.status === 'DRAFT') {
+          await tx.resultReport.update({
+            where: { id: reportId },
+            data: {
+              status: 'IN_REVIEW',
+              submittedForReviewAt: new Date(),
+              submittedByUserId: actorId,
+              correctionNotes: null,
+            },
+          });
+        }
+
+        await tx.timelineEvent.create({
           data: {
-            status: 'IN_REVIEW',
-            submittedForReviewAt: new Date(),
-            submittedByUserId: actorId,
-            correctionNotes: null,
+            orderId,
+            eventType: 'SUBMITTED_FOR_REVIEW',
+            actorId,
+            actorName,
+            description: 'Report submitted for review',
+            metadata: {
+              reportId,
+              testCount: submittedTestIds.length,
+              testIds: submittedTestIds,
+            },
           },
         });
-      }
-
-      await tx.timelineEvent.create({
-        data: {
-          orderId,
-          eventType: 'SUBMITTED_FOR_REVIEW',
-          actorId,
-          actorName,
-          description: 'Report submitted for review',
-          metadata: {
-            reportId,
-            testCount: submittedTestIds.length,
-            testIds: submittedTestIds,
-          },
-        },
-      });
-    });
+      },
+      { timeout: 15000 }
+    );
 
     return { status: 'IN_REVIEW', reportId };
   }
@@ -145,47 +148,50 @@ export class ReviewService {
         ? inReviewTests.filter((t) => testIds.includes(t.id)).map((t) => t.id)
         : inReviewTests.map((t) => t.id);
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.orderedTest.updateMany({
-        where: { id: { in: revertTestIds } },
-        data: {
-          status: 'RESULTS_ENTERED',
-          completedAt: null,
-          version: { increment: 1 },
-        },
-      });
-
-      await tx.resultReportTest.updateMany({
-        where: { orderedTestId: { in: revertTestIds } },
-        data: { status: 'DRAFT' },
-      });
-
-      await tx.resultReport.update({
-        where: { id: reportId },
-        data: {
-          status: 'DRAFT',
-          correctionNotes: correctionNotes.trim(),
-          reviewedAt: null,
-          reviewedBySignerId: null,
-          reviewNotes: null,
-        },
-      });
-
-      await tx.timelineEvent.create({
-        data: {
-          orderId,
-          eventType: 'REVIEW_CORRECTIONS',
-          actorId,
-          actorName,
-          description: 'Corrections requested',
-          metadata: {
-            reportId,
-            correctionNotes: correctionNotes.trim(),
-            revertedTestIds: revertTestIds,
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.orderedTest.updateMany({
+          where: { id: { in: revertTestIds } },
+          data: {
+            status: 'RESULTS_ENTERED',
+            completedAt: null,
+            version: { increment: 1 },
           },
-        },
-      });
-    });
+        });
+
+        await tx.resultReportTest.updateMany({
+          where: { orderedTestId: { in: revertTestIds } },
+          data: { status: 'DRAFT' },
+        });
+
+        await tx.resultReport.update({
+          where: { id: reportId },
+          data: {
+            status: 'DRAFT',
+            correctionNotes: correctionNotes.trim(),
+            reviewedAt: null,
+            reviewedBySignerId: null,
+            reviewNotes: null,
+          },
+        });
+
+        await tx.timelineEvent.create({
+          data: {
+            orderId,
+            eventType: 'REVIEW_CORRECTIONS',
+            actorId,
+            actorName,
+            description: 'Corrections requested',
+            metadata: {
+              reportId,
+              correctionNotes: correctionNotes.trim(),
+              revertedTestIds: revertTestIds,
+            },
+          },
+        });
+      },
+      { timeout: 15000 }
+    );
 
     return { status: 'DRAFT', correctionNotes: correctionNotes.trim() };
   }
@@ -201,6 +207,32 @@ export class ReviewService {
       where: {
         laboratoryProfileId: profile.id,
         roles: { has: 'REVIEWER' },
+      },
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        specialty: true,
+        university: true,
+        registrationNumber: true,
+        signatureUrl: true,
+        roles: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async getAnalystSigners(labTenantId: string) {
+    const profile = await this.prisma.laboratoryProfile.findUnique({
+      where: { tenantId: labTenantId },
+      select: { id: true },
+    });
+    if (!profile) return [];
+
+    return this.prisma.labSigner.findMany({
+      where: {
+        laboratoryProfileId: profile.id,
+        roles: { has: 'ANALYST' },
       },
       select: {
         id: true,

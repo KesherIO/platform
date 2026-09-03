@@ -61,6 +61,11 @@ import { ListWorklistDto } from './dto/list-worklist.dto';
 import { ClaimOrderedTestDto } from './dto/claim-ordered-test.dto';
 import { ReassignOrderedTestDto } from './dto/reassign-ordered-test.dto';
 import {
+  BatchClaimDto,
+  BatchStartDto,
+  BatchResultSessionsDto,
+} from './dto/batch-ordered-tests.dto';
+import {
   ApproveReleaseDto,
   SubmitForReviewDto,
   RequestCorrectionsDto,
@@ -180,10 +185,17 @@ export class LabController {
   @Patch('ordered-tests/:testId')
   updateOrderedTest(
     @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('testId') testId: string,
     @Body() dto: UpdateOrderedTestDto
   ) {
-    return this.labService.updateOrderedTest(tenant.tenantId, testId, dto);
+    return this.labService.updateOrderedTest(
+      tenant.tenantId,
+      testId,
+      dto,
+      user.id,
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
+    );
   }
 
   // PATCH /api/lab/ordered-tests/:testId/receive
@@ -514,6 +526,7 @@ export class LabController {
       orderId,
       labTenantId: tenant.tenantId,
       signerId: dto.signerId,
+      analystId: dto.analystId,
       testIds: dto.testIds,
       reviewNotes: dto.reviewNotes,
       observations: dto.observations,
@@ -550,6 +563,13 @@ export class LabController {
   @Get('signers/reviewers')
   getReviewerSigners(@CurrentTenant() tenant: TenantContext) {
     return this.reviewService.getReviewerSigners(tenant.tenantId);
+  }
+
+  // GET /api/lab/signers/analysts
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('signers/analysts')
+  getAnalystSigners(@CurrentTenant() tenant: TenantContext) {
+    return this.reviewService.getAnalystSigners(tenant.tenantId);
   }
 
   // ---------------------------------------------------------------------------
@@ -1238,6 +1258,51 @@ export class LabController {
       testId,
       dto.targetUserId,
       dto.version
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('ordered-tests/batch-claim')
+  @HttpCode(HttpStatus.OK)
+  batchClaimTests(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BatchClaimDto
+  ) {
+    return this.worklistService.batchClaimTests(
+      tenant.tenantId,
+      dto.tests,
+      user.id
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.TECHNICIAN, TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('ordered-tests/batch-start')
+  @HttpCode(HttpStatus.OK)
+  batchStartTests(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BatchStartDto
+  ) {
+    return this.worklistService.batchStartTests(
+      tenant.tenantId,
+      dto.testIds,
+      user.id
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Post('ordered-tests/batch-result-sessions')
+  @HttpCode(HttpStatus.OK)
+  batchGetResultSessions(
+    @CurrentTenant() tenant: TenantContext,
+    @Body() dto: BatchResultSessionsDto
+  ) {
+    return this.resultEntryService.batchGetResultSessions(
+      dto.testIds,
+      tenant.tenantId
     );
   }
 

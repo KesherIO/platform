@@ -158,6 +158,7 @@ export class ResultEntryService {
         options: analyte.options ?? [],
         referenceRange: analyte.referenceRange ?? null,
         isHeader: analyte.isHeader,
+        isRequired: analyte.isRequired,
         formula: analyte.formula ?? null,
         sortOrder: analyte.sortOrder,
         savedValueId: saved?.id ?? null,
@@ -284,6 +285,20 @@ export class ResultEntryService {
     const sectionNameById = new Map(
       version.sections.map((s) => [s.id, s.name])
     );
+
+    // Reject negative numeric values
+    const negativeFields: string[] = [];
+    for (const input of analytes) {
+      if (input.numericValue != null && input.numericValue < 0) {
+        const templateAnalyte = analyteById.get(input.templateAnalyteId);
+        negativeFields.push(templateAnalyte?.name ?? input.templateAnalyteId);
+      }
+    }
+    if (negativeFields.length > 0) {
+      throw new BadRequestException(
+        `Negative values are not allowed: ${negativeFields.join(', ')}`
+      );
+    }
 
     // Get or create the ResultReport for this order
     let reportId = test.order.resultReport?.id;
@@ -479,7 +494,7 @@ export class ResultEntryService {
         order: {
           select: {
             id: true,
-            resultReport: { select: { id: true } },
+            resultReport: { select: { id: true, status: true } },
             case: {
               select: {
                 patientSpecies: true,
@@ -558,7 +573,7 @@ export class ResultEntryService {
 
     const missingFields: string[] = [];
     for (const analyte of version.analytes) {
-      if (analyte.isHeader || analyte.formula) continue;
+      if (analyte.isHeader || analyte.formula || !analyte.isRequired) continue;
       const saved = savedByTemplateId.get(analyte.id);
       const hasValue =
         saved &&
@@ -648,6 +663,13 @@ export class ResultEntryService {
       },
     });
 
+    if (test.order.resultReport?.status === 'RELEASED') {
+      await this.prisma.resultReport.update({
+        where: { id: test.order.resultReport.id },
+        data: { status: 'DRAFT' },
+      });
+    }
+
     await this.prisma.timelineEvent.create({
       data: {
         orderId: test.order.id,
@@ -660,5 +682,11 @@ export class ResultEntryService {
     });
 
     return { status: 'RESULTS_ENTERED' };
+  }
+
+  async batchGetResultSessions(testIds: string[], labTenantId: string) {
+    return Promise.all(
+      testIds.map((id) => this.getResultSession(id, labTenantId))
+    );
   }
 }

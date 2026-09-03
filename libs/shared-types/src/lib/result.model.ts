@@ -79,3 +79,45 @@ export interface ResultReportModel {
   analytes: ResultReportAnalyteModel[];
   tests?: ResultReportTestModel[];
 }
+
+// ---------------------------------------------------------------------------
+// Clinic-facing released results (only RELEASED data from immutable snapshots)
+// ---------------------------------------------------------------------------
+
+export type ClinicReleaseStatus =
+  | 'PARTIAL_RESULTS'
+  | 'ALL_RELEASED'
+  | 'NO_RESULTS';
+
+export interface ReleasedTestResult {
+  testName: string;
+  catalogItemCode: string | null;
+  department: string | null;
+  releaseType: string;
+  releasedAt: string;
+  signerName: string;
+  signerTitle?: string;
+  signerSpecialty?: string;
+  signerUniversity?: string;
+  signerRegistrationNumber?: string;
+  signerSignatureUrl?: string;
+  analystName?: string;
+  analystTitle?: string;
+  analystSpecialty?: string;
+  analystUniversity?: string;
+  analystRegistrationNumber?: string;
+  analystSignatureUrl?: string;
+  reportDisclaimer?: string;
+  observations?: string;
+  analytes: ResultReportAnalyteModel[];
+}
+
+export interface ClinicReleasedResultsModel {
+  reportId: string;
+  orderId: string;
+  caseId: string;
+  releaseStatus: ClinicReleaseStatus;
+  releasedTests: ReleasedTestResult[];
+  pendingTestNames: string[];
+  latestReleasedAt: string | null;
+}

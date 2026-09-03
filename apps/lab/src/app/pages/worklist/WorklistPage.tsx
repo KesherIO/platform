@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +8,7 @@ import { Pagination } from '../../shared/components/Pagination';
 import { useToast } from '../../shared/components/ToastProvider';
 import { useAuth } from '../../auth/AuthContext';
 import { WorklistCard } from './WorklistCard';
+import { WorklistGroupCard } from './WorklistGroupCard';
 import { ReassignModal } from './ReassignModal';
 import type { WorklistItem } from '../../types/lab.types';
 
@@ -174,6 +175,114 @@ export function WorklistPage() {
     await refetchWorklist();
   }
 
+  type WorklistGroup =
+    | { kind: 'standalone'; item: WorklistItem }
+    | {
+        kind: 'package';
+        packageName: string;
+        packageOriginId: string;
+        items: WorklistItem[];
+      };
+
+  const groups = useMemo<WorklistGroup[]>(() => {
+    const packageMap = new Map<
+      string,
+      { packageName: string; items: WorklistItem[] }
+    >();
+    const standalone: WorklistItem[] = [];
+
+    for (const item of items) {
+      if (item.packageOriginId && item.packageOriginName) {
+        const key = `${item.orderId}::${item.packageOriginId}`;
+        const group = packageMap.get(key);
+        if (group) {
+          group.items.push(item);
+        } else {
+          packageMap.set(key, {
+            packageName: item.packageOriginName,
+            items: [item],
+          });
+        }
+      } else {
+        standalone.push(item);
+      }
+    }
+
+    const result: WorklistGroup[] = [];
+    const usedKeys = new Set<string>();
+
+    for (const item of items) {
+      if (item.packageOriginId && item.packageOriginName) {
+        const key = `${item.orderId}::${item.packageOriginId}`;
+        if (!usedKeys.has(key)) {
+          usedKeys.add(key);
+          const group = packageMap.get(key)!;
+          result.push({
+            kind: 'package',
+            packageName: group.packageName,
+            packageOriginId: item.packageOriginId,
+            items: group.items,
+          });
+        }
+      } else {
+        result.push({ kind: 'standalone', item });
+      }
+    }
+
+    return result;
+  }, [items]);
+
+  async function handleClaimAll(groupItems: WorklistItem[]) {
+    setBusyTestId(groupItems[0].id);
+    try {
+      await labApi.worklist.batchClaim(
+        groupItems.map((i) => ({ testId: i.id, version: i.version }))
+      );
+      toast.success(t('worklist.success.claimed'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (
+        msg.includes('409') ||
+        msg.includes('modified') ||
+        msg.includes('claimed')
+      ) {
+        toast.error(t('worklist.errors.conflict'));
+      } else {
+        toast.error(t('worklist.errors.claim'));
+      }
+    }
+    await refetchWorklist();
+    setBusyTestId(null);
+  }
+
+  async function handleUnclaimAll(groupItems: WorklistItem[]) {
+    setBusyTestId(groupItems[0].id);
+    try {
+      for (const item of groupItems) {
+        if (item.assignedUserId) {
+          await labApi.worklist.unclaim(item.id);
+        }
+      }
+      toast.success(t('worklist.success.unclaimed'));
+    } catch {
+      toast.error(t('worklist.errors.unclaim'));
+    }
+    await refetchWorklist();
+    setBusyTestId(null);
+  }
+
+  async function handleStartAll(groupItems: WorklistItem[]) {
+    setBusyTestId(groupItems[0].id);
+    try {
+      await labApi.worklist.batchStart(groupItems.map((i) => i.id));
+      toast.success(t('worklist.success.started'));
+    } catch {
+      toast.error(t('worklist.errors.start'));
+    }
+    await refetchWorklist();
+    setBusyTestId(null);
+  }
+
   return (
     <div className="space-y-4 p-4 md:p-6">
       {/* Header */}
@@ -323,19 +432,34 @@ export function WorklistPage() {
             fetching && !loading ? 'opacity-60' : ''
           }`}
         >
-          {items.map((item) => (
-            <WorklistCard
-              key={item.id}
-              item={item}
-              currentUserId={currentUserId}
-              isAdmin={isAdmin}
-              onClaim={handleClaim}
-              onUnclaim={handleUnclaim}
-              onStart={handleStart}
-              onReassign={handleReassignClick}
-              busy={busyTestId === item.id}
-            />
-          ))}
+          {groups.map((group) =>
+            group.kind === 'package' ? (
+              <WorklistGroupCard
+                key={`pkg-${group.items[0].orderId}-${group.packageOriginId}`}
+                packageName={group.packageName}
+                items={group.items}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                onClaimAll={handleClaimAll}
+                onUnclaimAll={handleUnclaimAll}
+                onStartAll={handleStartAll}
+                onReassign={handleReassignClick}
+                busy={group.items.some((i) => i.id === busyTestId)}
+              />
+            ) : (
+              <WorklistCard
+                key={group.item.id}
+                item={group.item}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                onClaim={handleClaim}
+                onUnclaim={handleUnclaim}
+                onStart={handleStart}
+                onReassign={handleReassignClick}
+                busy={busyTestId === group.item.id}
+              />
+            )
+          )}
         </div>
       )}
 

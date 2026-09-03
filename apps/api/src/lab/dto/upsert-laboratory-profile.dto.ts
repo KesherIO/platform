@@ -55,6 +55,10 @@ export class UpsertLaboratoryProfileDto {
   @IsOptional()
   defaultObservations?: string;
 
+  @IsString()
+  @IsOptional()
+  reportDisclaimer?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => LabSignerDto)

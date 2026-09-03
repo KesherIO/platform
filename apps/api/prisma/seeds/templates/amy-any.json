@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "AMY",
+  "species": "ANY",
+  "title": "Amilasa (sin valores de referencia)",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "AMY",
+          "name": "Amilasa",
+          "technique": "Fase sólida",
+          "valueType": "NUMERIC",
+          "unit": "UI/L",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

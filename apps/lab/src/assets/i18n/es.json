@@ -20,7 +20,8 @@
     "clear": "Limpiar",
     "date_from": "Desde",
     "date_to": "Hasta",
-    "clear_date_range": "Limpiar rango de fechas"
+    "clear_date_range": "Limpiar rango de fechas",
+    "keep": "Mantener"
   },
   "auth": {
     "title": "Acceso al Portal de Laboratorio",
@@ -166,6 +167,12 @@
     "no_published_templates": "No hay plantillas publicadas disponibles.",
     "template_resolved": "Plantilla asignada — la prueba ya está lista para ingresar resultados.",
     "template_still_missing": "Sin plantilla para este código. Usa \"Elegir plantilla\" para asignar una manualmente.",
+    "cancel_test": "Cancelar prueba",
+    "cancel_test_title": "¿Cancelar prueba?",
+    "cancel_test_message": "Se cancelará \"{{name}}\" de esta orden. Esta acción no se puede deshacer.",
+    "test_cancelled": "Cancelada",
+    "test_cancelled_success": "Prueba cancelada.",
+    "test_cancel_error": "Error al cancelar prueba:",
     "also_direct": "también solicitado directamente",
     "also_in_package": "también en: {{name}}",
     "timeline": "Cronología",
@@ -185,6 +192,7 @@
     "notes": "Notas",
     "add_tube": "Agregar otro tubo de {{type}}",
     "confirm": "Confirmar ingreso",
+    "confirming": "Confirmando...",
     "unconfigured_tests": "{{count}} examen(es) sin configuración de muestra",
     "flag": {
       "isHemolyzed": "Hemolizada",
@@ -221,6 +229,19 @@
     "validation_formula": "Las siguientes fórmulas no se pudieron calcular: {{fields}}",
     "quick_phrases": "Frases rápidas"
   },
+  "batch_result_entry": {
+    "back": "← Regresar",
+    "not_found": "No se encontraron pruebas para este panel.",
+    "subtitle": "{{count}} pruebas en este panel",
+    "save_draft": "Guardar borrador",
+    "submit_all": "Enviar todos los resultados",
+    "update_all": "Actualizar todos los resultados",
+    "saved": "Todos los resultados guardados.",
+    "submitted": "Todos los resultados enviados.",
+    "section_empty": "Vacío",
+    "section_partial": "Parcial",
+    "section_complete": "Completo"
+  },
   "review": {
     "back": "← Regresar a la orden",
     "title": "Revisar y liberar — {{patient}}",
@@ -239,8 +260,10 @@
     "submit_for_review_error": "Error al enviar a revisión:",
     "in_review_status": "Este informe está en revisión.",
     "submitted_at": "Enviado a revisión",
-    "select_signer": "Seleccionar firmante revisor",
+    "select_signer": "Revisó y autorizó",
     "select_signer_placeholder": "Elegir un firmante…",
+    "select_analyst": "Analizó",
+    "select_analyst_placeholder": "Elegir un analista…",
     "review_notes_label": "Notas de revisión (opcional)",
     "review_notes_placeholder": "Agregar notas sobre esta revisión…",
     "approve_btn": "Aprobar y liberar",
@@ -323,6 +346,8 @@
     "director_name": "Director técnico",
     "director_credentials": "Credenciales del director",
     "default_observations": "Observaciones predeterminadas",
+    "report_disclaimer": "Nota legal del informe (NOTA)",
+    "report_disclaimer_placeholder": "Nota legal que aparece al pie de cada informe liberado",
     "signature_url": "URL de firma digital",
     "signers_title": "Firmantes del laboratorio",
     "signers_subtitle": "Técnicos y revisores que firman reportes",
@@ -937,7 +962,9 @@
       "assigned_to": "Asignado a",
       "method_manual": "Manual",
       "method_analyzer": "Analizador",
-      "waiting": "Esperando"
+      "waiting": "Esperando",
+      "package_tests": "{{count}} pruebas",
+      "package_status_mixed": "Mixto"
     },
     "actions": {
       "claim": "Reclamar",
@@ -947,7 +974,10 @@
       "start": "Iniciar",
       "starting": "Iniciando...",
       "reassign": "Reasignar",
-      "enter_results": "Ingresar Resultados"
+      "enter_results": "Ingresar Resultados",
+      "enter_all_results": "Ingresar Todos los Resultados",
+      "claim_all": "Reclamar Todos",
+      "start_all": "Iniciar Todos"
     },
     "success": {
       "claimed": "Prueba reclamada exitosamente.",

@@ -68,9 +68,9 @@ describe('ResultsComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('filters to only COMPLETED cases', () => {
-    expect(component.completedCases().length).toBe(1);
-    expect(component.completedCases()[0].id).toBe('c4');
+  it('filters to COMPLETED and ORDERED with released results', () => {
+    expect(component.casesWithResults().length).toBe(1);
+    expect(component.casesWithResults()[0].id).toBe('c4');
   });
 
   it('viewReport navigates to /cases/:id/report', () => {

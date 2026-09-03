@@ -6,7 +6,12 @@ import { ReportComponent } from './report.component';
 import { CasesService } from '../shared/services/cases.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { LanguageService } from '../../../core/services/language.service';
-import { CaseStatus, PatientSpecies, AgeUnit } from '@vet-ai/shared-types';
+import {
+  CaseStatus,
+  PatientSpecies,
+  AgeUnit,
+  ClinicReleasedResultsModel,
+} from '@vet-ai/shared-types';
 
 const mockCase = {
   id: 'c4',
@@ -27,17 +32,14 @@ const mockCase = {
   updatedAt: new Date('2026-03-29'),
 };
 
-const mockReport = {
-  id: 'report-001',
+const mockReleased: ClinicReleasedResultsModel = {
+  reportId: 'report-001',
   orderId: 'ORD-0002',
   caseId: 'c4',
-  tenantId: 'tenant1',
-  templateId: 'tpl-cbc-dog-adult',
-  status: 'RELEASED' as const,
-  releasedAt: new Date('2026-03-29'),
-  createdAt: new Date('2026-03-28'),
-  updatedAt: new Date('2026-03-29'),
-  analytes: [],
+  releaseStatus: 'ALL_RELEASED',
+  releasedTests: [],
+  pendingTestNames: [],
+  latestReleasedAt: '2026-03-29T00:00:00.000Z',
 };
 
 describe('ReportComponent', () => {
@@ -56,7 +58,7 @@ describe('ReportComponent', () => {
           provide: CasesService,
           useValue: {
             getCase: () => of(mockCase),
-            getReportByOrderId: () => of(mockReport),
+            getReleasedResults: () => of(mockReleased),
             getExistingInterpretation: () => of(null),
           },
         },
@@ -82,17 +84,17 @@ describe('ReportComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('loads case and report on init', () => {
+  it('loads case and released results on init', () => {
     expect(component.case()).toEqual(mockCase);
-    expect(component.report()).toEqual(mockReport);
+    expect(component.released()).toEqual(mockReleased);
     expect(component.loading()).toBe(false);
   });
 
-  it('groups analytes into sections', () => {
+  it('groups analytes into sections by test', () => {
     expect(component.sections()).toEqual([]);
   });
 
-  it('formatValue returns — for header rows', () => {
+  it('formatValue returns empty for header rows', () => {
     const header = {
       isHeader: true,
       valueType: 'TEXT' as const,
@@ -104,5 +106,13 @@ describe('ReportComponent', () => {
       name: 'H',
     };
     expect(component.formatValue(header)).toBe('');
+  });
+
+  it('canInterpret is true for ALL_RELEASED', () => {
+    expect(component.canInterpret()).toBe(true);
+  });
+
+  it('isPartial is false for ALL_RELEASED', () => {
+    expect(component.isPartial()).toBe(false);
   });
 });

@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "FOLATE",
+  "species": "ANY",
+  "title": "Ácido Fólico Canino (sin valores de referencia)",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Resultados",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "FOLATE_DOG",
+          "name": "Ácido Fólico Canino",
+          "technique": "Quimioluminiscencia por micropartículas",
+          "valueType": "NUMERIC",
+          "unit": "ng/mL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": null
+        }
+      ]
+    }
+  ]
+}

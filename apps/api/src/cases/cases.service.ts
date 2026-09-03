@@ -43,7 +43,21 @@ const CASE_INCLUDE = {
       },
     },
   },
-  order: { select: { requisitionNumber: true, status: true } },
+  order: {
+    select: {
+      requisitionNumber: true,
+      status: true,
+      resultReport: {
+        select: {
+          tests: {
+            where: { status: 'RELEASED' },
+            select: { id: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  },
 } satisfies Prisma.CaseInclude;
 
 // ---------------------------------------------------------------------------
@@ -60,9 +74,37 @@ export class CasesService {
   // ---------------------------------------------------------------------------
 
   async findAll(tenantId: string, _userId: string) {
-    return this.prisma.case.findMany({
+    const cases = await this.prisma.case.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
+      include: {
+        order: {
+          select: {
+            requisitionNumber: true,
+            status: true,
+            resultReport: {
+              select: {
+                tests: {
+                  where: { status: 'RELEASED' },
+                  select: { id: true },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return cases.map((c) => {
+      const { order, ...rest } = c;
+      return {
+        ...rest,
+        order: order
+          ? { orderId: order.requisitionNumber, status: order.status }
+          : undefined,
+        hasReleasedResults: (order?.resultReport?.tests?.length ?? 0) > 0,
+      };
     });
   }
 
@@ -452,7 +494,11 @@ export class CasesService {
 
     const order = (
       raw as typeof raw & {
-        order?: { requisitionNumber: string; status: string } | null;
+        order?: {
+          requisitionNumber: string;
+          status: string;
+          resultReport?: { tests?: { id: string }[] } | null;
+        } | null;
       }
     ).order;
     const {
@@ -466,6 +512,7 @@ export class CasesService {
       order: order
         ? { orderId: order.requisitionNumber, status: order.status }
         : undefined,
+      hasReleasedResults: (order?.resultReport?.tests?.length ?? 0) > 0,
     };
   }
 

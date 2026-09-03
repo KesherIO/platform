@@ -13,6 +13,7 @@ import type { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import type { ListLabOrdersDto } from './dto/list-lab-orders.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
+import { OrderStatusService } from './order-status.service';
 
 // Default lookback window for the Completed tab when no explicit date range
 // is picked — recent completions, not the full all-time archive.
@@ -31,7 +32,10 @@ const LAB_STATUS_TRANSITIONS: Record<string, OrderStatus[]> = {
 
 @Injectable()
 export class LabService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly orderStatusService: OrderStatusService
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Orders queue
@@ -266,10 +270,37 @@ export class LabService {
     if (dto.status === 'COMPLETED') timestamps.completedAt = now;
     if (dto.status === 'CANCELLED') timestamps.cancelledAt = now;
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: dto.status as OrderStatus, ...timestamps },
     });
+
+    if (dto.status === 'CANCELLED') {
+      await this.prisma.orderedTest.updateMany({
+        where: {
+          orderId,
+          status: { notIn: ['COMPLETED', 'CANCELLED'] },
+        },
+        data: { status: 'CANCELLED', cancelledAt: now },
+      });
+
+      const caseRow = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: { caseId: true, case: { select: { status: true } } },
+      });
+      if (
+        caseRow?.case &&
+        caseRow.case.status !== 'CANCELLED' &&
+        caseRow.case.status !== 'COMPLETED'
+      ) {
+        await this.prisma.case.update({
+          where: { id: caseRow.caseId },
+          data: { status: 'CANCELLED' },
+        });
+      }
+    }
+
+    return updated;
   }
 
   // ---------------------------------------------------------------------------
@@ -404,16 +435,27 @@ export class LabService {
   async updateOrderedTest(
     labTenantId: string,
     orderedTestId: string,
-    dto: UpdateOrderedTestDto
+    dto: UpdateOrderedTestDto,
+    actorId?: string,
+    actorName?: string
   ) {
-    // Verify the ordered test belongs to an order of this lab
     const test = await this.prisma.orderedTest.findFirst({
       where: {
         id: orderedTestId,
         order: { labTenantId },
       },
+      include: {
+        order: { select: { id: true } },
+        catalogItem: { select: { name: true } },
+      },
     });
     if (!test) throw new NotFoundException('Ordered test not found.');
+
+    if (dto.status === 'CANCELLED' && test.status === 'COMPLETED') {
+      throw new BadRequestException(
+        'Cannot cancel a test that has already been completed.'
+      );
+    }
 
     const now = new Date();
     const timestamps: Record<string, Date | null> = {};
@@ -422,7 +464,7 @@ export class LabService {
     if (dto.status === 'COMPLETED') timestamps.completedAt = now;
     if (dto.status === 'CANCELLED') timestamps.cancelledAt = now;
 
-    return this.prisma.orderedTest.update({
+    const updated = await this.prisma.orderedTest.update({
       where: { id: orderedTestId },
       data: {
         ...(dto.status !== undefined && { status: dto.status }),
@@ -436,6 +478,22 @@ export class LabService {
         ...timestamps,
       },
     });
+
+    if (dto.status === 'CANCELLED') {
+      await this.prisma.timelineEvent.create({
+        data: {
+          orderId: test.order.id,
+          eventType: 'TEST_CANCELLED',
+          actorId: actorId ?? null,
+          actorName: actorName ?? null,
+          description: `${test.catalogItem?.name ?? 'Test'} cancelled`,
+          metadata: { orderedTestId: test.id },
+        },
+      });
+      await this.orderStatusService.deriveAndPersist(test.order.id);
+    }
+
+    return updated;
   }
 
   async receiveOrderedTest(labTenantId: string, orderedTestId: string) {
@@ -515,6 +573,7 @@ export class LabService {
       directorCredentials?: string;
       signatureUrl?: string;
       defaultObservations?: string;
+      reportDisclaimer?: string;
       signers?: {
         id?: string;
         name: string;
@@ -536,25 +595,59 @@ export class LabService {
     });
 
     if (signers !== undefined) {
-      await this.prisma.labSigner.deleteMany({
-        where: { laboratoryProfileId: profile.id },
+      const incomingIds = signers.filter((s) => s.id).map((s) => s.id!);
+
+      // Delete signers removed from the list, but only if no release references them
+      const toDelete = await this.prisma.labSigner.findMany({
+        where: {
+          laboratoryProfileId: profile.id,
+          ...(incomingIds.length > 0 ? { id: { notIn: incomingIds } } : {}),
+        },
+        select: { id: true },
       });
 
-      if (signers.length > 0) {
-        const now = new Date();
-        await this.prisma.labSigner.createMany({
-          data: signers.map((s) => ({
-            laboratoryProfileId: profile.id,
-            name: s.name,
-            roles: s.roles,
-            title: s.title ?? '',
-            specialty: s.specialty ?? '',
-            university: s.university ?? '',
-            registrationNumber: s.registrationNumber ?? '',
-            signatureUrl: s.signatureUrl ?? null,
-            updatedAt: now,
-          })),
-        });
+      for (const signer of toDelete) {
+        const referencedByRelease =
+          await this.prisma.resultReportRelease.findFirst({
+            where: {
+              OR: [{ signerId: signer.id }, { analystId: signer.id }],
+            },
+            select: { id: true },
+          });
+        if (!referencedByRelease) {
+          await this.prisma.labSigner.delete({
+            where: { id: signer.id },
+          });
+        }
+      }
+
+      // Upsert existing signers and create new ones
+      const now = new Date();
+      for (const s of signers) {
+        const signerData = {
+          name: s.name,
+          roles: s.roles,
+          title: s.title ?? '',
+          specialty: s.specialty ?? '',
+          university: s.university ?? '',
+          registrationNumber: s.registrationNumber ?? '',
+          signatureUrl: s.signatureUrl ?? null,
+          updatedAt: now,
+        };
+
+        if (s.id) {
+          await this.prisma.labSigner.update({
+            where: { id: s.id },
+            data: signerData,
+          });
+        } else {
+          await this.prisma.labSigner.create({
+            data: {
+              laboratoryProfileId: profile.id,
+              ...signerData,
+            },
+          });
+        }
       }
     }
 

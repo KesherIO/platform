@@ -12,11 +12,12 @@
           "code": "PARVO_PCR",
           "name": "Parvovirus Canino",
           "technique": "PCR Tiempo Real Cualitativo (Sonda)",
-          "valueType": "TEXT",
+          "valueType": "SELECT",
           "unit": null,
           "sortOrder": 0,
           "isHeader": false,
-          "referenceRange": { "displayText": "Negativo" }
+          "options": ["No detectado", "Detectado"],
+          "referenceRange": { "displayText": "No detectado" }
         }
       ]
     }

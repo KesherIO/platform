@@ -112,12 +112,21 @@ describe('CasesService', () => {
 
   describe('findAll', () => {
     it('returns all cases for the tenant ordered by createdAt desc', async () => {
-      const cases = [makeCase({ id: 'case-2' }), makeCase()];
+      const cases = [
+        makeCase({ id: 'case-2', order: null }),
+        makeCase({ order: null }),
+      ];
       prisma.case.findMany.mockResolvedValue(cases);
 
       const result = await service.findAll('tenant-1', 'user-1');
 
-      expect(result).toEqual(cases);
+      expect(result).toEqual(
+        cases.map(({ order: _o, ...rest }) => ({
+          ...rest,
+          order: undefined,
+          hasReleasedResults: false,
+        }))
+      );
       expect(prisma.case.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { tenantId: 'tenant-1' },

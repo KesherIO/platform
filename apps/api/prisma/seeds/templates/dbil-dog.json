@@ -1,0 +1,24 @@
+{
+  "catalogItemCode": "DBIL",
+  "species": "DOG",
+  "title": "Bilirrubina Directa",
+  "defaultObservations": "Tipo de muestra: suero.",
+  "sections": [
+    {
+      "name": "Bilirrubina Directa",
+      "sortOrder": 0,
+      "analytes": [
+        {
+          "code": "DBIL",
+          "name": "Bilirrubina Directa",
+          "technique": "Colorimétrico",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "referenceRange": { "min": 0.0, "max": 0.14, "displayText": "≤ 0.14" }
+        }
+      ]
+    }
+  ]
+}

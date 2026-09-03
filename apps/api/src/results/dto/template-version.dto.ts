@@ -91,6 +91,11 @@ export class TemplateAnalyteDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsBoolean()
+  isRequired?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   formula?: string;
 

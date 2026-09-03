@@ -1,3 +1,54 @@
 :host {
   display: block;
 }
+
+.report-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.5fr) minmax(48px, 0.6fr) minmax(32px, 0.4fr)
+    minmax(52px, 0.7fr);
+  column-gap: 4px;
+  align-items: start;
+
+  @media (min-width: 640px) {
+    grid-template-columns: 1fr 8.5rem 4.5rem 3.5rem 5.5rem;
+    column-gap: 8px;
+    align-items: center;
+  }
+}
+
+.report-grid-desktop {
+  display: none;
+
+  @media (min-width: 640px) {
+    display: grid;
+    grid-template-columns: 1fr 8.5rem 4.5rem 3.5rem 5.5rem;
+    column-gap: 8px;
+    align-items: center;
+  }
+}
+
+.dept-header {
+  background-color: #202a39;
+}
+
+.dept-header__title {
+  color: #fff;
+}
+
+.dept-header__meta {
+  color: #b8c1cf;
+}
+
+.subsection-header {
+  background: linear-gradient(90deg, #e8faf8 0%, #f3f0ff 100%);
+  color: #202a39;
+}
+
+.report-tab.active {
+  background-color: #111827;
+}
+
+.report-tab:not(.active):hover {
+  background-color: #f3f4f6;
+}
