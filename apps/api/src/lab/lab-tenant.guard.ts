@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import type {
   AuthenticatedUser,
+  MembershipStatus,
   TenantContext,
   TenantRole,
 } from '@vet-ai/shared-types';
@@ -81,6 +82,8 @@ export class LabTenantGuard implements CanActivate {
       tenantName: membership.tenant.name,
       tenantLogoUrl: membership.tenant.logoUrl,
       role: membership.role as TenantRole,
+      isOrderingVet: false, // lab staff are never ordering vets
+      status: 'ACTIVE' as MembershipStatus,
       canPerformPickups: membership.canPerformPickups,
     };
     request.tenant = tenantContext;

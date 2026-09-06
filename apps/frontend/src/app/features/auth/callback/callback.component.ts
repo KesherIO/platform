@@ -10,6 +10,7 @@ import {
 import { RouterModule } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
+import { AuthBrandingComponent } from '../../../shared/components/auth-branding/auth-branding.component';
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const password = control.get('password')?.value;
@@ -27,7 +28,12 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
 @Component({
   selector: 'app-auth-callback',
   standalone: true,
-  imports: [TranslatePipe, ReactiveFormsModule, RouterModule],
+  imports: [
+    TranslatePipe,
+    ReactiveFormsModule,
+    RouterModule,
+    AuthBrandingComponent,
+  ],
   templateUrl: './callback.component.html',
   styleUrl: './callback.component.scss',
 })

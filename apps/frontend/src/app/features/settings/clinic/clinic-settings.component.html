@@ -161,6 +161,11 @@
       />
     </div>
 
+    <!-- Save error -->
+    @if (saveError()) {
+    <p class="text-xs text-red-500 mb-3">{{ saveError() }}</p>
+    }
+
     <!-- Actions -->
     <div class="flex gap-2">
       <app-outline-button

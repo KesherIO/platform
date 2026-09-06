@@ -52,6 +52,9 @@ function makePrismaMock() {
     tenantInvitation: {
       findMany: jest.fn(),
     },
+    clinicLabConnection: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
   };
 }
 
@@ -109,7 +112,7 @@ describe('TenantsService', () => {
       });
       expect(result[1]).toMatchObject({
         id: 'user-2',
-        role: 'Staff',
+        role: 'Vet',
         status: 'Active',
       });
     });

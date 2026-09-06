@@ -205,6 +205,32 @@ enum TenantType {
   PLATFORM // KesherIO platform tenant (singleton)
 }
 
+enum MembershipStatus {
+  INVITED
+  PROFILE_REQUIRED
+  VERIFICATION_PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum VetVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+  EXPIRED
+}
+
+enum VetVerificationEventType {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  RESUBMITTED
+  REVOKED
+  EXPIRED
+  DOCUMENT_VIEWED
+}
+
 enum ClientType {
   VETERINARY_CLINIC
   INDEPENDENT_VET
@@ -350,6 +376,8 @@ model Tenant {
   labAnalyzers           Analyzer[]                 @relation("LabAnalyzers")
   labTestConfigs         LabTestConfiguration[]     @relation("LabTestConfigs")
   labTemplateDefinitions ResultTemplateDefinition[] @relation("LabTemplateDefinitions")
+  labVerifications       VetLabVerification[]       @relation("LabVerifications")
+  clinicVerifications    VetLabVerification[]       @relation("ClinicVerifications")
 
   @@map("tenants")
 }
@@ -363,14 +391,19 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships        UserTenantMembership[]
-  sentInvitations    TenantInvitation[]
-  createdCases       Case[]
-  assignedTests      OrderedTest[]
-  receivedSpecimens  Specimen[]             @relation("SpecimensReceivedBy")
-  missingSpecimens   Specimen[]             @relation("SpecimensMarkedMissingBy")
-  pickupsAsMessenger Pickup[]               @relation("MessengerPickups")
-  pushSubscriptions  PushSubscription[]
+  memberships              UserTenantMembership[]
+  sentInvitations          TenantInvitation[]
+  createdCases             Case[]
+  attendingVetCases        Case[]               @relation("CaseAttendingVet")
+  orderingVetOrders        Order[]              @relation("OrderOrderingVet")
+  assignedTests            OrderedTest[]
+  receivedSpecimens        Specimen[]           @relation("SpecimensReceivedBy")
+  missingSpecimens         Specimen[]           @relation("SpecimensMarkedMissingBy")
+  pickupsAsMessenger       Pickup[]             @relation("MessengerPickups")
+  pushSubscriptions        PushSubscription[]
+  veterinarianProfile      VeterinarianProfile?
+  vetVerificationsReviewed VetLabVerification[] @relation("VetVerificationReviewedBy")
+  vetVerificationsRevoked  VetLabVerification[] @relation("VetVerificationRevokedBy")
 
   @@map("users")
 }
@@ -379,6 +412,8 @@ model UserTenantMembership {
   userId            String
   tenantId          String
   role              TenantRole
+  isOrderingVet     Boolean          @default(false)
+  status            MembershipStatus @default(ACTIVE)
   /// MESSENGER-only: recurring weekly availability, e.g.
   /// { MONDAY: {start:"09:00", end:"17:00"}, ..., SUNDAY: null }.
   /// Informational for now — displayed and used to sort the assign-messenger
@@ -387,8 +422,8 @@ model UserTenantMembership {
   /// When true, non-MESSENGER users (ADMIN, TECHNICIAN) can be assigned
   /// pickups, appear in the messenger list, access My Pickups, and receive
   /// push notifications. Ignored for MESSENGER role (intrinsic capability).
-  canPerformPickups Boolean    @default(false)
-  createdAt         DateTime   @default(now())
+  canPerformPickups Boolean          @default(false)
+  createdAt         DateTime         @default(now())
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -483,11 +518,13 @@ model Case {
 
   // Audit
   createdByUserId String
+  attendingVetId  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdBy            User              @relation(fields: [createdByUserId], references: [id])
+  attendingVet         User?             @relation("CaseAttendingVet", fields: [attendingVetId], references: [id])
   selectedCatalogItems CaseCatalogItem[]
   order                Order?
 
@@ -593,6 +630,12 @@ model Order {
   clinicNotes String? // vet → lab
   labNotes    String? // internal lab use, not shown to clinic
 
+  // Ordering vet — snapshot at submission time
+  orderingVetId               String?
+  orderingVetName             String?
+  orderingVetLicenseNumber    String?
+  orderingVetIssuingAuthority String?
+
   // Sample info — filled by lab/clinic staff
   sampleType  String? // BLOOD | URINE | FECES | SWAB | TISSUE | OTHER
   sampleNotes String?
@@ -609,6 +652,7 @@ model Order {
   case           Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
   tenant         Tenant          @relation("ClinicOrders", fields: [tenantId], references: [id], onDelete: Cascade)
   labTenant      Tenant?         @relation("LabOrders", fields: [labTenantId], references: [id])
+  orderingVet    User?           @relation("OrderOrderingVet", fields: [orderingVetId], references: [id])
   resultReport   ResultReport?
   orderedTests   OrderedTest[]
   specimens      Specimen[]
@@ -942,9 +986,10 @@ model LaboratoryProfile {
   directorCredentials String?
   signatureUrl        String? // default signature image URL for released reports
   defaultObservations String? // default footer text pre-filled in result reports
-  reportDisclaimer    String? // legal disclaimer shown at bottom of released reports
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  reportDisclaimer        String? // legal disclaimer shown at bottom of released reports
+  vetVerificationRequired Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   tenant  Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   signers LabSigner[]
@@ -1352,6 +1397,12 @@ model ResultReportRelease {
   clinicPhone    String?
   clinicLogoUrl  String?
 
+  // ── Ordering vet snapshot (from Order at release time) ──
+  orderingVetId               String?
+  orderingVetName             String?
+  orderingVetLicenseNumber    String?
+  orderingVetIssuingAuthority String?
+
   // ── Release-level content ──
   observations String?
 
@@ -1550,4 +1601,100 @@ model ResultReportAmendmentAnalyte {
 
   @@index([amendmentId])
   @@map("result_report_amendment_analytes")
+}
+
+// ---------------------------------------------------------------------------
+// Veterinarian Verification
+// ---------------------------------------------------------------------------
+
+/// Stable professional identity for a user who can act as an ordering vet.
+/// Holds only identity that does not change with credential renewals.
+/// License data, document, and expiry live in VeterinarianCredential for versioning.
+model VeterinarianProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  legalName String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentials   VeterinarianCredential[]
+  verifications VetLabVerification[]
+
+  @@map("veterinarian_profiles")
+}
+
+/// Versioned, immutable credential record — one active row per profile (replacedAt IS NULL).
+/// The credential ID is included in the storage path so paths are unique and immutable.
+model VeterinarianCredential {
+  id                    String    @id @default(cuid())
+  veterinarianProfileId String
+  documentKey           String    // immutable storage path: vet-credentials/{userId}/{credentialId}.{ext}
+  licenseNumber         String
+  issuingCountry        String    // ISO 3166-1 alpha-2
+  issuingAuthority      String?
+  licenseExpiresAt      DateTime?
+  createdAt             DateTime  @default(now())
+  replacedAt            DateTime? // null = current active credential
+
+  veterinarianProfile VeterinarianProfile  @relation(fields: [veterinarianProfileId], references: [id], onDelete: Cascade)
+  reviews             VetLabVerification[] @relation("ReviewedCredential")
+
+  @@index([veterinarianProfileId])
+  @@index([licenseNumber])
+  @@map("veterinarian_credentials")
+}
+
+/// One approval record per vet × lab. Status transitions are audited via VetVerificationEvent.
+/// The initiatingClinicId is for audit/notifications only — any connected clinic benefits from an approval.
+model VetLabVerification {
+  id                   String                @id @default(cuid())
+  vetProfileId         String
+  labTenantId          String
+  initiatingClinicId   String
+  status               VetVerificationStatus @default(PENDING)
+  reviewedCredentialId String?
+  submittedAt          DateTime
+  reviewedAt           DateTime?
+  reviewedByUserId     String?
+  reviewedByName       String?               // name snapshot
+  rejectionReason      String?
+  revokedAt            DateTime?
+  revokedByUserId      String?
+  revokedReason        String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  vetProfile         VeterinarianProfile     @relation(fields: [vetProfileId], references: [id], onDelete: Cascade)
+  labTenant          Tenant                  @relation("LabVerifications", fields: [labTenantId], references: [id])
+  initiatingClinic   Tenant                  @relation("ClinicVerifications", fields: [initiatingClinicId], references: [id])
+  reviewedBy         User?                   @relation("VetVerificationReviewedBy", fields: [reviewedByUserId], references: [id])
+  revokedBy          User?                   @relation("VetVerificationRevokedBy", fields: [revokedByUserId], references: [id])
+  reviewedCredential VeterinarianCredential? @relation("ReviewedCredential", fields: [reviewedCredentialId], references: [id])
+  events             VetVerificationEvent[]
+
+  @@unique([vetProfileId, labTenantId])
+  @@index([labTenantId, status])
+  @@index([initiatingClinicId])
+  @@map("vet_lab_verifications")
+}
+
+/// Per-event audit history for the verification lifecycle.
+/// DOCUMENT_VIEWED is written every time the API generates a signed URL for a credential document.
+model VetVerificationEvent {
+  id                  String                   @id @default(cuid())
+  verificationId      String
+  eventType           VetVerificationEventType
+  actorId             String?
+  actorName           String?
+  clinicTenantId      String?
+  credentialVersionId String?                  // VeterinarianCredential.id at event time
+  reason              String?
+  metadata            Json?
+  createdAt           DateTime                 @default(now())
+
+  verification VetLabVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@index([verificationId, createdAt])
+  @@map("vet_verification_events")
 }

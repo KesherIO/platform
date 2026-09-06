@@ -39,6 +39,7 @@ async function main() {
       tenantId: lab.id,
       directorName: 'Director Técnico KesherIO',
       defaultObservations: 'Resultado emitido por KesherIO Laboratorio.',
+      vetVerificationRequired: false,
       updatedAt: new Date(),
     },
     update: {},

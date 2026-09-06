@@ -34,6 +34,12 @@ const STATUS_COLORS: Record<string, string> = {
   IN_TRANSIT: 'bg-orange-400/15 text-orange-300',
   RECEIVED_AT_LAB: 'bg-green-400/15 text-green-300',
   FAILED: 'bg-red-400/15 text-red-300',
+  // Vet verification statuses
+  REJECTED: 'bg-red-400/15 text-red-400',
+  REVOKED: 'bg-gray-400/15 text-gray-400',
+  EXPIRED: 'bg-orange-400/15 text-orange-300',
+  PROFILE_REQUIRED: 'bg-amber-400/15 text-amber-300',
+  VERIFICATION_PENDING: 'bg-yellow-400/15 text-yellow-300',
 };
 
 interface StatusBadgeProps {

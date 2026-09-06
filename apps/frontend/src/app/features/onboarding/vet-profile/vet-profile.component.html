@@ -1,0 +1,206 @@
+<div class="min-h-screen bg-white flex flex-col items-center">
+  <div class="w-full max-w-md flex flex-col flex-1">
+    <!-- Loading -->
+    @if (viewState() === 'loading') {
+    <div class="flex-1 flex items-center justify-center">
+      <p class="text-sm text-gray-400">{{ 'COMMON.LOADING' | translate }}</p>
+    </div>
+    }
+
+    <!-- Form -->
+    @if (viewState() === 'form') {
+    <!-- Logo -->
+    <div class="flex justify-center pt-12 mb-7">
+      <app-auth-branding />
+    </div>
+
+    <div class="px-6 pb-4">
+      <h1 class="text-2xl font-bold text-gray-900 mb-2">
+        @if (mode() === 'edit') {
+        {{ 'VET_PROFILE.EDIT_TITLE' | translate }}
+        } @else {
+        {{ 'VET_PROFILE.TITLE' | translate }}
+        }
+      </h1>
+      <p class="text-sm text-gray-600">
+        @if (mode() === 'edit') {
+        {{ 'VET_PROFILE.EDIT_SUBTITLE' | translate }}
+        } @else {
+        {{ 'VET_PROFILE.SUBTITLE' | translate }}
+        }
+      </p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="onSave()" class="flex-1 px-6 pt-2">
+      <div class="mb-6 space-y-1">
+        <app-input
+          id="legalName"
+          label="VET_PROFILE.LEGAL_NAME_LABEL"
+          type="text"
+          placeholder="VET_PROFILE.LEGAL_NAME_PLACEHOLDER"
+          formControlName="legalName"
+        />
+
+        <app-input
+          id="licenseNumber"
+          label="VET_PROFILE.LICENSE_NUMBER_LABEL"
+          type="text"
+          placeholder="VET_PROFILE.LICENSE_NUMBER_PLACEHOLDER"
+          formControlName="licenseNumber"
+        />
+
+        <app-select
+          id="issuingCountry"
+          label="VET_PROFILE.ISSUING_COUNTRY_LABEL"
+          placeholder="VET_PROFILE.ISSUING_COUNTRY_PLACEHOLDER"
+          [options]="countryOptions"
+          formControlName="issuingCountry"
+        />
+
+        <app-input
+          id="issuingAuthority"
+          label="VET_PROFILE.ISSUING_AUTHORITY_LABEL"
+          type="text"
+          placeholder="VET_PROFILE.ISSUING_AUTHORITY_PLACEHOLDER"
+          formControlName="issuingAuthority"
+        />
+
+        <app-input
+          id="licenseExpiresAt"
+          label="VET_PROFILE.LICENSE_EXPIRES_LABEL"
+          type="date"
+          placeholder=""
+          formControlName="licenseExpiresAt"
+        />
+
+        <!-- Document upload -->
+        <div class="input-container pt-2">
+          <p class="block text-sm font-medium text-gray-700 mb-1">
+            {{ 'VET_PROFILE.DOCUMENT_LABEL' | translate }}
+          </p>
+
+          <label
+            class="flex items-center gap-3 w-full px-4 py-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+          >
+            <svg
+              class="w-5 h-5 text-gray-400 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+              />
+            </svg>
+            <span class="text-sm text-gray-600 truncate">
+              @if (docFileName()) {
+              {{ docFileName() }}
+              } @else if (hasExistingDoc()) {
+              {{ 'VET_PROFILE.DOCUMENT_CHANGE' | translate }}
+              } @else {
+              {{ 'VET_PROFILE.DOCUMENT_UPLOAD' | translate }}
+              }
+            </span>
+            <input
+              type="file"
+              class="sr-only"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              (change)="onDocFileChange($event)"
+            />
+          </label>
+
+          <p class="text-xs text-gray-400 mt-1">
+            {{ 'VET_PROFILE.DOCUMENT_HINT' | translate }}
+          </p>
+
+          @if (docError()) {
+          <p class="text-xs text-red-500 mt-1">{{ docError()! | translate }}</p>
+          }
+        </div>
+      </div>
+
+      <!-- Error -->
+      @if (error()) {
+      <p class="text-sm text-red-500 mb-4">{{ error()! | translate }}</p>
+      }
+
+      <!-- Button -->
+      <div class="flex flex-col gap-3 mb-6">
+        <app-primary-button
+          type="submit"
+          [disabled]="isSaveDisabled || saving() || submitting()"
+        >
+          @if (saving() || submitting()) {
+          {{ 'VET_PROFILE.SAVING' | translate }}
+          } @else if (mode() === 'edit') {
+          {{ 'VET_PROFILE.UPDATE_RESUBMIT' | translate }}
+          } @else {
+          {{ 'VET_PROFILE.SAVE_BUTTON' | translate }}
+          }
+        </app-primary-button>
+      </div>
+    </form>
+    }
+
+    <!-- Ready to submit -->
+    @if (viewState() === 'ready-to-submit') {
+    <div
+      class="flex-1 flex flex-col items-center justify-center px-6 text-center gap-4"
+    >
+      <!-- Logo -->
+      <div class="mb-7">
+        <app-auth-branding />
+      </div>
+      <div
+        class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center"
+      >
+        <svg
+          class="w-8 h-8 text-emerald-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+      </div>
+      <h2 class="text-xl font-bold text-gray-900">
+        {{ 'VET_PROFILE.SUCCESS_TITLE' | translate }}
+      </h2>
+      <p class="text-sm text-gray-600">
+        {{ 'VET_PROFILE.SUCCESS_BODY' | translate }}
+      </p>
+
+      @if (error()) {
+      <p class="text-sm text-red-500">{{ error()! | translate }}</p>
+      }
+
+      <div class="w-full mt-2">
+        <app-primary-button
+          type="button"
+          [disabled]="submitting()"
+          (click)="onSubmitForReview()"
+        >
+          @if (submitting()) {
+          {{ 'VET_PROFILE.SUBMITTING' | translate }}
+          } @else {
+          {{ 'VET_PROFILE.SUBMIT_BUTTON' | translate }}
+          }
+        </app-primary-button>
+      </div>
+    </div>
+    }
+
+    <div class="h-8 bg-white flex items-center justify-center">
+      <div class="w-32 h-1 bg-black rounded-full"></div>
+    </div>
+  </div>
+  <!-- /max-w-md -->
+</div>

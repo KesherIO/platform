@@ -77,6 +77,15 @@ export class CreateCaseDto {
   @IsOptional()
   @IsString()
   ownerPhone?: string;
+
+  @ApiPropertyOptional({
+    example: 'user-cuid',
+    description:
+      'User ID of the attending vet — preselected as ordering vet on the subsequent order',
+  })
+  @IsOptional()
+  @IsString()
+  attendingVetId?: string;
 }
 
 // ---------------------------------------------------------------------------

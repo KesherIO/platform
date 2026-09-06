@@ -6,8 +6,14 @@ import { OnboardingService } from '../../../core/services/onboarding.service';
 import { LanguageService } from '../../../core/services/language.service';
 import { LanguageToggleComponent } from '../../../shared/components/language-toggle/language-toggle.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
+import { AuthBrandingComponent } from '../../../shared/components/auth-branding/auth-branding.component';
 
-type TokenErrorReason = 'expired' | 'used' | 'not_found' | 'no_token' | 'network';
+type TokenErrorReason =
+  | 'expired'
+  | 'used'
+  | 'not_found'
+  | 'no_token'
+  | 'network';
 
 @Component({
   selector: 'app-welcome',
@@ -16,6 +22,7 @@ type TokenErrorReason = 'expired' | 'used' | 'not_found' | 'no_token' | 'network
     TranslatePipe,
     LanguageToggleComponent,
     PrimaryButtonComponent,
+    AuthBrandingComponent,
   ],
   templateUrl: './welcome.component.html',
 })
@@ -54,7 +61,8 @@ export class WelcomeComponent implements OnInit {
       return;
     }
 
-    this.onboardingService.verifyOnboardingToken(token)
+    this.onboardingService
+      .verifyOnboardingToken(token)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
@@ -85,22 +93,32 @@ export class WelcomeComponent implements OnInit {
   /** Maps an error reason to the right i18n title key */
   get errorTitleKey(): string {
     switch (this.errorReason()) {
-      case 'expired':   return 'WELCOME.EXPIRED_TITLE';
-      case 'used':      return 'WELCOME.USED_TITLE';
-      case 'not_found': return 'WELCOME.NOT_FOUND_TITLE';
-      case 'no_token':  return 'WELCOME.NO_TOKEN_TITLE';
-      default:          return 'WELCOME.INVALID_TITLE';
+      case 'expired':
+        return 'WELCOME.EXPIRED_TITLE';
+      case 'used':
+        return 'WELCOME.USED_TITLE';
+      case 'not_found':
+        return 'WELCOME.NOT_FOUND_TITLE';
+      case 'no_token':
+        return 'WELCOME.NO_TOKEN_TITLE';
+      default:
+        return 'WELCOME.INVALID_TITLE';
     }
   }
 
   /** Maps an error reason to the right i18n body key */
   get errorBodyKey(): string {
     switch (this.errorReason()) {
-      case 'expired':   return 'WELCOME.EXPIRED_BODY';
-      case 'used':      return 'WELCOME.USED_BODY';
-      case 'not_found': return 'WELCOME.NOT_FOUND_BODY';
-      case 'no_token':  return 'WELCOME.NO_TOKEN_BODY';
-      default:          return 'WELCOME.INVALID_BODY';
+      case 'expired':
+        return 'WELCOME.EXPIRED_BODY';
+      case 'used':
+        return 'WELCOME.USED_BODY';
+      case 'not_found':
+        return 'WELCOME.NOT_FOUND_BODY';
+      case 'no_token':
+        return 'WELCOME.NO_TOKEN_BODY';
+      default:
+        return 'WELCOME.INVALID_BODY';
     }
   }
 }

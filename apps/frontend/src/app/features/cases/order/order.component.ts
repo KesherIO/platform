@@ -2,16 +2,20 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import {
   CaseModel,
   CaseStatus,
   DeliveryMethod,
+  EligibleVetModel,
   OrderPriority,
 } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { CaseWizardLayoutComponent } from '../shared/components/case-wizard-layout/case-wizard-layout.component';
 import { ButtonComponent, ToggleComponent } from '../../../shared/components';
+import { SelectComponent } from '../../../shared/components';
 import { SelectedTestsChipsComponent } from './components/selected-tests-chips/selected-tests-chips.component';
 
 @Component({
@@ -24,6 +28,7 @@ import { SelectedTestsChipsComponent } from './components/selected-tests-chips/s
     CaseWizardLayoutComponent,
     ButtonComponent,
     ToggleComponent,
+    SelectComponent,
     SelectedTestsChipsComponent,
   ],
   templateUrl: './order.component.html',
@@ -33,6 +38,8 @@ export class OrderComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private casesService = inject(CasesService);
+  private auth = inject(AuthService);
+  private translate = inject(TranslateService);
 
   loading = signal(true);
   sending = signal(false);
@@ -40,6 +47,11 @@ export class OrderComponent implements OnInit {
   case = signal<CaseModel | null>(null);
   deliveryMethod = signal<DeliveryMethod>('LAB_PICKUP');
   priority = signal<OrderPriority>('ROUTINE');
+  vets = signal<EligibleVetModel[]>([]);
+  vetOptions = signal<{ value: string; label: string; disabled?: boolean }[]>(
+    []
+  );
+  orderingVetId = signal<string>('');
 
   deliveryMethodOptions = [
     { label: 'CASES.ORDER.DELIVERY_CLIENT', value: 'CLIENT_DELIVERY' },
@@ -75,6 +87,24 @@ export class OrderComponent implements OnInit {
       this.case()?.status === CaseStatus.COMPLETED
   );
 
+  selectedVet = computed(
+    () => this.vets().find((v) => v.userId === this.orderingVetId()) ?? null
+  );
+
+  canSubmitOrder = computed(() => {
+    if (this.vets().length === 0) return true; // no vets loaded yet, don't block
+    const vet = this.selectedVet();
+    return !!vet && vet.status === 'ACTIVE';
+  });
+
+  showNoVetMessage = computed(() => {
+    if (this.vets().length === 0) return false;
+    const id = this.orderingVetId();
+    if (!id) return true;
+    const vet = this.selectedVet();
+    return !vet || vet.status !== 'ACTIVE';
+  });
+
   ngOnInit(): void {
     this.casesService
       .getCase(this.caseId())
@@ -83,9 +113,64 @@ export class OrderComponent implements OnInit {
         next: (c) => {
           this.case.set(c);
           this.loading.set(false);
+          if (c.attendingVetId) {
+            this.orderingVetId.set(c.attendingVetId);
+          }
         },
         error: () => this.loading.set(false),
       });
+
+    this.casesService
+      .getEligibleVets()
+      .pipe(take(1))
+      .subscribe({
+        next: (vets) => {
+          this.vets.set(vets);
+          this.vetOptions.set(this.buildVetOptions(vets));
+          // If case already loaded and no vet preselected, try self
+          if (!this.orderingVetId()) {
+            this.preselectSelfIfEligible(vets);
+          }
+        },
+      });
+  }
+
+  private buildVetOptions(
+    vets: EligibleVetModel[]
+  ): { value: string; label: string; disabled?: boolean }[] {
+    return vets.map((vet) => {
+      const isActive = vet.status === 'ACTIVE';
+      let label = vet.fullName || vet.email;
+      if (!isActive) {
+        const statusLabel = this.translate.instant(
+          this.vetStatusKey(vet.status)
+        );
+        label = `${label} ${statusLabel}`;
+      }
+      return { value: vet.userId, label, disabled: !isActive };
+    });
+  }
+
+  private vetStatusKey(status: string): string {
+    const keys: Record<string, string> = {
+      PROFILE_REQUIRED: 'CASES.VET_STATUS.PROFILE_REQUIRED',
+      VERIFICATION_PENDING: 'CASES.VET_STATUS.VERIFICATION_PENDING',
+      SUSPENDED: 'CASES.VET_STATUS.SUSPENDED',
+      INVITED: 'CASES.VET_STATUS.INVITED',
+    };
+    return keys[status] ?? 'CASES.VET_STATUS.PROFILE_REQUIRED';
+  }
+
+  private preselectSelfIfEligible(vets: EligibleVetModel[]): void {
+    const me = this.auth.me();
+    if (!me) return;
+    const myMembership = me.memberships?.[0];
+    if (!myMembership?.isOrderingVet || myMembership.status !== 'ACTIVE')
+      return;
+    const selfInList = vets.find((v) => v.userId === me.user.id);
+    if (selfInList) {
+      this.orderingVetId.set(me.user.id);
+    }
   }
 
   onDeliveryMethodChange(value: string): void {
@@ -96,11 +181,20 @@ export class OrderComponent implements OnInit {
     this.priority.set(value as OrderPriority);
   }
 
+  onOrderingVetChange(value: string): void {
+    this.orderingVetId.set(value);
+  }
+
   generateRequisition(): void {
-    if (this.sending()) return;
+    if (this.sending() || !this.canSubmitOrder()) return;
     this.sending.set(true);
     this.casesService
-      .createOrder(this.caseId(), this.deliveryMethod(), this.priority())
+      .createOrder(
+        this.caseId(),
+        this.deliveryMethod(),
+        this.priority(),
+        this.orderingVetId() || undefined
+      )
       .pipe(take(1))
       .subscribe({
         next: (result) => {

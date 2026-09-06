@@ -4,7 +4,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import { CaseStatus } from '@prisma/client';
+import { CaseStatus, VetVerificationStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PickupService } from '../lab/pickup.service';
 import { ReadinessService } from '../lab/readiness.service';
@@ -77,6 +77,24 @@ export class OrdersService {
       orderBy: { isDefault: 'desc' },
       select: { labId: true },
     });
+
+    // 4b — Resolve ordering vet (DTO takes precedence; falls back to case.attendingVetId)
+    const orderingVetId = body.orderingVetId ?? c.attendingVetId ?? null;
+    let vetSnapshot: {
+      orderingVetId: string;
+      orderingVetName: string;
+      orderingVetLicenseNumber: string;
+      orderingVetIssuingAuthority: string | null;
+    } | null = null;
+
+    if (orderingVetId && labConnection?.labId) {
+      const vetData = await this.validateOrderingVet(
+        orderingVetId,
+        tenantId,
+        labConnection.labId
+      );
+      vetSnapshot = { orderingVetId, ...vetData };
+    }
 
     // 5 — Readiness enforcement: block if any test is not ready
     if (labConnection?.labId) {
@@ -220,6 +238,12 @@ export class OrdersService {
           deliveryMethod: body.deliveryMethod ?? null,
           orderedItems: orderedItems as object[],
           clinicNotes: body.clinicNotes ?? null,
+          orderingVetId: vetSnapshot?.orderingVetId ?? null,
+          orderingVetName: vetSnapshot?.orderingVetName ?? null,
+          orderingVetLicenseNumber:
+            vetSnapshot?.orderingVetLicenseNumber ?? null,
+          orderingVetIssuingAuthority:
+            vetSnapshot?.orderingVetIssuingAuthority ?? null,
         },
       });
 
@@ -281,6 +305,10 @@ export class OrdersService {
     orderedItems: unknown;
     clinicNotes: string | null;
     createdAt: Date;
+    orderingVetId?: string | null;
+    orderingVetName?: string | null;
+    orderingVetLicenseNumber?: string | null;
+    orderingVetIssuingAuthority?: string | null;
   }) {
     return {
       id: order.id,
@@ -292,6 +320,95 @@ export class OrdersService {
       clinicNotes: order.clinicNotes ?? undefined,
       requisitionUrl: `/api/orders/${order.id}/requisition`,
       createdAt: order.createdAt,
+      orderingVetId: order.orderingVetId ?? undefined,
+      orderingVetName: order.orderingVetName ?? undefined,
+      orderingVetLicenseNumber: order.orderingVetLicenseNumber ?? undefined,
+      orderingVetIssuingAuthority:
+        order.orderingVetIssuingAuthority ?? undefined,
+    };
+  }
+
+  private async validateOrderingVet(
+    orderingVetId: string,
+    tenantId: string,
+    labTenantId: string
+  ): Promise<{
+    orderingVetName: string;
+    orderingVetLicenseNumber: string;
+    orderingVetIssuingAuthority: string | null;
+  }> {
+    const membership = await this.prisma.userTenantMembership.findUnique({
+      where: { userId_tenantId: { userId: orderingVetId, tenantId } },
+    });
+    if (!membership) {
+      throw new BadRequestException({
+        code: 'ORDERING_VET_NOT_MEMBER',
+        message: 'The specified ordering vet is not a member of this clinic.',
+      });
+    }
+    if (!membership.isOrderingVet) {
+      throw new BadRequestException({
+        code: 'ORDERING_VET_NOT_A_VET',
+        message:
+          'The specified user is not designated as an ordering vet in this clinic.',
+      });
+    }
+
+    const profile = await this.prisma.veterinarianProfile.findUnique({
+      where: { userId: orderingVetId },
+      include: { credentials: { where: { replacedAt: null } } },
+    });
+    if (!profile) {
+      throw new BadRequestException({
+        code: 'ORDERING_VET_NO_PROFILE',
+        message:
+          'The specified ordering vet has not created a veterinarian profile.',
+      });
+    }
+    const credential = profile.credentials[0];
+    if (!credential) {
+      throw new BadRequestException({
+        code: 'ORDERING_VET_NO_CREDENTIAL',
+        message: 'The specified ordering vet has no active credential on file.',
+      });
+    }
+
+    if (
+      credential.licenseExpiresAt &&
+      credential.licenseExpiresAt < new Date()
+    ) {
+      throw new BadRequestException({
+        code: 'ORDERING_VET_LICENSE_EXPIRED',
+        message: "The specified ordering vet's license has expired.",
+      });
+    }
+
+    const labProfile = await this.prisma.laboratoryProfile.findUnique({
+      where: { tenantId: labTenantId },
+    });
+    if (labProfile?.vetVerificationRequired) {
+      const verification = await this.prisma.vetLabVerification.findUnique({
+        where: {
+          vetProfileId_labTenantId: { vetProfileId: profile.id, labTenantId },
+        },
+      });
+      if (
+        !verification ||
+        verification.status !== VetVerificationStatus.APPROVED
+      ) {
+        throw new BadRequestException({
+          code: 'ORDERING_VET_NOT_APPROVED',
+          message:
+            'The specified ordering vet has not been approved by this lab.',
+          currentStatus: verification?.status ?? 'NOT_SUBMITTED',
+        });
+      }
+    }
+
+    return {
+      orderingVetName: profile.legalName,
+      orderingVetLicenseNumber: credential.licenseNumber,
+      orderingVetIssuingAuthority: credential.issuingAuthority ?? null,
     };
   }
 }

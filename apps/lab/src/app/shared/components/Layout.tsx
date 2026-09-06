@@ -15,10 +15,12 @@ import {
   Wrench,
   FileText,
   Microscope,
+  ShieldCheck,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../api/labApi';
+import { useDocumentTitle } from '../useDocumentTitle';
 
 const ICON_SIZE = 18;
 const ICON_STROKE_WIDTH = 2;
@@ -33,11 +35,14 @@ export function Layout() {
     isAdmin,
     labRole,
     canPerformPickups,
+    vetVerificationRequired,
     signOut,
   } = useAuth();
   const { t } = useTranslation();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useDocumentTitle();
 
   const isMessenger = labRole === 'MESSENGER';
 
@@ -59,6 +64,17 @@ export function Layout() {
     enabled: !isMessenger && !onWorklistPage,
   });
   const worklistReadyCount = readyCountData?.count ?? 0;
+
+  const onVerificationsPage = location.pathname === '/verifications';
+
+  const { data: pendingVerificationsData } = useQuery({
+    queryKey: ['pending-verifications-count'],
+    queryFn: () => labApi.verifications.getPendingCount(),
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
+    enabled: !isMessenger && !onVerificationsPage && vetVerificationRequired,
+  });
+  const pendingVerificationsCount = pendingVerificationsData?.count ?? 0;
 
   const { data: myPickups = [] } = useQuery({
     queryKey: ['my-pickups', { status: undefined }],
@@ -143,6 +159,19 @@ export function Layout() {
                 label: t('nav.my_pickups'),
                 icon: Package,
                 badge: unacceptedCount > 0 ? unacceptedCount : undefined,
+              },
+            ]
+          : []),
+        ...(vetVerificationRequired
+          ? [
+              {
+                to: '/verifications',
+                label: t('nav.verifications'),
+                icon: ShieldCheck,
+                badge:
+                  pendingVerificationsCount > 0
+                    ? pendingVerificationsCount
+                    : undefined,
               },
             ]
           : []),

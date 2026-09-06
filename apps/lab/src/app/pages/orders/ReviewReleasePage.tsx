@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { useToast } from '../../shared/components/ToastProvider';
+import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useAuth } from '../../auth/AuthContext';
 import type { LabOrderDetail, LabSigner } from '../../types/lab.types';
 
@@ -177,25 +178,21 @@ function TestResultSection({
 }
 
 function ReviewerPanel({
-  orderId,
-  selectedTestIds,
-  totalEligible,
-  onDone,
+  selectedSignerId,
+  setSelectedSignerId,
+  selectedAnalystId,
+  setSelectedAnalystId,
+  reviewNotes,
+  setReviewNotes,
 }: {
-  orderId: string;
-  selectedTestIds: string[];
-  totalEligible: number;
-  onDone: () => void;
+  selectedSignerId: string;
+  setSelectedSignerId: (v: string) => void;
+  selectedAnalystId: string;
+  setSelectedAnalystId: (v: string) => void;
+  reviewNotes: string;
+  setReviewNotes: (v: string) => void;
 }) {
   const { t } = useTranslation();
-  const toast = useToast();
-  const [selectedSignerId, setSelectedSignerId] = useState('');
-  const [selectedAnalystId, setSelectedAnalystId] = useState('');
-  const [reviewNotes, setReviewNotes] = useState('');
-  const [correctionNotes, setCorrectionNotes] = useState('');
-  const [showCorrections, setShowCorrections] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [busy, setBusy] = useState(false);
 
   const { data: signers, isLoading: loadingSigners } = useQuery({
     queryKey: ['reviewer-signers'],
@@ -208,45 +205,6 @@ function ReviewerPanel({
     queryFn: () => labApi.review.getAnalystSigners(),
     staleTime: 0,
   });
-
-  const isPartial = selectedTestIds.length < totalEligible;
-
-  const handleApprove = async () => {
-    if (!selectedSignerId || selectedTestIds.length === 0) return;
-    setBusy(true);
-    try {
-      await labApi.review.approveAndRelease(orderId, {
-        signerId: selectedSignerId,
-        analystId: selectedAnalystId || undefined,
-        testIds: selectedTestIds,
-        reviewNotes: reviewNotes || undefined,
-      });
-      toast.success(t('review.approve_success'));
-      onDone();
-    } catch (e) {
-      toast.error(`${t('review.approve_error')} ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-      setShowConfirm(false);
-    }
-  };
-
-  const handleCorrections = async () => {
-    if (!correctionNotes.trim()) {
-      toast.error(t('review.corrections_notes_required'));
-      return;
-    }
-    setBusy(true);
-    try {
-      await labApi.review.requestCorrections(orderId, correctionNotes);
-      toast.success(t('review.corrections_success'));
-      onDone();
-    } catch (e) {
-      toast.error(`${t('review.corrections_error')} ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   if (loadingSigners || loadingAnalysts) {
     return (
@@ -272,37 +230,11 @@ function ReviewerPanel({
     (s: LabSigner) => s.id === selectedSignerId
   );
 
-  if (busy) {
-    return (
-      <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-16 w-full" />
-        <div className="flex gap-3">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
       <h3 className="text-sm font-semibold text-white">
         {t('review.reviewer_panel_title')}
       </h3>
-
-      {/* Release type indicator */}
-      <div className="flex items-center gap-2">
-        <StatusBadge status={isPartial ? 'PARTIAL' : 'FINAL'} size="sm" />
-        <span className="text-xs text-gray-400">
-          {isPartial
-            ? t('review.release_type_partial')
-            : t('review.release_type_final')}
-        </span>
-      </div>
 
       {/* Signer dropdown */}
       <div>
@@ -369,76 +301,6 @@ function ReviewerPanel({
           className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-cyan focus:outline-none"
         />
       </div>
-
-      {/* Action buttons */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => setShowConfirm(true)}
-          disabled={!selectedSignerId || selectedTestIds.length === 0}
-          className="rounded-lg bg-purple px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {t('review.approve_btn')}
-        </button>
-        <button
-          onClick={() => setShowCorrections(!showCorrections)}
-          className="rounded-lg border border-yellow-700 px-4 py-2.5 text-sm font-medium text-yellow-300 hover:bg-yellow-900/30"
-        >
-          {t('review.corrections_btn')}
-        </button>
-      </div>
-
-      {/* Corrections section */}
-      {showCorrections && (
-        <div className="rounded-lg border border-yellow-800/50 bg-yellow-900/10 p-4 space-y-3">
-          <label className="block text-xs text-yellow-400">
-            {t('review.corrections_notes_label')}
-          </label>
-          <textarea
-            value={correctionNotes}
-            onChange={(e) => setCorrectionNotes(e.target.value)}
-            placeholder={t('review.corrections_notes_placeholder')}
-            rows={3}
-            className="w-full rounded-lg border border-yellow-800/50 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-yellow-600 focus:outline-none"
-          />
-          <button
-            onClick={handleCorrections}
-            disabled={!correctionNotes.trim()}
-            className="rounded-lg bg-yellow-700 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {t('review.corrections_btn')}
-          </button>
-        </div>
-      )}
-
-      {/* Confirm dialog */}
-      {showConfirm && (
-        <div className="rounded-lg border border-purple/40 bg-purple/10 p-4 space-y-3">
-          <p className="text-sm font-medium text-white">
-            {t('review.approve_confirm_title')}
-          </p>
-          <p className="text-xs text-gray-400">
-            {isPartial
-              ? t('review.approve_confirm_partial', {
-                  count: selectedTestIds.length,
-                })
-              : t('review.approve_confirm_final')}
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={handleApprove}
-              className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-            >
-              {t('common.confirm')}
-            </button>
-            <button
-              onClick={() => setShowConfirm(false)}
-              className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -494,6 +356,11 @@ function ReleaseHistorySection({ orderId }: { orderId: string }) {
               <p className="text-xs text-gray-500">
                 {new Date(release.releasedAt).toLocaleString()}
               </p>
+              {release.orderingVetName && (
+                <p className="text-xs text-gray-600">
+                  {t('workspace.requesting_vet')}: {release.orderingVetName}
+                </p>
+              )}
             </div>
           </div>
         ))}
@@ -756,11 +623,19 @@ export function ReviewReleasePage() {
   const { orderId } = useParams<{ orderId: string }>();
   const { t } = useTranslation();
   const toast = useToast();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const { isAdmin } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [amendingTestId, setAmendingTestId] = useState<string | null>(null);
+
+  const [selectedSignerId, setSelectedSignerId] = useState('');
+  const [selectedAnalystId, setSelectedAnalystId] = useState('');
+  const [reviewNotes, setReviewNotes] = useState('');
+  const [correctionNotes, setCorrectionNotes] = useState('');
+  const [showCorrections, setShowCorrections] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const { data: order, isLoading: loading } = useQuery({
     queryKey: ['order', orderId],
@@ -785,6 +660,11 @@ export function ReviewReleasePage() {
     });
     setSelectedTestIds([]);
     setAmendingTestId(null);
+    setSelectedSignerId('');
+    setSelectedAnalystId('');
+    setReviewNotes('');
+    setCorrectionNotes('');
+    setShowCorrections(false);
   };
 
   const handleSubmitForReview = async (testIds?: string[]) => {
@@ -800,6 +680,59 @@ export function ReviewReleasePage() {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const inReviewTests =
+    order?.orderedTests.filter((ot) => ot.status === 'IN_REVIEW') ?? [];
+
+  const isPartial = selectedTestIds.length < inReviewTests.length;
+
+  const handleApprove = async () => {
+    if (!selectedSignerId || selectedTestIds.length === 0 || !orderId) return;
+
+    const confirmed = await confirm({
+      title: t('review.approve_confirm_title'),
+      message: isPartial
+        ? t('review.approve_confirm_partial', {
+            count: selectedTestIds.length,
+          })
+        : t('review.approve_confirm_final'),
+      confirmLabel: t('review.approve_btn'),
+    });
+    if (!confirmed) return;
+
+    setBusy(true);
+    try {
+      await labApi.review.approveAndRelease(orderId, {
+        signerId: selectedSignerId,
+        analystId: selectedAnalystId || undefined,
+        testIds: selectedTestIds,
+        reviewNotes: reviewNotes || undefined,
+      });
+      toast.success(t('review.approve_success'));
+      invalidate();
+    } catch (e) {
+      toast.error(`${t('review.approve_error')} ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCorrections = async () => {
+    if (!correctionNotes.trim() || !orderId) {
+      toast.error(t('review.corrections_notes_required'));
+      return;
+    }
+    setBusy(true);
+    try {
+      await labApi.review.requestCorrections(orderId, correctionNotes);
+      toast.success(t('review.corrections_success'));
+      invalidate();
+    } catch (e) {
+      toast.error(`${t('review.corrections_error')} ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -851,10 +784,6 @@ export function ReviewReleasePage() {
   const reportStatus = report?.status;
   const isDraft = reportStatus === 'DRAFT';
 
-  // Categorize tests by status
-  const inReviewTests = order.orderedTests.filter(
-    (ot) => ot.status === 'IN_REVIEW'
-  );
   const completedTests = order.orderedTests.filter(
     (ot) => ot.status === 'COMPLETED'
   );
@@ -868,12 +797,10 @@ export function ReviewReleasePage() {
       )
   );
 
-  // Tests that have results (shown in the results area)
   const testsWithResults = order.orderedTests.filter((ot) =>
     ['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED'].includes(ot.status)
   );
 
-  // Select all / deselect all for IN_REVIEW tests
   const allInReviewSelected =
     inReviewTests.length > 0 &&
     inReviewTests.every((ot) => selectedTestIds.includes(ot.id));
@@ -886,63 +813,125 @@ export function ReviewReleasePage() {
     }
   };
 
-  // Any test is selectable (IN_REVIEW)?
   const hasSelectableTests = inReviewTests.length > 0;
   const hasCompletedTests = completedTests.length > 0;
   const hasAnyResults = testsWithResults.length > 0;
 
+  const isFullyReleased =
+    hasCompletedTests &&
+    !hasSelectableTests &&
+    enteredTests.length === 0 &&
+    draftOrPendingTests.length === 0;
+
+  const showActionButtons = hasSelectableTests && isAdmin;
+
   return (
     <div className="p-6 max-w-3xl">
-      <div className="mb-4">
-        <Link
-          to={`/orders/${order.id}`}
-          className="text-sm text-gray-400 hover:text-white"
-        >
-          {t('review.back')}
-        </Link>
-      </div>
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-4 bg-gray-950 px-6 pt-4 pb-3 border-b border-gray-800">
+        <div className="mb-2">
+          <Link
+            to={`/orders/${order.id}`}
+            className="text-sm text-gray-400 hover:text-white"
+          >
+            {t('review.back')}
+          </Link>
+        </div>
 
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">
-          {t('review.title', { patient: order.case.patientName })}
-        </h1>
-
-        {hasCompletedTests &&
-          !hasSelectableTests &&
-          enteredTests.length === 0 &&
-          draftOrPendingTests.length === 0 && (
-            <span className="rounded-full bg-green-900/30 px-3 py-1 text-sm font-medium text-green-400">
-              {t('review.already_released')}
-            </span>
-          )}
-        {hasSelectableTests && !isAdmin && (
-          <span className="rounded-full bg-blue-900/30 px-3 py-1 text-sm font-medium text-blue-400">
-            {t('review.in_review_status')}
-          </span>
-        )}
-      </div>
-
-      {/* Released: approver info (only when fully released, no pending tests) */}
-      {hasCompletedTests &&
-        !hasSelectableTests &&
-        enteredTests.length === 0 &&
-        draftOrPendingTests.length === 0 &&
-        report?.approvedByName &&
-        report.reviewedAt && (
-          <div className="mb-4 rounded-lg border border-green-800/40 bg-green-900/10 px-4 py-3">
-            <p className="text-xs text-green-400">
-              {t('review.approver_info', {
-                name: report.approvedByName,
-              })}
-              {' · '}
-              {new Date(report.reviewedAt).toLocaleString()}
-            </p>
-            {report.reviewNotes && (
-              <p className="mt-1 text-sm text-gray-300">{report.reviewNotes}</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-xl font-bold text-white truncate">
+              {t('review.title', { patient: order.case.patientName })}
+            </h1>
+            {isFullyReleased && (
+              <span className="shrink-0 rounded-full bg-green-900/30 px-3 py-1 text-sm font-medium text-green-400">
+                {t('review.already_released')}
+              </span>
+            )}
+            {hasSelectableTests && !isAdmin && (
+              <span className="shrink-0 rounded-full bg-blue-900/30 px-3 py-1 text-sm font-medium text-blue-400">
+                {t('review.in_review_status')}
+              </span>
             )}
           </div>
-        )}
+
+          {showActionButtons && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setShowCorrections(!showCorrections)}
+                className="rounded-lg border border-yellow-700 px-4 py-2 text-sm font-medium text-yellow-300 hover:bg-yellow-900/30 transition"
+              >
+                {t('review.corrections_btn')}
+              </button>
+              <button
+                onClick={handleApprove}
+                disabled={
+                  busy || !selectedSignerId || selectedTestIds.length === 0
+                }
+                className="rounded-lg bg-purple px-5 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition"
+              >
+                {busy ? t('common.saving') : t('review.approve_btn')}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Corrections panel (below header) */}
+      {showCorrections && showActionButtons && (
+        <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/10 p-4 space-y-3">
+          <label className="block text-xs text-yellow-400">
+            {t('review.corrections_notes_label')}
+          </label>
+          <textarea
+            value={correctionNotes}
+            onChange={(e) => setCorrectionNotes(e.target.value)}
+            placeholder={t('review.corrections_notes_placeholder')}
+            rows={3}
+            className="w-full rounded-lg border border-yellow-800/50 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-yellow-600 focus:outline-none"
+          />
+          <button
+            onClick={handleCorrections}
+            disabled={busy || !correctionNotes.trim()}
+            className="rounded-lg bg-yellow-700 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t('review.corrections_btn')}
+          </button>
+        </div>
+      )}
+
+      {/* Ordering vet */}
+      {order.orderingVetName && (
+        <div className="mb-4 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3">
+          <p className="text-xs text-gray-400">
+            {t('workspace.requesting_vet')}:{' '}
+            <span className="font-medium text-white">
+              {order.orderingVetName}
+            </span>
+            {order.orderingVetLicenseNumber && (
+              <span className="ml-1 text-gray-500">
+                · {t('workspace.vet_license')} {order.orderingVetLicenseNumber}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
+      {/* Released: approver info */}
+      {isFullyReleased && report?.approvedByName && report.reviewedAt && (
+        <div className="mb-4 rounded-lg border border-green-800/40 bg-green-900/10 px-4 py-3">
+          <p className="text-xs text-green-400">
+            {t('review.approver_info', {
+              name: report.approvedByName,
+            })}
+            {' · '}
+            {new Date(report.reviewedAt).toLocaleString()}
+          </p>
+          {report.reviewNotes && (
+            <p className="mt-1 text-sm text-gray-300">{report.reviewNotes}</p>
+          )}
+        </div>
+      )}
 
       {/* Submitted timestamp for IN_REVIEW */}
       {hasSelectableTests && report?.submittedForReviewAt && (
@@ -958,6 +947,20 @@ export function ReviewReleasePage() {
       {/* Correction banner */}
       {isDraft && report?.correctionNotes && (
         <CorrectionBanner notes={report.correctionNotes} />
+      )}
+
+      {/* Reviewer controls (admin + IN_REVIEW) */}
+      {showActionButtons && (
+        <div className="mb-4">
+          <ReviewerPanel
+            selectedSignerId={selectedSignerId}
+            setSelectedSignerId={setSelectedSignerId}
+            selectedAnalystId={selectedAnalystId}
+            setSelectedAnalystId={setSelectedAnalystId}
+            reviewNotes={reviewNotes}
+            setReviewNotes={setReviewNotes}
+          />
+        </div>
       )}
 
       {/* Pending/in-progress tests warning */}
@@ -980,7 +983,7 @@ export function ReviewReleasePage() {
       )}
 
       {/* Select all / deselect all for IN_REVIEW tests */}
-      {hasSelectableTests && isAdmin && (
+      {showActionButtons && (
         <div className="mb-3 flex items-center justify-between">
           <p className="text-sm text-gray-400">
             {t('review.selected_count', { count: selectedTestIds.length })}
@@ -1084,18 +1087,6 @@ export function ReviewReleasePage() {
               {t('review.submit_for_review_btn')}
             </button>
           )}
-        </div>
-      )}
-
-      {/* IN_REVIEW + admin: Reviewer panel */}
-      {hasSelectableTests && isAdmin && (
-        <div className="mt-6">
-          <ReviewerPanel
-            orderId={order.id}
-            selectedTestIds={selectedTestIds}
-            totalEligible={inReviewTests.length}
-            onDone={invalidate}
-          />
         </div>
       )}
 

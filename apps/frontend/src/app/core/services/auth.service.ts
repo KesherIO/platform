@@ -33,6 +33,12 @@ export interface MeResponse {
   };
   memberships: Array<{
     role: string;
+    status: string;
+    isOrderingVet: boolean;
+    vetVerification?: {
+      status: string;
+      rejectionReason?: string | null;
+    } | null;
     createdAt: string;
     tenant: {
       id: string;
@@ -342,10 +348,33 @@ export class AuthService {
     const meData = this.me();
     if (!meData) return;
 
-    if (!meData.onboardingCompleted) {
-      this.router.navigate(['/onboarding/welcome']);
-    } else {
-      this.router.navigate(['/dashboard']);
+    const activeMembership = meData.memberships?.[0];
+
+    switch (activeMembership?.status) {
+      case 'PROFILE_REQUIRED':
+        this.router.navigate(['/onboarding/vet-profile']);
+        break;
+      case 'VERIFICATION_PENDING': {
+        const vetStatus = activeMembership.vetVerification?.status;
+        if (vetStatus === 'REJECTED') {
+          this.router.navigate(['/onboarding/verification-rejected']);
+        } else {
+          this.router.navigate(['/onboarding/verification-pending']);
+        }
+        break;
+      }
+      case 'ACTIVE':
+        this.router.navigate(['/dashboard']);
+        break;
+      case 'SUSPENDED':
+        this.router.navigate(['/suspended']);
+        break;
+      default:
+        // No membership or unexpected status — send to dashboard.
+        // The /onboarding/welcome screen requires a ?token= param and is only
+        // reachable via a direct admin-onboarding link, never via programmatic
+        // navigation (it would always show the "No onboarding link" error).
+        this.router.navigate(['/dashboard']);
     }
   }
 }

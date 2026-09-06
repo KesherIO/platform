@@ -96,9 +96,9 @@ export class SaveStaffProfileDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ enum: ['admin', 'staff'] })
-  @IsEnum(['admin', 'staff'])
-  role!: 'admin' | 'staff';
+  @ApiProperty({ enum: ['admin', 'vet', 'technician', 'receptionist'] })
+  @IsEnum(['admin', 'vet', 'technician', 'receptionist'])
+  role!: 'admin' | 'vet' | 'technician' | 'receptionist';
 
   /** The invite token received in the magic link URL */
   @ApiProperty({ example: 'uuid-token-here' })
@@ -124,11 +124,14 @@ export class GenerateInviteDto {
   @IsEmail()
   email?: string;
 
-  /** Defaults to 'staff' when omitted. */
-  @ApiPropertyOptional({ enum: ['admin', 'staff'], default: 'staff' })
+  /** Defaults to 'vet' when omitted. */
+  @ApiPropertyOptional({
+    enum: ['admin', 'vet', 'technician', 'receptionist'],
+    default: 'vet',
+  })
   @IsOptional()
-  @IsEnum(['admin', 'staff'])
-  role?: 'admin' | 'staff';
+  @IsEnum(['admin', 'vet', 'technician', 'receptionist'])
+  role?: 'admin' | 'vet' | 'technician' | 'receptionist';
 }
 
 // ---------------------------------------------------------------------------
@@ -168,9 +171,9 @@ export class CompleteStaffOnboardingDto {
   @MinLength(8)
   password?: string;
 
-  @ApiProperty({ enum: ['admin', 'staff'] })
-  @IsEnum(['admin', 'staff'])
-  role!: 'admin' | 'staff';
+  @ApiProperty({ enum: ['admin', 'vet', 'technician', 'receptionist'] })
+  @IsEnum(['admin', 'vet', 'technician', 'receptionist'])
+  role!: 'admin' | 'vet' | 'technician' | 'receptionist';
 }
 
 // ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import { ReviewService } from './review.service';
 import { ReleaseService } from './release.service';
 import { AmendmentService } from './amendment.service';
 import { ReadinessService } from './readiness.service';
+import { LabVetVerificationService } from './lab-vet-verification.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('LabController', () => {
@@ -38,6 +39,7 @@ describe('LabController', () => {
       updateOrderedTest: jest.fn().mockResolvedValue({}),
       getLaboratoryProfile: jest.fn().mockResolvedValue(null),
       upsertLaboratoryProfile: jest.fn().mockResolvedValue({}),
+      getVetVerificationRequired: jest.fn().mockResolvedValue(false),
     };
 
     const usersServiceMock: Partial<jest.Mocked<LabUsersService>> = {
@@ -188,6 +190,26 @@ describe('LabController', () => {
           },
         },
         {
+          provide: LabVetVerificationService,
+          useValue: {
+            listVerifications: jest.fn().mockResolvedValue({
+              data: [],
+              total: 0,
+              page: 1,
+              pageSize: 20,
+              totalPages: 0,
+            }),
+            getVerificationById: jest.fn().mockResolvedValue({}),
+            getDocument: jest
+              .fn()
+              .mockResolvedValue({ signedUrl: '', expiresAt: '' }),
+            approve: jest.fn().mockResolvedValue({}),
+            reject: jest.fn().mockResolvedValue({}),
+            revoke: jest.fn().mockResolvedValue({}),
+            getPendingCount: jest.fn().mockResolvedValue({ count: 0 }),
+          },
+        },
+        {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('test-key') },
         },
@@ -206,18 +228,22 @@ describe('LabController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('getMe returns role, tenant info, and canPerformPickups', () => {
-    const result = controller.getMe(tenant);
+  it('getMe returns role, tenant info, and canPerformPickups', async () => {
+    const result = await controller.getMe(tenant);
     expect(result).toEqual({
       role: 'ADMIN',
       tenantName: 'Test Lab',
       logoUrl: null,
       canPerformPickups: false,
+      vetVerificationRequired: false,
     });
   });
 
-  it('getMe returns canPerformPickups true when set', () => {
-    const result = controller.getMe({ ...tenant, canPerformPickups: true });
+  it('getMe returns canPerformPickups true when set', async () => {
+    const result = await controller.getMe({
+      ...tenant,
+      canPerformPickups: true,
+    });
     expect(result.canPerformPickups).toBe(true);
   });
 

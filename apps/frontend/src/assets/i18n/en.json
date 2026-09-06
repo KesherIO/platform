@@ -1,7 +1,6 @@
 {
   "AUTH": {
-    "TITLE": "Clinic Portal Sign in",
-    "SUBTITLE": "Powered by KesherIO",
+    "TITLE": "Sign in",
     "BODY": "Enter your credentials to continue",
     "EMAIL_LABEL": "Email",
     "EMAIL_PLACEHOLDER": "email@domain.com",
@@ -63,9 +62,8 @@
     "STEP_OF": "Step {{current}} of {{total}}"
   },
   "WELCOME": {
-    "TITLE": "Welcome to {{name}} Copilot",
-    "SUBTITLE": "Powered by KesherIO",
-    "BODY": "Let's set up your clinic so you can start using Copilot.\nThis will only take a few minutes.",
+    "TITLE": "Welcome to {{name}}",
+    "BODY": "Let's set up your clinic so you can get started.\nThis will only take a few minutes.",
     "TERMS_PRE": "By clicking continue, you agree to our",
     "TERMS_LINK": "Terms of Service",
     "TERMS_AND": "and",
@@ -127,7 +125,7 @@
     "CONFIRM_PASSWORD_PLACEHOLDER": "••••••••",
     "PASSWORD_MISMATCH": "Passwords do not match.",
     "PASSWORD_MIN_LENGTH": "Password must be at least 10 characters.",
-    "INVITE_TEXT": "Invite your staff to join {{name}} Copilot. They'll inherit your clinic settings and only need to complete their personal details. A magic link will be sent to your clinic email for sharing.",
+    "INVITE_TEXT": "Invite your staff to join {{name}}. They'll inherit your clinic settings and only need to complete their personal details. A magic link will be sent to your clinic email for sharing.",
     "CREATE_LINK": "Create magic link",
     "LINK_LABEL": "Magic Link:",
     "SUCCESS_TITLE": "Your clinic account is ready!",
@@ -157,7 +155,11 @@
     "EXISTING_USER_BODY": "Your account already exists. Tap below to join {{name}}.",
     "JOIN_BUTTON": "Join clinic",
     "LINK_EXPIRED_TITLE": "Invite link expired",
-    "LINK_EXPIRED_BODY": "This invite link has expired. Ask your clinic admin to generate a new one."
+    "LINK_EXPIRED_BODY": "This invite link has expired. Ask your clinic admin to generate a new one.",
+    "JOINING_AS": "Joining as",
+    "ROLE_VET": "Veterinarian",
+    "ROLE_TECHNICIAN": "Veterinary Technician",
+    "ROLE_RECEPTIONIST": "Receptionist"
   },
   "PWA": {
     "INSTALL_TITLE": "Add to your home screen",
@@ -208,7 +210,7 @@
     },
     "STAFF": {
       "INVITE_TITLE": "Invite staff",
-      "INVITE_BODY": "Invite your staff to join {{name}} Copilot. They will inherit your clinic settings and only need to complete their personal details.",
+      "INVITE_BODY": "Invite your staff to join {{name}}. They will inherit your clinic settings and only need to complete their personal details.",
       "CREATE_LINK": "Create magic link",
       "GENERATING": "Generating...",
       "MODAL_TITLE": "Magic link ready",
@@ -219,6 +221,9 @@
       "MEMBERS_TITLE": "Staff members",
       "ROLE_ADMIN": "Admin",
       "ROLE_STAFF": "Staff",
+      "ROLE_VET": "Veterinarian",
+      "ROLE_TECHNICIAN": "Technician",
+      "ROLE_RECEPTIONIST": "Receptionist",
       "MAKE_ADMIN": "Make Admin",
       "MAKE_STAFF": "Make Staff",
       "REMOVE": "Remove",
@@ -233,14 +238,28 @@
       "COPY_EXISTING": "Copy existing link",
       "ERROR_CAPACITY": "You've reached the maximum of 10 pending invites. Wait for one to be accepted or expire before creating a new one.",
       "ERROR_MEMBER": "This user is already a member of the clinic.",
-      "EXISTING_TOGGLE": "This person already has a KesherIO account →",
+      "EXISTING_TOGGLE": "This person already has a Kesher IO account →",
       "EXISTING_TITLE": "Invite someone with an existing account",
-      "EXISTING_BODY": "Use this if the person already has a KesherIO account — from this clinic or another. They'll join without creating a new account.",
+      "EXISTING_BODY": "Use this if the person already has a Kesher IO account — from this clinic or another. They'll join without creating a new account.",
       "EXISTING_EMAIL_PLACEHOLDER": "staff@example.com",
       "EXISTING_SEND": "Send invite",
       "EXISTING_CANCEL": "Cancel",
       "EXISTING_MODAL_TITLE": "Invite link ready",
-      "EXISTING_MODAL_BODY": "Share this link with the staff member. They'll be able to join the clinic without creating a new account."
+      "EXISTING_MODAL_BODY": "Share this link with the staff member. They'll be able to join the clinic without creating a new account.",
+      "INVITE_ROLE_VET": "Veterinarian",
+      "INVITE_ROLE_TECHNICIAN": "Technician",
+      "INVITE_ROLE_RECEPTIONIST": "Receptionist",
+      "FILTER_ALL": "All",
+      "FILTER_PENDING": "Pending",
+      "FILTER_APPROVED": "Approved",
+      "FILTER_REJECTED": "Rejected",
+      "FILTER_REVOKED": "Revoked",
+      "VET_STATUS_PROFILE_REQUIRED": "Profile required",
+      "VET_STATUS_PENDING": "Pending review",
+      "VET_STATUS_APPROVED": "Approved",
+      "VET_STATUS_REJECTED": "Rejected",
+      "VET_STATUS_REVOKED": "Revoked",
+      "VET_STATUS_EXPIRED": "Expired"
     }
   },
   "CASES": {
@@ -298,6 +317,8 @@
       "OWNER_NAME_PLACEHOLDER": "e.g. Jane Doe",
       "OWNER_PHONE": "Owner phone",
       "OWNER_PHONE_PLACEHOLDER": "e.g. +1 555 0000",
+      "ATTENDING_VET_LABEL": "Attending veterinarian",
+      "ATTENDING_VET_PLACEHOLDER": "Select attending vet",
       "SUBMIT": "Save and continue",
       "CANCEL": "Cancel",
       "SPECIES_DOG": "Dog",
@@ -385,12 +406,21 @@
       "READ_ONLY_NOTICE": "This order has already been sent.",
       "CANCELLED_NOTICE": "This case has been cancelled.",
       "CANCEL_CASE": "Cancel Case",
+      "ORDERING_VET_LABEL": "Ordering veterinarian",
+      "ORDERING_VET_PLACEHOLDER": "Select ordering vet",
+      "NO_ELIGIBLE_VET": "The selected veterinarian is not yet approved. Please ensure their profile is complete and approved by the lab before submitting.",
       "DELIVERY_METHOD_LABEL": "How will the sample get to the lab?",
       "DELIVERY_CLIENT": "I'll deliver it",
       "DELIVERY_LAB_PICKUP": "Lab pickup",
       "PRIORITY_LABEL": "Priority",
       "PRIORITY_ROUTINE": "Routine",
       "PRIORITY_URGENT": "Urgent"
+    },
+    "VET_STATUS": {
+      "PROFILE_REQUIRED": "(Profile required)",
+      "VERIFICATION_PENDING": "(Pending review)",
+      "SUSPENDED": "(Suspended)",
+      "INVITED": "(Invited)"
     },
     "ORDER_SUCCESS": {
       "TITLE": "Order Sent!",
@@ -404,8 +434,12 @@
       "NEW_CASE": "New Case"
     }
   },
-  "BRANDING": {
-    "POWERED_BY": "Powered by KesherIO"
+  "BRANDING": {},
+  "BRAND": {
+    "NAME": "Kesher IO",
+    "CLINIC_PORTAL": "Clinic Portal",
+    "LAB_PORTAL": "Laboratory Portal",
+    "POWERED_BY": "Powered by Kesher IO"
   },
   "RESULTS_INBOX": {
     "TITLE": "Results",
@@ -430,6 +464,8 @@
     "FIELD_SAMPLE_DATE": "Sample date",
     "FIELD_ADDRESS": "Address",
     "FIELD_PHONE": "Phone",
+    "FIELD_VET": "Vet",
+    "FIELD_VET_LICENSE": "License",
     "COL_ANALYTE": "Analysis",
     "COL_TECHNIQUE": "Technique",
     "COL_RESULT": "Result",
@@ -474,6 +510,52 @@
       "DISCLAIMER_LABEL": "Disclaimer",
       "NO_FLAGGED": "All reported analytes are within reference ranges."
     }
+  },
+  "VET_PROFILE": {
+    "TITLE": "Your Professional Profile",
+    "SUBTITLE": "Complete your veterinary credentials to get approved by your lab.",
+    "EDIT_TITLE": "Update Your Credentials",
+    "EDIT_SUBTITLE": "Update your information and resubmit for lab review.",
+    "LEGAL_NAME_LABEL": "Legal name",
+    "LEGAL_NAME_PLACEHOLDER": "As it appears on your license",
+    "LICENSE_NUMBER_LABEL": "License / registration number",
+    "LICENSE_NUMBER_PLACEHOLDER": "e.g. MVZ-12345",
+    "ISSUING_COUNTRY_LABEL": "Issuing country",
+    "ISSUING_COUNTRY_PLACEHOLDER": "Select country",
+    "ISSUING_AUTHORITY_LABEL": "Issuing authority (optional)",
+    "ISSUING_AUTHORITY_PLACEHOLDER": "e.g. State Board of Veterinary Medicine",
+    "LICENSE_EXPIRES_LABEL": "License expiry date (optional)",
+    "DOCUMENT_LABEL": "Credential document",
+    "DOCUMENT_HINT": "Upload your license or certificate. PDF, JPEG or PNG — max 10 MB.",
+    "DOCUMENT_UPLOAD": "Upload document",
+    "DOCUMENT_CHANGE": "Change document",
+    "DOCUMENT_TYPE_ERROR": "Invalid file type. Please upload a PDF, JPEG, or PNG.",
+    "DOCUMENT_SIZE_ERROR": "File too large. Maximum size is 10 MB.",
+    "SAVE_BUTTON": "Save profile",
+    "SAVING": "Saving...",
+    "UPDATE_RESUBMIT": "Update & Resubmit",
+    "SUBMITTING": "Submitting...",
+    "SUCCESS_TITLE": "Profile saved!",
+    "SUCCESS_BODY": "Your credentials have been saved. Submit them for lab review to start placing orders.",
+    "SUBMIT_BUTTON": "Submit for review",
+    "LOAD_ERROR": "Could not load your profile. Please try again.",
+    "SAVE_ERROR": "Could not save your profile. Please try again.",
+    "UPLOAD_ERROR": "Could not upload your document. Please try again.",
+    "SUBMIT_ERROR": "Could not submit for review. Please try again."
+  },
+  "VERIFICATION_PENDING": {
+    "TITLE": "Verification Pending",
+    "SUBTITLE": "Your credentials are being reviewed by the lab. We'll notify you once a decision is made.",
+    "LAB_LABEL": "Lab",
+    "SUBMITTED_ON": "Submitted on {{date}}",
+    "CONTACT_HINT": "Questions? Contact the lab directly."
+  },
+  "VERIFICATION_REJECTED": {
+    "TITLE": "Verification Declined",
+    "SUBTITLE": "The lab was unable to approve your credentials.",
+    "REASON_LABEL": "Reason provided",
+    "UPDATE_BUTTON": "Update credentials",
+    "CONTACT_HINT": "If you believe this is an error, contact the lab directly."
   },
   "COUNTRIES": {
     "AR": "Argentina",

@@ -15,6 +15,9 @@ const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 /** Supabase Storage bucket for clinic logos */
 const LOGO_BUCKET = 'clinic-logos';
 
+/** Private Supabase Storage bucket for vet credential documents */
+const VET_CREDENTIALS_BUCKET = 'vet-credentials';
+
 @Injectable()
 export class StorageService {
   private readonly supabase: SupabaseClient;
@@ -61,7 +64,49 @@ export class StorageService {
 
     const { data } = this.supabase.storage.from(LOGO_BUCKET).getPublicUrl(path);
 
-    return data.publicUrl;
+    // Append a timestamp so the browser doesn't serve a stale cached version
+    // after the logo is replaced (same path = same URL = browser cache hit).
+    return `${data.publicUrl}?t=${Date.now()}`;
+  }
+
+  /**
+   * Upload a file to the private vet-credentials bucket.
+   * `upsert: false` ensures we never silently overwrite an existing document —
+   * paths include the credentialId so they are already unique.
+   */
+  async uploadPrivate(
+    key: string,
+    buffer: Buffer,
+    contentType: string
+  ): Promise<void> {
+    const { error } = await this.supabase.storage
+      .from(VET_CREDENTIALS_BUCKET)
+      .upload(key, buffer, { contentType, upsert: false });
+
+    if (error) {
+      throw new InternalServerErrorException(
+        `Storage upload failed: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * Generate a short-lived signed URL for a private vet-credentials document.
+   * @param key    Storage path (e.g. vet-credentials/{userId}/{credentialId}.pdf)
+   * @param expiresIn  TTL in seconds (typically 3600)
+   */
+  async getSignedUrl(key: string, expiresIn: number): Promise<string> {
+    const { data, error } = await this.supabase.storage
+      .from(VET_CREDENTIALS_BUCKET)
+      .createSignedUrl(key, expiresIn);
+
+    if (error || !data?.signedUrl) {
+      throw new InternalServerErrorException(
+        `Failed to generate signed URL: ${error?.message ?? 'unknown error'}`
+      );
+    }
+
+    return data.signedUrl;
   }
 
   // ---------------------------------------------------------------------------

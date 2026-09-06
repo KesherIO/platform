@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { take, switchMap } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { SettingsService } from '../../../core/services/settings.service';
@@ -45,6 +46,7 @@ export class ClinicSettingsComponent {
 
   readonly editing = signal(false);
   readonly saving = signal(false);
+  readonly saveError = signal<string | null>(null);
   readonly editName = signal('');
   readonly editPhone = signal('');
   readonly editAddress = signal('');
@@ -57,6 +59,7 @@ export class ClinicSettingsComponent {
     this.editAddress.set(this.clinicAddress());
     this.logoFile.set(null);
     this.logoPreview.set(null);
+    this.saveError.set(null);
     this.editing.set(true);
   }
 
@@ -68,11 +71,14 @@ export class ClinicSettingsComponent {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
     this.logoFile.set(file);
-    this.logoPreview.set(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (e) => this.logoPreview.set(e.target?.result as string);
+    reader.readAsDataURL(file);
   }
 
   save(): void {
     this.saving.set(true);
+    this.saveError.set(null);
     this.settingsService
       .updateClinic(
         {
@@ -91,7 +97,11 @@ export class ClinicSettingsComponent {
           this.saving.set(false);
           this.editing.set(false);
         },
-        error: () => this.saving.set(false),
+        error: (err: HttpErrorResponse) => {
+          console.error('[ClinicSettings] save failed', err.status, err.error);
+          this.saveError.set(`${err.status}: ${err.message}`);
+          this.saving.set(false);
+        },
       });
   }
 }

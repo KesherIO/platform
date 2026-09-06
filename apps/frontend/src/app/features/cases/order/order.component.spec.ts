@@ -43,6 +43,7 @@ describe('OrderComponent', () => {
     createOrder: ReturnType<typeof vi.fn>;
     cancelCase: ReturnType<typeof vi.fn>;
     activeCase: ReturnType<typeof signal>;
+    getEligibleVets: ReturnType<typeof vi.fn>;
   };
   let routerSpy: { navigate: ReturnType<typeof vi.fn> };
 
@@ -56,6 +57,7 @@ describe('OrderComponent', () => {
           of({ ...MOCK_CASE_TRIAGED, status: CaseStatus.CANCELLED })
         ),
       activeCase: signal(null),
+      getEligibleVets: vi.fn().mockReturnValue(of([])),
     };
     routerSpy = { navigate: vi.fn() };
 
@@ -91,7 +93,8 @@ describe('OrderComponent', () => {
     expect(casesServiceSpy.createOrder).toHaveBeenCalledWith(
       'c2',
       'LAB_PICKUP',
-      'ROUTINE'
+      'ROUTINE',
+      undefined
     );
     expect(routerSpy.navigate).toHaveBeenCalledWith(
       ['/cases', 'c2', 'order', 'success'],

@@ -48,9 +48,12 @@ export class SettingsService {
   // Staff invitations
   // ---------------------------------------------------------------------------
 
-  generateMagicLink(email?: string): Observable<MagicLinkResult> {
+  generateMagicLink(
+    email?: string,
+    role: 'vet' | 'technician' | 'receptionist' = 'vet'
+  ): Observable<MagicLinkResult> {
     const tenantId = this.tenantId;
-    const body = email ? { email, role: 'staff' } : {};
+    const body = email ? { email, role } : { role };
     return this.http
       .post<{
         token: string;
@@ -94,7 +97,10 @@ export class SettingsService {
       .pipe(catchError((err: HttpErrorResponse) => this.mapStaffError(err)));
   }
 
-  updateRole(userId: string, role: 'admin' | 'staff'): Observable<void> {
+  updateRole(
+    userId: string,
+    role: 'admin' | 'vet' | 'technician' | 'receptionist'
+  ): Observable<void> {
     return this.http
       .patch<void>(
         `/api/tenants/${this.tenantId}/staff/${userId}/role`,

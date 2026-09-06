@@ -84,6 +84,9 @@ function makePrismaMock() {
       create: jest.fn(),
       update: jest.fn(),
     },
+    clinicLabConnection: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
     $transaction: jest.fn(),
   };
 }
@@ -143,7 +146,7 @@ describe('OnboardingService', () => {
       await expect(
         service.generateInvite(invitedBy, tenantId, {
           email: 'staff@example.com',
-          role: 'staff',
+          role: 'vet',
         })
       ).rejects.toThrow(ConflictException);
     });
@@ -155,7 +158,7 @@ describe('OnboardingService', () => {
 
       const result = await service.generateInvite(invitedBy, tenantId, {
         email: 'staff@example.com',
-        role: 'staff',
+        role: 'vet',
       });
 
       expect(result).toMatchObject({
@@ -173,7 +176,7 @@ describe('OnboardingService', () => {
       await expect(
         service.generateInvite(invitedBy, tenantId, {
           email: 'new@example.com',
-          role: 'staff',
+          role: 'vet',
         })
       ).rejects.toThrow(BadRequestException);
     });
@@ -190,7 +193,7 @@ describe('OnboardingService', () => {
 
       await service.generateInvite(invitedBy, tenantId, {
         email: 'STAFF@EXAMPLE.COM',
-        role: 'staff',
+        role: 'vet',
       });
 
       // The findFirst deduplication query should use the lowercased email
@@ -235,7 +238,7 @@ describe('OnboardingService', () => {
 
       await service.generateInvite(invitedBy, tenantId, {
         email: 'staff@example.com',
-        role: 'staff',
+        role: 'vet',
       });
 
       expect(prisma.tenantInvitation.create).toHaveBeenCalledWith(
@@ -321,7 +324,7 @@ describe('OnboardingService', () => {
       expect(result.role).toBe('admin');
     });
 
-    it('maps VET role to "staff"', async () => {
+    it('maps VET role to "vet"', async () => {
       prisma.tenantInvitation.findUnique.mockResolvedValue(
         makeInvite({ role: TenantRole.VET })
       );
@@ -329,7 +332,7 @@ describe('OnboardingService', () => {
 
       const result = await service.verifyInvite('invite-token');
 
-      expect(result.role).toBe('staff');
+      expect(result.role).toBe('vet');
     });
   });
 
@@ -342,7 +345,7 @@ describe('OnboardingService', () => {
       fullName: 'John Smith',
       telephone: '555-0100',
       email: 'john@example.com',
-      role: 'staff' as const,
+      role: 'vet' as const,
       token: 'invite-token',
     };
 
@@ -419,7 +422,7 @@ describe('OnboardingService', () => {
     const baseDto = {
       token: 'invite-token',
       email: 'staff@example.com',
-      role: 'staff' as const,
+      role: 'vet' as const,
       fullName: 'Jane Doe',
       password: 'password123',
     };
@@ -459,7 +462,7 @@ describe('OnboardingService', () => {
       await expect(
         service.completeStaffOnboarding({
           ...baseDto,
-          role: 'unknown' as 'staff',
+          role: 'unknown' as 'vet',
         })
       ).rejects.toThrow(BadRequestException);
     });

@@ -9,6 +9,7 @@ import { ObservationPhrasesPicker } from '../../shared/components/ObservationPhr
 import { AnalyteInput } from '../../shared/components/AnalyteInput';
 import type { AnalyteValue } from '../../shared/components/AnalyteInput';
 import { evaluateAllFormulas } from '../../shared/formula';
+import type { LabOrderDetail } from '../../types/lab.types';
 
 type Analyte = {
   id: string;
@@ -54,6 +55,13 @@ export function ResultEntryPage() {
     queryKey: ['result-session', testId],
     queryFn: () => labApi.resultEntry.getSession(testId ?? ''),
     enabled: !!testId,
+    staleTime: 30_000,
+  });
+
+  const { data: orderContext } = useQuery({
+    queryKey: ['order', orderId],
+    queryFn: () => labApi.orders.getById(orderId!) as Promise<LabOrderDetail>,
+    enabled: !!orderId,
     staleTime: 30_000,
   });
 
@@ -151,6 +159,15 @@ export function ResultEntryPage() {
     }
   }, [testId, session, values, observations, t, toast, queryClient]);
 
+  const handleAnalyteChange = useCallback(
+    (analyteId: string, val: AnalyteValue) => {
+      setValues((prev) => ({ ...prev, [analyteId]: val }));
+    },
+    []
+  );
+
+  const isUpdate = session?.test.status === 'RESULTS_ENTERED';
+
   const handleSubmit = async () => {
     if (!testId || !orderId) return;
     setSubmitting(true);
@@ -163,7 +180,6 @@ export function ResultEntryPage() {
       if (!isUpdate) {
         await labApi.resultEntry.submit(testId);
       }
-      // Invalidate both the session cache and the parent order so workspace refreshes
       queryClient.invalidateQueries({ queryKey: ['result-session', testId] });
       queryClient.invalidateQueries({ queryKey: ['order', orderId] });
       queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
@@ -226,17 +242,9 @@ export function ResultEntryPage() {
     );
   }
 
-  const handleAnalyteChange = useCallback(
-    (analyteId: string, val: AnalyteValue) => {
-      setValues((prev) => ({ ...prev, [analyteId]: val }));
-    },
-    []
-  );
-
   const isReadOnly = !['READY', 'IN_PROGRESS', 'RESULTS_ENTERED'].includes(
     session.test.status
   );
-  const isUpdate = session.test.status === 'RESULTS_ENTERED';
   const isDirty =
     JSON.stringify(values) !== JSON.stringify(savedValuesRef.current) ||
     observations !== savedObservationsRef.current;
@@ -266,6 +274,17 @@ export function ResultEntryPage() {
             <p className="mt-1 text-sm text-gray-500">
               {session.template.title}
             </p>
+            {orderContext?.orderingVetName && (
+              <p className="mt-1 text-xs text-gray-500">
+                {t('workspace.requesting_vet')}:{' '}
+                <span className="text-gray-400">
+                  {orderContext.orderingVetName}
+                  {orderContext.orderingVetLicenseNumber
+                    ? ` · ${orderContext.orderingVetLicenseNumber}`
+                    : ''}
+                </span>
+              </p>
+            )}
           </div>
           {!isReadOnly && (
             <div className="flex gap-2">

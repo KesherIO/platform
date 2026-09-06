@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Kesher IO icon</title>
+  <desc id="desc">Four colored connected nodes forming a diamond</desc>
+  <defs>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#35DDD2"/>
+      <stop offset="1" stop-color="#13BEB5"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#168BFF"/>
+      <stop offset="1" stop-color="#006EE6"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#37B657"/>
+      <stop offset="1" stop-color="#168D3E"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10B6A9"/>
+      <stop offset="1" stop-color="#078B84"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M256 82 L96 256" fill="none" stroke="#087DF1" stroke-width="34" stroke-linecap="round"/>
+  <path d="M256 82 L416 256" fill="none" stroke="#20A34C" stroke-width="34" stroke-linecap="round"/>
+  <path d="M416 256 L256 430" fill="none" stroke="#168F60" stroke-width="34" stroke-linecap="round"/>
+  <path d="M256 430 L96 256" fill="none" stroke="#078FA1" stroke-width="34" stroke-linecap="round"/>
+
+  <circle cx="256" cy="82" r="62" fill="url(#cyan)"/>
+  <circle cx="416" cy="256" r="62" fill="url(#green)"/>
+  <circle cx="256" cy="430" r="62" fill="url(#teal)"/>
+  <circle cx="96" cy="256" r="62" fill="url(#blue)"/>
+</svg>

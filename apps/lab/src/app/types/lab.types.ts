@@ -217,6 +217,10 @@ export interface LabOrderSummary {
   collectedAt: string | null;
   receivedByLabAt: string | null;
   completedAt: string | null;
+  orderingVetId: string | null;
+  orderingVetName: string | null;
+  orderingVetLicenseNumber: string | null;
+  orderingVetIssuingAuthority: string | null;
 }
 
 export interface OrderPickupInfo {
@@ -288,6 +292,7 @@ export interface LaboratoryProfile {
   defaultObservations: string | null;
   reportDisclaimer: string | null;
   signatureUrl: string | null;
+  vetVerificationRequired?: boolean;
   signers?: LabSigner[];
 }
 
@@ -806,6 +811,10 @@ export interface ReleaseInfo {
     status: string;
     storageUrl: string | null;
   }>;
+  orderingVetId: string | null;
+  orderingVetName: string | null;
+  orderingVetLicenseNumber: string | null;
+  orderingVetIssuingAuthority: string | null;
 }
 
 export interface ReleaseHistoryResponse {
@@ -868,8 +877,83 @@ export interface CurrentResultTest {
   releasedAt: string;
   signerName: string;
   analytes: CurrentResultAnalyte[];
+  orderingVetId: string | null;
+  orderingVetName: string | null;
+  orderingVetLicenseNumber: string | null;
+  orderingVetIssuingAuthority: string | null;
 }
 
 export interface CurrentResultsResponse {
   tests: CurrentResultTest[];
+}
+
+// ---------------------------------------------------------------------------
+// Vet verification
+// ---------------------------------------------------------------------------
+
+export type VetVerificationStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'REVOKED'
+  | 'EXPIRED';
+
+export type VetVerificationEventType =
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'RESUBMITTED'
+  | 'REVOKED'
+  | 'EXPIRED'
+  | 'DOCUMENT_VIEWED';
+
+export interface VetVerificationSummary {
+  id: string;
+  status: VetVerificationStatus;
+  vetLegalName: string;
+  licenseNumber: string;
+  issuingCountry: string;
+  issuingAuthority: string | null;
+  licenseExpiresAt: string | null;
+  initiatingClinicName: string;
+  submittedAt: string;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+}
+
+export interface VetVerificationAuditEvent {
+  id: string;
+  eventType: VetVerificationEventType;
+  actorName: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface VetVerificationDetail {
+  id: string;
+  status: VetVerificationStatus;
+  vetProfileId: string;
+  vetLegalName: string;
+  vetEmail: string | null;
+  licenseNumber: string;
+  issuingCountry: string;
+  issuingAuthority: string | null;
+  licenseExpiresAt: string | null;
+  initiatingClinicName: string;
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewedByName: string | null;
+  rejectionReason: string | null;
+  revokedAt: string | null;
+  revokedReason: string | null;
+  duplicateLicenseDetected: boolean;
+  profileChangedAfterApproval: boolean;
+  events: VetVerificationAuditEvent[];
+}
+
+export interface VetVerificationsQuery {
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
 }

@@ -148,9 +148,12 @@ export class AuthService {
         lastName: true,
         phone: true,
         createdAt: true,
+        veterinarianProfile: { select: { id: true } },
         memberships: {
           select: {
             role: true,
+            status: true,
+            isOrderingVet: true,
             createdAt: true,
             tenant: {
               select: {
@@ -163,6 +166,11 @@ export class AuthService {
                 address: true,
                 logoUrl: true,
                 primaryColor: true,
+                labConnections: {
+                  where: { isActive: true },
+                  select: { labId: true },
+                  take: 1,
+                },
               },
             },
           },
@@ -174,16 +182,62 @@ export class AuthService {
     const clinicMemberships = user.memberships.filter(
       (m) => m.tenant.type === 'CLINIC'
     );
-    const tenants = clinicMemberships.map((m) => m.tenant);
 
-    // Onboarding is complete when the user belongs to a CLINIC tenant AND
-    // that tenant has a real name (i.e. the clinic-setup step was finished).
-    const onboardingCompleted =
-      clinicMemberships.length > 0 &&
-      !!user.firstName &&
-      tenants[0]?.name != null;
+    // Batch-fetch vet verifications for ordering-vet memberships (avoids N+1)
+    const verificationsByLabId = new Map<
+      string,
+      { status: string; rejectionReason: string | null }
+    >();
+    if (user.veterinarianProfile) {
+      const labIds = clinicMemberships
+        .filter((m) => m.isOrderingVet)
+        .flatMap((m) => m.tenant.labConnections.map((c) => c.labId));
 
-    // The active tenant is the earliest CLINIC tenant the user joined.
+      if (labIds.length > 0) {
+        const verifications = await this.prisma.vetLabVerification.findMany({
+          where: {
+            vetProfileId: user.veterinarianProfile.id,
+            labTenantId: { in: labIds },
+          },
+          select: { labTenantId: true, status: true, rejectionReason: true },
+        });
+        for (const v of verifications) {
+          verificationsByLabId.set(v.labTenantId, v);
+        }
+      }
+    }
+
+    const memberships = clinicMemberships.map((m) => {
+      const labId = m.tenant.labConnections[0]?.labId ?? null;
+      const verification = labId
+        ? verificationsByLabId.get(labId) ?? null
+        : null;
+      const { labConnections, ...tenant } = m.tenant;
+      return {
+        role: m.role,
+        status: m.status,
+        isOrderingVet: m.isOrderingVet,
+        createdAt: m.createdAt,
+        tenant,
+        vetVerification: m.isOrderingVet
+          ? verification
+            ? {
+                status: verification.status,
+                rejectionReason: verification.rejectionReason,
+              }
+            : null
+          : null,
+      };
+    });
+
+    const tenants = memberships.map((m) => m.tenant);
+    const activeMembership = memberships[0];
+
+    // onboardingCompleted: true iff the first CLINIC membership is ACTIVE.
+    // Existing memberships were backfilled to ACTIVE on migration, so this
+    // is backward compatible.
+    const onboardingCompleted = activeMembership?.status === 'ACTIVE';
+
     const activeTenantId = tenants[0]?.id ?? null;
 
     return {
@@ -195,7 +249,7 @@ export class AuthService {
         phone: user.phone,
         createdAt: user.createdAt,
       },
-      memberships: clinicMemberships,
+      memberships,
       tenants,
       onboardingCompleted,
       activeTenantId,

@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   AuthenticatedUser,
+  MembershipStatus,
   TenantContext,
   TenantRole,
 } from '@vet-ai/shared-types';
@@ -60,6 +61,8 @@ export class TenantGuard implements CanActivate {
       where: { userId_tenantId: { userId: user.id, tenantId } },
       select: {
         role: true,
+        isOrderingVet: true,
+        status: true,
         tenant: { select: { name: true, logoUrl: true, type: true } },
       },
     });
@@ -81,6 +84,8 @@ export class TenantGuard implements CanActivate {
       tenantName: membership.tenant.name,
       tenantLogoUrl: membership.tenant.logoUrl,
       role: membership.role as TenantRole,
+      isOrderingVet: membership.isOrderingVet,
+      status: membership.status as MembershipStatus,
       canPerformPickups: false,
     };
     request.tenant = tenantContext;

@@ -16,7 +16,7 @@ import {
 } from '../models';
 
 /** Default logo shown when the tenant has not uploaded a custom logo. */
-export const DEFAULT_LOGO_URL = '/assets/icons/icon-128x128.png';
+export const DEFAULT_LOGO_URL = '/assets/icons/kesherio-icon.svg';
 
 /** Resolve a Tenant logoUrl to a displayable URL, falling back to the default app icon. */
 export function resolveLogoUrl(logoUrl: string | null | undefined): string {
@@ -45,19 +45,24 @@ export class OnboardingService {
   // Used when tenantId is already known (e.g. staff invite flow).
   // ---------------------------------------------------------------------------
 
-  initializeOnboarding(tenantId: string, inviteToken?: string): Observable<TenantBranding> {
-    return this.http.get<TenantBranding>(`${this.apiBase}/${tenantId}/branding`).pipe(
-      tap((branding) => {
-        this.onboardingState.update((state) => ({
-          ...state,
-          tenantId,
-          inviteToken,
-          isFirstUser: !inviteToken,
-          step: inviteToken ? 'staff-profile' : 'welcome',
-        }));
-        Object.assign(branding, { tenantId });
-      }),
-    );
+  initializeOnboarding(
+    tenantId: string,
+    inviteToken?: string
+  ): Observable<TenantBranding> {
+    return this.http
+      .get<TenantBranding>(`${this.apiBase}/${tenantId}/branding`)
+      .pipe(
+        tap((branding) => {
+          this.onboardingState.update((state) => ({
+            ...state,
+            tenantId,
+            inviteToken,
+            isFirstUser: !inviteToken,
+            step: inviteToken ? 'staff-profile' : 'welcome',
+          }));
+          Object.assign(branding, { tenantId });
+        })
+      );
   }
 
   // ---------------------------------------------------------------------------
@@ -97,7 +102,9 @@ export class OnboardingService {
   // Staff profile (invite acceptance)
   // ---------------------------------------------------------------------------
 
-  saveStaffProfile(profileData: StaffProfileData): Observable<{ userId: string }> {
+  saveStaffProfile(
+    profileData: StaffProfileData
+  ): Observable<{ userId: string }> {
     const { tenantId, inviteToken } = this.onboardingState();
 
     if (!inviteToken) {
@@ -107,14 +114,17 @@ export class OnboardingService {
     const body = { ...profileData, token: inviteToken };
 
     return this.http
-      .post<{ userId: string }>(`${this.apiBase}/staff-profile?tenantId=${tenantId}`, body)
+      .post<{ userId: string }>(
+        `${this.apiBase}/staff-profile?tenantId=${tenantId}`,
+        body
+      )
       .pipe(
         tap(() => {
           this.onboardingState.update((state) => ({
             ...state,
             step: 'complete',
           }));
-        }),
+        })
       );
   }
 
@@ -128,9 +138,12 @@ export class OnboardingService {
     telephone?: string;
     email: string;
     password?: string;
-    role: 'admin' | 'staff';
+    role: 'admin' | 'vet' | 'technician' | 'receptionist';
   }): Observable<{ userId: string }> {
-    return this.http.post<{ userId: string }>(`${this.apiBase}/complete-staff`, dto);
+    return this.http.post<{ userId: string }>(
+      `${this.apiBase}/complete-staff`,
+      dto
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -149,7 +162,7 @@ export class OnboardingService {
     return this.http
       .post<{ token: string; tenantId: string; expiresAt: string }>(
         `${this.apiBase}/invite?tenantId=${tenantId}`,
-        body,
+        body
       )
       .pipe(
         map((response) => ({
@@ -158,7 +171,7 @@ export class OnboardingService {
           invitedBy: '',
           expiresAt: new Date(response.expiresAt),
           token: response.token,
-        })),
+        }))
       );
   }
 
@@ -170,14 +183,14 @@ export class OnboardingService {
     tenantId: string;
     tenantName: string;
     email: string;
-    role: 'admin' | 'staff';
+    role: 'admin' | 'vet' | 'technician' | 'receptionist';
     userExists: boolean;
   }> {
     return this.http.get<{
       tenantId: string;
       tenantName: string;
       email: string;
-      role: 'admin' | 'staff';
+      role: 'admin' | 'vet' | 'technician' | 'receptionist';
       userExists: boolean;
     }>(`${this.apiBase}/invite/verify/${token}`);
   }
@@ -187,7 +200,9 @@ export class OnboardingService {
   // Public — no JWT required. Called by WelcomeComponent on page load.
   // ---------------------------------------------------------------------------
 
-  verifyOnboardingToken(token: string): Observable<VerifyOnboardingTokenResponse> {
+  verifyOnboardingToken(
+    token: string
+  ): Observable<VerifyOnboardingTokenResponse> {
     return this.http
       .get<VerifyOnboardingTokenResponse>(`${this.apiBase}/verify/${token}`)
       .pipe(
@@ -201,7 +216,7 @@ export class OnboardingService {
               step: 'clinic-setup',
             }));
           }
-        }),
+        })
       );
   }
 
@@ -214,17 +229,19 @@ export class OnboardingService {
 
   completeAdminOnboarding(
     dto: CompleteAdminOnboardingRequest,
-    logoFile?: File,
+    logoFile?: File
   ): Observable<CompleteAdminOnboardingResponse> {
     let body: FormData | CompleteAdminOnboardingRequest;
 
     if (logoFile) {
       const formData = new FormData();
       // Append all scalar fields individually so NestJS can parse them
-      (Object.keys(dto) as (keyof CompleteAdminOnboardingRequest)[]).forEach((key) => {
-        const val = dto[key];
-        if (val !== undefined) formData.append(key, val);
-      });
+      (Object.keys(dto) as (keyof CompleteAdminOnboardingRequest)[]).forEach(
+        (key) => {
+          const val = dto[key];
+          if (val !== undefined) formData.append(key, val);
+        }
+      );
       formData.append('logo', logoFile);
       body = formData;
     } else {
@@ -235,8 +252,11 @@ export class OnboardingService {
       .post<CompleteAdminOnboardingResponse>(`${this.apiBase}/complete`, body)
       .pipe(
         tap(() => {
-          this.onboardingState.update((state) => ({ ...state, step: 'complete' }));
-        }),
+          this.onboardingState.update((state) => ({
+            ...state,
+            step: 'complete',
+          }));
+        })
       );
   }
 

@@ -67,6 +67,9 @@ export interface CaseModel {
   // Results availability (true when any test has been released by the lab)
   hasReleasedResults?: boolean;
 
+  // Ordering vet (set at case creation, carried to the order)
+  attendingVetId?: string | null;
+
   // Audit
   createdByUserId: string;
   createdAt: Date;

@@ -24,6 +24,7 @@ import { MyPickupsPage } from './pages/pickups/MyPickupsPage';
 import { TemplateManagementPage } from './pages/templates/TemplateManagementPage';
 import { TemplateBuilderPage } from './pages/templates/TemplateBuilderPage';
 import { WorklistPage } from './pages/worklist/WorklistPage';
+import { VetVerificationQueuePage } from './pages/verifications/VetVerificationQueuePage';
 
 export function App() {
   return (
@@ -57,6 +58,10 @@ export function App() {
               <Route
                 path="/orders/:orderId/review"
                 element={<ReviewReleasePage />}
+              />
+              <Route
+                path="/verifications"
+                element={<VetVerificationQueuePage />}
               />
               <Route path="/clients" element={<ClientsPage />} />
               <Route path="/clients/:id" element={<ClientDetailPage />} />

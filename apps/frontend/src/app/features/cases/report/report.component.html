@@ -239,6 +239,24 @@
               </dt>
               <dd class="text-xs text-gray-700">{{ clinicPhone() }}</dd>
             </div>
+            } @if (orderingVet()) {
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-20 shrink-0">
+                {{ 'REPORT.FIELD_VET' | translate }}
+              </dt>
+              <dd class="text-xs font-medium text-gray-800 truncate">
+                {{ orderingVet()!.name }}
+              </dd>
+            </div>
+            } @if (orderingVet()?.licenseNumber) {
+            <div class="flex gap-1.5">
+              <dt class="text-xs text-gray-400 w-20 shrink-0">
+                {{ 'REPORT.FIELD_VET_LICENSE' | translate }}
+              </dt>
+              <dd class="text-xs text-gray-700">
+                {{ orderingVet()!.licenseNumber }}
+              </dd>
+            </div>
             }
           </dl>
         </div>
@@ -766,13 +784,6 @@
       </div>
 
       }
-
-      <!-- KesherIO footer -->
-      <div class="border-t border-gray-100 px-5 py-3 bg-gray-50 text-center">
-        <p class="text-xs text-gray-400">
-          {{ 'BRANDING.POWERED_BY' | translate }}
-        </p>
-      </div>
     </div>
   </main>
   }

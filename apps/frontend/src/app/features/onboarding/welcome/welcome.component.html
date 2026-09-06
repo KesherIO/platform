@@ -42,22 +42,15 @@
   <!-- Valid token — welcome screen -->
   @if (!loading() && !errorReason()) {
   <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
-    <!-- Logo -->
-    <img
-      src="assets/icons/icon-128x128.png"
-      alt="KesherIO logo"
-      class="w-24 h-24 mb-8 rounded-2xl"
-    />
+    <!-- Brand header -->
+    <div class="mb-7">
+      <app-auth-branding />
+    </div>
 
     <!-- Title -->
-    <h1 class="text-3xl font-bold text-gray-900 mb-2 text-center">
+    <h1 class="text-2xl font-bold text-gray-900 mb-2 text-center">
       {{ 'WELCOME.TITLE' | translate : { name: clinicName() } }}
     </h1>
-
-    <!-- Subtitle -->
-    <p class="text-lg text-gray-600 mb-8 text-center">
-      {{ 'WELCOME.SUBTITLE' | translate }}
-    </p>
 
     <!-- Body -->
     <p

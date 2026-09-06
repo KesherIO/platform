@@ -1,11 +1,17 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiSecurity,
+} from '@nestjs/swagger';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 import type { TenantContext } from '@vet-ai/shared-types';
 
 @ApiTags('orders')
 @ApiBearerAuth()
+@ApiSecurity('x-tenant-id')
 @UseGuards(TenantGuard)
 @Controller('orders')
 export class OrdersController {

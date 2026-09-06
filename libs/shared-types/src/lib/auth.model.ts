@@ -12,6 +12,18 @@ export enum TenantRole {
 }
 
 /**
+ * Per-clinic access state for a user's membership.
+ * Matches the Prisma MembershipStatus enum.
+ */
+export enum MembershipStatus {
+  INVITED = 'INVITED',
+  PROFILE_REQUIRED = 'PROFILE_REQUIRED',
+  VERIFICATION_PENDING = 'VERIFICATION_PENDING',
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+}
+
+/**
  * Shape of a decoded Supabase JWT.
  * `sub` is the Supabase Auth user UUID — this becomes User.id in our DB.
  */
@@ -46,5 +58,7 @@ export interface TenantContext {
   tenantName: string;
   tenantLogoUrl: string | null;
   role: TenantRole;
+  isOrderingVet: boolean;
+  status: MembershipStatus;
   canPerformPickups: boolean;
 }

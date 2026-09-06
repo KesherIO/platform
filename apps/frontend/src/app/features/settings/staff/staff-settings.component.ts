@@ -9,7 +9,7 @@ import {
 import { NgClass } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '@ngx-translate/core';
-import { StaffMember } from '@vet-ai/shared-types';
+import { StaffMember, StaffRole } from '@vet-ai/shared-types';
 import { AuthService } from '../../../core/services/auth.service';
 import {
   SettingsService,
@@ -45,6 +45,18 @@ export class StaffSettingsComponent implements OnInit {
   readonly magicLinkResult = signal<MagicLinkResult | null>(null);
   readonly inviteError = signal<InviteErrorType | null>(null);
   readonly copied = signal(false);
+  readonly inviteRole = signal<'vet' | 'technician' | 'receptionist'>('vet');
+  readonly inviteRoleOptions: {
+    value: 'vet' | 'technician' | 'receptionist';
+    labelKey: string;
+  }[] = [
+    { value: 'vet', labelKey: 'SETTINGS.STAFF.INVITE_ROLE_VET' },
+    { value: 'technician', labelKey: 'SETTINGS.STAFF.INVITE_ROLE_TECHNICIAN' },
+    {
+      value: 'receptionist',
+      labelKey: 'SETTINGS.STAFF.INVITE_ROLE_RECEPTIONIST',
+    },
+  ];
 
   readonly showExistingInvite = signal(false);
   readonly existingEmail = signal('');
@@ -52,9 +64,29 @@ export class StaffSettingsComponent implements OnInit {
   readonly existingInviteError = signal<InviteErrorType | null>(null);
   readonly existingMagicLinkResult = signal<MagicLinkResult | null>(null);
   readonly existingCopied = signal(false);
+  readonly existingInviteRole = signal<'vet' | 'technician' | 'receptionist'>(
+    'vet'
+  );
 
   readonly staffList = signal<StaffMember[]>([]);
   readonly loadingStaff = signal(true);
+
+  readonly verificationFilter = signal<string>('ALL');
+  readonly verificationFilterOptions: { value: string; labelKey: string }[] = [
+    { value: 'ALL', labelKey: 'SETTINGS.STAFF.FILTER_ALL' },
+    { value: 'PENDING', labelKey: 'SETTINGS.STAFF.FILTER_PENDING' },
+    { value: 'APPROVED', labelKey: 'SETTINGS.STAFF.FILTER_APPROVED' },
+    { value: 'REJECTED', labelKey: 'SETTINGS.STAFF.FILTER_REJECTED' },
+    { value: 'REVOKED', labelKey: 'SETTINGS.STAFF.FILTER_REVOKED' },
+  ];
+
+  readonly filteredStaff = computed(() => {
+    const filter = this.verificationFilter();
+    if (filter === 'ALL') return this.staffList();
+    return this.staffList().filter(
+      (m) => m.isOrderingVet && m.vetVerificationStatus === filter
+    );
+  });
 
   /** userId currently being removed (shows spinner / disables button) */
   readonly removing = signal<string | null>(null);
@@ -67,12 +99,20 @@ export class StaffSettingsComponent implements OnInit {
     this.loadStaff();
   }
 
+  setInviteRole(role: 'vet' | 'technician' | 'receptionist'): void {
+    this.inviteRole.set(role);
+  }
+
+  setExistingInviteRole(role: 'vet' | 'technician' | 'receptionist'): void {
+    this.existingInviteRole.set(role);
+  }
+
   createMagicLink(): void {
     this.generating.set(true);
     this.magicLinkResult.set(null);
     this.inviteError.set(null);
     this.settingsService
-      .generateMagicLink()
+      .generateMagicLink(undefined, this.inviteRole())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
@@ -116,7 +156,7 @@ export class StaffSettingsComponent implements OnInit {
     this.generatingExisting.set(true);
     this.existingInviteError.set(null);
     this.settingsService
-      .generateMagicLink(email)
+      .generateMagicLink(email, this.existingInviteRole())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
@@ -164,8 +204,19 @@ export class StaffSettingsComponent implements OnInit {
       });
   }
 
-  updateRole(userId: string, currentRole: string): void {
-    const newRole = currentRole === 'Admin' ? 'staff' : 'admin';
+  onRoleChange(userId: string, event: Event): void {
+    const newRole = (event.target as HTMLSelectElement).value as
+      | 'admin'
+      | 'vet'
+      | 'technician'
+      | 'receptionist';
+    this.updateRole(userId, newRole);
+  }
+
+  updateRole(
+    userId: string,
+    newRole: 'admin' | 'vet' | 'technician' | 'receptionist'
+  ): void {
     this.updatingRole.set(userId);
     this.lastAdminError.set(null);
     this.settingsService
@@ -173,11 +224,15 @@ export class StaffSettingsComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
+          const displayMap: Record<string, StaffRole> = {
+            admin: 'Admin',
+            vet: 'Vet',
+            technician: 'Technician',
+            receptionist: 'Receptionist',
+          };
           this.staffList.update((list) =>
             list.map((m) =>
-              m.id === userId
-                ? { ...m, role: newRole === 'admin' ? 'Admin' : 'Staff' }
-                : m
+              m.id === userId ? { ...m, role: displayMap[newRole] ?? 'Vet' } : m
             )
           );
           this.updatingRole.set(null);
@@ -194,13 +249,6 @@ export class StaffSettingsComponent implements OnInit {
     return `SETTINGS.STAFF.ROLE_${role.toUpperCase()}`;
   }
 
-  /** Returns the i18n key for the role-toggle button label. */
-  roleToggleKey(role: string): string {
-    return role === 'Admin'
-      ? 'SETTINGS.STAFF.MAKE_STAFF'
-      : 'SETTINGS.STAFF.MAKE_ADMIN';
-  }
-
   /** Returns the i18n key for a member's status. */
   statusKey(status: string): string {
     return `SETTINGS.STAFF.STATUS_${status.toUpperCase()}`;
@@ -211,6 +259,39 @@ export class StaffSettingsComponent implements OnInit {
     return status === 'Active'
       ? 'bg-green-100 text-green-700'
       : 'bg-orange-100 text-orange-700';
+  }
+
+  setVerificationFilter(value: string): void {
+    this.verificationFilter.set(value);
+  }
+
+  /**
+   * Resolves the badge status key to show for an ordering vet.
+   * Returns null when the member is not an ordering vet.
+   */
+  vetBadgeStatus(member: StaffMember): string | null {
+    if (!member.isOrderingVet) return null;
+    if (member.membershipStatus === 'PROFILE_REQUIRED')
+      return 'PROFILE_REQUIRED';
+    return member.vetVerificationStatus ?? null;
+  }
+
+  /** Returns the i18n key for a vet verification badge status. */
+  vetBadgeKey(badgeStatus: string): string {
+    return `SETTINGS.STAFF.VET_STATUS_${badgeStatus}`;
+  }
+
+  /** Returns Tailwind classes for the vet verification badge. */
+  vetBadgeClass(badgeStatus: string): string {
+    const map: Record<string, string> = {
+      PROFILE_REQUIRED: 'bg-amber-100 text-amber-700',
+      PENDING: 'bg-yellow-100 text-yellow-700',
+      APPROVED: 'bg-emerald-100 text-emerald-700',
+      REJECTED: 'bg-red-100 text-red-600',
+      REVOKED: 'bg-gray-100 text-gray-500',
+      EXPIRED: 'bg-orange-100 text-orange-700',
+    };
+    return map[badgeStatus] ?? 'bg-gray-100 text-gray-500';
   }
 
   private static readonly AVATAR_COLORS = [

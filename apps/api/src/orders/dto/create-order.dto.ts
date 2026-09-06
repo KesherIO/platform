@@ -4,6 +4,15 @@ import type { OrderPriority, DeliveryMethod } from '@vet-ai/shared-types';
 
 export class CreateOrderDto {
   @ApiPropertyOptional({
+    example: 'user-cuid',
+    description:
+      'User ID of the ordering vet. Falls back to Case.attendingVetId when omitted.',
+  })
+  @IsOptional()
+  @IsString()
+  orderingVetId?: string;
+
+  @ApiPropertyOptional({
     enum: ['ROUTINE', 'URGENT', 'STAT'],
     default: 'ROUTINE',
   })

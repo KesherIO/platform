@@ -1,7 +1,11 @@
 import { Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { TranslatePipe, TranslateModule } from '@ngx-translate/core';
+import {
+  TranslatePipe,
+  TranslateModule,
+  TranslateService,
+} from '@ngx-translate/core';
 import { LowerCasePipe } from '@angular/common';
 import {
   debounceTime,
@@ -16,8 +20,10 @@ import {
   AgeUnit,
   CaseModel,
   CaseStatus,
+  EligibleVetModel,
 } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { InputComponent } from '../../../shared/components';
 import { SelectComponent } from '../../../shared/components';
 import { ButtonComponent } from '../../../shared/components';
@@ -43,12 +49,18 @@ export class NewCaseComponent implements OnInit {
   private casesService = inject(CasesService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
+  private auth = inject(AuthService);
+  private translate = inject(TranslateService);
 
   saving = signal(false);
   searchResults = signal<CaseModel[]>([]);
   selectedCase = signal<CaseModel | null>(null);
   showResults = signal(false);
   editCaseId = signal<string | null>(null);
+  vets = signal<EligibleVetModel[]>([]);
+  vetOptions = signal<{ value: string; label: string; disabled?: boolean }[]>(
+    []
+  );
 
   form = this.fb.group({
     patientName: ['', Validators.required],
@@ -60,6 +72,7 @@ export class NewCaseComponent implements OnInit {
     patientAgeUnit: [AgeUnit.YEARS],
     ownerName: ['', Validators.required],
     ownerPhone: [''],
+    attendingVetId: [''],
   });
 
   readonly speciesOptions = [
@@ -134,6 +147,56 @@ export class NewCaseComponent implements OnInit {
           this.showResults.set(results.length > 0);
         }
       });
+
+    // Load eligible vets
+    this.casesService
+      .getEligibleVets()
+      .pipe(take(1))
+      .subscribe({
+        next: (vets) => {
+          this.vets.set(vets);
+          this.vetOptions.set(this.buildVetOptions(vets));
+          this.preselectSelfIfEligible(vets);
+        },
+      });
+  }
+
+  private buildVetOptions(
+    vets: EligibleVetModel[]
+  ): { value: string; label: string; disabled?: boolean }[] {
+    return vets.map((vet) => {
+      const isActive = vet.status === 'ACTIVE';
+      let label = vet.fullName || vet.email;
+      if (!isActive) {
+        const statusLabel = this.translate.instant(
+          this.vetStatusKey(vet.status)
+        );
+        label = `${label} ${statusLabel}`;
+      }
+      return { value: vet.userId, label, disabled: !isActive };
+    });
+  }
+
+  private vetStatusKey(status: string): string {
+    const keys: Record<string, string> = {
+      PROFILE_REQUIRED: 'CASES.VET_STATUS.PROFILE_REQUIRED',
+      VERIFICATION_PENDING: 'CASES.VET_STATUS.VERIFICATION_PENDING',
+      SUSPENDED: 'CASES.VET_STATUS.SUSPENDED',
+      INVITED: 'CASES.VET_STATUS.INVITED',
+    };
+    return keys[status] ?? 'CASES.VET_STATUS.PROFILE_REQUIRED';
+  }
+
+  private preselectSelfIfEligible(vets: EligibleVetModel[]): void {
+    const me = this.auth.me();
+    if (!me) return;
+    const myMembership = me.memberships?.[0];
+    if (!myMembership?.isOrderingVet || myMembership.status !== 'ACTIVE')
+      return;
+    const selfInList = vets.find((v) => v.userId === me.user.id);
+    if (selfInList) {
+      this.form.get('attendingVetId')!.setValue(me.user.id);
+    }
   }
 
   selectExistingCase(c: CaseModel): void {
@@ -208,6 +271,7 @@ export class NewCaseComponent implements OnInit {
         patientAge !== undefined ? (v.patientAgeUnit as AgeUnit) : undefined,
       ownerName: v.ownerName!,
       ownerPhone: v.ownerPhone || undefined,
+      attendingVetId: v.attendingVetId || undefined,
     };
     if (editId) {
       this.casesService

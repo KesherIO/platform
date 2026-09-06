@@ -566,6 +566,89 @@ describe('ReleaseService', () => {
       expect(result.releaseType).toBe('FINAL');
     });
 
+    it('vet snapshot: populated in release when order has ordering vet', async () => {
+      const orderWithVet = {
+        ...baseOrder,
+        orderingVetId: 'vet-user-1',
+        orderingVetName: 'Dr. García, DVM',
+        orderingVetLicenseNumber: 'LIC-001',
+        orderingVetIssuingAuthority: 'CVMC',
+      };
+      prisma.order.findFirst.mockResolvedValue(orderWithVet);
+      prisma.resultReportTest.findMany.mockResolvedValue([baseReportTest]);
+      prisma.resultReportAmendment.findMany.mockResolvedValue([]);
+      prisma.labSigner.findUnique
+        .mockResolvedValueOnce(baseSigner)
+        .mockResolvedValueOnce(baseSigner);
+
+      let capturedReleaseData: Record<string, unknown> | null = null;
+      prisma.$transaction.mockImplementation(async (fn) => {
+        const tx = buildTxMock();
+        tx.resultReportRelease.create.mockImplementation((args) => {
+          capturedReleaseData = args.data;
+          return Promise.resolve({ id: 'release-1' });
+        });
+        return fn(tx);
+      });
+
+      await service.approveAndRelease({
+        orderId: 'order-1',
+        labTenantId: 'lab-1',
+        signerId: 'signer-1',
+        testIds: ['rt-1'],
+        actorId: 'user-1',
+        actorName: 'User',
+      });
+
+      expect(capturedReleaseData).toMatchObject({
+        orderingVetId: 'vet-user-1',
+        orderingVetName: 'Dr. García, DVM',
+        orderingVetLicenseNumber: 'LIC-001',
+        orderingVetIssuingAuthority: 'CVMC',
+      });
+    });
+
+    it('vet snapshot: null when order has no ordering vet (backward compat)', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        ...baseOrder,
+        orderingVetId: null,
+        orderingVetName: null,
+        orderingVetLicenseNumber: null,
+        orderingVetIssuingAuthority: null,
+      });
+      prisma.resultReportTest.findMany.mockResolvedValue([baseReportTest]);
+      prisma.resultReportAmendment.findMany.mockResolvedValue([]);
+      prisma.labSigner.findUnique
+        .mockResolvedValueOnce(baseSigner)
+        .mockResolvedValueOnce(baseSigner);
+
+      let capturedReleaseData: Record<string, unknown> | null = null;
+      prisma.$transaction.mockImplementation(async (fn) => {
+        const tx = buildTxMock();
+        tx.resultReportRelease.create.mockImplementation((args) => {
+          capturedReleaseData = args.data;
+          return Promise.resolve({ id: 'release-1' });
+        });
+        return fn(tx);
+      });
+
+      await service.approveAndRelease({
+        orderId: 'order-1',
+        labTenantId: 'lab-1',
+        signerId: 'signer-1',
+        testIds: ['rt-1'],
+        actorId: 'user-1',
+        actorName: 'User',
+      });
+
+      expect(capturedReleaseData).toMatchObject({
+        orderingVetId: null,
+        orderingVetName: null,
+        orderingVetLicenseNumber: null,
+        orderingVetIssuingAuthority: null,
+      });
+    });
+
     it('scenario 19: release sequence monotonically increases', async () => {
       prisma.order.findFirst.mockResolvedValue(baseOrder);
       prisma.resultReportTest.findMany.mockResolvedValue([baseReportTest]);
@@ -655,6 +738,70 @@ describe('ReleaseService', () => {
 
       const result = await service.getReleaseHistory('order-1', 'lab-1');
       expect(result.aggregateReportStatus).toBe('AMENDMENT_PENDING');
+    });
+
+    it('includes vet snapshot fields in release history entries', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        id: 'order-1',
+        resultReport: { id: 'report-1' },
+      });
+      prisma.resultReportRelease.findMany.mockResolvedValue([
+        {
+          id: 'rel-1',
+          releaseSequence: 1,
+          releaseType: 'FINAL',
+          signerName: 'Dr. Pérez',
+          releasedAt: new Date(),
+          orderingVetId: 'vet-user-1',
+          orderingVetName: 'Dr. García, DVM',
+          orderingVetLicenseNumber: 'LIC-001',
+          orderingVetIssuingAuthority: 'CVMC',
+          tests: [],
+          artifacts: [],
+        },
+      ]);
+      prisma.resultReportTest.findMany.mockResolvedValue([
+        { status: 'RELEASED' },
+      ]);
+      prisma.resultReportAmendment.findMany.mockResolvedValue([]);
+
+      const result = await service.getReleaseHistory('order-1', 'lab-1');
+      expect(result.releases[0]).toMatchObject({
+        orderingVetId: 'vet-user-1',
+        orderingVetName: 'Dr. García, DVM',
+        orderingVetLicenseNumber: 'LIC-001',
+        orderingVetIssuingAuthority: 'CVMC',
+      });
+    });
+
+    it('returns null vet fields when release has no ordering vet (backward compat)', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        id: 'order-1',
+        resultReport: { id: 'report-1' },
+      });
+      prisma.resultReportRelease.findMany.mockResolvedValue([
+        {
+          id: 'rel-1',
+          releaseSequence: 1,
+          releaseType: 'FINAL',
+          signerName: 'Dr. Pérez',
+          releasedAt: new Date(),
+          orderingVetId: null,
+          orderingVetName: null,
+          orderingVetLicenseNumber: null,
+          orderingVetIssuingAuthority: null,
+          tests: [],
+          artifacts: [],
+        },
+      ]);
+      prisma.resultReportTest.findMany.mockResolvedValue([
+        { status: 'RELEASED' },
+      ]);
+      prisma.resultReportAmendment.findMany.mockResolvedValue([]);
+
+      const result = await service.getReleaseHistory('order-1', 'lab-1');
+      expect(result.releases[0].orderingVetId).toBeNull();
+      expect(result.releases[0].orderingVetName).toBeNull();
     });
   });
 });
