@@ -188,6 +188,17 @@ export class ReportComponent implements OnInit {
     });
   });
 
+  orderingVet = computed(() => {
+    const tests = this.releasedTests();
+    const name = tests[0]?.orderingVetName;
+    if (!name) return null;
+    return {
+      name,
+      licenseNumber: tests[0]?.orderingVetLicenseNumber ?? null,
+      issuingAuthority: tests[0]?.orderingVetIssuingAuthority ?? null,
+    };
+  });
+
   pendingTestsDisplay = computed(() => this.pendingTestNames().join(', '));
 
   ngOnInit(): void {

@@ -139,6 +139,7 @@ export class CasesService {
         patientWeight: body.patientWeight ?? null,
         ownerName: body.ownerName,
         ownerPhone: body.ownerPhone ?? null,
+        attendingVetId: body.attendingVetId ?? null,
       },
     });
   }

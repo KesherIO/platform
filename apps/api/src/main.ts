@@ -37,12 +37,28 @@ async function bootstrap() {
     )
     .setVersion('1.0')
     .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-      'supabase-jwt' // referenced by @ApiBearerAuth('supabase-jwt')
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description:
+          'Supabase JWT — paste the access_token from your Supabase session (without the word Bearer)',
+      },
+      'bearer' // matches the default used by @ApiBearerAuth() with no argument
     )
     .addApiKey(
       { type: 'apiKey', in: 'header', name: 'x-internal-api-key' },
       'x-internal-api-key' // referenced by @ApiSecurity('x-internal-api-key')
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'x-tenant-id',
+        description:
+          'Clinic tenant ID — required by all clinic-facing endpoints (TenantGuard). Lab endpoints use the lab tenant ID resolved from your membership instead.',
+      },
+      'x-tenant-id'
     )
     .build();
 

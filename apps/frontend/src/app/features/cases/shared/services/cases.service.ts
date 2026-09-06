@@ -10,6 +10,7 @@ import {
   ResultReportModel,
   AiInterpretationModel,
   ClinicReleasedResultsModel,
+  EligibleVetModel,
   OrderPriority,
 } from '@vet-ai/shared-types';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -78,6 +79,15 @@ export class CasesService {
     );
   }
 
+  getEligibleVets(): Observable<EligibleVetModel[]> {
+    const me = this.auth.me();
+    const tenantId = me?.activeTenantId ?? me?.tenants[0]?.id ?? '';
+    return this.http.get<EligibleVetModel[]>(
+      `/api/tenants/${tenantId}/vets`,
+      this.tenantHeaders
+    );
+  }
+
   createCase(data: {
     patientName: string;
     patientSpecies: PatientSpecies;
@@ -89,6 +99,7 @@ export class CasesService {
     patientWeight?: number;
     ownerName: string;
     ownerPhone?: string;
+    attendingVetId?: string;
   }): Observable<CaseModel> {
     return this.http
       .post<CaseModel>('/api/cases', data, this.tenantHeaders)
@@ -150,12 +161,13 @@ export class CasesService {
   createOrder(
     id: string,
     deliveryMethod?: 'LAB_PICKUP' | 'CLIENT_DELIVERY',
-    priority?: OrderPriority
+    priority?: OrderPriority,
+    orderingVetId?: string
   ): Observable<{ orderId: string; requisitionUrl: string }> {
     return this.http
       .post<{ id: string; requisitionNumber: string; requisitionUrl: string }>(
         `/api/cases/${id}/order`,
-        { deliveryMethod, priority },
+        { deliveryMethod, priority, orderingVetId },
         this.tenantHeaders
       )
       .pipe(

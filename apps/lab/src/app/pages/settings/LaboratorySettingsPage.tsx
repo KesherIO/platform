@@ -23,6 +23,7 @@ const EMPTY_PROFILE: LaboratoryProfile = {
   defaultObservations: '',
   reportDisclaimer: '',
   signatureUrl: '',
+  vetVerificationRequired: false,
 };
 
 const EMPTY_CONTACT: LabContactInfo = {
@@ -66,12 +67,52 @@ export function LaboratorySettingsPage() {
   const confirm = useConfirm();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [profile, setProfile] = useState<LaboratoryProfile>(EMPTY_PROFILE);
-  const [contactInfo, setContactInfo] = useState<LabContactInfo>(EMPTY_CONTACT);
-  const [signers, setSigners] = useState<LabSigner[]>([]);
+
+  // Read cache synchronously so the form is pre-populated on re-mount
+  // (navigating away and back) without waiting for the async queryFn.
+  type CachedSettings = {
+    profileData: LaboratoryProfile | null;
+    contactData: Record<string, unknown> | null;
+  };
+  const [profile, setProfile] = useState<LaboratoryProfile>(() => {
+    const c = queryClient.getQueryData<CachedSettings>([
+      'settings-profile-contact',
+    ]);
+    return c?.profileData ?? EMPTY_PROFILE;
+  });
+  const [contactInfo, setContactInfo] = useState<LabContactInfo>(() => {
+    const c = queryClient.getQueryData<CachedSettings>([
+      'settings-profile-contact',
+    ]);
+    const raw = c?.contactData;
+    if (!raw) return EMPTY_CONTACT;
+    return {
+      ...EMPTY_CONTACT,
+      ...raw,
+      phoneNumbers: Array.isArray(raw.phoneNumbers)
+        ? (raw.phoneNumbers as LabPhoneNumber[])
+        : [],
+    };
+  });
+  const [signers, setSigners] = useState<LabSigner[]>(() => {
+    const c = queryClient.getQueryData<CachedSettings>([
+      'settings-profile-contact',
+    ]);
+    return c?.profileData?.signers ?? [];
+  });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [importingPlatform, setImportingPlatform] = useState(false);
+
+  const initialProfile = useRef<string>('');
+  const initialContact = useRef<string>('');
+  const initialSigners = useRef<string>('');
+
+  const isDirty =
+    !!initialProfile.current &&
+    (JSON.stringify(profile) !== initialProfile.current ||
+      JSON.stringify(contactInfo) !== initialContact.current ||
+      JSON.stringify(signers) !== initialSigners.current);
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
@@ -92,23 +133,33 @@ export function LaboratorySettingsPage() {
           const p = profileData as LaboratoryProfile;
           setProfile(p);
           if (p.signers) setSigners(p.signers);
+          initialProfile.current = JSON.stringify(p);
+          initialSigners.current = JSON.stringify(p.signers ?? []);
         }
         if (contactData) {
           const raw = contactData as Record<string, unknown>;
-          setContactInfo({
+          const parsed = {
             ...EMPTY_CONTACT,
             ...raw,
             phoneNumbers: Array.isArray(raw.phoneNumbers)
               ? (raw.phoneNumbers as LabPhoneNumber[])
               : [],
-          });
+          };
+          setContactInfo(parsed);
+          initialContact.current = JSON.stringify(parsed);
         }
         return { profileData, contactData };
       }),
+    // This query sets form state as a side effect — disable focus/reconnect
+    // refetches to prevent background fetches from overwriting the user's edits
+    // while they're on the page. refetchOnMount (default true) is kept so
+    // navigating back to settings always loads fresh data.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: FormEvent) => {
+    e?.preventDefault();
     setSaving(true);
     setSaved(false);
     try {
@@ -122,6 +173,9 @@ export function LaboratorySettingsPage() {
         ),
       ]);
       await refreshTenant();
+      initialProfile.current = JSON.stringify(profile);
+      initialContact.current = JSON.stringify(contactInfo);
+      initialSigners.current = JSON.stringify(signers);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
@@ -345,9 +399,26 @@ export function LaboratorySettingsPage() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold text-white">
-        {t('settings.title')}
-      </h1>
+      <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-6 flex items-center justify-between bg-gray-950 px-6 py-4 border-b border-gray-800">
+        <h1 className="text-xl font-bold text-white">{t('settings.title')}</h1>
+        {isAdmin && (
+          <div className="flex items-center gap-3">
+            {saved && (
+              <span className="text-sm text-green-400">
+                {t('common.saved')}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => handleSubmit()}
+              disabled={saving || !isDirty}
+              className="rounded-lg bg-cyan px-6 py-2 font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50 transition"
+            >
+              {saving ? t('common.saving') : t('common.save')}
+            </button>
+          </div>
+        )}
+      </div>
 
       {isAdmin && (
         <section className="mb-6 max-w-2xl rounded-xl border border-gray-800 bg-gray-900 p-5">
@@ -758,7 +829,57 @@ export function LaboratorySettingsPage() {
           </div>
         </section>
 
-        {/* ─── Section 3: Lab Signers ─── */}
+        {/* ─── Section 3: Vet Verification ─── */}
+        <section className="rounded-xl border border-gray-800 bg-gray-900 p-5">
+          <h2 className="mb-1 text-lg font-semibold text-white">
+            {t('settings.vet_verification_title')}
+          </h2>
+          <p className="mb-5 text-sm text-gray-400">
+            {t('settings.vet_verification_subtitle')}
+          </p>
+
+          <label className="flex cursor-pointer items-start gap-3">
+            <div className="relative mt-0.5 shrink-0">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={profile.vetVerificationRequired ?? false}
+                disabled={!isAdmin}
+                onChange={(e) =>
+                  setProfile({
+                    ...profile,
+                    vetVerificationRequired: e.target.checked,
+                  })
+                }
+              />
+              <div
+                className={`flex h-6 w-11 items-center rounded-full transition-colors ${
+                  profile.vetVerificationRequired ? 'bg-cyan' : 'bg-gray-700'
+                } ${!isAdmin ? 'cursor-not-allowed opacity-50' : ''}`}
+              >
+                <div
+                  className={`mx-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    profile.vetVerificationRequired
+                      ? 'translate-x-5'
+                      : 'translate-x-0'
+                  }`}
+                />
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white">
+                {t('settings.vet_verification_required_label')}
+              </p>
+              <p className="mt-0.5 text-xs text-gray-400">
+                {profile.vetVerificationRequired
+                  ? t('settings.vet_verification_warning_on')
+                  : t('settings.vet_verification_description')}
+              </p>
+            </div>
+          </label>
+        </section>
+
+        {/* ─── Section 4: Lab Signers ─── */}
         <section className="rounded-xl border border-gray-800 bg-gray-900 p-5">
           <h2 className="text-lg font-semibold text-white">
             {t('settings.signers_title')}
@@ -952,24 +1073,6 @@ export function LaboratorySettingsPage() {
             </button>
           )}
         </section>
-
-        {/* ─── Save ─── */}
-        {isAdmin && (
-          <div className="flex items-center gap-4">
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-cyan px-6 py-2.5 font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
-            >
-              {saving ? t('common.saving') : t('common.save')}
-            </button>
-            {saved && (
-              <span className="text-sm text-green-400">
-                {t('common.saved')}
-              </span>
-            )}
-          </div>
-        )}
       </form>
     </div>
   );

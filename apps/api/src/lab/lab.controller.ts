@@ -19,11 +19,13 @@ import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ApiSecurity } from '@nestjs/swagger';
 import { TenantRole } from '@vet-ai/shared-types';
 import type { TenantContext, AuthenticatedUser } from '@vet-ai/shared-types';
 import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
+import { LabVetVerificationService } from './lab-vet-verification.service';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -38,6 +40,11 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ListClientsDto } from './dto/list-clients.dto';
 import { ListPickupsDto } from './dto/list-pickups.dto';
+import { ListVetVerificationsDto } from './dto/list-vet-verifications.dto';
+import {
+  RejectVerificationDto,
+  RevokeVerificationDto,
+} from '../vet-verification/vet-verification.dto';
 import { AssignMessengerDto } from './dto/assign-messenger.dto';
 import { CancelPickupDto } from './dto/cancel-pickup.dto';
 import { ReportPickupProblemDto } from './dto/report-pickup-problem.dto';
@@ -83,6 +90,7 @@ export class LabController {
     private readonly labService: LabService,
     private readonly labUsersService: LabUsersService,
     private readonly labClientsService: LabClientsService,
+    private readonly labVetVerificationService: LabVetVerificationService,
     private readonly pickupService: PickupService,
     private readonly specimenService: SpecimenService,
     private readonly catalogService: CatalogService,
@@ -102,6 +110,7 @@ export class LabController {
 
   @Public()
   @UseGuards(InternalApiKeyGuard)
+  @ApiSecurity('x-internal-api-key')
   @Post('setup')
   setup(
     @Query('labTenantId') labTenantId: string,
@@ -117,12 +126,15 @@ export class LabController {
   // GET /api/lab/me
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Get('me')
-  getMe(@CurrentTenant() tenant: TenantContext) {
+  async getMe(@CurrentTenant() tenant: TenantContext) {
+    const vetVerificationRequired =
+      await this.labService.getVetVerificationRequired(tenant.tenantId);
     return {
       role: tenant.role,
       tenantName: tenant.tenantName,
       logoUrl: tenant.tenantLogoUrl,
       canPerformPickups: tenant.canPerformPickups,
+      vetVerificationRequired,
     };
   }
 
@@ -762,6 +774,123 @@ export class LabController {
     @Body() dto: UpdateLabContactDto
   ) {
     return this.labService.updateLabContact(tenant.tenantId, dto);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Vet verification queue — lab-facing
+  // ---------------------------------------------------------------------------
+
+  // GET /api/lab/vet-verifications/count?status=PENDING
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('vet-verifications/count')
+  getVetVerificationCount(
+    @CurrentTenant() tenant: TenantContext,
+    @Query('status') status?: string
+  ) {
+    return this.labVetVerificationService.getCount(tenant.tenantId, status);
+  }
+
+  // GET /api/lab/vet-verifications?status=PENDING&search=jones&page=1&pageSize=20
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('vet-verifications')
+  listVetVerifications(
+    @CurrentTenant() tenant: TenantContext,
+    @Query() query: ListVetVerificationsDto
+  ) {
+    return this.labVetVerificationService.list(tenant.tenantId, query);
+  }
+
+  // GET /api/lab/vet-verifications/:id
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('vet-verifications/:id')
+  getVetVerification(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.labVetVerificationService.getById(tenant.tenantId, id);
+  }
+
+  // GET /api/lab/vet-verifications/:id/document
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER, TenantRole.TECHNICIAN)
+  @Get('vet-verifications/:id/document')
+  getVetVerificationDocument(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.labVetVerificationService.getDocument(
+      tenant.tenantId,
+      id,
+      user.id,
+      actorName
+    );
+  }
+
+  // POST /api/lab/vet-verifications/:id/approve
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('vet-verifications/:id/approve')
+  @HttpCode(HttpStatus.OK)
+  approveVetVerification(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.labVetVerificationService.approve(
+      tenant.tenantId,
+      id,
+      user.id,
+      actorName
+    );
+  }
+
+  // POST /api/lab/vet-verifications/:id/reject
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('vet-verifications/:id/reject')
+  @HttpCode(HttpStatus.OK)
+  rejectVetVerification(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: RejectVerificationDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.labVetVerificationService.reject(
+      tenant.tenantId,
+      id,
+      dto.rejectionReason,
+      user.id,
+      actorName
+    );
+  }
+
+  // POST /api/lab/vet-verifications/:id/revoke
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('vet-verifications/:id/revoke')
+  @HttpCode(HttpStatus.OK)
+  revokeVetVerification(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: RevokeVerificationDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.labVetVerificationService.revoke(
+      tenant.tenantId,
+      id,
+      dto.revokedReason,
+      user.id,
+      actorName
+    );
   }
 
   // ---------------------------------------------------------------------------

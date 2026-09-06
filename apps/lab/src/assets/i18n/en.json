@@ -23,9 +23,14 @@
     "clear_date_range": "Clear date range",
     "keep": "Keep"
   },
+  "brand": {
+    "name": "Kesher IO",
+    "lab_portal": "Laboratory Portal",
+    "clinic_portal": "Clinic Portal",
+    "powered_by": "Powered by Kesher IO"
+  },
   "auth": {
-    "title": "Laboratory Portal Sign in",
-    "subtitle": "Powered by KesherIO",
+    "title": "Sign in",
     "email": "Email",
     "password": "Password",
     "show_password": "Show password",
@@ -64,7 +69,8 @@
     "analyzers": "Analyzers",
     "test_config": "Test Config",
     "templates": "Templates",
-    "worklist": "Worklist"
+    "worklist": "Worklist",
+    "verifications": "Verifications"
   },
   "status": {
     "PENDING": "Pending",
@@ -98,7 +104,11 @@
     "PARTIAL_RESULTS": "Partial results",
     "ALL_RELEASED": "All released",
     "AMENDMENT_PENDING": "Amendment pending",
-    "APPROVED": "Approved"
+    "APPROVED": "Approved",
+    "REVOKED": "Revoked",
+    "EXPIRED": "Expired",
+    "PROFILE_REQUIRED": "Profile required",
+    "VERIFICATION_PENDING": "Pending review"
   },
   "species": {
     "ANY": "Any species",
@@ -175,6 +185,8 @@
     "test_cancel_error": "Failed to cancel test:",
     "also_direct": "also ordered directly",
     "also_in_package": "also in: {{name}}",
+    "requesting_vet": "Requesting vet",
+    "vet_license": "License no.",
     "timeline": "Timeline",
     "completed": "Completed"
   },
@@ -369,6 +381,11 @@
     "add_signer": "Add signer",
     "remove_signer": "Remove",
     "no_signers": "No signers configured yet. Add one to appear on report footers.",
+    "vet_verification_title": "Veterinarian verification",
+    "vet_verification_subtitle": "Control whether vets must be verified before placing orders through connected clinics.",
+    "vet_verification_required_label": "Require veterinarian verification before order submission",
+    "vet_verification_description": "When enabled, vets must be reviewed and approved before they can place orders through connected clinics.",
+    "vet_verification_warning_on": "Vets already approved will remain active. New vets will require review.",
     "catalog_setup": {
       "title": "Catalog setup",
       "subtitle": "Import the standard platform catalog as a starting point. This adds all standard tests and packages with platform codes. You can customize them afterwards in the Catalog page.",
@@ -579,7 +596,7 @@
       "confirm_revoke": "The client will no longer be able to use it to onboard.",
       "confirm_regenerate_title": "Generate a new invitation link?",
       "confirm_regenerate": "This will revoke the current one.",
-      "message_template": "Hello! You've been invited to join {{labName}} on KesherIO. Use this link to set up your account: {{link}}"
+      "message_template": "Hello! You've been invited to join {{labName}} on Kesher IO. Use this link to set up your account: {{link}}"
     },
     "detail": {
       "title": "Client details",
@@ -859,7 +876,11 @@
     "catalog_code": "Test Code",
     "species": "Species",
     "version_label": "Version",
-    "status": "Status",
+    "status": {
+      "DRAFT": "Draft",
+      "PUBLISHED": "Published",
+      "ARCHIVED": "Archived"
+    },
     "customize": "Customize",
     "edit": "Edit",
     "publish": "Publish",
@@ -874,7 +895,7 @@
     "form_code_placeholder": "e.g. CALCIO",
     "form_code_hint": "Must match the catalog item code exactly.",
     "species_label": "Species",
-    "customized_success": "Platform template cloned as a lab draft.",
+    "customized_success": "Template cloned. You can now edit your lab-specific version.",
     "confirm_publish": "Publish this template version? It will become the active version and the current published version will be archived.",
     "confirm_archive": "Archive this template version? It will no longer be used for new reports.",
     "confirm_customize": "Clone this platform template to create a lab-specific version?",
@@ -884,7 +905,6 @@
     "delete": "Delete template",
     "confirm_delete": "Delete template?",
     "confirm_delete_message": "This will permanently delete \"{{title}}\" and all its versions. This cannot be undone.",
-    "customized_success": "Template cloned. You can now edit your lab-specific version.",
     "cloned_success": "Template cloned successfully.",
     "builder_title": "Template Builder",
     "save": "Save Draft",
@@ -912,11 +932,6 @@
       "LABORATORY": "Laboratory"
     },
     "template_status": {
-      "DRAFT": "Draft",
-      "PUBLISHED": "Published",
-      "ARCHIVED": "Archived"
-    },
-    "status": {
       "DRAFT": "Draft",
       "PUBLISHED": "Published",
       "ARCHIVED": "Archived"
@@ -1019,5 +1034,74 @@
     "marked_missing_error": "Error marking specimen:",
     "reverse_missing_success": "Missing status reversed.",
     "reverse_missing_error": "Error reversing missing status:"
+  },
+  "verifications": {
+    "title": "Vet verifications",
+    "empty": "No verification requests match this filter.",
+    "error": "Error loading verifications:",
+    "search_placeholder": "Search by vet name...",
+    "filter": {
+      "all": "All",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "revoked": "Revoked"
+    },
+    "col_vet": "Veterinarian",
+    "col_license": "License",
+    "col_country": "Country / Authority",
+    "col_clinic": "Requesting clinic",
+    "col_submitted": "Submitted",
+    "col_status": "Status",
+    "col_actions": "",
+    "review_btn": "Review",
+    "section_vet": "Veterinarian",
+    "section_credential": "Credential",
+    "section_document": "Document",
+    "section_rejection": "Rejection reason",
+    "section_revocation": "Revocation reason",
+    "section_history": "Audit history",
+    "field_name": "Legal name",
+    "field_email": "Email",
+    "field_clinic": "Requesting clinic",
+    "field_submitted": "Submitted",
+    "field_license": "License number",
+    "field_country": "Issuing country",
+    "field_authority": "Issuing authority",
+    "field_expires": "Expires",
+    "reviewed_by": "Reviewed by {{name}}",
+    "doc_open": "Open credential document",
+    "doc_loading": "Opening...",
+    "doc_opened_hint": "Document opened in a new tab.",
+    "duplicate_license_warning": "Another vet profile with the same license number was detected. Review carefully before approving.",
+    "approve_btn": "Approve",
+    "approve_title": "Approve this veterinarian?",
+    "approve_message": "The vet will be marked as approved for this lab. They will be able to place orders through connected clinics immediately.",
+    "approved_success": "Veterinarian approved.",
+    "reject_btn": "Reject",
+    "reject_reason_placeholder": "Describe why this credential was rejected...",
+    "reject_confirm_btn": "Confirm rejection",
+    "rejected_success": "Veterinarian rejected.",
+    "rejecting": "Rejecting...",
+    "revoke_btn": "Revoke approval",
+    "revoke_reason_label": "Reason for revocation",
+    "revoke_reason_placeholder": "Describe why the approval is being revoked...",
+    "revoke_confirm_btn": "Confirm revocation",
+    "revoked_success": "Veterinarian approval revoked.",
+    "revoking": "Revoking...",
+    "error_approve": "Error approving:",
+    "error_reject": "Error rejecting:",
+    "error_revoke": "Error revoking:",
+    "error_document": "Error fetching document:",
+    "event": {
+      "SUBMITTED": "Submitted",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "RESUBMITTED": "Resubmitted",
+      "REVOKED": "Revoked",
+      "EXPIRED": "Expired",
+      "DOCUMENT_VIEWED": "Document viewed"
+    },
+    "profile_changed_warning": "The credential on file has changed since this approval was granted. Review the current document and credential details before taking further action."
   }
 }

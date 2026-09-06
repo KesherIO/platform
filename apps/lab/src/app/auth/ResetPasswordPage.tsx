@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from './supabase';
+import { AuthBranding } from './AuthBranding';
 
 export function ResetPasswordPage() {
   const { t } = useTranslation();
@@ -39,10 +40,13 @@ export function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
+          <div className="mx-auto mb-4">
+            <AuthBranding />
+          </div>
           <h1 className="text-2xl font-bold text-white">
             {t('auth.set_password_title')}
           </h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="mt-2 text-sm text-gray-400">
             {t('auth.set_password_body')}
           </p>
         </div>

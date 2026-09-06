@@ -685,8 +685,15 @@ export class ResultEntryService {
   }
 
   async batchGetResultSessions(testIds: string[], labTenantId: string) {
+    const tests = await this.prisma.orderedTest.findMany({
+      where: { id: { in: testIds }, order: { labTenantId } },
+      select: { id: true, status: true },
+    });
+    const eligible = tests
+      .filter((t) => t.status !== 'CANCELLED' && t.status !== 'BLOCKED')
+      .map((t) => t.id);
     return Promise.all(
-      testIds.map((id) => this.getResultSession(id, labTenantId))
+      eligible.map((id) => this.getResultSession(id, labTenantId))
     );
   }
 }

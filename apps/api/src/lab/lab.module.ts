@@ -3,6 +3,7 @@ import { LabController } from './lab.controller';
 import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
+import { LabVetVerificationService } from './lab-vet-verification.service';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
 import { ResultEntryService } from './result-entry.service';
@@ -18,6 +19,7 @@ import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ResultsModule } from '../results/results.module';
 import { CatalogModule } from '../catalog/catalog.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
@@ -26,12 +28,14 @@ import { CatalogModule } from '../catalog/catalog.module';
     NotificationsModule,
     ResultsModule,
     CatalogModule,
+    StorageModule,
   ],
   controllers: [LabController],
   providers: [
     LabService,
     LabUsersService,
     LabClientsService,
+    LabVetVerificationService,
     PickupService,
     SpecimenService,
     ResultEntryService,

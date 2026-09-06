@@ -11,6 +11,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
+import { AuthBrandingComponent } from '../../../shared/components/auth-branding/auth-branding.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
@@ -27,6 +28,7 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
     TranslatePipe,
     InputComponent,
     PrimaryButtonComponent,
+    AuthBrandingComponent,
   ],
   templateUrl: './staff-profile.component.html',
 })
@@ -46,9 +48,11 @@ export class StaffProfileComponent implements OnInit {
 
   /** True when the invite is a generic link (no email pre-assigned). */
   readonly emailEditable = signal(false);
+  readonly inviteRole = signal<'admin' | 'vet' | 'technician' | 'receptionist'>(
+    'vet'
+  );
 
   private inviteToken = '';
-  private inviteRole: 'admin' | 'staff' = 'staff';
 
   /** Form shown to users who don't have an account yet. */
   readonly newUserForm = this.fb.group(
@@ -86,7 +90,7 @@ export class StaffProfileComponent implements OnInit {
         next: (result) => {
           this.tenantName.set(result.tenantName);
           this.inviteEmail.set(result.email);
-          this.inviteRole = result.role;
+          this.inviteRole.set(result.role);
 
           if (result.email) {
             // Email-specific invite: pre-fill and lock the email field.
@@ -122,7 +126,7 @@ export class StaffProfileComponent implements OnInit {
         fullName,
         email: resolvedEmail,
         password: password!,
-        role: this.inviteRole,
+        role: this.inviteRole(),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -146,7 +150,7 @@ export class StaffProfileComponent implements OnInit {
       .completeStaffOnboarding({
         token: this.inviteToken,
         email: this.inviteEmail(),
-        role: this.inviteRole,
+        role: this.inviteRole(),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

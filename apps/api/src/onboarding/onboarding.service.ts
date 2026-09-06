@@ -34,6 +34,31 @@ export class OnboardingService {
     private readonly storageService: StorageService
   ) {}
 
+  /**
+   * Returns the membership status to assign when a new VET joins a clinic.
+   * If the clinic's connected lab requires vet verification, the vet starts
+   * in PROFILE_REQUIRED so the onboarding screens prompt them to upload
+   * credentials. If the lab does not require verification (or no lab is
+   * connected yet), the vet goes directly to ACTIVE.
+   */
+  private async vetMembershipStatus(
+    tenantId: string
+  ): Promise<'PROFILE_REQUIRED' | 'ACTIVE'> {
+    const connection = await this.prisma.clinicLabConnection.findFirst({
+      where: { clinicId: tenantId, isActive: true },
+      include: {
+        lab: {
+          include: {
+            laboratoryProfile: { select: { vetVerificationRequired: true } },
+          },
+        },
+      },
+    });
+    return connection?.lab?.laboratoryProfile?.vetVerificationRequired
+      ? 'PROFILE_REQUIRED'
+      : 'ACTIVE';
+  }
+
   // ---------------------------------------------------------------------------
   // Public: branding for welcome screen (before user is authenticated)
   // ---------------------------------------------------------------------------
@@ -101,7 +126,9 @@ export class OnboardingService {
 
     const roleMap: Record<string, TenantRole> = {
       admin: TenantRole.ADMIN,
-      staff: TenantRole.VET,
+      vet: TenantRole.VET,
+      technician: TenantRole.TECHNICIAN,
+      receptionist: TenantRole.RECEPTIONIST,
     };
     const tenantRole = roleMap[dto.role];
 
@@ -111,6 +138,11 @@ export class OnboardingService {
 
     const [firstName, ...rest] = dto.fullName.trim().split(' ');
     const lastName = rest.join(' ') || null;
+
+    const vetStatus =
+      tenantRole === TenantRole.VET
+        ? await this.vetMembershipStatus(tenantId)
+        : null;
 
     await this.prisma.$transaction([
       this.prisma.user.update({
@@ -122,6 +154,7 @@ export class OnboardingService {
           userId,
           tenantId,
           role: tenantRole,
+          ...(vetStatus ? { isOrderingVet: true, status: vetStatus } : {}),
         },
       }),
       this.prisma.tenantInvitation.update({
@@ -191,7 +224,13 @@ export class OnboardingService {
     await this.checkTenantCapacity(tenantId, now);
 
     // ── Create the invitation ─────────────────────────────────────────────────
-    const tenantRole = dto.role === 'admin' ? TenantRole.ADMIN : TenantRole.VET;
+    const inviteRoleMap: Record<string, TenantRole> = {
+      admin: TenantRole.ADMIN,
+      vet: TenantRole.VET,
+      technician: TenantRole.TECHNICIAN,
+      receptionist: TenantRole.RECEPTIONIST,
+    };
+    const tenantRole = inviteRoleMap[dto.role ?? 'vet'] ?? TenantRole.VET;
 
     // Rule 2: token expires after exactly 7 days.
     const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -288,11 +327,18 @@ export class OnboardingService {
         }))
       : false;
 
-    // Map internal TenantRole to the user-facing 'admin' | 'staff' value.
-    const role: 'admin' | 'staff' =
-      invite.role === TenantRole.ADMIN || invite.role === TenantRole.OWNER
-        ? 'admin'
-        : 'staff';
+    // Map internal TenantRole to the user-facing role string.
+    const roleMap: Record<
+      string,
+      'admin' | 'vet' | 'technician' | 'receptionist'
+    > = {
+      [TenantRole.ADMIN]: 'admin',
+      [TenantRole.OWNER]: 'admin',
+      [TenantRole.VET]: 'vet',
+      [TenantRole.TECHNICIAN]: 'technician',
+      [TenantRole.RECEPTIONIST]: 'receptionist',
+    };
+    const role = roleMap[invite.role] ?? 'vet';
 
     return {
       tenantId: invite.tenantId,
@@ -332,7 +378,9 @@ export class OnboardingService {
 
     const roleMap: Record<string, TenantRole> = {
       admin: TenantRole.ADMIN,
-      staff: TenantRole.VET,
+      vet: TenantRole.VET,
+      technician: TenantRole.TECHNICIAN,
+      receptionist: TenantRole.RECEPTIONIST,
     };
     const tenantRole = roleMap[dto.role];
     if (!tenantRole) {
@@ -341,6 +389,11 @@ export class OnboardingService {
 
     const [firstName, ...rest] = (dto.fullName ?? '').trim().split(' ');
     const lastName = rest.join(' ') || null;
+
+    const vetStatus =
+      tenantRole === TenantRole.VET
+        ? await this.vetMembershipStatus(invite.tenantId)
+        : null;
 
     // 2. Re-invite path — user already exists (previously removed from clinic).
     //    Skip Supabase + User creation; just add the membership back.
@@ -368,6 +421,7 @@ export class OnboardingService {
             userId: existingUser.id,
             tenantId: invite.tenantId,
             role: tenantRole,
+            ...(vetStatus ? { isOrderingVet: true, status: vetStatus } : {}),
           },
         }),
         this.prisma.tenantInvitation.update({
@@ -407,6 +461,7 @@ export class OnboardingService {
           userId: supabaseUserId,
           tenantId: invite.tenantId,
           role: tenantRole,
+          ...(vetStatus ? { isOrderingVet: true, status: vetStatus } : {}),
         },
       }),
       this.prisma.tenantInvitation.update({

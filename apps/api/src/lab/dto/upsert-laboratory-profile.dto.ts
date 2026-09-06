@@ -1,4 +1,10 @@
-import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class LabSignerDto {
@@ -64,4 +70,8 @@ export class UpsertLaboratoryProfileDto {
   @Type(() => LabSignerDto)
   @IsOptional()
   signers?: LabSignerDto[];
+
+  @IsBoolean()
+  @IsOptional()
+  vetVerificationRequired?: boolean;
 }

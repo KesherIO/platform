@@ -7,6 +7,24 @@
     <p class="text-sm text-gray-500 leading-relaxed mb-4">
       {{ 'SETTINGS.STAFF.INVITE_BODY' | translate : { name: clinicName() } }}
     </p>
+    <!-- Role selector -->
+    <div
+      class="flex rounded-lg border border-gray-200 overflow-hidden mb-4 text-sm font-medium"
+    >
+      @for (r of inviteRoleOptions; track r.value) {
+      <button
+        type="button"
+        (click)="setInviteRole(r.value)"
+        class="flex-1 px-2 py-2 transition-colors duration-150"
+        [class.text-gray-500]="inviteRole() !== r.value"
+        [style.background-color]="inviteRole() === r.value ? '#F3E8FF' : ''"
+        [style.color]="inviteRole() === r.value ? '#7E22CE' : ''"
+      >
+        {{ r.labelKey | translate }}
+      </button>
+      }
+    </div>
+
     <app-secondary-button
       type="button"
       (click)="createMagicLink()"
@@ -48,6 +66,27 @@
       <p class="text-sm text-gray-500 leading-relaxed mb-3">
         {{ 'SETTINGS.STAFF.EXISTING_BODY' | translate }}
       </p>
+
+      <!-- Role selector (existing user) -->
+      <div
+        class="flex rounded-lg border border-gray-200 overflow-hidden mb-3 text-sm font-medium"
+      >
+        @for (r of inviteRoleOptions; track r.value) {
+        <button
+          type="button"
+          (click)="setExistingInviteRole(r.value)"
+          class="flex-1 px-2 py-2 transition-colors duration-150"
+          [class.text-gray-500]="existingInviteRole() !== r.value"
+          [style.background-color]="
+            existingInviteRole() === r.value ? '#F3E8FF' : ''
+          "
+          [style.color]="existingInviteRole() === r.value ? '#7E22CE' : ''"
+        >
+          {{ r.labelKey | translate }}
+        </button>
+        }
+      </div>
+
       <input
         type="email"
         [value]="existingEmail()"
@@ -107,11 +146,31 @@
       {{ 'SETTINGS.STAFF.MEMBERS_TITLE' | translate }}
     </p>
 
+    <!-- Verification status filter tabs -->
+    <div
+      class="flex rounded-lg border border-gray-200 overflow-hidden mb-4 text-xs font-medium"
+    >
+      @for (opt of verificationFilterOptions; track opt.value) {
+      <button
+        type="button"
+        (click)="setVerificationFilter(opt.value)"
+        class="flex-1 px-2 py-2 transition-colors duration-150"
+        [class.text-gray-500]="verificationFilter() !== opt.value"
+        [style.background-color]="
+          verificationFilter() === opt.value ? '#F3E8FF' : ''
+        "
+        [style.color]="verificationFilter() === opt.value ? '#7E22CE' : ''"
+      >
+        {{ opt.labelKey | translate }}
+      </button>
+      }
+    </div>
+
     @if (loadingStaff()) {
     <div class="text-center py-10 text-sm text-gray-400">
       {{ 'COMMON.LOADING' | translate }}
     </div>
-    } @else if (staffList().length === 0) {
+    } @else if (filteredStaff().length === 0) {
     <div class="bg-white rounded-2xl border border-gray-100 p-6 text-center">
       <p class="text-sm text-gray-400">
         {{ 'SETTINGS.STAFF.EMPTY' | translate }}
@@ -119,7 +178,7 @@
     </div>
     } @else {
     <div class="flex flex-col gap-3">
-      @for (member of staffList(); track member.id) {
+      @for (member of filteredStaff(); track member.id) {
       <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
         <!-- Member info row -->
         <div class="flex items-start gap-3">
@@ -148,26 +207,53 @@
               >
                 {{ statusKey(member.status) | translate }}
               </span>
+              @if (vetBadgeStatus(member); as badge) {
+              <span
+                class="text-xs px-2 py-0.5 rounded-full font-medium"
+                [class]="vetBadgeClass(badge)"
+              >
+                {{ vetBadgeKey(badge) | translate }}
+              </span>
+              }
             </div>
           </div>
         </div>
 
         <!-- Actions (active members only) -->
         @if (member.status === 'Active') {
-        <div class="flex items-center gap-3 mt-3 pt-3 border-t border-gray-50">
-          <!-- Role toggle -->
-          <button
-            type="button"
-            (click)="updateRole(member.id, member.role)"
-            [disabled]="updatingRole() === member.id"
-            class="text-xs font-medium text-cyan-500 hover:underline disabled:opacity-50"
+        <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50">
+          <!-- Role select -->
+          <select
+            (change)="onRoleChange(member.id, $event)"
+            [disabled]="
+              updatingRole() === member.id || currentUserId() === member.id
+            "
+            class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 bg-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{
-              updatingRole() === member.id
-                ? ('COMMON.LOADING' | translate)
-                : (roleToggleKey(member.role) | translate)
-            }}
-          </button>
+            <option value="admin" [selected]="member.role === 'Admin'">
+              {{ 'SETTINGS.STAFF.ROLE_ADMIN' | translate }}
+            </option>
+            <option value="vet" [selected]="member.role === 'Vet'">
+              {{ 'SETTINGS.STAFF.ROLE_VET' | translate }}
+            </option>
+            <option
+              value="technician"
+              [selected]="member.role === 'Technician'"
+            >
+              {{ 'SETTINGS.STAFF.ROLE_TECHNICIAN' | translate }}
+            </option>
+            <option
+              value="receptionist"
+              [selected]="member.role === 'Receptionist'"
+            >
+              {{ 'SETTINGS.STAFF.ROLE_RECEPTIONIST' | translate }}
+            </option>
+          </select>
+          @if (updatingRole() === member.id) {
+          <span class="text-xs text-gray-400">{{
+            'COMMON.LOADING' | translate
+          }}</span>
+          }
 
           <!-- Remove -->
           <button

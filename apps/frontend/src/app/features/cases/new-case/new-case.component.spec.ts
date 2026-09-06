@@ -38,6 +38,7 @@ describe('NewCaseComponent', () => {
     searchCases: ReturnType<typeof vi.fn>;
     createCase: ReturnType<typeof vi.fn>;
     updateCase: ReturnType<typeof vi.fn>;
+    getEligibleVets: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -55,6 +56,7 @@ describe('NewCaseComponent', () => {
       updateCase: vi
         .fn()
         .mockReturnValue(of({ id: 'c1', status: CaseStatus.OPEN })),
+      getEligibleVets: vi.fn().mockReturnValue(of([])),
     };
 
     await TestBed.configureTestingModule({

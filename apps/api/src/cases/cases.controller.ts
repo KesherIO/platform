@@ -10,7 +10,12 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiSecurity,
+} from '@nestjs/swagger';
 import { CasesService } from './cases.service';
 import { OrdersService } from '../orders/orders.service';
 import { TenantGuard } from '../auth/guards/tenant.guard';
@@ -27,6 +32,7 @@ import { CreateOrderDto } from '../orders/dto/create-order.dto';
 
 @ApiTags('cases')
 @ApiBearerAuth()
+@ApiSecurity('x-tenant-id')
 @UseGuards(TenantGuard)
 @Controller('cases')
 export class CasesController {

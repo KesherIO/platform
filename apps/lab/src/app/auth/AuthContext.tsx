@@ -17,6 +17,7 @@ interface AuthContextValue {
   labRole: LabRole | null;
   isAdmin: boolean;
   canPerformPickups: boolean;
+  vetVerificationRequired: boolean;
   tenantName: string | null;
   logoUrl: string | null;
   accessDenied: boolean;
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [labRole, setLabRole] = useState<LabRole | null>(null);
   const [canPerformPickupsFlag, setCanPerformPickupsFlag] = useState(false);
+  const [vetVerificationRequired, setVetVerificationRequired] = useState(false);
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -45,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setLabRole(null);
     setCanPerformPickupsFlag(false);
+    setVetVerificationRequired(false);
     setTenantName(null);
     setLogoUrl(null);
     void supabase.auth.signOut();
@@ -64,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessDenied(false);
       setLabRole(data.role as LabRole);
       setCanPerformPickupsFlag(data.canPerformPickups ?? false);
+      setVetVerificationRequired(data.vetVerificationRequired ?? false);
       setTenantName(data.tenantName ?? null);
       setLogoUrl(data.logoUrl ?? null);
     } catch {
@@ -100,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setLabRole(null);
           setCanPerformPickupsFlag(false);
+          setVetVerificationRequired(false);
           setTenantName(null);
           setLogoUrl(null);
         }
@@ -129,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         labRole,
         isAdmin: labRole === 'ADMIN' || labRole === 'OWNER',
         canPerformPickups: labRole === 'MESSENGER' || canPerformPickupsFlag,
+        vetVerificationRequired,
         tenantName,
         logoUrl,
         accessDenied,

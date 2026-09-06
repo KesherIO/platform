@@ -23,9 +23,14 @@
     "clear_date_range": "Limpiar rango de fechas",
     "keep": "Mantener"
   },
+  "brand": {
+    "name": "Kesher IO",
+    "lab_portal": "Portal del Laboratorio",
+    "clinic_portal": "Portal Clínica",
+    "powered_by": "Powered by Kesher IO"
+  },
   "auth": {
-    "title": "Acceso al Portal de Laboratorio",
-    "subtitle": "Desarrollado por KesherIO",
+    "title": "Iniciar sesión",
     "email": "Correo electrónico",
     "password": "Contraseña",
     "show_password": "Mostrar contraseña",
@@ -49,7 +54,7 @@
     "password_updated": "Contraseña actualizada. Redirigiendo..."
   },
   "nav": {
-    "brand": "KesherIO",
+    "brand": "Kesher IO",
     "lab_label": "Laboratorio",
     "orders_queue": "Cola de órdenes",
     "catalog": "Catálogo",
@@ -64,7 +69,8 @@
     "analyzers": "Analizadores",
     "test_config": "Config. Pruebas",
     "templates": "Plantillas",
-    "worklist": "Worklist"
+    "worklist": "Worklist",
+    "verifications": "Verificaciones"
   },
   "status": {
     "PENDING": "Pendiente",
@@ -98,7 +104,11 @@
     "PARTIAL_RESULTS": "Resultados parciales",
     "ALL_RELEASED": "Todos liberados",
     "AMENDMENT_PENDING": "Enmienda pendiente",
-    "APPROVED": "Aprobado"
+    "APPROVED": "Aprobado",
+    "REVOKED": "Revocado",
+    "EXPIRED": "Vencido",
+    "PROFILE_REQUIRED": "Perfil requerido",
+    "VERIFICATION_PENDING": "Revisión pendiente"
   },
   "species": {
     "ANY": "Cualquier especie",
@@ -175,6 +185,8 @@
     "test_cancel_error": "Error al cancelar prueba:",
     "also_direct": "también solicitado directamente",
     "also_in_package": "también en: {{name}}",
+    "requesting_vet": "Veterinario solicitante",
+    "vet_license": "Lic. no.",
     "timeline": "Cronología",
     "completed": "Completada"
   },
@@ -369,6 +381,11 @@
     "add_signer": "Agregar firmante",
     "remove_signer": "Eliminar",
     "no_signers": "No hay firmantes configurados. Agrega uno para que aparezca en los reportes.",
+    "vet_verification_title": "Verificación de veterinarios",
+    "vet_verification_subtitle": "Controla si los veterinarios deben ser verificados antes de hacer pedidos a través de clínicas conectadas.",
+    "vet_verification_required_label": "Requerir verificación antes de enviar órdenes",
+    "vet_verification_description": "Cuando está activo, los veterinarios deben ser revisados y aprobados antes de hacer pedidos a través de clínicas conectadas.",
+    "vet_verification_warning_on": "Los veterinarios ya aprobados seguirán activos. Los nuevos requerirán revisión.",
     "catalog_setup": {
       "title": "Configuración del catálogo",
       "subtitle": "Importa el catálogo estándar de la plataforma como punto de partida. Esto agrega todas las pruebas y paquetes estándar con códigos de plataforma. Luego puedes personalizarlos en la página de Catálogo.",
@@ -579,7 +596,7 @@
       "confirm_revoke": "El cliente ya no podrá usarlo para registrarse.",
       "confirm_regenerate_title": "¿Generar un nuevo enlace de invitación?",
       "confirm_regenerate": "El enlace actual será revocado.",
-      "message_template": "¡Hola! Has sido invitado a unirte a {{labName}} en KesherIO. Usa este enlace para configurar tu cuenta: {{link}}"
+      "message_template": "¡Hola! Has sido invitado a unirte a {{labName}} en Kesher IO. Usa este enlace para configurar tu cuenta: {{link}}"
     },
     "detail": {
       "title": "Detalles del cliente",
@@ -859,7 +876,11 @@
     "catalog_code": "Código de Prueba",
     "species": "Especie",
     "version_label": "Versión",
-    "status": "Estado",
+    "status": {
+      "DRAFT": "Borrador",
+      "PUBLISHED": "Publicado",
+      "ARCHIVED": "Archivado"
+    },
     "customize": "Personalizar",
     "edit": "Editar",
     "publish": "Publicar",
@@ -874,7 +895,7 @@
     "form_code_placeholder": "ej. CALCIO",
     "form_code_hint": "Debe coincidir exactamente con el código del ítem de catálogo.",
     "species_label": "Especie",
-    "customized_success": "Plantilla de plataforma clonada como borrador de laboratorio.",
+    "customized_success": "Plantilla clonada. Ahora puede editar su versión específica del laboratorio.",
     "confirm_publish": "¿Publicar esta versión? Se convertirá en la versión activa y la versión publicada actual será archivada.",
     "confirm_archive": "¿Archivar esta versión? Ya no se usará para nuevos reportes.",
     "confirm_customize": "¿Clonar esta plantilla de plataforma para crear una versión específica del laboratorio?",
@@ -884,7 +905,6 @@
     "delete": "Eliminar plantilla",
     "confirm_delete": "¿Eliminar plantilla?",
     "confirm_delete_message": "Esto eliminará permanentemente \"{{title}}\" y todas sus versiones. Esta acción no se puede deshacer.",
-    "customized_success": "Plantilla clonada. Ahora puede editar su versión específica del laboratorio.",
     "cloned_success": "Plantilla clonada exitosamente.",
     "builder_title": "Constructor de Plantillas",
     "save": "Guardar Borrador",
@@ -912,11 +932,6 @@
       "LABORATORY": "Laboratorio"
     },
     "template_status": {
-      "DRAFT": "Borrador",
-      "PUBLISHED": "Publicado",
-      "ARCHIVED": "Archivado"
-    },
-    "status": {
       "DRAFT": "Borrador",
       "PUBLISHED": "Publicado",
       "ARCHIVED": "Archivado"
@@ -1019,5 +1034,74 @@
     "marked_missing_error": "Error al marcar la muestra:",
     "reverse_missing_success": "Estado de extravío revertido.",
     "reverse_missing_error": "Error al revertir estado:"
+  },
+  "verifications": {
+    "title": "Verificaciones de veterinarios",
+    "empty": "No hay solicitudes de verificación con este filtro.",
+    "error": "Error cargando verificaciones:",
+    "search_placeholder": "Buscar por nombre de veterinario...",
+    "filter": {
+      "all": "Todas",
+      "pending": "Pendientes",
+      "approved": "Aprobadas",
+      "rejected": "Rechazadas",
+      "revoked": "Revocadas"
+    },
+    "col_vet": "Veterinario",
+    "col_license": "Licencia",
+    "col_country": "País / Autoridad",
+    "col_clinic": "Clínica solicitante",
+    "col_submitted": "Enviado",
+    "col_status": "Estado",
+    "col_actions": "",
+    "review_btn": "Revisar",
+    "section_vet": "Veterinario",
+    "section_credential": "Credencial",
+    "section_document": "Documento",
+    "section_rejection": "Motivo de rechazo",
+    "section_revocation": "Motivo de revocación",
+    "section_history": "Historial de auditoría",
+    "field_name": "Nombre legal",
+    "field_email": "Correo",
+    "field_clinic": "Clínica solicitante",
+    "field_submitted": "Enviado",
+    "field_license": "Número de licencia",
+    "field_country": "País emisor",
+    "field_authority": "Autoridad emisora",
+    "field_expires": "Vence",
+    "reviewed_by": "Revisado por {{name}}",
+    "doc_open": "Abrir documento de credencial",
+    "doc_loading": "Abriendo...",
+    "doc_opened_hint": "Documento abierto en una nueva pestaña.",
+    "duplicate_license_warning": "Se detectó otro perfil con el mismo número de licencia. Revisa cuidadosamente antes de aprobar.",
+    "approve_btn": "Aprobar",
+    "approve_title": "¿Aprobar a este veterinario?",
+    "approve_message": "El veterinario quedará aprobado para este laboratorio y podrá hacer pedidos a través de clínicas conectadas de inmediato.",
+    "approved_success": "Veterinario aprobado.",
+    "reject_btn": "Rechazar",
+    "reject_reason_placeholder": "Describe por qué se rechaza esta credencial...",
+    "reject_confirm_btn": "Confirmar rechazo",
+    "rejected_success": "Veterinario rechazado.",
+    "rejecting": "Rechazando...",
+    "revoke_btn": "Revocar aprobación",
+    "revoke_reason_label": "Motivo de revocación",
+    "revoke_reason_placeholder": "Describe por qué se revoca la aprobación...",
+    "revoke_confirm_btn": "Confirmar revocación",
+    "revoked_success": "Aprobación del veterinario revocada.",
+    "revoking": "Revocando...",
+    "error_approve": "Error al aprobar:",
+    "error_reject": "Error al rechazar:",
+    "error_revoke": "Error al revocar:",
+    "error_document": "Error al obtener documento:",
+    "event": {
+      "SUBMITTED": "Enviado",
+      "APPROVED": "Aprobado",
+      "REJECTED": "Rechazado",
+      "RESUBMITTED": "Reenviado",
+      "REVOKED": "Revocado",
+      "EXPIRED": "Vencido",
+      "DOCUMENT_VIEWED": "Documento visto"
+    },
+    "profile_changed_warning": "Las credenciales registradas han cambiado desde que se otorgó esta aprobación. Revise el documento y los datos actuales antes de continuar."
   }
 }

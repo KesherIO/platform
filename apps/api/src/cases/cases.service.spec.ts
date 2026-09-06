@@ -259,6 +259,33 @@ describe('CasesService', () => {
         })
       );
     });
+
+    it('stores attendingVetId when provided', async () => {
+      prisma.case.create.mockResolvedValue(makeCase());
+
+      await service.createCase('tenant-1', 'user-1', {
+        ...CREATE_DTO,
+        attendingVetId: 'vet-user-1',
+      });
+
+      expect(prisma.case.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ attendingVetId: 'vet-user-1' }),
+        })
+      );
+    });
+
+    it('stores null for attendingVetId when not provided', async () => {
+      prisma.case.create.mockResolvedValue(makeCase());
+
+      await service.createCase('tenant-1', 'user-1', CREATE_DTO);
+
+      expect(prisma.case.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ attendingVetId: null }),
+        })
+      );
+    });
   });
 
   // ── updatePatientInfo ──────────────────────────────────────────────────────

@@ -32,6 +32,9 @@ import type {
   CurrentResultsResponse,
   AmendmentInfo,
   AmendmentAnalyteInfo,
+  VetVerificationSummary,
+  VetVerificationDetail,
+  VetVerificationsQuery,
 } from '../../types/lab.types';
 
 async function authHeaders(): Promise<HeadersInit> {
@@ -522,5 +525,37 @@ export const labApi = {
     single: (catalogItemId: string) =>
       get<ReadinessResult>(`lab/catalog/${catalogItemId}/readiness`),
     bulk: () => get<BulkReadinessResponse>('lab/catalog/readiness'),
+  },
+
+  verifications: {
+    list: (params?: VetVerificationsQuery) => {
+      const sp = new URLSearchParams();
+      if (params?.status) sp.set('status', params.status);
+      if (params?.search) sp.set('search', params.search);
+      if (params?.page) sp.set('page', String(params.page));
+      if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
+      const qs = sp.toString();
+      return get<PaginatedResponse<VetVerificationSummary>>(
+        `lab/vet-verifications${qs ? `?${qs}` : ''}`
+      );
+    },
+    getById: (id: string) =>
+      get<VetVerificationDetail>(`lab/vet-verifications/${id}`),
+    getDocument: (id: string) =>
+      get<{ signedUrl: string; expiresAt: string }>(
+        `lab/vet-verifications/${id}/document`
+      ),
+    approve: (id: string) =>
+      post<{ status: string }>(`lab/vet-verifications/${id}/approve`),
+    reject: (id: string, rejectionReason: string) =>
+      post<{ status: string }>(`lab/vet-verifications/${id}/reject`, {
+        rejectionReason,
+      }),
+    revoke: (id: string, revokedReason: string) =>
+      post<{ status: string }>(`lab/vet-verifications/${id}/revoke`, {
+        revokedReason,
+      }),
+    getPendingCount: () =>
+      get<{ count: number }>('lab/vet-verifications/count?status=PENDING'),
   },
 };

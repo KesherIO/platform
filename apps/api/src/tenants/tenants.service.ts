@@ -6,14 +6,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { TenantRole } from '@prisma/client';
-import { StaffMember, StaffRole } from '@vet-ai/shared-types';
+import { EligibleVetModel, StaffMember, StaffRole } from '@vet-ai/shared-types';
 
 const ROLE_MAP: Record<string, StaffRole> = {
   OWNER: 'Admin',
   ADMIN: 'Admin',
-  VET: 'Staff',
-  TECHNICIAN: 'Staff',
-  RECEPTIONIST: 'Staff',
+  VET: 'Vet',
+  TECHNICIAN: 'Technician',
+  RECEPTIONIST: 'Receptionist',
 };
 
 const ADMIN_ROLES: TenantRole[] = [TenantRole.OWNER, TenantRole.ADMIN];
@@ -68,12 +68,32 @@ export class TenantsService {
   async getStaff(tenantId: string): Promise<StaffMember[]> {
     const now = new Date();
 
+    const connection = await this.prisma.clinicLabConnection.findFirst({
+      where: { clinicId: tenantId, isActive: true, isDefault: true },
+      select: { labId: true },
+    });
+    const labId = connection?.labId;
+
     const [memberships, pendingInvites] = await Promise.all([
       this.prisma.userTenantMembership.findMany({
         where: { tenantId },
         include: {
           user: {
-            select: { id: true, firstName: true, lastName: true, email: true },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              veterinarianProfile: {
+                select: {
+                  verifications: {
+                    where: labId ? { labTenantId: labId } : { id: '' },
+                    select: { status: true },
+                    take: 1,
+                  },
+                },
+              },
+            },
           },
         },
         orderBy: { createdAt: 'asc' },
@@ -84,15 +104,23 @@ export class TenantsService {
       }),
     ]);
 
-    const activeMembers: StaffMember[] = memberships.map((m) => ({
-      id: m.userId,
-      fullName:
-        [m.user.firstName, m.user.lastName].filter(Boolean).join(' ') ||
-        m.user.email,
-      email: m.user.email,
-      role: ROLE_MAP[m.role] ?? 'Staff',
-      status: 'Active',
-    }));
+    const activeMembers: StaffMember[] = memberships.map((m) => {
+      const verification = m.isOrderingVet
+        ? m.user.veterinarianProfile?.verifications?.[0]
+        : undefined;
+      return {
+        id: m.userId,
+        fullName:
+          [m.user.firstName, m.user.lastName].filter(Boolean).join(' ') ||
+          m.user.email,
+        email: m.user.email,
+        role: ROLE_MAP[m.role] ?? 'Staff',
+        status: 'Active',
+        isOrderingVet: m.isOrderingVet,
+        membershipStatus: m.status as string,
+        vetVerificationStatus: verification?.status ?? null,
+      };
+    });
 
     // Generic magic links have an empty email — skip them in the list
     const invitedMembers: StaffMember[] = pendingInvites
@@ -103,6 +131,9 @@ export class TenantsService {
         email: inv.email,
         role: ROLE_MAP[inv.role] ?? 'Staff',
         status: 'Invited',
+        isOrderingVet: false,
+        membershipStatus: null,
+        vetVerificationStatus: null,
       }));
 
     return [...activeMembers, ...invitedMembers];
@@ -155,9 +186,19 @@ export class TenantsService {
       await this.assertNotLastAdmin(tenantId);
     }
 
+    const nonVetRoles: TenantRole[] = [
+      TenantRole.TECHNICIAN,
+      TenantRole.RECEPTIONIST,
+      TenantRole.MESSENGER,
+    ];
+    const isOrderingVet = nonVetRoles.includes(role) ? false : undefined;
+
     await this.prisma.userTenantMembership.update({
       where: { userId_tenantId: { userId, tenantId } },
-      data: { role },
+      data: {
+        role,
+        ...(isOrderingVet !== undefined && { isOrderingVet }),
+      },
     });
   }
 
@@ -170,6 +211,58 @@ export class TenantsService {
     if (adminCount <= 1) {
       throw new ConflictException('last_admin');
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Eligible ordering vets — used by case/order vet dropdown
+  // ---------------------------------------------------------------------------
+
+  async getVets(tenantId: string): Promise<EligibleVetModel[]> {
+    const connection = await this.prisma.clinicLabConnection.findFirst({
+      where: { clinicId: tenantId, isActive: true, isDefault: true },
+      select: { labId: true },
+    });
+
+    const labId = connection?.labId;
+
+    const memberships = await this.prisma.userTenantMembership.findMany({
+      where: { tenantId, isOrderingVet: true },
+      include: {
+        user: {
+          include: {
+            veterinarianProfile: {
+              include: {
+                verifications: {
+                  where: labId ? { labTenantId: labId } : { id: '' },
+                  select: { status: true, rejectionReason: true },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return memberships.map((m) => {
+      const verification = m.user.veterinarianProfile?.verifications?.[0];
+      return {
+        userId: m.userId,
+        fullName:
+          [m.user.firstName, m.user.lastName].filter(Boolean).join(' ') ||
+          m.user.email,
+        email: m.user.email,
+        isOrderingVet: m.isOrderingVet,
+        status: m.status as string,
+        vetVerification: verification
+          ? {
+              status: verification.status as string,
+              rejectionReason: verification.rejectionReason,
+            }
+          : null,
+      };
+    });
   }
 
   // ---------------------------------------------------------------------------

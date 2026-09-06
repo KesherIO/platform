@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from './supabase';
 import { useAuth } from './AuthContext';
+import { AuthBranding } from './AuthBranding';
 
 type View = 'login' | 'reset';
 
@@ -66,17 +67,10 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-950 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-6 flex h-32 w-32 items-center justify-center overflow-hidden rounded-2xl border border-gray-800 bg-gradient-to-br from-gray-900 to-gray-800">
-            <img
-              src="/icon-128x128.png"
-              alt="KesherIO"
-              className="h-24 w-24 object-contain"
-            />
+          <div className="mx-auto mb-4">
+            <AuthBranding />
           </div>
           <h1 className="text-2xl font-bold text-white">{t('auth.title')}</h1>
-          <p className="mt-1 text-sm font-semibold text-gray-300">
-            {t('auth.subtitle')}
-          </p>
         </div>
 
         {accessDenied && (

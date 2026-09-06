@@ -565,6 +565,14 @@ export class LabService {
     });
   }
 
+  async getVetVerificationRequired(tenantId: string): Promise<boolean> {
+    const profile = await this.prisma.laboratoryProfile.findUnique({
+      where: { tenantId },
+      select: { vetVerificationRequired: true },
+    });
+    return profile?.vetVerificationRequired ?? false;
+  }
+
   async upsertLaboratoryProfile(
     labTenantId: string,
     data: {
@@ -574,6 +582,7 @@ export class LabService {
       signatureUrl?: string;
       defaultObservations?: string;
       reportDisclaimer?: string;
+      vetVerificationRequired?: boolean;
       signers?: {
         id?: string;
         name: string;
@@ -586,13 +595,48 @@ export class LabService {
       }[];
     }
   ) {
-    const { signers, ...profileData } = data;
+    const { signers, vetVerificationRequired, ...profileData } = data;
+
+    // Fetch current value before upsert to detect toggle direction
+    const currentProfile = await this.prisma.laboratoryProfile.findUnique({
+      where: { tenantId: labTenantId },
+      select: { vetVerificationRequired: true },
+    });
+    const wasRequired = currentProfile?.vetVerificationRequired ?? false;
+
+    const vetVerificationData =
+      vetVerificationRequired !== undefined ? { vetVerificationRequired } : {};
 
     const profile = await this.prisma.laboratoryProfile.upsert({
       where: { tenantId: labTenantId },
-      create: { tenantId: labTenantId, ...profileData, updatedAt: new Date() },
-      update: { ...profileData },
+      create: {
+        tenantId: labTenantId,
+        ...profileData,
+        ...vetVerificationData,
+        updatedAt: new Date(),
+      },
+      update: { ...profileData, ...vetVerificationData },
     });
+
+    // When toggling vetVerificationRequired from true → false, unblock all
+    // VERIFICATION_PENDING ordering-vet memberships connected to this lab.
+    if (wasRequired && vetVerificationRequired === false) {
+      const clinicConnections = await this.prisma.clinicLabConnection.findMany({
+        where: { labId: labTenantId, isActive: true },
+        select: { clinicId: true },
+      });
+      const clinicIds = clinicConnections.map((c) => c.clinicId);
+      if (clinicIds.length > 0) {
+        await this.prisma.userTenantMembership.updateMany({
+          where: {
+            tenantId: { in: clinicIds },
+            status: 'VERIFICATION_PENDING',
+            isOrderingVet: true,
+          },
+          data: { status: 'ACTIVE' },
+        });
+      }
+    }
 
     if (signers !== undefined) {
       const incomingIds = signers.filter((s) => s.id).map((s) => s.id!);

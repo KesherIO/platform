@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   FormBuilder,
@@ -9,13 +9,13 @@ import {
 import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { LanguageService } from '../../../core/services/language.service';
-import { BrandingFooterComponent } from '../../../shared/components/branding-footer/branding-footer.component';
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { SelectComponent } from '../../../shared/components/select/select.component';
 import { ToggleComponent } from '../../../shared/components/toggle/toggle.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 import { OutlineButtonComponent } from '../../../shared/components/outline-button/outline-button.component';
 import { LogoUploadComponent } from '../../../shared/components/logo-upload/logo-upload.component';
+import { AuthBrandingComponent } from '../../../shared/components/auth-branding/auth-branding.component';
 import { COUNTRIES } from '../../../core/data/countries';
 
 @Component({
@@ -24,13 +24,13 @@ import { COUNTRIES } from '../../../core/data/countries';
   imports: [
     ReactiveFormsModule,
     TranslatePipe,
-    BrandingFooterComponent,
     InputComponent,
     SelectComponent,
     ToggleComponent,
     PrimaryButtonComponent,
     OutlineButtonComponent,
     LogoUploadComponent,
+    AuthBrandingComponent,
   ],
   templateUrl: './clinic-setup.component.html',
   styleUrls: ['./clinic-setup.component.scss'],
@@ -50,11 +50,8 @@ export class ClinicSetupComponent implements OnInit {
   pendingLogoFile = signal<File | null>(null);
   uploading = signal(false);
 
-  /** Local object URL for preview — derived from pendingLogoFile, no upload needed */
-  logoPreviewUrl = computed(() => {
-    const file = this.pendingLogoFile();
-    return file ? URL.createObjectURL(file) : null;
-  });
+  /** Local data URL for preview — set via FileReader to avoid blob URL lifetime issues */
+  logoPreviewUrl = signal<string | null>(null);
 
   /** ISO 3166-1 alpha-2 country options for the dropdown.
    *  The label is an i18n key; app-select translates it internally. */
@@ -74,9 +71,13 @@ export class ClinicSetupComponent implements OnInit {
     // Restore previously entered data if user navigates back
     const saved = state.clinic;
 
-    // Restore pending logo file so preview shows after back navigation
+    // Restore pending logo file and preview after back navigation
     if (saved?.pendingLogoFile) {
       this.pendingLogoFile.set(saved.pendingLogoFile);
+      const reader = new FileReader();
+      reader.onload = (e) =>
+        this.logoPreviewUrl.set(e.target?.result as string);
+      reader.readAsDataURL(saved.pendingLogoFile);
     }
 
     this.clinicForm = this.fb.group({
@@ -99,8 +100,10 @@ export class ClinicSetupComponent implements OnInit {
   }
 
   onLogoSelected(file: File): void {
-    // Hold the file in memory — no upload yet, no storage garbage on abandonment
     this.pendingLogoFile.set(file);
+    const reader = new FileReader();
+    reader.onload = (e) => this.logoPreviewUrl.set(e.target?.result as string);
+    reader.readAsDataURL(file);
   }
 
   onBack(): void {

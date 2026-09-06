@@ -175,6 +175,7 @@ export class ResultsController {
 
   @Get('by-order/:orderId')
   @ApiBearerAuth()
+  @ApiSecurity('x-tenant-id')
   @UseGuards(TenantGuard)
   @ApiOperation({ summary: 'Get the result report for an order (clinic view)' })
   findReportByOrderId(
@@ -192,6 +193,7 @@ export class ResultsController {
 
   @Get('by-order/:orderId/released')
   @ApiBearerAuth()
+  @ApiSecurity('x-tenant-id')
   @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Get released results for an order (clinic view, snapshot data)',
@@ -214,6 +216,7 @@ export class ResultsController {
 
   @Get('reports/:id/interpret')
   @ApiBearerAuth()
+  @ApiSecurity('x-tenant-id')
   @UseGuards(TenantGuard)
   @ApiOperation({
     summary: 'Get stored AI interpretation for a report, if any',
@@ -239,6 +242,7 @@ export class ResultsController {
 
   @Post('reports/:id/interpret')
   @ApiBearerAuth()
+  @ApiSecurity('x-tenant-id')
   @UseGuards(TenantGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

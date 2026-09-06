@@ -621,6 +621,25 @@ export function OrderWorkspacePage() {
             )}
           </section>
 
+          {order.orderingVetName && (
+            <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+              <h2 className="mb-3 text-sm font-semibold text-gray-300">
+                {t('workspace.requesting_vet')}
+              </h2>
+              <p className="text-sm text-white">{order.orderingVetName}</p>
+              {order.orderingVetLicenseNumber && (
+                <p className="mt-1 text-sm text-gray-400">
+                  {t('workspace.vet_license')}: {order.orderingVetLicenseNumber}
+                </p>
+              )}
+              {order.orderingVetIssuingAuthority && (
+                <p className="text-sm text-gray-400">
+                  {order.orderingVetIssuingAuthority}
+                </p>
+              )}
+            </section>
+          )}
+
           {order.pickup && (
             <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
               <div className="mb-3 flex items-center justify-between">

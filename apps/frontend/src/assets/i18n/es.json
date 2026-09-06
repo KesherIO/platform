@@ -1,7 +1,6 @@
 {
   "AUTH": {
-    "TITLE": "Acceso al Portal de la Clínica",
-    "SUBTITLE": "Desarrollado por KesherIO",
+    "TITLE": "Iniciar sesión",
     "BODY": "Introduce tus credenciales para continuar",
     "EMAIL_LABEL": "Correo electrónico",
     "EMAIL_PLACEHOLDER": "correo@dominio.com",
@@ -63,9 +62,8 @@
     "STEP_OF": "Paso {{current}} de {{total}}"
   },
   "WELCOME": {
-    "TITLE": "Bienvenido a {{name}} Copilot",
-    "SUBTITLE": "Desarrollado por KesherIO",
-    "BODY": "Vamos a configurar tu clínica para que puedas empezar a usar Copilot.\nEsto solo tomará unos minutos.",
+    "TITLE": "Bienvenido a {{name}}",
+    "BODY": "Vamos a configurar tu clínica para que puedas empezar.\nEsto solo tomará unos minutos.",
     "TERMS_PRE": "Al hacer clic en continuar, aceptas nuestros",
     "TERMS_LINK": "Términos de Servicio",
     "TERMS_AND": "y",
@@ -127,7 +125,7 @@
     "CONFIRM_PASSWORD_PLACEHOLDER": "••••••••",
     "PASSWORD_MISMATCH": "Las contraseñas no coinciden.",
     "PASSWORD_MIN_LENGTH": "La contraseña debe tener al menos 10 caracteres.",
-    "INVITE_TEXT": "Invita a tu equipo a unirse a {{name}} Copilot. Heredarán la configuración de tu clínica y solo necesitarán completar sus datos personales. Se enviará un enlace mágico al correo de tu clínica para compartir.",
+    "INVITE_TEXT": "Invita a tu equipo a unirse a {{name}}. Heredarán la configuración de tu clínica y solo necesitarán completar sus datos personales. Se enviará un enlace mágico al correo de tu clínica para compartir.",
     "CREATE_LINK": "Crear enlace mágico",
     "LINK_LABEL": "Enlace mágico:",
     "SUCCESS_TITLE": "¡Tu cuenta de clínica está lista!",
@@ -157,7 +155,11 @@
     "EXISTING_USER_BODY": "Tu cuenta ya existe. Toca abajo para unirte a {{name}}.",
     "JOIN_BUTTON": "Unirse a la clínica",
     "LINK_EXPIRED_TITLE": "Enlace de invitación expirado",
-    "LINK_EXPIRED_BODY": "Este enlace de invitación ha expirado. Pide al administrador de tu clínica que genere uno nuevo."
+    "LINK_EXPIRED_BODY": "Este enlace de invitación ha expirado. Pide al administrador de tu clínica que genere uno nuevo.",
+    "JOINING_AS": "Ingresando como",
+    "ROLE_VET": "Veterinario",
+    "ROLE_TECHNICIAN": "Técnico Veterinario",
+    "ROLE_RECEPTIONIST": "Recepcionista"
   },
   "PWA": {
     "INSTALL_TITLE": "Agrega a tu pantalla de inicio",
@@ -208,7 +210,7 @@
     },
     "STAFF": {
       "INVITE_TITLE": "Invitar equipo",
-      "INVITE_BODY": "Invita a tu equipo a unirse a {{name}} Copilot. Heredarán la configuración de tu clínica y solo necesitarán completar sus datos personales.",
+      "INVITE_BODY": "Invita a tu equipo a unirse a {{name}}. Heredarán la configuración de tu clínica y solo necesitarán completar sus datos personales.",
       "CREATE_LINK": "Crear enlace mágico",
       "GENERATING": "Generando...",
       "MODAL_TITLE": "Enlace mágico listo",
@@ -219,6 +221,9 @@
       "MEMBERS_TITLE": "Miembros del equipo",
       "ROLE_ADMIN": "Admin",
       "ROLE_STAFF": "Personal",
+      "ROLE_VET": "Veterinario",
+      "ROLE_TECHNICIAN": "Técnico",
+      "ROLE_RECEPTIONIST": "Recepcionista",
       "MAKE_ADMIN": "Cambiar rol a administrador",
       "MAKE_STAFF": "Cambiar rol a personal",
       "REMOVE": "Eliminar",
@@ -233,14 +238,28 @@
       "COPY_EXISTING": "Copiar enlace existente",
       "ERROR_CAPACITY": "Has alcanzado el máximo de 10 invitaciones pendientes. Espera a que alguna sea aceptada o expire antes de crear una nueva.",
       "ERROR_MEMBER": "Este usuario ya es miembro de la clínica.",
-      "EXISTING_TOGGLE": "Esta persona ya tiene una cuenta en KesherIO →",
+      "EXISTING_TOGGLE": "Esta persona ya tiene una cuenta en Kesher IO →",
       "EXISTING_TITLE": "Invitar a alguien con cuenta existente",
-      "EXISTING_BODY": "Usa esto si la persona ya tiene una cuenta en KesherIO, ya sea de esta clínica u otra. Se unirá sin crear una nueva cuenta.",
+      "EXISTING_BODY": "Usa esto si la persona ya tiene una cuenta en Kesher IO, ya sea de esta clínica u otra. Se unirá sin crear una nueva cuenta.",
       "EXISTING_EMAIL_PLACEHOLDER": "equipo@ejemplo.com",
       "EXISTING_SEND": "Enviar invitación",
       "EXISTING_CANCEL": "Cancelar",
       "EXISTING_MODAL_TITLE": "Enlace de invitación listo",
-      "EXISTING_MODAL_BODY": "Comparte este enlace con el miembro del equipo. Podrá unirse a la clínica sin crear una nueva cuenta."
+      "EXISTING_MODAL_BODY": "Comparte este enlace con el miembro del equipo. Podrá unirse a la clínica sin crear una nueva cuenta.",
+      "INVITE_ROLE_VET": "Veterinario",
+      "INVITE_ROLE_TECHNICIAN": "Técnico",
+      "INVITE_ROLE_RECEPTIONIST": "Recepcionista",
+      "FILTER_ALL": "Todos",
+      "FILTER_PENDING": "Pendiente",
+      "FILTER_APPROVED": "Aprobado",
+      "FILTER_REJECTED": "Rechazado",
+      "FILTER_REVOKED": "Revocado",
+      "VET_STATUS_PROFILE_REQUIRED": "Perfil requerido",
+      "VET_STATUS_PENDING": "En revisión",
+      "VET_STATUS_APPROVED": "Aprobado",
+      "VET_STATUS_REJECTED": "Rechazado",
+      "VET_STATUS_REVOKED": "Revocado",
+      "VET_STATUS_EXPIRED": "Expirado"
     }
   },
   "CASES": {
@@ -298,6 +317,8 @@
       "OWNER_NAME_PLACEHOLDER": "ej. Ana García",
       "OWNER_PHONE": "Teléfono del dueño",
       "OWNER_PHONE_PLACEHOLDER": "ej. +52 555 0000",
+      "ATTENDING_VET_LABEL": "Veterinario responsable",
+      "ATTENDING_VET_PLACEHOLDER": "Seleccionar veterinario",
       "SUBMIT": "Guardar y continuar",
       "CANCEL": "Cancelar",
       "SPECIES_DOG": "Perro",
@@ -385,12 +406,21 @@
       "READ_ONLY_NOTICE": "Esta orden ya fue enviada.",
       "CANCELLED_NOTICE": "Este caso fue cancelado.",
       "CANCEL_CASE": "Cancelar Caso",
+      "ORDERING_VET_LABEL": "Veterinario solicitante",
+      "ORDERING_VET_PLACEHOLDER": "Seleccionar veterinario solicitante",
+      "NO_ELIGIBLE_VET": "El veterinario seleccionado aún no está aprobado. Asegúrate de que su perfil esté completo y aprobado por el laboratorio antes de enviar.",
       "DELIVERY_METHOD_LABEL": "¿Cómo llegará la muestra al laboratorio?",
       "DELIVERY_CLIENT": "Yo la entrego",
       "DELIVERY_LAB_PICKUP": "Recolección por el laboratorio",
       "PRIORITY_LABEL": "Prioridad",
       "PRIORITY_ROUTINE": "Rutina",
       "PRIORITY_URGENT": "Urgente"
+    },
+    "VET_STATUS": {
+      "PROFILE_REQUIRED": "(Perfil requerido)",
+      "VERIFICATION_PENDING": "(Pendiente de revisión)",
+      "SUSPENDED": "(Suspendido)",
+      "INVITED": "(Invitado)"
     },
     "ORDER_SUCCESS": {
       "TITLE": "¡Orden Enviada!",
@@ -404,8 +434,12 @@
       "NEW_CASE": "Nuevo Caso"
     }
   },
-  "BRANDING": {
-    "POWERED_BY": "Desarrollado por KesherIO"
+  "BRANDING": {},
+  "BRAND": {
+    "NAME": "Kesher IO",
+    "CLINIC_PORTAL": "Portal Clínica",
+    "LAB_PORTAL": "Portal del Laboratorio",
+    "POWERED_BY": "Powered by Kesher IO"
   },
   "RESULTS_INBOX": {
     "TITLE": "Resultados",
@@ -430,6 +464,8 @@
     "FIELD_SAMPLE_DATE": "Fecha muestra",
     "FIELD_ADDRESS": "Dirección",
     "FIELD_PHONE": "Teléfono",
+    "FIELD_VET": "Vet.",
+    "FIELD_VET_LICENSE": "Licencia",
     "COL_ANALYTE": "Análisis",
     "COL_TECHNIQUE": "Técnica",
     "COL_RESULT": "Res.",
@@ -474,6 +510,52 @@
       "DISCLAIMER_LABEL": "Aviso legal",
       "NO_FLAGGED": "Todos los analitos reportados están dentro de los rangos de referencia."
     }
+  },
+  "VET_PROFILE": {
+    "TITLE": "Tu Perfil Profesional",
+    "SUBTITLE": "Completa tus credenciales veterinarias para ser aprobado por tu laboratorio.",
+    "EDIT_TITLE": "Actualiza tus Credenciales",
+    "EDIT_SUBTITLE": "Actualiza tu información y reenvía para revisión del laboratorio.",
+    "LEGAL_NAME_LABEL": "Nombre legal",
+    "LEGAL_NAME_PLACEHOLDER": "Tal como aparece en tu licencia",
+    "LICENSE_NUMBER_LABEL": "Número de licencia / registro",
+    "LICENSE_NUMBER_PLACEHOLDER": "ej. MVZ-12345",
+    "ISSUING_COUNTRY_LABEL": "País emisor",
+    "ISSUING_COUNTRY_PLACEHOLDER": "Selecciona un país",
+    "ISSUING_AUTHORITY_LABEL": "Autoridad emisora (opcional)",
+    "ISSUING_AUTHORITY_PLACEHOLDER": "ej. SENASICA",
+    "LICENSE_EXPIRES_LABEL": "Fecha de vencimiento (opcional)",
+    "DOCUMENT_LABEL": "Documento de credencial",
+    "DOCUMENT_HINT": "Sube tu licencia o certificado. PDF, JPEG o PNG — máx. 10 MB.",
+    "DOCUMENT_UPLOAD": "Subir documento",
+    "DOCUMENT_CHANGE": "Cambiar documento",
+    "DOCUMENT_TYPE_ERROR": "Tipo de archivo no válido. Sube un PDF, JPEG o PNG.",
+    "DOCUMENT_SIZE_ERROR": "Archivo demasiado grande. El tamaño máximo es 10 MB.",
+    "SAVE_BUTTON": "Guardar perfil",
+    "SAVING": "Guardando...",
+    "UPDATE_RESUBMIT": "Actualizar y reenviar",
+    "SUBMITTING": "Enviando...",
+    "SUCCESS_TITLE": "¡Perfil guardado!",
+    "SUCCESS_BODY": "Tus credenciales han sido guardadas. Envíalas para revisión del laboratorio y empieza a realizar órdenes.",
+    "SUBMIT_BUTTON": "Enviar para revisión",
+    "LOAD_ERROR": "No se pudo cargar tu perfil. Inténtalo de nuevo.",
+    "SAVE_ERROR": "No se pudo guardar tu perfil. Inténtalo de nuevo.",
+    "UPLOAD_ERROR": "No se pudo subir tu documento. Inténtalo de nuevo.",
+    "SUBMIT_ERROR": "No se pudo enviar para revisión. Inténtalo de nuevo."
+  },
+  "VERIFICATION_PENDING": {
+    "TITLE": "Verificación Pendiente",
+    "SUBTITLE": "El laboratorio está revisando tus credenciales. Te notificaremos cuando haya una decisión.",
+    "LAB_LABEL": "Laboratorio",
+    "SUBMITTED_ON": "Enviado el {{date}}",
+    "CONTACT_HINT": "¿Tienes preguntas? Contacta directamente al laboratorio."
+  },
+  "VERIFICATION_REJECTED": {
+    "TITLE": "Verificación Rechazada",
+    "SUBTITLE": "El laboratorio no pudo aprobar tus credenciales.",
+    "REASON_LABEL": "Motivo indicado",
+    "UPDATE_BUTTON": "Actualizar credenciales",
+    "CONTACT_HINT": "Si crees que esto es un error, contacta directamente al laboratorio."
   },
   "COUNTRIES": {
     "AR": "Argentina",

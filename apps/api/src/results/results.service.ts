@@ -1130,6 +1130,10 @@ export class ResultsService {
             analystRegistrationNumber: true,
             analystSignatureUrl: true,
             reportDisclaimer: true,
+            orderingVetId: true,
+            orderingVetName: true,
+            orderingVetLicenseNumber: true,
+            orderingVetIssuingAuthority: true,
           },
         },
       },
@@ -1200,6 +1204,12 @@ export class ResultsService {
         analystSignatureUrl: rt.release.analystSignatureUrl ?? undefined,
         reportDisclaimer: rt.release.reportDisclaimer ?? undefined,
         observations: rt.observations ?? undefined,
+        orderingVetId: rt.release.orderingVetId ?? undefined,
+        orderingVetName: rt.release.orderingVetName ?? undefined,
+        orderingVetLicenseNumber:
+          rt.release.orderingVetLicenseNumber ?? undefined,
+        orderingVetIssuingAuthority:
+          rt.release.orderingVetIssuingAuthority ?? undefined,
         analytes: rt.analytes.map(
           (a): ResultReportAnalyteModel => ({
             id: a.id,

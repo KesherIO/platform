@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiConsumes,
+  ApiSecurity,
 } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { TenantsService } from './tenants.service';
@@ -41,12 +42,13 @@ class UpdateClinicDto {
 }
 
 class UpdateStaffRoleDto {
-  @IsEnum(['admin', 'staff'])
-  role!: 'admin' | 'staff';
+  @IsEnum(['admin', 'vet', 'technician', 'receptionist'])
+  role!: 'admin' | 'vet' | 'technician' | 'receptionist';
 }
 
 @ApiTags('tenants')
 @ApiBearerAuth()
+@ApiSecurity('x-tenant-id')
 @Controller('tenants')
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
@@ -107,8 +109,23 @@ export class TenantsController {
     @Param('userId') userId: string,
     @Body() body: UpdateStaffRoleDto
   ) {
-    const role = body.role === 'admin' ? TenantRole.ADMIN : TenantRole.VET;
+    const roleMap: Record<string, TenantRole> = {
+      admin: TenantRole.ADMIN,
+      vet: TenantRole.VET,
+      technician: TenantRole.TECHNICIAN,
+      receptionist: TenantRole.RECEPTIONIST,
+    };
+    const role = roleMap[body.role] ?? TenantRole.VET;
     return this.tenantsService.updateStaffRole(tenant.tenantId, userId, role);
+  }
+
+  @Get(':id/vets')
+  @UseGuards(TenantGuard)
+  @ApiOperation({
+    summary: 'List ordering vets in this clinic with verification status',
+  })
+  getVets(@CurrentTenant() tenant: TenantContext) {
+    return this.tenantsService.getVets(tenant.tenantId);
   }
 
   @Get(':id/lab-contact')

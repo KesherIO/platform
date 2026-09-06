@@ -12,10 +12,10 @@ import {
 import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { BrandingFooterComponent } from '../../../shared/components/branding-footer/branding-footer.component';
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 import { OutlineButtonComponent } from '../../../shared/components/outline-button/outline-button.component';
+import { AuthBrandingComponent } from '../../../shared/components/auth-branding/auth-branding.component';
 
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
   const password = group.get('password')?.value;
@@ -31,10 +31,10 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
   imports: [
     ReactiveFormsModule,
     TranslatePipe,
-    BrandingFooterComponent,
     InputComponent,
     PrimaryButtonComponent,
     OutlineButtonComponent,
+    AuthBrandingComponent,
   ],
   templateUrl: './admin-profile.component.html',
 })

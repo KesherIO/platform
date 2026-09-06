@@ -1,5 +1,5 @@
+export * from './auth-branding/auth-branding.component';
 export * from './bottom-nav/bottom-nav.component';
-export * from './branding-footer/branding-footer.component';
 export * from './language-toggle/language-toggle.component';
 export * from './button/button.component';
 export * from './input/input.component';

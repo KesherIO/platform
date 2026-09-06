@@ -109,6 +109,10 @@ export interface ReleasedTestResult {
   analystSignatureUrl?: string;
   reportDisclaimer?: string;
   observations?: string;
+  orderingVetId?: string;
+  orderingVetName?: string;
+  orderingVetLicenseNumber?: string;
+  orderingVetIssuingAuthority?: string;
   analytes: ResultReportAnalyteModel[];
 }
 

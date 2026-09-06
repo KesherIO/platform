@@ -86,12 +86,15 @@ export function BatchResultEntryPage() {
   const packageTests = useMemo<OrderedTest[]>(() => {
     if (!order || !packageOriginId) return [];
     const detail = order as LabOrderDetail;
-    return detail.orderedTests.filter((test) =>
-      test.sources.some(
-        (s) =>
-          s.sourceType === 'PACKAGE' &&
-          s.originCatalogItemId === packageOriginId
-      )
+    return detail.orderedTests.filter(
+      (test) =>
+        test.status !== 'CANCELLED' &&
+        test.status !== 'BLOCKED' &&
+        test.sources.some(
+          (s) =>
+            s.sourceType === 'PACKAGE' &&
+            s.originCatalogItemId === packageOriginId
+        )
     );
   }, [order, packageOriginId]);
 

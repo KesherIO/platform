@@ -21,9 +21,12 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     lastName: 'Smith',
     phone: null,
     createdAt: new Date('2024-01-01'),
+    veterinarianProfile: null,
     memberships: [
       {
         role: 'ADMIN',
+        status: 'ACTIVE',
+        isOrderingVet: false,
         createdAt: new Date('2024-01-01'),
         tenant: {
           id: 'tenant-1',
@@ -35,6 +38,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
           address: null,
           logoUrl: null,
           primaryColor: null,
+          labConnections: [],
         },
       },
     ],
@@ -116,9 +120,30 @@ describe('AuthService', () => {
       expect(result.onboardingCompleted).toBe(false);
     });
 
-    it('onboardingCompleted is false when firstName is not set', async () => {
+    it('onboardingCompleted is false when membership status is not ACTIVE', async () => {
       prisma.user.findUniqueOrThrow.mockResolvedValue(
-        makeUser({ firstName: null })
+        makeUser({
+          memberships: [
+            {
+              role: 'VET',
+              status: 'VERIFICATION_PENDING',
+              isOrderingVet: true,
+              createdAt: new Date('2024-01-01'),
+              tenant: {
+                id: 'tenant-1',
+                name: 'City Vet',
+                slug: 'city-vet',
+                type: 'CLINIC',
+                email: null,
+                phone: null,
+                address: null,
+                logoUrl: null,
+                primaryColor: null,
+                labConnections: [],
+              },
+            },
+          ],
+        })
       );
 
       const result = await service.getMe('user-1');
@@ -150,6 +175,8 @@ describe('AuthService', () => {
           memberships: [
             {
               role: 'TECHNICIAN',
+              status: 'ACTIVE',
+              isOrderingVet: false,
               createdAt: new Date('2024-01-01'),
               tenant: {
                 id: 'lab-1',
@@ -161,6 +188,7 @@ describe('AuthService', () => {
                 address: null,
                 logoUrl: null,
                 primaryColor: null,
+                labConnections: [],
               },
             },
           ],

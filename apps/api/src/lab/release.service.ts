@@ -62,6 +62,10 @@ export class ReleaseService {
         createdAt: true,
         tenantId: true,
         labTenantId: true,
+        orderingVetId: true,
+        orderingVetName: true,
+        orderingVetLicenseNumber: true,
+        orderingVetIssuingAuthority: true,
         resultReport: {
           select: { id: true, status: true, currentReleaseSequence: true },
         },
@@ -274,6 +278,11 @@ export class ReleaseService {
             releasedByName: actorName,
             reviewNotes: reviewNotes ?? null,
             observations: observations ?? null,
+            orderingVetId: order.orderingVetId ?? null,
+            orderingVetName: order.orderingVetName ?? null,
+            orderingVetLicenseNumber: order.orderingVetLicenseNumber ?? null,
+            orderingVetIssuingAuthority:
+              order.orderingVetIssuingAuthority ?? null,
             ...snapshots,
           },
         });
@@ -498,6 +507,10 @@ export class ReleaseService {
         releasedAt: r.releasedAt.toISOString(),
         pdfStatus: r.artifacts[0]?.status ?? 'PENDING',
         pdfUrl: r.artifacts[0]?.storageUrl ?? null,
+        orderingVetId: r.orderingVetId ?? null,
+        orderingVetName: r.orderingVetName ?? null,
+        orderingVetLicenseNumber: r.orderingVetLicenseNumber ?? null,
+        orderingVetIssuingAuthority: r.orderingVetIssuingAuthority ?? null,
         tests: r.tests.map((t) => ({
           catalogItemName: t.catalogItemName,
           catalogItemCode: t.catalogItemCode,
@@ -567,6 +580,10 @@ export class ReleaseService {
             releaseType: true,
             releasedAt: true,
             signerName: true,
+            orderingVetId: true,
+            orderingVetName: true,
+            orderingVetLicenseNumber: true,
+            orderingVetIssuingAuthority: true,
           },
         },
       },
@@ -591,6 +608,11 @@ export class ReleaseService {
         releaseType: rt.release.releaseType,
         releasedAt: rt.release.releasedAt.toISOString(),
         signerName: rt.release.signerName,
+        orderingVetId: rt.release.orderingVetId ?? null,
+        orderingVetName: rt.release.orderingVetName ?? null,
+        orderingVetLicenseNumber: rt.release.orderingVetLicenseNumber ?? null,
+        orderingVetIssuingAuthority:
+          rt.release.orderingVetIssuingAuthority ?? null,
         analytes: rt.analytes.map((a) => ({
           code: a.code,
           name: a.name,

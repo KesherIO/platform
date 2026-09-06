@@ -14,6 +14,8 @@ import { OrdersModule } from '../orders/orders.module';
 import { ResultsModule } from '../results/results.module';
 import { LabModule } from '../lab/lab.module';
 import { LabConfigModule } from '../lab-config/lab-config.module';
+import { VetProfileModule } from '../vet-profile/vet-profile.module';
+import { VetVerificationModule } from '../vet-verification/vet-verification.module';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -34,6 +36,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     ResultsModule,
     LabModule,
     LabConfigModule,
+    VetProfileModule,
+    VetVerificationModule,
   ],
   controllers: [AppController],
   providers: [

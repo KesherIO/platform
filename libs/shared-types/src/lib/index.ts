@@ -17,3 +17,4 @@ export * from './triage-result.model.js';
 export * from './ai-interpretation.model.js';
 export * from './lab.model.js';
 export * from './pickup.model.js';
+export * from './vet.model.js';
