@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx nx build frontend --configuration=production",
+  "buildCommand": "node apps/frontend/scripts/write-sentry-env.js && npx nx build frontend --configuration=production && node apps/frontend/scripts/upload-sentry-sourcemaps.js",
   "outputDirectory": "dist/apps/frontend/browser",
   "framework": null,
   "rewrites": [

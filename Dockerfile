@@ -20,6 +20,29 @@ COPY . .
 RUN npx nx sync
 RUN npx nx build api --configuration=production
 
+# ── Sentry source-map upload (optional — skipped when args are empty) ──
+ARG SENTRY_AUTH_TOKEN=""
+ARG SENTRY_ORG=""
+ARG SENTRY_PROJECT=""
+ARG RAILWAY_GIT_COMMIT_SHA=""
+
+RUN if [ -n "$SENTRY_AUTH_TOKEN" ] && [ -n "$SENTRY_ORG" ] && [ -n "$SENTRY_PROJECT" ] && [ -n "$RAILWAY_GIT_COMMIT_SHA" ]; then \
+      npx sentry-cli releases new "$RAILWAY_GIT_COMMIT_SHA" \
+        --org "$SENTRY_ORG" \
+        --project "$SENTRY_PROJECT" && \
+      npx sentry-cli releases files "$RAILWAY_GIT_COMMIT_SHA" upload-sourcemaps ./apps/api/dist \
+        --org "$SENTRY_ORG" \
+        --project "$SENTRY_PROJECT" && \
+      npx sentry-cli releases finalize "$RAILWAY_GIT_COMMIT_SHA" \
+        --org "$SENTRY_ORG" \
+        --project "$SENTRY_PROJECT" ; \
+    else \
+      echo "[sentry] Skipping source-map upload (missing build args)" ; \
+    fi
+
+# Remove .map files so they are never served at runtime
+RUN find ./apps/api/dist -name '*.map' -delete
+
 FROM node:22-alpine
 
 WORKDIR /app

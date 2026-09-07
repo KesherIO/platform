@@ -1,7 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import * as Sentry from '@sentry/react';
 import { AuthProvider } from './auth/AuthContext';
 import { ToastProvider } from './shared/components/ToastProvider';
 import { ConfirmDialogProvider } from './shared/components/ConfirmDialogProvider';
+import { ErrorFallback } from './shared/components/ErrorFallback';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { LoginPage } from './auth/LoginPage';
 import { AuthCallbackPage } from './auth/AuthCallbackPage';
@@ -28,7 +30,8 @@ import { VetVerificationQueuePage } from './pages/verifications/VetVerificationQ
 
 export function App() {
   return (
-    <ToastProvider>
+    <Sentry.ErrorBoundary fallback={<ErrorFallback />}>
+      <ToastProvider>
       <ConfirmDialogProvider>
         <AuthProvider>
           <Routes>
@@ -90,6 +93,7 @@ export function App() {
         </AuthProvider>
       </ConfirmDialogProvider>
     </ToastProvider>
+    </Sentry.ErrorBoundary>
   );
 }
 

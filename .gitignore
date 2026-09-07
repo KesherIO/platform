@@ -54,5 +54,8 @@ test-output
 .env.*
 !.env.example
 
+# Generated Sentry config (contains DSN from build env)
+apps/frontend/src/environments/environment.sentry.ts
+
 vite.config.*.timestamp*
 vitest.config.*.timestamp*

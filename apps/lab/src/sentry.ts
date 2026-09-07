@@ -1,15 +1,13 @@
-import * as Sentry from '@sentry/angular';
-import { environment } from './environments/environment';
-import { bootstrapApplication } from '@angular/platform-browser';
-import { appConfig } from './app/app.config';
-import { AppComponent } from './app/app.component';
+import * as Sentry from '@sentry/react';
 
-if (environment.sentryDsn) {
+const dsn = import.meta.env.VITE_SENTRY_DSN || '';
+
+if (dsn) {
   Sentry.init({
-    dsn: environment.sentryDsn,
-    environment: environment.production ? 'production' : 'development',
-    release: environment.sentryRelease || undefined,
-    tracesSampleRate: environment.production ? 0.1 : 0,
+    dsn,
+    environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || 'production',
+    release: import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA || undefined,
+    tracesSampleRate: 0.1,
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 0,
     beforeSend(event) {
@@ -39,9 +37,7 @@ if (environment.sentryDsn) {
   // Temporary test mechanism — call window.__SENTRY_TEST__() from the browser
   // console to verify Sentry captures a controlled error. Remove before final handoff.
   (window as unknown as Record<string, unknown>)['__SENTRY_TEST__'] = () => {
-    Sentry.captureException(new Error('Sentry test error — clinic'));
-    console.log('[Sentry] Test error captured. Check the kesherio-clinic Sentry project.');
+    Sentry.captureException(new Error('Sentry test error — lab'));
+    console.log('[Sentry] Test error captured. Check the kesherio-lab Sentry project.');
   };
 }
-
-bootstrapApplication(AppComponent, appConfig).catch((err) => console.error(err));

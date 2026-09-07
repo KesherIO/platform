@@ -1,5 +1,5 @@
-import { ApplicationConfig, isDevMode, APP_INITIALIZER } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { ApplicationConfig, isDevMode, APP_INITIALIZER, ErrorHandler } from '@angular/core';
+import { Router, provideRouter } from '@angular/router';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideTranslateService, TranslateService } from '@ngx-translate/core';
@@ -7,6 +7,8 @@ import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { routes } from './app.routes';
 import { provideServiceWorker } from '@angular/service-worker';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
+import * as Sentry from '@sentry/angular';
+import { environment } from '../environments/environment';
 
 const LANG_KEY = 'kesherio_lang';
 
@@ -18,6 +20,19 @@ function initTranslations(translate: TranslateService) {
     return translate.use(lang).toPromise();
   };
 }
+
+const sentryProviders = environment.sentryDsn
+  ? [
+      { provide: ErrorHandler, useValue: Sentry.createErrorHandler() },
+      { provide: Sentry.TraceService, deps: [Router] },
+      {
+        provide: APP_INITIALIZER,
+        useFactory: () => () => undefined,
+        deps: [Sentry.TraceService],
+        multi: true,
+      },
+    ]
+  : [];
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -36,5 +51,6 @@ export const appConfig: ApplicationConfig = {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',
     }),
+    ...sentryProviders,
   ],
 };

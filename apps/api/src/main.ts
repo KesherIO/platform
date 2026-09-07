@@ -1,14 +1,22 @@
+import './instrument';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost } from '@nestjs/core';
 import { json } from 'express';
 import helmet from 'helmet';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
+import { SentryExceptionFilter } from './common/filters/sentry-exception.filter';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
+
+  // Request ID — must run before all other middleware
+  const requestIdMiddleware = new RequestIdMiddleware();
+  app.use(requestIdMiddleware.use.bind(requestIdMiddleware));
 
   app.use(json({ limit: '5mb' }));
 
@@ -70,6 +78,8 @@ async function bootstrap() {
   });
   // ─────────────────────────────────────────────────────────────────────────
 
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new SentryExceptionFilter(httpAdapter));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const allowedOrigins = [

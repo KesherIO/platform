@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -16,8 +17,10 @@ import { LabModule } from '../lab/lab.module';
 import { LabConfigModule } from '../lab-config/lab-config.module';
 import { VetProfileModule } from '../vet-profile/vet-profile.module';
 import { VetVerificationModule } from '../vet-verification/vet-verification.module';
+import { HealthModule } from '../health/health.module';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { LoggingInterceptor } from '../common/interceptors/logging.interceptor';
 
 @Module({
   imports: [
@@ -25,6 +28,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
       isGlobal: true,
       envFilePath: ['.env', 'apps/api/.env'],
     }),
+    SentryModule.forRoot(),
     PrismaModule,
     StorageModule,
     AuthModule,
@@ -36,12 +40,14 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     ResultsModule,
     LabModule,
     LabConfigModule,
+    HealthModule,
     VetProfileModule,
     VetVerificationModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
     // Global guards — order matters: JWT first, then roles
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
