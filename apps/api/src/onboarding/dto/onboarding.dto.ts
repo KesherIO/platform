@@ -285,3 +285,63 @@ export class CompleteAdminOnboardingDto {
   @IsUrl()
   logoUrl?: string;
 }
+
+// ---------------------------------------------------------------------------
+// POST /onboarding/lab-link
+// Creates a new LAB_ADMIN onboarding token (called by KesherIO / admin app).
+// ---------------------------------------------------------------------------
+
+export class CreateLabLinkDto {
+  @ApiProperty({ example: 'Kesher Diagnostics' })
+  @IsString()
+  @MinLength(2)
+  labName!: string;
+
+  @ApiProperty({ example: 'info@kesherlab.com' })
+  @IsEmail()
+  labEmail!: string;
+}
+
+// ---------------------------------------------------------------------------
+// POST /onboarding/complete-lab
+// Completes LAB_ADMIN onboarding: creates Supabase user + Tenant(LAB)
+// + LaboratoryProfile + ADMIN membership.
+// ---------------------------------------------------------------------------
+
+export class DeleteLabDto {
+  @ApiProperty({ example: 'clx1abc...' })
+  @IsString()
+  @IsNotEmpty()
+  tenantId!: string;
+}
+
+export class CompleteLabOnboardingDto {
+  @ApiProperty({ example: 'abc123...hex token' })
+  @IsString()
+  @IsNotEmpty()
+  token!: string;
+
+  @ApiProperty({ example: 'Jane' })
+  @IsString()
+  @IsNotEmpty()
+  adminFirstName!: string;
+
+  @ApiProperty({ example: 'Doe' })
+  @IsString()
+  @IsNotEmpty()
+  adminLastName!: string;
+
+  @ApiProperty({ example: 'admin@kesherlab.com' })
+  @IsEmail()
+  adminEmail!: string;
+
+  @ApiProperty({ example: 'supersecret123', minLength: 8 })
+  @IsString()
+  @MinLength(8)
+  password!: string;
+
+  @ApiProperty({ example: 'Kesher Diagnostics' })
+  @IsString()
+  @MinLength(2)
+  labName!: string;
+}

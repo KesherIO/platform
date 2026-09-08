@@ -35,7 +35,8 @@ RUN if [ -n "$SENTRY_AUTH_TOKEN" ] && [ -n "$SENTRY_ORG" ] && [ -n "$SENTRY_PROJ
         --project "$SENTRY_PROJECT" && \
       npx sentry-cli releases finalize "$RAILWAY_GIT_COMMIT_SHA" \
         --org "$SENTRY_ORG" \
-        --project "$SENTRY_PROJECT" ; \
+        --project "$SENTRY_PROJECT" \
+      || echo "[sentry] Source-map upload failed (non-fatal)" ; \
     else \
       echo "[sentry] Skipping source-map upload (missing build args)" ; \
     fi

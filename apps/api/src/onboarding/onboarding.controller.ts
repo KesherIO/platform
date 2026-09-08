@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Delete,
   Body,
   Get,
   Param,
@@ -30,6 +31,9 @@ import {
   CreateAdminLinkDto,
   CompleteAdminOnboardingDto,
   CompleteStaffOnboardingDto,
+  CreateLabLinkDto,
+  CompleteLabOnboardingDto,
+  DeleteLabDto,
 } from './dto/onboarding.dto';
 
 @ApiTags('onboarding')
@@ -44,7 +48,7 @@ export class OnboardingController {
    */
   @Get(':tenantId/branding')
   @Public()
-  @ApiOperation({ summary: 'Get tenant branding (public)' })
+  @ApiOperation({ summary: '[Clinic] Get clinic branding for welcome screen (public, no auth)' })
   getBranding(@Param('tenantId') tenantId: string) {
     return this.onboardingService.getBranding(tenantId);
   }
@@ -55,7 +59,7 @@ export class OnboardingController {
    */
   @Get('invite/verify/:token')
   @Public()
-  @ApiOperation({ summary: 'Verify a staff invite token (public)' })
+  @ApiOperation({ summary: '[Clinic] Verify a staff invite token (public, no auth)' })
   verifyInvite(@Param('token') token: string) {
     return this.onboardingService.verifyInvite(token);
   }
@@ -66,7 +70,7 @@ export class OnboardingController {
    * tenantId is passed as a query param.
    */
   @Post('staff-profile')
-  @ApiOperation({ summary: 'Save staff profile (invite acceptance)' })
+  @ApiOperation({ summary: '[Clinic] Save staff profile after accepting invite (authenticated)' })
   saveStaffProfile(
     @Body() body: SaveStaffProfileDto,
     @Query('tenantId') tenantId: string,
@@ -85,7 +89,7 @@ export class OnboardingController {
    * tenantId is passed as a query param.
    */
   @Post('invite')
-  @ApiOperation({ summary: 'Generate a staff invite link' })
+  @ApiOperation({ summary: '[Clinic] Generate a staff invite link (authenticated, admin/owner)' })
   generateInvite(
     @Body() body: GenerateInviteDto,
     @Query('tenantId') tenantId: string,
@@ -106,7 +110,7 @@ export class OnboardingController {
   @Post('complete-staff')
   @Public()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Complete STAFF onboarding via invite token' })
+  @ApiOperation({ summary: '[Clinic] Complete staff onboarding via invite token (public, no auth)' })
   completeStaffOnboarding(@Body() body: CompleteStaffOnboardingDto) {
     return this.onboardingService.completeStaffOnboarding(body);
   }
@@ -125,7 +129,7 @@ export class OnboardingController {
   @UseGuards(InternalApiKeyGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Create an ADMIN onboarding link (KesherIO internal use)',
+    summary: '[Clinic] Create a clinic admin onboarding link (internal, x-api-key)',
   })
   @ApiHeader({
     name: 'x-internal-api-key',
@@ -146,7 +150,7 @@ export class OnboardingController {
    */
   @Get('verify/:token')
   @Public()
-  @ApiOperation({ summary: 'Verify an onboarding token (public)' })
+  @ApiOperation({ summary: '[Shared] Verify an onboarding token — works for both clinic and lab (public, no auth)' })
   verifyOnboardingToken(@Param('token') token: string) {
     return this.onboardingService.verifyOnboardingToken(token);
   }
@@ -167,7 +171,7 @@ export class OnboardingController {
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('logo'))
   @ApiOperation({
-    summary: 'Complete ADMIN onboarding and create clinic account',
+    summary: '[Clinic] Complete clinic admin onboarding and create clinic account (public, no auth)',
   })
   @ApiConsumes('multipart/form-data', 'application/json')
   completeAdminOnboarding(
@@ -175,5 +179,66 @@ export class OnboardingController {
     @UploadedFile() logo?: Express.Multer.File
   ) {
     return this.onboardingService.completeAdminOnboarding(body, logo);
+  }
+
+  // ── Lab onboarding endpoints ──────────────────────────────────────────────
+
+  @Post('lab-link')
+  @Public()
+  @UseGuards(InternalApiKeyGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: '[Lab] Create a lab admin onboarding link (internal, x-api-key)',
+  })
+  @ApiHeader({
+    name: 'x-internal-api-key',
+    description: 'Internal API key for internal-only endpoints',
+    required: true,
+  })
+  createLabLink(@Body() body: CreateLabLinkDto) {
+    return this.onboardingService.createLabLink(body);
+  }
+
+  @Post('complete-lab')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: '[Lab] Complete lab admin onboarding and create laboratory account (public, no auth)',
+  })
+  completeLabOnboarding(@Body() body: CompleteLabOnboardingDto) {
+    return this.onboardingService.completeLabOnboarding(body);
+  }
+
+  // ── Lab management (internal) ─────────────────────────────────────────────
+
+  @Get('labs')
+  @Public()
+  @UseGuards(InternalApiKeyGuard)
+  @ApiOperation({
+    summary: '[Lab] List all lab tenants (internal, x-api-key)',
+  })
+  @ApiHeader({
+    name: 'x-internal-api-key',
+    description: 'Internal API key for internal-only endpoints',
+    required: true,
+  })
+  listLabs() {
+    return this.onboardingService.listLabs();
+  }
+
+  @Delete('lab')
+  @Public()
+  @UseGuards(InternalApiKeyGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '[Lab] Delete a lab tenant and all associated data (internal, x-api-key)',
+  })
+  @ApiHeader({
+    name: 'x-internal-api-key',
+    description: 'Internal API key for internal-only endpoints',
+    required: true,
+  })
+  deleteLab(@Body() body: DeleteLabDto) {
+    return this.onboardingService.deleteLab(body.tenantId);
   }
 }

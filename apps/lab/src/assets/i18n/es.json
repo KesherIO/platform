@@ -650,6 +650,7 @@
     "empty": "Aún no hay miembros en el equipo.",
     "you": "tú",
     "roles": {
+      "OWNER": "Propietario",
       "ADMIN": "Administrador",
       "TECHNICIAN": "Personal",
       "MESSENGER": "Mensajero"
@@ -1103,5 +1104,36 @@
       "DOCUMENT_VIEWED": "Documento visto"
     },
     "profile_changed_warning": "Las credenciales registradas han cambiado desde que se otorgó esta aprobación. Revise el documento y los datos actuales antes de continuar."
+  },
+  "onboarding": {
+    "welcome_title": "Bienvenido a Kesher IO",
+    "welcome_subtitle": "Has sido invitado a configurar <strong>{{labName}}</strong> en la plataforma de laboratorio.",
+    "continue": "Continuar",
+    "setup_title": "Configura tu laboratorio",
+    "setup_subtitle": "Crea tu cuenta de administrador para comenzar.",
+    "lab_name": "Nombre del laboratorio",
+    "first_name": "Nombre",
+    "last_name": "Apellido",
+    "email": "Correo del administrador",
+    "password": "Contraseña",
+    "password_hint": "Mínimo 8 caracteres",
+    "confirm_password": "Confirmar contraseña",
+    "password_mismatch": "Las contraseñas no coinciden.",
+    "submit": "Crear cuenta",
+    "submitting": "Creando cuenta...",
+    "success_title": "¡Cuenta creada!",
+    "success_message": "Tu cuenta de laboratorio ha sido creada. Ya puedes iniciar sesión.",
+    "go_to_login": "Ir a iniciar sesión",
+    "error_expired_title": "Enlace expirado",
+    "error_expired_body": "Este enlace de registro ha expirado. Solicita uno nuevo.",
+    "error_used_title": "Enlace ya utilizado",
+    "error_used_body": "Este enlace de registro ya fue utilizado para crear una cuenta.",
+    "error_not_found_title": "Enlace no encontrado",
+    "error_not_found_body": "Este enlace de registro es inválido. Verifica la URL o solicita uno nuevo.",
+    "error_no_token_title": "Enlace faltante",
+    "error_no_token_body": "No se encontró un token de registro en la URL.",
+    "error_revoked_title": "Enlace revocado",
+    "error_revoked_body": "Este enlace de registro ha sido revocado.",
+    "error_generic": "Algo salió mal. Por favor intenta de nuevo."
   }
 }

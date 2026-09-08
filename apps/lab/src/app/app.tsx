@@ -27,6 +27,8 @@ import { TemplateManagementPage } from './pages/templates/TemplateManagementPage
 import { TemplateBuilderPage } from './pages/templates/TemplateBuilderPage';
 import { WorklistPage } from './pages/worklist/WorklistPage';
 import { VetVerificationQueuePage } from './pages/verifications/VetVerificationQueuePage';
+import { LabOnboardingWelcome } from './pages/onboarding/LabOnboardingWelcome';
+import { LabOnboardingSetup } from './pages/onboarding/LabOnboardingSetup';
 
 export function App() {
   return (
@@ -38,6 +40,8 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/onboarding/welcome" element={<LabOnboardingWelcome />} />
+            <Route path="/onboarding/setup" element={<LabOnboardingSetup />} />
 
             <Route
               element={

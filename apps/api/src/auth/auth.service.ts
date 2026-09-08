@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  ConflictException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../prisma/prisma.service';
@@ -40,8 +44,14 @@ export class AuthService {
     });
 
     if (error || !data.user) {
+      const msg = error?.message ?? 'unknown error';
+      if (msg.toLowerCase().includes('already been registered')) {
+        throw new ConflictException(
+          'A user with this email address already exists'
+        );
+      }
       throw new InternalServerErrorException(
-        `Failed to create Supabase user: ${error?.message ?? 'unknown error'}`
+        `Failed to create Supabase user: ${msg}`
       );
     }
 

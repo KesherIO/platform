@@ -15,6 +15,8 @@ import {
   CreateAdminLinkDto,
   CompleteAdminOnboardingDto,
   CompleteStaffOnboardingDto,
+  CreateLabLinkDto,
+  CompleteLabOnboardingDto,
 } from './dto/onboarding.dto';
 
 /** Derive a URL-safe slug from a clinic name. */
@@ -532,6 +534,15 @@ export class OnboardingService {
       return { valid: false as const, reason: 'expired' as const };
     }
 
+    if (record.type === 'LAB_ADMIN') {
+      return {
+        valid: true as const,
+        type: record.type,
+        labName: record.labName,
+        labEmail: record.labEmail,
+      };
+    }
+
     return {
       valid: true as const,
       type: record.type,
@@ -685,5 +696,226 @@ export class OnboardingService {
     }
 
     return { tenantId, userId };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Create lab onboarding link — called internally to invite a lab admin.
+  // Generates a secure random token, stores it, returns the onboarding link.
+  // ---------------------------------------------------------------------------
+
+  async createLabLink(dto: CreateLabLinkDto) {
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await this.prisma.onboardingToken.create({
+      data: {
+        token,
+        type: 'LAB_ADMIN',
+        clinicName: '',
+        clinicEmail: '',
+        labName: dto.labName,
+        labEmail: dto.labEmail,
+        expiresAt,
+      },
+    });
+
+    return {
+      token,
+      onboardingLink: `/onboarding/welcome?token=${token}`,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Complete lab onboarding — public endpoint, token is the only credential.
+  // Creates: Supabase user → Tenant(LAB) → LaboratoryProfile → User → ADMIN membership.
+  // ---------------------------------------------------------------------------
+
+  async completeLabOnboarding(dto: CompleteLabOnboardingDto) {
+    // 1. Verify token (fail fast before any external calls)
+    const tokenHash = createHash('sha256').update(dto.token).digest('hex');
+    const record =
+      (await this.prisma.onboardingToken.findFirst({
+        where: { tokenHash },
+      })) ??
+      (await this.prisma.onboardingToken.findUnique({
+        where: { token: dto.token },
+      }));
+
+    if (!record) {
+      throw new NotFoundException('Onboarding token not found');
+    }
+    if (record.used) {
+      throw new ConflictException('This onboarding link has already been used');
+    }
+    if (record.revokedAt) {
+      throw new BadRequestException('This onboarding link has been revoked');
+    }
+    if (record.expiresAt < new Date()) {
+      throw new BadRequestException('This onboarding link has expired');
+    }
+    if (record.type !== 'LAB_ADMIN') {
+      throw new BadRequestException(
+        'Invalid token type for lab onboarding'
+      );
+    }
+
+    // 2. Create the Supabase Auth user — fail fast before any DB writes.
+    const supabaseUserId = await this.authService.createSupabaseUser(
+      dto.adminEmail,
+      dto.password,
+      dto.adminFirstName,
+      dto.adminLastName
+    );
+
+    // 3. Atomic transaction: re-verify token (prevents double-submit race),
+    //    create Tenant(LAB) + LaboratoryProfile + User + OWNER membership.
+    let tenantId: string;
+    let userId: string;
+
+    try {
+      ({ tenantId, userId } = await this.prisma.$transaction(async (tx) => {
+        // Atomically claim the token — conditional update that only succeeds
+        // if the token is still unused, unexpired, unrevoked, and LAB_ADMIN.
+        // Two concurrent transactions cannot both get count === 1.
+        const { count } = await tx.onboardingToken.updateMany({
+          where: {
+            id: record.id,
+            used: false,
+            revokedAt: null,
+            type: 'LAB_ADMIN',
+            expiresAt: { gt: new Date() },
+          },
+          data: { used: true, usedAt: new Date() },
+        });
+        if (count === 0) {
+          throw new ConflictException(
+            'This onboarding link has already been used'
+          );
+        }
+
+        // Slug collision check inside transaction for concurrency safety
+        let slug = slugify(dto.labName);
+        const slugConflict = await tx.tenant.findFirst({
+          where: { slug },
+          select: { id: true },
+        });
+        if (slugConflict) {
+          slug = `${slug}-${randomUUID().slice(0, 6)}`;
+        }
+
+        const tenant = await tx.tenant.create({
+          data: {
+            name: dto.labName,
+            slug,
+            type: 'LAB',
+            email: record.labEmail || dto.adminEmail,
+          },
+        });
+
+        await tx.laboratoryProfile.create({
+          data: {
+            tenantId: tenant.id,
+            vetVerificationRequired: false,
+          },
+        });
+
+        await tx.user.create({
+          data: {
+            id: supabaseUserId,
+            email: dto.adminEmail,
+            firstName: dto.adminFirstName,
+            lastName: dto.adminLastName,
+          },
+        });
+
+        await tx.userTenantMembership.create({
+          data: {
+            userId: supabaseUserId,
+            tenantId: tenant.id,
+            role: TenantRole.OWNER,
+          },
+        });
+
+        return { tenantId: tenant.id, userId: supabaseUserId };
+      }));
+    } catch (err) {
+      await this.authService.deleteSupabaseUser(supabaseUserId);
+      throw err;
+    }
+
+    return { tenantId, userId };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Delete lab tenant — internal endpoint for testing/admin cleanup.
+  // Removes all lab-owned data, the tenant itself, and Supabase auth users.
+  // ---------------------------------------------------------------------------
+
+  async listLabs() {
+    return this.prisma.tenant.findMany({
+      where: { type: 'LAB' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        email: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async deleteLab(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, type: true },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Lab tenant not found');
+    }
+    if (tenant.type !== 'LAB') {
+      throw new BadRequestException('Tenant is not a lab');
+    }
+
+    const members = await this.prisma.userTenantMembership.findMany({
+      where: { tenantId },
+      select: { userId: true },
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      // Non-cascading FKs: null out nullable, delete non-nullable
+      await tx.order.updateMany({
+        where: { labTenantId: tenantId },
+        data: { labTenantId: null },
+      });
+      await tx.resultTemplateDefinition.updateMany({
+        where: { labTenantId: tenantId },
+        data: { labTenantId: null },
+      });
+      await tx.pickup.deleteMany({
+        where: { labTenantId: tenantId },
+      });
+      await tx.vetLabVerification.deleteMany({
+        where: { labTenantId: tenantId },
+      });
+
+      // Tenant delete cascades: memberships, invitations, cases, catalog,
+      // lab profile, clinic connections, analyzers, test configs, specimens
+      await tx.tenant.delete({ where: { id: tenantId } });
+    });
+
+    // Best-effort Supabase user cleanup (outside tx — non-fatal)
+    for (const { userId } of members) {
+      const otherMemberships = await this.prisma.userTenantMembership.count({
+        where: { userId },
+      });
+      if (otherMemberships === 0) {
+        await this.authService.deleteSupabaseUser(userId);
+        await this.prisma.user.delete({ where: { id: userId } }).catch(() => {});
+      }
+    }
+
+    return { deleted: true, tenantId, usersRemoved: members.length };
   }
 }
