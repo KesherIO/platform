@@ -910,9 +910,9 @@ export class OnboardingService {
       });
       if (otherMemberships === 0) {
         await this.authService.deleteSupabaseUser(userId);
-        await this.prisma.user
-          .delete({ where: { id: userId } })
-          .catch(() => {});
+        await this.prisma.user.delete({ where: { id: userId } }).catch(() => {
+          /* best-effort cleanup */
+        });
       }
     }
 
