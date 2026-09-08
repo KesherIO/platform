@@ -28,6 +28,15 @@ export const routes: Routes = [
       ),
   },
 
+  // No clinic — shown to authenticated users with zero memberships.
+  {
+    path: 'no-clinic',
+    loadComponent: () =>
+      import('./features/onboarding/no-clinic/no-clinic.component').then(
+        (m) => m.NoClinicComponent
+      ),
+  },
+
   // Authenticated app — wrapped in the responsive shell (sidebar on desktop, bottom nav on mobile).
   {
     path: '',

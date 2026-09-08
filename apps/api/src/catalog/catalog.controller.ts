@@ -89,7 +89,7 @@ export class CatalogController {
 
   @Get('admin')
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @ApiOperation({ summary: "List the lab's own catalog (all items, admin)" })
   findAllAdmin(
     @CurrentTenant() tenant: TenantContext,
@@ -100,7 +100,7 @@ export class CatalogController {
 
   @Post()
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @ApiOperation({ summary: "Create a catalog item in the lab's own catalog" })
   create(
     @CurrentTenant() tenant: TenantContext,
@@ -111,7 +111,7 @@ export class CatalogController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @ApiOperation({ summary: "Update a catalog item in the lab's own catalog" })
   update(
     @CurrentTenant() tenant: TenantContext,
@@ -123,7 +123,7 @@ export class CatalogController {
 
   @Post(':id/enable')
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @ApiOperation({ summary: 'Re-enable a catalog item' })
   enable(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
     return this.catalogService.setActive(tenant.tenantId, id, true);
@@ -131,7 +131,7 @@ export class CatalogController {
 
   @Post(':id/disable')
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @ApiOperation({ summary: 'Disable a catalog item' })
   disable(@CurrentTenant() tenant: TenantContext, @Param('id') id: string) {
     return this.catalogService.setActive(tenant.tenantId, id, false);

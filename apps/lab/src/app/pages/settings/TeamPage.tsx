@@ -12,12 +12,15 @@ import {
 } from '../../shared/components/WeeklyScheduleEditor';
 import type { LabMember, LabRole, WeeklySchedule } from '../../types/lab.types';
 
-const ROLES: LabRole[] = ['OWNER', 'ADMIN', 'TECHNICIAN', 'MESSENGER'];
+const ROLES: LabRole[] = ['OWNER', 'ADMIN', 'TECHNICIAN', 'ANALYST', 'REVIEWER', 'DATA_ENTRY', 'MESSENGER'];
 
 const ROLE_COLORS: Record<LabRole, string> = {
   OWNER: 'bg-amber-400/20 text-amber-300',
   ADMIN: 'bg-purple/20 text-purple',
   TECHNICIAN: 'bg-cyan/20 text-cyan',
+  ANALYST: 'bg-blue-400/20 text-blue-300',
+  REVIEWER: 'bg-emerald-400/20 text-emerald-300',
+  DATA_ENTRY: 'bg-indigo-400/20 text-indigo-300',
   MESSENGER: 'bg-orange-900/30 text-orange-300',
 };
 
@@ -35,6 +38,7 @@ interface EditForm {
   firstName: string;
   lastName: string;
   email: string;
+  role: LabRole;
   schedule: WeeklySchedule;
   canPerformPickups: boolean;
 }
@@ -215,6 +219,7 @@ export function TeamPage() {
       firstName: member.firstName ?? '',
       lastName: member.lastName ?? '',
       email: member.email,
+      role: member.role,
       schedule: member.schedule ?? makeEmptySchedule(),
       canPerformPickups: member.canPerformPickups,
     });
@@ -222,12 +227,12 @@ export function TeamPage() {
     setActionError(null);
   };
 
-  const handleSaveEdit = async (role: LabRole) => {
+  const handleSaveEdit = async (originalRole: LabRole) => {
     if (!editingId) return;
     try {
       setSaving(true);
       setActionError(null);
-      const { schedule, canPerformPickups, ...rest } = editForm;
+      const { schedule, canPerformPickups, role, ...rest } = editForm;
       const payload =
         role === 'MESSENGER'
           ? { ...rest, schedule }
@@ -236,6 +241,9 @@ export function TeamPage() {
         editingId,
         payload as unknown as Record<string, unknown>
       );
+      if (role !== originalRole) {
+        await labApi.users.updateRole(editingId, role);
+      }
       if (editingId === user?.id) await refreshTenant();
       setEditingId(null);
       invalidateUsers();
@@ -518,7 +526,28 @@ export function TeamPage() {
                         className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
                       />
                     </div>
-                    {member.role === 'MESSENGER' && (
+                    <div>
+                      <label className="mb-1 block text-xs text-gray-500">
+                        {t('team.form.role')}
+                      </label>
+                      <select
+                        value={editForm.role}
+                        onChange={(e) =>
+                          setEditForm((f) => ({
+                            ...f,
+                            role: e.target.value as LabRole,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+                      >
+                        {ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {t(`team.roles.${r}`)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {editForm.role === 'MESSENGER' && (
                       <div>
                         <label className="mb-1 block text-xs text-gray-500">
                           {t('team.schedule.title')}
@@ -531,7 +560,7 @@ export function TeamPage() {
                         />
                       </div>
                     )}
-                    {member.role !== 'MESSENGER' && (
+                    {editForm.role !== 'MESSENGER' && (
                       <label className="flex items-center gap-2 text-sm text-gray-300">
                         <input
                           type="checkbox"

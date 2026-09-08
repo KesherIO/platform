@@ -370,11 +370,11 @@ export class AuthService {
         this.router.navigate(['/suspended']);
         break;
       default:
-        // No membership or unexpected status — send to dashboard.
-        // The /onboarding/welcome screen requires a ?token= param and is only
-        // reachable via a direct admin-onboarding link, never via programmatic
-        // navigation (it would always show the "No onboarding link" error).
-        this.router.navigate(['/dashboard']);
+        if (!meData.memberships?.length) {
+          this.router.navigate(['/no-clinic']);
+        } else {
+          this.router.navigate(['/dashboard']);
+        }
     }
   }
 }

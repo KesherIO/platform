@@ -22,7 +22,6 @@ const EMPTY_PROFILE: LaboratoryProfile = {
   directorCredentials: '',
   defaultObservations: '',
   reportDisclaimer: '',
-  signatureUrl: '',
   vetVerificationRequired: false,
 };
 
@@ -727,13 +726,39 @@ export function LaboratorySettingsPage() {
                 </div>
               </div>
               {mapEmbedUrl && (
-                <iframe
-                  src={mapEmbedUrl}
-                  className="mt-3 h-48 w-full rounded-lg border border-gray-700"
-                  loading="lazy"
-                  title="Lab location"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
+                <>
+                  <iframe
+                    src={mapEmbedUrl}
+                    className="mt-3 h-48 w-full rounded-lg border border-gray-700"
+                    loading="lazy"
+                    title="Lab location"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                  <div className="mt-2 flex gap-2">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${contactInfo.mapLat},${contactInfo.mapLng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:border-gray-500 transition"
+                    >
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z" />
+                      </svg>
+                      Google Maps
+                    </a>
+                    <a
+                      href={`https://www.waze.com/ul?ll=${contactInfo.mapLat},${contactInfo.mapLng}&navigate=yes`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:border-gray-500 transition"
+                    >
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.54 6.63A8.99 8.99 0 0012.05 3C7.05 3 3 7.05 3 12.05a8.99 8.99 0 003.63 7.21L12 24l5.37-4.74A8.99 8.99 0 0021 12.05c0-2-.65-3.85-1.76-5.42zM12 15a3 3 0 110-6 3 3 0 010 6z" />
+                      </svg>
+                      Waze
+                    </a>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -810,20 +835,6 @@ export function LaboratorySettingsPage() {
                 }
                 className={inputClass}
                 placeholder={t('settings.report_disclaimer_placeholder')}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>
-                {t('settings.signature_url')}
-              </label>
-              <input
-                type="text"
-                value={profile.signatureUrl ?? ''}
-                readOnly={!isAdmin}
-                onChange={(e) =>
-                  setProfile({ ...profile, signatureUrl: e.target.value })
-                }
-                className={inputClass}
               />
             </div>
           </div>

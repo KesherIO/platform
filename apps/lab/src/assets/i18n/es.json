@@ -360,7 +360,6 @@
     "default_observations": "Observaciones predeterminadas",
     "report_disclaimer": "Nota legal del informe (NOTA)",
     "report_disclaimer_placeholder": "Nota legal que aparece al pie de cada informe liberado",
-    "signature_url": "URL de firma digital",
     "signers_title": "Firmantes del laboratorio",
     "signers_subtitle": "Técnicos y revisores que firman reportes",
     "signer_name": "Nombre completo",
@@ -653,6 +652,9 @@
       "OWNER": "Propietario",
       "ADMIN": "Administrador",
       "TECHNICIAN": "Personal",
+      "ANALYST": "Analista",
+      "REVIEWER": "Revisor",
+      "DATA_ENTRY": "Digitador",
       "MESSENGER": "Mensajero"
     },
     "schedule": {

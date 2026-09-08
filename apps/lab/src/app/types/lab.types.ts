@@ -255,7 +255,7 @@ export interface LabOrderDetail extends LabOrderSummary {
   specimens?: Specimen[];
 }
 
-export type LabRole = 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'MESSENGER';
+export type LabRole = 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'MESSENGER' | 'ANALYST' | 'REVIEWER' | 'DATA_ENTRY';
 
 export const WEEKDAYS = [
   'MONDAY',
@@ -291,7 +291,6 @@ export interface LaboratoryProfile {
   directorCredentials: string | null;
   defaultObservations: string | null;
   reportDisclaimer: string | null;
-  signatureUrl: string | null;
   vetVerificationRequired?: boolean;
   signers?: LabSigner[];
 }
