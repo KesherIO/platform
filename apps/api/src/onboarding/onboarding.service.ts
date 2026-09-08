@@ -754,9 +754,7 @@ export class OnboardingService {
       throw new BadRequestException('This onboarding link has expired');
     }
     if (record.type !== 'LAB_ADMIN') {
-      throw new BadRequestException(
-        'Invalid token type for lab onboarding'
-      );
+      throw new BadRequestException('Invalid token type for lab onboarding');
     }
 
     // 2. Create the Supabase Auth user — fail fast before any DB writes.
@@ -912,7 +910,9 @@ export class OnboardingService {
       });
       if (otherMemberships === 0) {
         await this.authService.deleteSupabaseUser(userId);
-        await this.prisma.user.delete({ where: { id: userId } }).catch(() => {});
+        await this.prisma.user
+          .delete({ where: { id: userId } })
+          .catch(() => {});
       }
     }
 

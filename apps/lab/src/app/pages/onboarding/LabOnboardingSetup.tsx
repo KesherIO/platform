@@ -79,11 +79,13 @@ export function LabOnboardingSetup() {
         throw new Error(data?.message ?? t('onboarding.error_generic'));
       }
 
-      await res.json() as CompleteLabOnboardingResponse;
+      (await res.json()) as CompleteLabOnboardingResponse;
       setCompleted(true);
       window.history.replaceState({}, '', '/onboarding/setup');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('onboarding.error_generic'));
+      setError(
+        err instanceof Error ? err.message : t('onboarding.error_generic')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -140,7 +142,10 @@ export function LabOnboardingSetup() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-gray-300" htmlFor="labName">
+            <label
+              className="mb-1 block text-sm text-gray-300"
+              htmlFor="labName"
+            >
               {t('onboarding.lab_name')}
             </label>
             <input
@@ -156,7 +161,10 @@ export function LabOnboardingSetup() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-gray-300" htmlFor="firstName">
+              <label
+                className="mb-1 block text-sm text-gray-300"
+                htmlFor="firstName"
+              >
                 {t('onboarding.first_name')}
               </label>
               <input
@@ -169,7 +177,10 @@ export function LabOnboardingSetup() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-gray-300" htmlFor="lastName">
+              <label
+                className="mb-1 block text-sm text-gray-300"
+                htmlFor="lastName"
+              >
                 {t('onboarding.last_name')}
               </label>
               <input
@@ -199,7 +210,10 @@ export function LabOnboardingSetup() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-300" htmlFor="password">
+            <label
+              className="mb-1 block text-sm text-gray-300"
+              htmlFor="password"
+            >
               {t('onboarding.password')}
             </label>
             <div className="relative">
@@ -218,14 +232,23 @@ export function LabOnboardingSetup() {
                 onClick={() => setShowPassword((v) => !v)}
                 className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white"
               >
-                <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`} />
+                <i
+                  className={`fa-solid ${
+                    showPassword ? 'fa-eye-slash' : 'fa-eye'
+                  } text-sm`}
+                />
               </button>
             </div>
-            <p className="mt-1 text-xs text-gray-500">{t('onboarding.password_hint')}</p>
+            <p className="mt-1 text-xs text-gray-500">
+              {t('onboarding.password_hint')}
+            </p>
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-300" htmlFor="confirmPassword">
+            <label
+              className="mb-1 block text-sm text-gray-300"
+              htmlFor="confirmPassword"
+            >
               {t('onboarding.confirm_password')}
             </label>
             <input
@@ -239,7 +262,9 @@ export function LabOnboardingSetup() {
               className="w-full rounded-lg border border-gray-700 bg-gray-900 px-4 py-2.5 text-white placeholder-gray-500 focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan"
             />
             {confirmPassword && !passwordsMatch && (
-              <p className="mt-1 text-xs text-red-400">{t('onboarding.password_mismatch')}</p>
+              <p className="mt-1 text-xs text-red-400">
+                {t('onboarding.password_mismatch')}
+              </p>
             )}
           </div>
 

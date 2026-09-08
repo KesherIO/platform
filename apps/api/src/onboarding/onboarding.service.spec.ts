@@ -1061,8 +1061,20 @@ describe('OnboardingService', () => {
   describe('listLabs', () => {
     it('returns all LAB tenants ordered by createdAt desc', async () => {
       const labs = [
-        { id: 'lab-1', name: 'Lab A', slug: 'lab-a', email: 'a@lab.com', createdAt: new Date() },
-        { id: 'lab-2', name: 'Lab B', slug: 'lab-b', email: 'b@lab.com', createdAt: new Date() },
+        {
+          id: 'lab-1',
+          name: 'Lab A',
+          slug: 'lab-a',
+          email: 'a@lab.com',
+          createdAt: new Date(),
+        },
+        {
+          id: 'lab-2',
+          name: 'Lab B',
+          slug: 'lab-b',
+          email: 'b@lab.com',
+          createdAt: new Date(),
+        },
       ];
       prisma.tenant.findMany = jest.fn().mockResolvedValue(labs);
 

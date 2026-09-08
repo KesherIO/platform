@@ -48,7 +48,10 @@ export class OnboardingController {
    */
   @Get(':tenantId/branding')
   @Public()
-  @ApiOperation({ summary: '[Clinic] Get clinic branding for welcome screen (public, no auth)' })
+  @ApiOperation({
+    summary:
+      '[Clinic] Get clinic branding for welcome screen (public, no auth)',
+  })
   getBranding(@Param('tenantId') tenantId: string) {
     return this.onboardingService.getBranding(tenantId);
   }
@@ -59,7 +62,9 @@ export class OnboardingController {
    */
   @Get('invite/verify/:token')
   @Public()
-  @ApiOperation({ summary: '[Clinic] Verify a staff invite token (public, no auth)' })
+  @ApiOperation({
+    summary: '[Clinic] Verify a staff invite token (public, no auth)',
+  })
   verifyInvite(@Param('token') token: string) {
     return this.onboardingService.verifyInvite(token);
   }
@@ -70,7 +75,10 @@ export class OnboardingController {
    * tenantId is passed as a query param.
    */
   @Post('staff-profile')
-  @ApiOperation({ summary: '[Clinic] Save staff profile after accepting invite (authenticated)' })
+  @ApiOperation({
+    summary:
+      '[Clinic] Save staff profile after accepting invite (authenticated)',
+  })
   saveStaffProfile(
     @Body() body: SaveStaffProfileDto,
     @Query('tenantId') tenantId: string,
@@ -89,7 +97,10 @@ export class OnboardingController {
    * tenantId is passed as a query param.
    */
   @Post('invite')
-  @ApiOperation({ summary: '[Clinic] Generate a staff invite link (authenticated, admin/owner)' })
+  @ApiOperation({
+    summary:
+      '[Clinic] Generate a staff invite link (authenticated, admin/owner)',
+  })
   generateInvite(
     @Body() body: GenerateInviteDto,
     @Query('tenantId') tenantId: string,
@@ -110,7 +121,10 @@ export class OnboardingController {
   @Post('complete-staff')
   @Public()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: '[Clinic] Complete staff onboarding via invite token (public, no auth)' })
+  @ApiOperation({
+    summary:
+      '[Clinic] Complete staff onboarding via invite token (public, no auth)',
+  })
   completeStaffOnboarding(@Body() body: CompleteStaffOnboardingDto) {
     return this.onboardingService.completeStaffOnboarding(body);
   }
@@ -129,7 +143,8 @@ export class OnboardingController {
   @UseGuards(InternalApiKeyGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: '[Clinic] Create a clinic admin onboarding link (internal, x-api-key)',
+    summary:
+      '[Clinic] Create a clinic admin onboarding link (internal, x-api-key)',
   })
   @ApiHeader({
     name: 'x-internal-api-key',
@@ -150,7 +165,10 @@ export class OnboardingController {
    */
   @Get('verify/:token')
   @Public()
-  @ApiOperation({ summary: '[Shared] Verify an onboarding token — works for both clinic and lab (public, no auth)' })
+  @ApiOperation({
+    summary:
+      '[Shared] Verify an onboarding token — works for both clinic and lab (public, no auth)',
+  })
   verifyOnboardingToken(@Param('token') token: string) {
     return this.onboardingService.verifyOnboardingToken(token);
   }
@@ -171,7 +189,8 @@ export class OnboardingController {
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('logo'))
   @ApiOperation({
-    summary: '[Clinic] Complete clinic admin onboarding and create clinic account (public, no auth)',
+    summary:
+      '[Clinic] Complete clinic admin onboarding and create clinic account (public, no auth)',
   })
   @ApiConsumes('multipart/form-data', 'application/json')
   completeAdminOnboarding(
@@ -203,7 +222,8 @@ export class OnboardingController {
   @Public()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: '[Lab] Complete lab admin onboarding and create laboratory account (public, no auth)',
+    summary:
+      '[Lab] Complete lab admin onboarding and create laboratory account (public, no auth)',
   })
   completeLabOnboarding(@Body() body: CompleteLabOnboardingDto) {
     return this.onboardingService.completeLabOnboarding(body);
@@ -231,7 +251,8 @@ export class OnboardingController {
   @UseGuards(InternalApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: '[Lab] Delete a lab tenant and all associated data (internal, x-api-key)',
+    summary:
+      '[Lab] Delete a lab tenant and all associated data (internal, x-api-key)',
   })
   @ApiHeader({
     name: 'x-internal-api-key',
