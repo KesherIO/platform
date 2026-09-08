@@ -22,7 +22,7 @@ export class LoggingInterceptor implements NestInterceptor {
       tap({
         next: () => this.log(req, res, start),
         error: () => this.log(req, res, start),
-      }),
+      })
     );
   }
 
@@ -32,17 +32,18 @@ export class LoggingInterceptor implements NestInterceptor {
 
     if (statusCode < 400 && SILENT_PATHS.has(path)) return;
 
-    const user = req['user'] as
-      | { id?: string }
-      | undefined;
-    const tenant = req['tenant'] as
+    const r = req as unknown as Record<string, unknown>;
+    const user = r['user'] as { id?: string } | undefined;
+    const tenant = r['tenant'] as
       | { tenantId?: string; role?: string }
       | undefined;
 
     const entry = {
       level: statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info',
-      message: `HTTP ${req.method} ${path} ${statusCode} ${Date.now() - start}ms`,
-      requestId: (req as Record<string, unknown>)['requestId'] || undefined,
+      message: `HTTP ${req.method} ${path} ${statusCode} ${
+        Date.now() - start
+      }ms`,
+      requestId: r['requestId'] || undefined,
       method: req.method,
       route: path,
       statusCode,
