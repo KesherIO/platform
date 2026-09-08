@@ -132,7 +132,7 @@ export class SpecimenService {
     }[] = [];
 
     for (const test of order.orderedTests) {
-      const config = test.catalogItem.labTestConfigurations[0];
+      const config = test.catalogItem?.labTestConfigurations[0];
       const primaryReq = config?.specimenRequirements.find(
         (r) => !r.isAlternativeWithinGroup
       );
@@ -368,7 +368,7 @@ export class SpecimenService {
 
         // Link tests to accepted specimens and transition statuses
         for (const test of order.orderedTests) {
-          const config = test.catalogItem.labTestConfigurations[0];
+          const config = test.catalogItem?.labTestConfigurations[0];
           const primaryReq = config?.specimenRequirements.find(
             (r) => !r.isAlternativeWithinGroup
           );
@@ -410,7 +410,7 @@ export class SpecimenService {
 
             // Resolve template
             const catalogCode =
-              test.catalogItem.code ?? test.catalogItemCode ?? '';
+              test.catalogItem?.code ?? test.catalogItemCode ?? '';
             const templateDef =
               await this.templateVersionService.resolveTemplate(
                 catalogCode,
@@ -497,7 +497,7 @@ export class SpecimenService {
             // Unconfigured test with no specimen submitted — resolve template anyway
             // so it can still be entered without a specimen configuration.
             const catalogCode =
-              test.catalogItem.code ?? test.catalogItemCode ?? '';
+              test.catalogItem?.code ?? test.catalogItemCode ?? '';
             const templateDef =
               await this.templateVersionService.resolveTemplate(
                 catalogCode,
@@ -731,7 +731,7 @@ export class SpecimenService {
           )
         : null;
 
-    const catalogCode = test.catalogItem.code ?? test.catalogItemCode ?? '';
+    const catalogCode = test.catalogItem?.code ?? test.catalogItemCode ?? '';
     const templateDef = await this.templateVersionService.resolveTemplate(
       catalogCode,
       labTenantId,

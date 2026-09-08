@@ -37,12 +37,14 @@ describe('StaffProfileComponent', () => {
       providers: [
         provideTranslateService({ defaultLanguage: 'en' }),
         { provide: OnboardingService, useValue: mockOnboardingService },
-        { provide: Router,            useValue: mockRouter            },
+        { provide: Router, useValue: mockRouter },
         {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
-              queryParamMap: { get: (key: string) => key === 'token' ? token : null },
+              queryParamMap: {
+                get: (key: string) => (key === 'token' ? token : null),
+              },
             },
           },
         },
@@ -73,7 +75,9 @@ describe('StaffProfileComponent', () => {
 
   describe('ngOnInit — with token', () => {
     it('sets view to new-user when userExists is false', async () => {
-      mockOnboardingService.verifyMagicLink.mockReturnValue(of(makeVerifyResponse({ userExists: false })));
+      mockOnboardingService.verifyMagicLink.mockReturnValue(
+        of(makeVerifyResponse({ userExists: false }))
+      );
       // Need to setup before detectChanges — use TestBed directly
       mockRouter = { navigate: vi.fn() };
       await TestBed.configureTestingModule({
@@ -81,8 +85,13 @@ describe('StaffProfileComponent', () => {
         providers: [
           provideTranslateService({ defaultLanguage: 'en' }),
           { provide: OnboardingService, useValue: mockOnboardingService },
-          { provide: Router,            useValue: mockRouter            },
-          { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'invite-token' } } } },
+          { provide: Router, useValue: mockRouter },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: { queryParamMap: { get: () => 'invite-token' } },
+            },
+          },
         ],
       }).compileComponents();
       const f = TestBed.createComponent(StaffProfileComponent);
@@ -91,15 +100,22 @@ describe('StaffProfileComponent', () => {
     });
 
     it('sets view to existing-user when userExists is true', async () => {
-      mockOnboardingService.verifyMagicLink.mockReturnValue(of(makeVerifyResponse({ userExists: true })));
+      mockOnboardingService.verifyMagicLink.mockReturnValue(
+        of(makeVerifyResponse({ userExists: true }))
+      );
       mockRouter = { navigate: vi.fn() };
       await TestBed.configureTestingModule({
         imports: [StaffProfileComponent],
         providers: [
           provideTranslateService({ defaultLanguage: 'en' }),
           { provide: OnboardingService, useValue: mockOnboardingService },
-          { provide: Router,            useValue: mockRouter            },
-          { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'invite-token' } } } },
+          { provide: Router, useValue: mockRouter },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: { queryParamMap: { get: () => 'invite-token' } },
+            },
+          },
         ],
       }).compileComponents();
       const f = TestBed.createComponent(StaffProfileComponent);
@@ -108,15 +124,22 @@ describe('StaffProfileComponent', () => {
     });
 
     it('sets view to error when verifyMagicLink throws', async () => {
-      mockOnboardingService.verifyMagicLink.mockReturnValue(throwError(() => new Error('Invalid token')));
+      mockOnboardingService.verifyMagicLink.mockReturnValue(
+        throwError(() => new Error('Invalid token'))
+      );
       mockRouter = { navigate: vi.fn() };
       await TestBed.configureTestingModule({
         imports: [StaffProfileComponent],
         providers: [
           provideTranslateService({ defaultLanguage: 'en' }),
           { provide: OnboardingService, useValue: mockOnboardingService },
-          { provide: Router,            useValue: mockRouter            },
-          { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'invite-token' } } } },
+          { provide: Router, useValue: mockRouter },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: { queryParamMap: { get: () => 'invite-token' } },
+            },
+          },
         ],
       }).compileComponents();
       const f = TestBed.createComponent(StaffProfileComponent);
@@ -134,8 +157,13 @@ describe('StaffProfileComponent', () => {
         providers: [
           provideTranslateService({ defaultLanguage: 'en' }),
           { provide: OnboardingService, useValue: mockOnboardingService },
-          { provide: Router,            useValue: mockRouter            },
-          { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: () => 'invite-token' } } } },
+          { provide: Router, useValue: mockRouter },
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: { queryParamMap: { get: () => 'invite-token' } },
+            },
+          },
         ],
       }).compileComponents();
       const f = TestBed.createComponent(StaffProfileComponent);
@@ -189,11 +217,15 @@ describe('StaffProfileComponent', () => {
 
     it('does not call completeStaffOnboarding when form is invalid', () => {
       component.createAccount();
-      expect(mockOnboardingService.completeStaffOnboarding).not.toHaveBeenCalled();
+      expect(
+        mockOnboardingService.completeStaffOnboarding
+      ).not.toHaveBeenCalled();
     });
 
     it('calls completeStaffOnboarding and navigates to login on success', async () => {
-      mockOnboardingService.completeStaffOnboarding.mockReturnValue(of({ userId: 'user-123' }));
+      mockOnboardingService.completeStaffOnboarding.mockReturnValue(
+        of({ userId: 'user-123', tenantId: 'tenant-abc' })
+      );
 
       component.newUserForm.patchValue({
         firstName: 'Jane',

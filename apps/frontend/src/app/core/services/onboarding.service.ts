@@ -139,8 +139,8 @@ export class OnboardingService {
     email: string;
     password?: string;
     role: 'admin' | 'vet' | 'technician' | 'receptionist';
-  }): Observable<{ userId: string }> {
-    return this.http.post<{ userId: string }>(
+  }): Observable<{ userId: string; tenantId: string }> {
+    return this.http.post<{ userId: string; tenantId: string }>(
       `${this.apiBase}/complete-staff`,
       dto
     );
@@ -239,7 +239,7 @@ export class OnboardingService {
       (Object.keys(dto) as (keyof CompleteAdminOnboardingRequest)[]).forEach(
         (key) => {
           const val = dto[key];
-          if (val !== undefined) formData.append(key, val);
+          if (val !== undefined) formData.append(key, String(val));
         }
       );
       formData.append('logo', logoFile);

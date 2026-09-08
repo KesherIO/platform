@@ -622,7 +622,7 @@ model Counter {
 /// time — intentionally not a FK so history stays accurate if catalog changes.
 model Order {
   id                String          @id @default(cuid())
-  requisitionNumber String          @unique // REQ-2026-000001
+  requisitionNumber String // REQ-2026-000001
   caseId            String          @unique // one active order per case (MVP)
   tenantId          String
   labTenantId       String? // which lab processes this order (null = platform direct for MVP seed)
@@ -667,6 +667,7 @@ model Order {
 
   @@index([tenantId])
   @@index([tenantId, status])
+  @@unique([labTenantId, requisitionNumber])
   @@index([labTenantId])
   @@index([labTenantId, status])
   @@map("orders")
@@ -1082,7 +1083,7 @@ model LabTestConfiguration {
   updatedAt                DateTime           @updatedAt
 
   labTenant            Tenant                       @relation("LabTestConfigs", fields: [labTenantId], references: [id], onDelete: Cascade)
-  catalogItem          CatalogItem                  @relation(fields: [catalogItemId], references: [id])
+  catalogItem          CatalogItem                  @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
   defaultAnalyzer      Analyzer?                    @relation(fields: [defaultAnalyzerId], references: [id])
   specimenRequirements LabTestSpecimenRequirement[]
 
@@ -1113,9 +1114,9 @@ model LabTestSpecimenRequirement {
 /// Tracks per-test status and assignment independently of the overall order status.
 /// Status is derived from aggregating these rows — never persisted on Order directly.
 model OrderedTest {
-  id            String @id @default(cuid())
+  id            String  @id @default(cuid())
   orderId       String
-  catalogItemId String
+  catalogItemId String?
 
   status      OrderedTestStatus @default(PENDING)
   entryMethod ResultEntryMethod @default(MANUAL)
@@ -1146,7 +1147,7 @@ model OrderedTest {
   updatedAt   DateTime  @updatedAt
 
   order            Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  catalogItem      CatalogItem               @relation(fields: [catalogItemId], references: [id])
+  catalogItem      CatalogItem?              @relation(fields: [catalogItemId], references: [id], onDelete: SetNull)
   assignedTo       User?                     @relation(fields: [assignedUserId], references: [id])
   analyzer         Analyzer?                 @relation(fields: [analyzerId], references: [id])
   sources          OrderedTestSource[]

@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SettingsShellComponent } from './settings-shell.component';
 import { TranslateModule } from '@ngx-translate/core';
 import { Location } from '@angular/common';
-import { AuthService } from '../../../core/services/auth.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import { signal } from '@angular/core';
 import { Component } from '@angular/core';
 
@@ -32,17 +32,19 @@ const MOCK_ME_STAFF = {
 describe('SettingsShellComponent', () => {
   let fixture: ComponentFixture<SettingsShellComponent>;
   let component: SettingsShellComponent;
-  let authService: { me: ReturnType<typeof signal> };
+  let tenantService: { activeMembership: ReturnType<typeof signal> };
   let locationSpy: { back: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    authService = { me: signal(MOCK_ME_ADMIN) };
+    tenantService = {
+      activeMembership: signal(MOCK_ME_ADMIN.memberships[0]),
+    };
     locationSpy = { back: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [SettingsShellComponent, TranslateModule.forRoot()],
       providers: [
-        { provide: AuthService, useValue: authService },
+        { provide: TenantService, useValue: tenantService },
         { provide: Location, useValue: locationSpy },
       ],
     })
@@ -72,20 +74,17 @@ describe('SettingsShellComponent', () => {
   });
 
   it('isAdmin is true for OWNER role', () => {
-    authService.me.set({
-      ...MOCK_ME_ADMIN,
-      memberships: [{ tenant: { id: 't1' }, role: 'OWNER' }],
-    });
+    tenantService.activeMembership.set({ tenant: { id: 't1' }, role: 'OWNER' });
     expect(component.isAdmin()).toBe(true);
   });
 
   it('isAdmin is false for non-admin role', () => {
-    authService.me.set(MOCK_ME_STAFF);
+    tenantService.activeMembership.set(MOCK_ME_STAFF.memberships[0]);
     expect(component.isAdmin()).toBe(false);
   });
 
   it('isAdmin is false when not logged in', () => {
-    authService.me.set(null);
+    tenantService.activeMembership.set(null);
     expect(component.isAdmin()).toBe(false);
   });
 
@@ -94,7 +93,7 @@ describe('SettingsShellComponent', () => {
   });
 
   it('tabs does not include staff tab for non-admin', () => {
-    authService.me.set(MOCK_ME_STAFF);
+    tenantService.activeMembership.set(MOCK_ME_STAFF.memberships[0]);
     expect(component.tabs().map((t) => t.key)).not.toContain('staff');
   });
 

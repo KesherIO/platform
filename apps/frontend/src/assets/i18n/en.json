@@ -133,7 +133,10 @@
     "SUCCESS_BUTTON": "Go to sign in",
     "SUBMIT_BUTTON": "Create account",
     "COMPLETING": "Creating your account...",
-    "LOGO_UPLOAD_FAILED": "Account created successfully, but logo upload failed. You can upload your logo later from Settings."
+    "LOGO_UPLOAD_FAILED": "Account created successfully, but logo upload failed. You can upload your logo later from Settings.",
+    "IS_VET_LABEL": "I'm also a veterinarian",
+    "IS_VET_HINT": "Enable this if you will also be ordering tests",
+    "SUCCESS_BODY_VET": "Your account has been created successfully. Please sign in to complete your veterinary profile and submit your credentials for verification."
   },
   "STAFF_PROFILE": {
     "TITLE": "Create your account",
@@ -525,8 +528,8 @@
     "ISSUING_AUTHORITY_LABEL": "Issuing authority (optional)",
     "ISSUING_AUTHORITY_PLACEHOLDER": "e.g. State Board of Veterinary Medicine",
     "LICENSE_EXPIRES_LABEL": "License expiry date (optional)",
-    "DOCUMENT_LABEL": "Credential document",
-    "DOCUMENT_HINT": "Upload your license or certificate. PDF, JPEG or PNG — max 10 MB.",
+    "DOCUMENT_LABEL": "Identification document",
+    "DOCUMENT_HINT": "Upload your identity document. PDF, JPEG or PNG — max 10 MB.",
     "DOCUMENT_UPLOAD": "Upload document",
     "DOCUMENT_CHANGE": "Change document",
     "DOCUMENT_TYPE_ERROR": "Invalid file type. Please upload a PDF, JPEG, or PNG.",
@@ -585,5 +588,17 @@
     "TITLE": "No clinic assigned",
     "BODY": "Your account is not linked to any clinic right now. If you think this is a mistake, please contact your clinic administrator.",
     "SIGN_OUT": "Sign out"
+  },
+  "SELECT_CLINIC": {
+    "TITLE": "Select a clinic",
+    "SUBTITLE": "You belong to multiple clinics. Choose one to continue.",
+    "ROLE_ADMIN": "Admin",
+    "ROLE_OWNER": "Owner",
+    "ROLE_VET": "Veterinarian",
+    "ROLE_TECHNICIAN": "Technician",
+    "ROLE_RECEPTIONIST": "Receptionist"
+  },
+  "CLINIC_SWITCHER": {
+    "SWITCH_CLINIC": "Switch clinic"
   }
 }

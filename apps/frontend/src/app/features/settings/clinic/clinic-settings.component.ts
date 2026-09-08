@@ -3,6 +3,7 @@ import { take, switchMap } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { resolveLogoUrl } from '../../../core/services/onboarding.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
@@ -17,31 +18,29 @@ import { OutlineButtonComponent } from '../../../shared/components/outline-butto
 })
 export class ClinicSettingsComponent {
   private readonly auth = inject(AuthService);
+  private readonly tenant = inject(TenantService);
   private readonly settingsService = inject(SettingsService);
 
   readonly isAdmin = computed(() => {
-    const me = this.auth.me();
-    if (!me) return false;
-    const activeTenantId = me.activeTenantId ?? me.tenants[0]?.id;
-    return me.memberships.some(
-      (m) =>
-        m.tenant.id === activeTenantId &&
-        (m.role === 'ADMIN' || m.role === 'OWNER')
-    );
+    const membership = this.tenant.activeMembership();
+    if (!membership) return false;
+    return membership.role === 'ADMIN' || membership.role === 'OWNER';
   });
 
-  readonly clinicName = computed(() => this.auth.me()?.tenants[0]?.name ?? '');
+  readonly clinicName = computed(
+    () => this.tenant.activeMembership()?.tenant.name ?? ''
+  );
   readonly clinicEmail = computed(
-    () => this.auth.me()?.tenants[0]?.email ?? ''
+    () => this.tenant.activeMembership()?.tenant.email ?? ''
   );
   readonly clinicPhone = computed(
-    () => this.auth.me()?.tenants[0]?.phone ?? ''
+    () => this.tenant.activeMembership()?.tenant.phone ?? ''
   );
   readonly clinicAddress = computed(
-    () => this.auth.me()?.tenants[0]?.address ?? ''
+    () => this.tenant.activeMembership()?.tenant.address ?? ''
   );
   readonly clinicLogoUrl = computed(() =>
-    resolveLogoUrl(this.auth.me()?.tenants[0]?.logoUrl)
+    resolveLogoUrl(this.tenant.activeMembership()?.tenant.logoUrl)
   );
 
   readonly editing = signal(false);

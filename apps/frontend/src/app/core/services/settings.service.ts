@@ -3,7 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { StaffMember } from '@vet-ai/shared-types';
-import { AuthService } from './auth.service';
+import { TenantService } from './tenant.service';
 
 export type InviteErrorType =
   | 'capacity_exceeded'
@@ -33,11 +33,10 @@ export interface LabContact {
 })
 export class SettingsService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
+  private readonly tenant = inject(TenantService);
 
   private get tenantId(): string {
-    const me = this.auth.me();
-    return me?.activeTenantId ?? me?.tenants[0]?.id ?? '';
+    return this.tenant.activeTenantId() ?? '';
   }
 
   private get tenantHeaders() {
@@ -64,7 +63,7 @@ export class SettingsService {
       .pipe(
         map((res) => ({
           token: res.token,
-          url: `${window.location.origin}/onboarding/staff?token=${res.token}&tenantId=${res.tenantId}`,
+          url: `/onboarding/staff?token=${res.token}&tenantId=${res.tenantId}`,
           alreadyExists: res.alreadyExists,
         })),
         catchError((err: HttpErrorResponse) => {

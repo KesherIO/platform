@@ -72,6 +72,7 @@ function makePrismaMock() {
     },
     order: {
       findUnique: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockResolvedValue(MOCK_ORDER),
     },
     caseCatalogItem: {
@@ -83,7 +84,10 @@ function makePrismaMock() {
       findFirst: jest.fn().mockResolvedValue({ labId: 'lab-tenant-1' }),
     },
     counter: {
-      upsert: jest.fn().mockResolvedValue({ name: 'ORDER_SEQ', value: 1 }),
+      upsert: jest
+        .fn()
+        .mockResolvedValue({ name: 'ORDER_SEQ:lab-tenant-1:2026', value: 1 }),
+      update: jest.fn().mockResolvedValue({ value: 1 }),
     },
     timelineEvent: {
       create: jest.fn().mockResolvedValue({}),
@@ -269,9 +273,13 @@ describe('OrdersService', () => {
             ...makePrismaMock(),
             order: {
               findUnique: jest.fn().mockResolvedValue(null),
+              findFirst: jest.fn().mockResolvedValue(null),
               create: orderCreate,
             },
-            counter: { upsert: jest.fn().mockResolvedValue({ value: 1 }) },
+            counter: {
+              upsert: jest.fn().mockResolvedValue({ value: 1 }),
+              update: jest.fn().mockResolvedValue({ value: 1 }),
+            },
             case: { update: jest.fn().mockResolvedValue(MOCK_CASE) },
             timelineEvent: { create: jest.fn().mockResolvedValue({}) },
           })
@@ -312,9 +320,13 @@ describe('OrdersService', () => {
             ...makePrismaMock(),
             order: {
               findUnique: jest.fn().mockResolvedValue(null),
+              findFirst: jest.fn().mockResolvedValue(null),
               create: orderCreate,
             },
-            counter: { upsert: jest.fn().mockResolvedValue({ value: 1 }) },
+            counter: {
+              upsert: jest.fn().mockResolvedValue({ value: 1 }),
+              update: jest.fn().mockResolvedValue({ value: 1 }),
+            },
             case: { update: jest.fn().mockResolvedValue(MOCK_CASE) },
             timelineEvent: { create: jest.fn().mockResolvedValue({}) },
           })
@@ -345,9 +357,13 @@ describe('OrdersService', () => {
             ...makePrismaMock(),
             order: {
               findUnique: jest.fn().mockResolvedValue(null),
+              findFirst: jest.fn().mockResolvedValue(null),
               create: orderCreate,
             },
-            counter: { upsert: jest.fn().mockResolvedValue({ value: 1 }) },
+            counter: {
+              upsert: jest.fn().mockResolvedValue({ value: 1 }),
+              update: jest.fn().mockResolvedValue({ value: 1 }),
+            },
             case: { update: jest.fn().mockResolvedValue(MOCK_CASE) },
             timelineEvent: { create: jest.fn().mockResolvedValue({}) },
           })
@@ -377,9 +393,13 @@ describe('OrdersService', () => {
             ...makePrismaMock(),
             order: {
               findUnique: jest.fn().mockResolvedValue(null),
+              findFirst: jest.fn().mockResolvedValue(null),
               create: orderCreate,
             },
-            counter: { upsert: jest.fn().mockResolvedValue({ value: 1 }) },
+            counter: {
+              upsert: jest.fn().mockResolvedValue({ value: 1 }),
+              update: jest.fn().mockResolvedValue({ value: 1 }),
+            },
             case: { update: jest.fn().mockResolvedValue(MOCK_CASE) },
             timelineEvent: { create: jest.fn().mockResolvedValue({}) },
           })
@@ -569,6 +589,232 @@ describe('OrdersService', () => {
 
       expect(err).toBeInstanceOf(BadRequestException);
       expect((err.getResponse() as any).code).toBe('ORDERING_VET_NOT_A_VET');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Lab-scoped requisition numbering
+  // ---------------------------------------------------------------------------
+
+  describe('lab-scoped requisition numbering', () => {
+    const CURRENT_YEAR = new Date().getUTCFullYear();
+
+    it('uses ORDER_SEQ:{labTenantId}:{year} as the counter key', async () => {
+      const counterUpsert = jest.fn().mockResolvedValue({ value: 1 });
+
+      prisma.$transaction.mockImplementation(
+        (cb: (tx: any) => Promise<unknown>) =>
+          cb({
+            ...makePrismaMock(),
+            counter: {
+              upsert: counterUpsert,
+              update: jest.fn().mockResolvedValue({ value: 1 }),
+            },
+            order: {
+              findUnique: jest.fn().mockResolvedValue(null),
+              findFirst: jest.fn().mockResolvedValue(null),
+              create: jest.fn().mockResolvedValue(MOCK_ORDER),
+            },
+            case: { update: jest.fn().mockResolvedValue(MOCK_CASE) },
+            timelineEvent: { create: jest.fn().mockResolvedValue({}) },
+          })
+      );
+
+      await service.createOrderForCase('tenant-1', 'case-1', {});
+
+      expect(counterUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { name: `ORDER_SEQ:lab-tenant-1:${CURRENT_YEAR}` },
+        })
+      );
+    });
+
+    it('generates sequential numbers for the same lab and year', async () => {
+      let callCount = 0;
+      const counterUpsert = jest.fn().mockImplementation(() => {
+        callCount++;
+        return Promise.resolve({ value: callCount });
+      });
+      const createdOrders: any[] = [];
+      const orderCreate = jest.fn().mockImplementation((args: any) => {
+        const order = {
+          ...MOCK_ORDER,
+          requisitionNumber: args.data.requisitionNumber,
+        };
+        createdOrders.push(order);
+        return Promise.resolve(order);
+      });
+
+      prisma.$transaction.mockImplementation(
+        (cb: (tx: any) => Promise<unknown>) =>
+          cb({
+            ...makePrismaMock(),
+            counter: {
+              upsert: counterUpsert,
+              update: jest.fn().mockResolvedValue({ value: 1 }),
+            },
+            order: {
+              findUnique: jest.fn().mockResolvedValue(null),
+              findFirst: jest.fn().mockResolvedValue(null),
+              create: orderCreate,
+            },
+            case: { update: jest.fn().mockResolvedValue(MOCK_CASE) },
+            timelineEvent: { create: jest.fn().mockResolvedValue({}) },
+          })
+      );
+
+      prisma.order.findUnique.mockResolvedValue(null);
+
+      await service.createOrderForCase('tenant-1', 'case-1', {});
+      prisma.case.findFirst.mockResolvedValue({ ...MOCK_CASE, id: 'case-2' });
+      await service.createOrderForCase('tenant-1', 'case-2', {});
+
+      expect(counterUpsert).toHaveBeenCalledTimes(2);
+      const key = `ORDER_SEQ:lab-tenant-1:${CURRENT_YEAR}`;
+      expect(counterUpsert).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ where: { name: key } })
+      );
+      expect(counterUpsert).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ where: { name: key } })
+      );
+      expect(createdOrders[0].requisitionNumber).toBe(
+        `REQ-${CURRENT_YEAR}-000001`
+      );
+      expect(createdOrders[1].requisitionNumber).toBe(
+        `REQ-${CURRENT_YEAR}-000002`
+      );
+    });
+
+    it('isolates counters between different labs', async () => {
+      const counterUpsert = jest.fn().mockResolvedValue({ value: 1 });
+      const orderCreate = jest.fn().mockResolvedValue(MOCK_ORDER);
+
+      prisma.$transaction.mockImplementation(
+        (cb: (tx: any) => Promise<unknown>) =>
+          cb({
+            ...makePrismaMock(),
+            counter: {
+              upsert: counterUpsert,
+              update: jest.fn().mockResolvedValue({ value: 1 }),
+            },
+            order: {
+              findUnique: jest.fn().mockResolvedValue(null),
+              findFirst: jest.fn().mockResolvedValue(null),
+              create: orderCreate,
+            },
+            case: { update: jest.fn().mockResolvedValue(MOCK_CASE) },
+            timelineEvent: { create: jest.fn().mockResolvedValue({}) },
+          })
+      );
+
+      // Order to lab-A
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        labId: 'lab-A',
+      });
+      await service.createOrderForCase('tenant-1', 'case-1', {});
+
+      // Order to lab-B
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        labId: 'lab-B',
+      });
+      prisma.case.findFirst.mockResolvedValue({ ...MOCK_CASE, id: 'case-2' });
+      prisma.order.findUnique.mockResolvedValue(null);
+      await service.createOrderForCase('tenant-1', 'case-2', {});
+
+      expect(counterUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { name: `ORDER_SEQ:lab-A:${CURRENT_YEAR}` },
+        })
+      );
+      expect(counterUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { name: `ORDER_SEQ:lab-B:${CURRENT_YEAR}` },
+        })
+      );
+    });
+
+    it('uses separate counter keys for different years (year rollover)', async () => {
+      const counterUpsert = jest.fn().mockResolvedValue({ value: 1 });
+      const orderCreate = jest.fn().mockResolvedValue(MOCK_ORDER);
+
+      prisma.$transaction.mockImplementation(
+        (cb: (tx: any) => Promise<unknown>) =>
+          cb({
+            ...makePrismaMock(),
+            counter: {
+              upsert: counterUpsert,
+              update: jest.fn().mockResolvedValue({ value: 1 }),
+            },
+            order: {
+              findUnique: jest.fn().mockResolvedValue(null),
+              findFirst: jest.fn().mockResolvedValue(null),
+              create: orderCreate,
+            },
+            case: { update: jest.fn().mockResolvedValue(MOCK_CASE) },
+            timelineEvent: { create: jest.fn().mockResolvedValue({}) },
+          })
+      );
+
+      // Order in current year
+      await service.createOrderForCase('tenant-1', 'case-1', {});
+
+      // Simulate year rollover
+      const nextYear = CURRENT_YEAR + 1;
+      jest.spyOn(Date.prototype, 'getUTCFullYear').mockReturnValue(nextYear);
+
+      prisma.case.findFirst.mockResolvedValue({ ...MOCK_CASE, id: 'case-2' });
+      prisma.order.findUnique.mockResolvedValue(null);
+      await service.createOrderForCase('tenant-1', 'case-2', {});
+
+      jest.restoreAllMocks();
+
+      expect(counterUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { name: `ORDER_SEQ:lab-tenant-1:${CURRENT_YEAR}` },
+        })
+      );
+      expect(counterUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { name: `ORDER_SEQ:lab-tenant-1:${nextYear}` },
+        })
+      );
+    });
+
+    it('falls back to __GLOBAL__ scope when no lab connection exists', async () => {
+      prisma.clinicLabConnection.findFirst.mockResolvedValue(null);
+
+      const counterUpsert = jest.fn().mockResolvedValue({ value: 1 });
+
+      prisma.$transaction.mockImplementation(
+        (cb: (tx: any) => Promise<unknown>) =>
+          cb({
+            ...makePrismaMock(),
+            clinicLabConnection: {
+              findFirst: jest.fn().mockResolvedValue(null),
+            },
+            counter: {
+              upsert: counterUpsert,
+              update: jest.fn().mockResolvedValue({ value: 1 }),
+            },
+            order: {
+              findUnique: jest.fn().mockResolvedValue(null),
+              findFirst: jest.fn().mockResolvedValue(null),
+              create: jest.fn().mockResolvedValue(MOCK_ORDER),
+            },
+            case: { update: jest.fn().mockResolvedValue(MOCK_CASE) },
+            timelineEvent: { create: jest.fn().mockResolvedValue({}) },
+          })
+      );
+
+      await service.createOrderForCase('tenant-1', 'case-1', {});
+
+      expect(counterUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { name: `ORDER_SEQ:__GLOBAL__:${CURRENT_YEAR}` },
+        })
+      );
     });
   });
 });

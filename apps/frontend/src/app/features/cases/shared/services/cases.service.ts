@@ -13,21 +13,23 @@ import {
   EligibleVetModel,
   OrderPriority,
 } from '@vet-ai/shared-types';
-import { AuthService } from '../../../../core/services/auth.service';
+import { TenantService } from '../../../../core/services/tenant.service';
 import { MOCK_REPORT, MOCK_DELAY } from './cases.mocks';
 
 @Injectable({ providedIn: 'root' })
 export class CasesService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
+  private readonly tenant = inject(TenantService);
 
   private get tenantHeaders() {
-    const me = this.auth.me();
-    const tenantId = me?.activeTenantId ?? me?.tenants[0]?.id ?? '';
-    return { headers: { 'x-tenant-id': tenantId } };
+    return { headers: { 'x-tenant-id': this.tenant.activeTenantId() ?? '' } };
   }
 
   activeCase = signal<CaseModel | null>(null);
+
+  constructor() {
+    this.tenant.registerCacheCleaner(() => this.activeCase.set(null));
+  }
 
   listCases(params?: {
     search?: string;
@@ -80,8 +82,7 @@ export class CasesService {
   }
 
   getEligibleVets(): Observable<EligibleVetModel[]> {
-    const me = this.auth.me();
-    const tenantId = me?.activeTenantId ?? me?.tenants[0]?.id ?? '';
+    const tenantId = this.tenant.activeTenantId() ?? '';
     return this.http.get<EligibleVetModel[]>(
       `/api/tenants/${tenantId}/vets`,
       this.tenantHeaders

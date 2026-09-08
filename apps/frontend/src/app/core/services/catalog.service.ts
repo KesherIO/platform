@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, tap } from 'rxjs';
 import { CatalogItemModel } from '@vet-ai/shared-types';
-import { AuthService } from './auth.service';
+import { TenantService } from './tenant.service';
 
 export const MOCK_CATALOG_ITEMS: CatalogItemModel[] = [
   // Tests
@@ -201,14 +201,16 @@ export const MOCK_CATALOG_ITEMS: CatalogItemModel[] = [
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
+  private readonly tenant = inject(TenantService);
 
   catalog = signal<CatalogItemModel[] | null>(null);
 
+  constructor() {
+    this.tenant.registerCacheCleaner(() => this.catalog.set(null));
+  }
+
   private get tenantHeaders() {
-    const me = this.auth.me();
-    const tenantId = me?.activeTenantId ?? me?.tenants[0]?.id ?? '';
-    return { headers: { 'x-tenant-id': tenantId } };
+    return { headers: { 'x-tenant-id': this.tenant.activeTenantId() ?? '' } };
   }
 
   loadCatalog(): Observable<CatalogItemModel[]> {

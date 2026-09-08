@@ -122,10 +122,10 @@ export class PickupService {
     });
     if (!pickup) throw new NotFoundException('Pickup not found.');
 
-    // Optimistic concurrency — someone else may have assigned it already
-    if (pickup.status !== 'REQUESTED') {
+    const reassignable = ['REQUESTED', 'ASSIGNED', 'NOTIFIED'];
+    if (!reassignable.includes(pickup.status)) {
       throw new BadRequestException(
-        `Pickup is already ${pickup.status} — it can only be assigned from REQUESTED.`
+        `Pickup is ${pickup.status} — messenger can only be (re)assigned while REQUESTED, ASSIGNED or NOTIFIED.`
       );
     }
 
