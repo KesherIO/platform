@@ -1,71 +1,72 @@
 <div class="min-h-screen bg-white flex flex-col items-center">
   <div class="w-full max-w-md flex flex-col flex-1">
-  <div
-    class="flex-1 flex flex-col items-center justify-center px-6 text-center gap-5"
-  >
-    @if (loading()) {
-    <p class="text-sm text-gray-400">{{ 'COMMON.LOADING' | translate }}</p>
-    } @else {
-    <!-- Brand header -->
-    <div class="mb-7">
-      <app-auth-branding />
-    </div>
-
-    <!-- Rejected icon -->
     <div
-      class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center"
+      class="flex-1 flex flex-col items-center justify-center px-6 text-center gap-5"
     >
-      <svg
-        class="w-8 h-8 text-red-500"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+      @if (loading()) {
+      <p class="text-sm text-gray-400">{{ 'COMMON.LOADING' | translate }}</p>
+      } @else {
+      <!-- Brand header -->
+      <div class="mb-7">
+        <app-auth-branding />
+      </div>
+
+      <!-- Rejected icon -->
+      <div
+        class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M6 18L18 6M6 6l12 12"
-        />
-      </svg>
-    </div>
+        <svg
+          class="w-8 h-8 text-red-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </div>
 
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900 mb-2">
-        {{ 'VERIFICATION_REJECTED.TITLE' | translate }}
-      </h1>
-      <p class="text-sm text-gray-600">
-        {{ 'VERIFICATION_REJECTED.SUBTITLE' | translate }}
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">
+          {{ 'VERIFICATION_REJECTED.TITLE' | translate }}
+        </h1>
+        <p class="text-sm text-gray-600">
+          {{ 'VERIFICATION_REJECTED.SUBTITLE' | translate }}
+        </p>
+      </div>
+
+      @if (status()?.rejectionReason) {
+      <div
+        class="w-full bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-left"
+      >
+        <p class="text-xs text-red-400 mb-1">
+          {{ 'VERIFICATION_REJECTED.REASON_LABEL' | translate }}
+        </p>
+        <p class="text-sm text-red-700">{{ status()!.rejectionReason }}</p>
+      </div>
+      }
+
+      <div class="w-full mt-2">
+        <app-primary-button type="button" (click)="onUpdateCredentials()">
+          {{ 'VERIFICATION_REJECTED.UPDATE_BUTTON' | translate }}
+        </app-primary-button>
+      </div>
+
+      <p class="text-xs text-gray-400">
+        {{ 'VERIFICATION_REJECTED.CONTACT_HINT' | translate }}
       </p>
+      }
     </div>
 
-    @if (status()?.rejectionReason) {
     <div
-      class="w-full bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-left"
+      class="h-8 bg-white border-t border-gray-200 flex items-center justify-center"
     >
-      <p class="text-xs text-red-400 mb-1">
-        {{ 'VERIFICATION_REJECTED.REASON_LABEL' | translate }}
-      </p>
-      <p class="text-sm text-red-700">{{ status()!.rejectionReason }}</p>
+      <div class="w-32 h-1 bg-black rounded-full"></div>
     </div>
-    }
-
-    <div class="w-full mt-2">
-      <app-primary-button type="button" (click)="onUpdateCredentials()">
-        {{ 'VERIFICATION_REJECTED.UPDATE_BUTTON' | translate }}
-      </app-primary-button>
-    </div>
-
-    <p class="text-xs text-gray-400">
-      {{ 'VERIFICATION_REJECTED.CONTACT_HINT' | translate }}
-    </p>
-    }
   </div>
-
-  <div
-    class="h-8 bg-white border-t border-gray-200 flex items-center justify-center"
-  >
-    <div class="w-32 h-1 bg-black rounded-full"></div>
-  </div>
-  </div><!-- /max-w-md -->
+  <!-- /max-w-md -->
 </div>

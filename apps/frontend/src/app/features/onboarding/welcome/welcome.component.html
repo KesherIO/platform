@@ -1,99 +1,100 @@
 <div class="min-h-screen bg-white flex flex-col items-center">
   <div class="w-full max-w-md flex flex-col flex-1">
-  <!-- Loading state -->
-  @if (loading()) {
-  <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
-    <p class="text-base text-gray-500">{{ 'WELCOME.LOADING' | translate }}</p>
-  </div>
-  }
+    <!-- Loading state -->
+    @if (loading()) {
+    <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <p class="text-base text-gray-500">{{ 'WELCOME.LOADING' | translate }}</p>
+    </div>
+    }
 
-  <!-- Error state (no token, expired, used, not found) -->
-  @if (!loading() && errorReason()) {
-  <div
-    class="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center"
-  >
-    <!-- Icon -->
+    <!-- Error state (no token, expired, used, not found) -->
+    @if (!loading() && errorReason()) {
     <div
-      class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6"
+      class="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center"
     >
-      <svg
-        class="w-8 h-8 text-red-500"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+      <!-- Icon -->
+      <div
+        class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-        />
-      </svg>
+        <svg
+          class="w-8 h-8 text-red-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+          />
+        </svg>
+      </div>
+
+      <h1 class="text-2xl font-bold text-gray-900 mb-3">
+        {{ errorTitleKey | translate }}
+      </h1>
+      <p class="text-base text-gray-600 max-w-sm leading-relaxed">
+        {{ errorBodyKey | translate }}
+      </p>
+    </div>
+    }
+
+    <!-- Valid token — welcome screen -->
+    @if (!loading() && !errorReason()) {
+    <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <!-- Brand header -->
+      <div class="mb-7">
+        <app-auth-branding />
+      </div>
+
+      <!-- Title -->
+      <h1 class="text-2xl font-bold text-gray-900 mb-2 text-center">
+        {{ 'WELCOME.TITLE' | translate : { name: clinicName() } }}
+      </h1>
+
+      <!-- Body -->
+      <p
+        class="text-base text-gray-700 text-center max-w-sm mb-12 leading-relaxed"
+      >
+        {{ 'WELCOME.BODY' | translate : { name: clinicName() } }}
+      </p>
+
+      <!-- Continue Button -->
+      <div class="w-full max-w-sm mb-6">
+        <app-primary-button type="button" (click)="onContinue()">
+          {{ 'COMMON.CONTINUE' | translate }}
+        </app-primary-button>
+      </div>
+
+      <!-- Terms Text -->
+      <p class="text-xs text-gray-500 text-center max-w-sm px-4">
+        {{ 'WELCOME.TERMS_PRE' | translate }}
+        <a href="#" class="text-cyan underline">{{
+          'WELCOME.TERMS_LINK' | translate
+        }}</a>
+        {{ 'WELCOME.TERMS_AND' | translate }}
+        <a href="#" class="text-cyan underline">{{
+          'WELCOME.PRIVACY_LINK' | translate
+        }}</a>
+      </p>
+    </div>
+    }
+
+    <!-- Language Toggle -->
+    <div class="pb-8">
+      <app-language-toggle
+        [selected]="languageService.currentLang()"
+        (languageChange)="onLanguageChange($event)"
+      />
     </div>
 
-    <h1 class="text-2xl font-bold text-gray-900 mb-3">
-      {{ errorTitleKey | translate }}
-    </h1>
-    <p class="text-base text-gray-600 max-w-sm leading-relaxed">
-      {{ errorBodyKey | translate }}
-    </p>
-  </div>
-  }
-
-  <!-- Valid token — welcome screen -->
-  @if (!loading() && !errorReason()) {
-  <div class="flex-1 flex flex-col items-center justify-center px-6 py-12">
-    <!-- Brand header -->
-    <div class="mb-7">
-      <app-auth-branding />
-    </div>
-
-    <!-- Title -->
-    <h1 class="text-2xl font-bold text-gray-900 mb-2 text-center">
-      {{ 'WELCOME.TITLE' | translate : { name: clinicName() } }}
-    </h1>
-
-    <!-- Body -->
-    <p
-      class="text-base text-gray-700 text-center max-w-sm mb-12 leading-relaxed"
+    <!-- Bottom Bar (Home Indicator for iOS) -->
+    <div
+      class="h-8 bg-white border-t border-gray-200 flex items-center justify-center"
     >
-      {{ 'WELCOME.BODY' | translate : { name: clinicName() } }}
-    </p>
-
-    <!-- Continue Button -->
-    <div class="w-full max-w-sm mb-6">
-      <app-primary-button type="button" (click)="onContinue()">
-        {{ 'COMMON.CONTINUE' | translate }}
-      </app-primary-button>
+      <div class="w-32 h-1 bg-black rounded-full"></div>
     </div>
-
-    <!-- Terms Text -->
-    <p class="text-xs text-gray-500 text-center max-w-sm px-4">
-      {{ 'WELCOME.TERMS_PRE' | translate }}
-      <a href="#" class="text-cyan underline">{{
-        'WELCOME.TERMS_LINK' | translate
-      }}</a>
-      {{ 'WELCOME.TERMS_AND' | translate }}
-      <a href="#" class="text-cyan underline">{{
-        'WELCOME.PRIVACY_LINK' | translate
-      }}</a>
-    </p>
   </div>
-  }
-
-  <!-- Language Toggle -->
-  <div class="pb-8">
-    <app-language-toggle
-      [selected]="languageService.currentLang()"
-      (languageChange)="onLanguageChange($event)"
-    />
-  </div>
-
-  <!-- Bottom Bar (Home Indicator for iOS) -->
-  <div
-    class="h-8 bg-white border-t border-gray-200 flex items-center justify-center"
-  >
-    <div class="w-32 h-1 bg-black rounded-full"></div>
-  </div>
-  </div><!-- /max-w-md -->
+  <!-- /max-w-md -->
 </div>

@@ -255,7 +255,14 @@ export interface LabOrderDetail extends LabOrderSummary {
   specimens?: Specimen[];
 }
 
-export type LabRole = 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'MESSENGER' | 'ANALYST' | 'REVIEWER' | 'DATA_ENTRY';
+export type LabRole =
+  | 'OWNER'
+  | 'ADMIN'
+  | 'TECHNICIAN'
+  | 'MESSENGER'
+  | 'ANALYST'
+  | 'REVIEWER'
+  | 'DATA_ENTRY';
 
 export const WEEKDAYS = [
   'MONDAY',

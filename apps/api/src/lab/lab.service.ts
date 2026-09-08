@@ -640,7 +640,9 @@ export class LabService {
 
     if (signers !== undefined) {
       const isRealId = (id?: string) => id && !id.startsWith('temp-');
-      const incomingIds = signers.filter((s) => isRealId(s.id)).map((s) => s.id!);
+      const incomingIds = signers
+        .filter((s) => isRealId(s.id))
+        .map((s) => s.id!);
 
       // Delete signers removed from the list, but only if no release references them
       const toDelete = await this.prisma.labSigner.findMany({
