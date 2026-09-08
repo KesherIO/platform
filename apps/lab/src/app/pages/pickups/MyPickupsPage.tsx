@@ -176,13 +176,32 @@ export function MyPickupsPage() {
           {pickups.map((pickup) => (
             <div
               key={pickup.id}
-              className="rounded-xl border border-gray-800 bg-gray-900 p-4"
+              className={`rounded-xl border bg-gray-900 p-4 ${
+                pickup.priority === 'STAT'
+                  ? 'border-l-4 border-l-red-500 border-t-gray-800 border-r-gray-800 border-b-gray-800'
+                  : pickup.priority === 'URGENT'
+                  ? 'border-l-4 border-l-amber-500 border-t-gray-800 border-r-gray-800 border-b-gray-800'
+                  : 'border-gray-800'
+              }`}
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-mono text-xs text-gray-500">
-                    {pickup.requisitionNumber}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono text-xs text-gray-500">
+                      {pickup.requisitionNumber}
+                    </p>
+                    {pickup.priority === 'STAT' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-red-400">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" />
+                        {t('my_pickups.priority_stat')}
+                      </span>
+                    )}
+                    {pickup.priority === 'URGENT' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-400">
+                        {t('my_pickups.priority_urgent')}
+                      </span>
+                    )}
+                  </div>
                   <p className="mt-0.5 font-semibold text-white">
                     {pickup.clinicName}
                   </p>

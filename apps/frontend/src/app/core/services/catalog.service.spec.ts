@@ -5,7 +5,7 @@ import {
 } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { CatalogService, MOCK_CATALOG_ITEMS } from './catalog.service';
-import { AuthService } from './auth.service';
+import { TenantService } from './tenant.service';
 import { signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
@@ -18,7 +18,13 @@ describe('CatalogService', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: AuthService, useValue: { me: signal(null) } },
+        {
+          provide: TenantService,
+          useValue: {
+            activeTenantId: signal('t1'),
+            registerCacheCleaner: vi.fn(),
+          },
+        },
       ],
     });
     service = TestBed.inject(CatalogService);

@@ -1,5 +1,9 @@
 import { Routes } from '@angular/router';
-import { authGuard, noAuthGuard } from './core/guards/auth.guard';
+import {
+  authGuard,
+  noAuthGuard,
+  authOnlyGuard,
+} from './core/guards/auth.guard';
 
 export const routes: Routes = [
   // Auth callback must come BEFORE the 'auth' parent route.
@@ -34,6 +38,16 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/onboarding/no-clinic/no-clinic.component').then(
         (m) => m.NoClinicComponent
+      ),
+  },
+
+  // Clinic selection — shown to users with multiple clinics and no saved preference.
+  {
+    path: 'select-clinic',
+    canActivate: [authOnlyGuard],
+    loadComponent: () =>
+      import('./features/auth/select-clinic/select-clinic.component').then(
+        (m) => m.SelectClinicComponent
       ),
   },
 

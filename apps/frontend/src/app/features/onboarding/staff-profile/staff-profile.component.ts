@@ -9,6 +9,7 @@ import {
 } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingService } from '../../../core/services/onboarding.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 import { AuthBrandingComponent } from '../../../shared/components/auth-branding/auth-branding.component';
@@ -130,8 +131,9 @@ export class StaffProfileComponent implements OnInit {
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
+        next: (res: { userId: string; tenantId: string }) => {
           this.loading.set(false);
+          TenantService.savePreference(res.userId, res.tenantId);
           this.router.navigate(['/auth/login']);
         },
         error: (err: { message?: string }) => {
@@ -154,8 +156,9 @@ export class StaffProfileComponent implements OnInit {
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
+        next: (res: { userId: string; tenantId: string }) => {
           this.loading.set(false);
+          TenantService.savePreference(res.userId, res.tenantId);
           this.router.navigate(['/auth/login']);
         },
         error: (err: { message?: string }) => {

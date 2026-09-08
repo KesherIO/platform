@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -8,6 +9,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 // ---------------------------------------------------------------------------
 // POST /onboarding/clinic
@@ -276,6 +278,13 @@ export class CompleteAdminOnboardingDto {
   @IsOptional()
   @IsString()
   country?: string;
+
+  /** When true, the admin is also a veterinarian — sets isOrderingVet on their membership */
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  isVet?: boolean;
 
   @ApiPropertyOptional({
     example:

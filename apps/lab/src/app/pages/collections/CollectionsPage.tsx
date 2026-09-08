@@ -425,12 +425,16 @@ export function CollectionsPage() {
                       {formatTimestamp(pickup.createdAt)}
                     </p>
 
-                    {pickup.status === 'REQUESTED' && (
+                    {['REQUESTED', 'ASSIGNED', 'NOTIFIED'].includes(
+                      pickup.status
+                    ) && (
                       <button
                         onClick={() => setAssigningPickupId(pickup.id)}
                         className="rounded-lg bg-cyan px-3 py-1 text-xs font-semibold text-gray-950 hover:opacity-90"
                       >
-                        {t('collections.assign')}
+                        {pickup.status === 'REQUESTED'
+                          ? t('collections.assign')
+                          : t('collections.reassign')}
                       </button>
                     )}
                     {pickup.status === 'IN_TRANSIT' && (

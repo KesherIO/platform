@@ -112,6 +112,20 @@ function makePrismaMock() {
     clinicLabConnection: {
       findFirst: jest.fn().mockResolvedValue(null),
     },
+    veterinarianProfile: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+    vetLabVerification: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    veterinarianCredential: {
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
+    vetVerificationEvent: {
+      create: jest.fn(),
+    },
     order: {
       updateMany: jest.fn(),
     },
@@ -119,9 +133,6 @@ function makePrismaMock() {
       updateMany: jest.fn(),
     },
     pickup: {
-      deleteMany: jest.fn(),
-    },
-    vetLabVerification: {
       deleteMany: jest.fn(),
     },
     $transaction: jest.fn(),
@@ -514,7 +525,10 @@ describe('OnboardingService', () => {
         const result = await service.completeStaffOnboarding(baseDto);
 
         expect(auth.createSupabaseUser).not.toHaveBeenCalled();
-        expect(result).toEqual({ userId: 'existing-user' });
+        expect(result).toEqual({
+          userId: 'existing-user',
+          tenantId: 'tenant-1',
+        });
       });
 
       it('throws ConflictException when the existing user is already a member', async () => {
@@ -527,6 +541,126 @@ describe('OnboardingService', () => {
 
         await expect(service.completeStaffOnboarding(baseDto)).rejects.toThrow(
           ConflictException
+        );
+      });
+
+      it('sets ACTIVE status when existing vet is already approved at the lab', async () => {
+        prisma.tenantInvitation.findUnique.mockResolvedValue(makeInvite());
+        prisma.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+        prisma.userTenantMembership.findUnique.mockResolvedValue(null);
+        prisma.clinicLabConnection.findFirst.mockResolvedValue({
+          labId: 'lab-1',
+          lab: { laboratoryProfile: { vetVerificationRequired: true } },
+        });
+        prisma.veterinarianProfile.findUnique.mockResolvedValue({
+          id: 'vet-profile-1',
+        });
+        prisma.vetLabVerification.findUnique.mockResolvedValue({
+          status: 'APPROVED',
+        });
+        prisma.$transaction.mockResolvedValue([]);
+
+        await service.completeStaffOnboarding(baseDto);
+
+        expect(prisma.userTenantMembership.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: 'ACTIVE' }),
+          })
+        );
+      });
+
+      it('sets VERIFICATION_PENDING when existing vet has profile but no verification at this lab', async () => {
+        prisma.tenantInvitation.findUnique.mockResolvedValue(makeInvite());
+        prisma.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+        prisma.userTenantMembership.findUnique.mockResolvedValue(null);
+        prisma.clinicLabConnection.findFirst.mockResolvedValue({
+          labId: 'lab-1',
+          lab: { laboratoryProfile: { vetVerificationRequired: true } },
+        });
+        prisma.veterinarianProfile.findUnique.mockResolvedValue({
+          id: 'vet-profile-1',
+        });
+        prisma.vetLabVerification.findUnique.mockResolvedValue(null);
+        prisma.veterinarianCredential.findFirst.mockResolvedValue(null);
+        prisma.$transaction.mockResolvedValue([]);
+
+        await service.completeStaffOnboarding(baseDto);
+
+        expect(prisma.userTenantMembership.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: 'VERIFICATION_PENDING' }),
+          })
+        );
+      });
+
+      it('auto-submits VetLabVerification when existing vet has profile and credential but no verification at new lab', async () => {
+        prisma.tenantInvitation.findUnique.mockResolvedValue(makeInvite());
+        prisma.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+        prisma.userTenantMembership.findUnique.mockResolvedValue(null);
+        prisma.clinicLabConnection.findFirst.mockResolvedValue({
+          labId: 'lab-2',
+          lab: { laboratoryProfile: { vetVerificationRequired: true } },
+        });
+        prisma.veterinarianProfile.findUnique.mockResolvedValue({
+          id: 'vet-profile-1',
+        });
+        prisma.vetLabVerification.findUnique.mockResolvedValue(null);
+        prisma.veterinarianCredential.findFirst.mockResolvedValue({
+          id: 'cred-1',
+        });
+
+        const mockTx = {
+          vetLabVerification: {
+            create: jest.fn().mockResolvedValue({ id: 'vlv-1' }),
+          },
+          vetVerificationEvent: { create: jest.fn().mockResolvedValue({}) },
+        };
+        prisma.$transaction
+          .mockResolvedValueOnce([])
+          .mockImplementationOnce(
+            (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
+          );
+
+        await service.completeStaffOnboarding(baseDto);
+
+        expect(mockTx.vetLabVerification.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              vetProfileId: 'vet-profile-1',
+              labTenantId: 'lab-2',
+              initiatingClinicId: 'tenant-1',
+              status: 'PENDING',
+            }),
+          })
+        );
+        expect(mockTx.vetVerificationEvent.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              eventType: 'SUBMITTED',
+              actorId: 'existing-user',
+              credentialVersionId: 'cred-1',
+            }),
+          })
+        );
+      });
+
+      it('sets PROFILE_REQUIRED when existing user has no vet profile', async () => {
+        prisma.tenantInvitation.findUnique.mockResolvedValue(makeInvite());
+        prisma.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+        prisma.userTenantMembership.findUnique.mockResolvedValue(null);
+        prisma.clinicLabConnection.findFirst.mockResolvedValue({
+          labId: 'lab-1',
+          lab: { laboratoryProfile: { vetVerificationRequired: true } },
+        });
+        prisma.veterinarianProfile.findUnique.mockResolvedValue(null);
+        prisma.$transaction.mockResolvedValue([]);
+
+        await service.completeStaffOnboarding(baseDto);
+
+        expect(prisma.userTenantMembership.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ status: 'PROFILE_REQUIRED' }),
+          })
         );
       });
     });
@@ -655,10 +789,24 @@ describe('OnboardingService', () => {
         user: { create: jest.fn().mockResolvedValue({}) },
         userTenantMembership: { create: jest.fn().mockResolvedValue({}) },
         onboardingToken: { update: jest.fn().mockResolvedValue({}) },
+        clinicLabConnection: {
+          create: jest.fn().mockResolvedValue({}),
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        veterinarianProfile: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+        vetLabVerification: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+        veterinarianCredential: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
       };
       prisma.$transaction.mockImplementation(
         (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
       );
+      return mockTx;
     }
 
     it('throws NotFoundException when token does not exist', async () => {
@@ -740,6 +888,7 @@ describe('OnboardingService', () => {
         user: { create: jest.fn().mockResolvedValue({}) },
         userTenantMembership: { create: jest.fn().mockResolvedValue({}) },
         onboardingToken: { update: jest.fn().mockResolvedValue({}) },
+        clinicLabConnection: { create: jest.fn().mockResolvedValue({}) },
       };
       prisma.$transaction.mockImplementation(
         (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
@@ -763,6 +912,103 @@ describe('OnboardingService', () => {
         tenantId: 'tenant-id',
         logoUploadFailed: true,
       });
+    });
+
+    it('sets isOrderingVet and PROFILE_REQUIRED when isVet is true and lab requires verification', async () => {
+      const mockTx = setupHappyPath();
+      mockTx.clinicLabConnection.findFirst.mockResolvedValue({
+        labId: 'lab-1',
+        lab: { laboratoryProfile: { vetVerificationRequired: true } },
+      });
+
+      const result = await service.completeAdminOnboarding({
+        ...dto,
+        isVet: true,
+      });
+
+      expect(mockTx.userTenantMembership.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            role: TenantRole.ADMIN,
+            isOrderingVet: true,
+            status: 'PROFILE_REQUIRED',
+          }),
+        })
+      );
+      expect(result.membershipStatus).toBe('PROFILE_REQUIRED');
+    });
+
+    it('sets isOrderingVet and ACTIVE when isVet is true but lab does not require verification', async () => {
+      const mockTx = setupHappyPath();
+      prisma.clinicLabConnection.findFirst.mockResolvedValue(null);
+
+      const result = await service.completeAdminOnboarding({
+        ...dto,
+        isVet: true,
+      });
+
+      expect(mockTx.userTenantMembership.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            role: TenantRole.ADMIN,
+            isOrderingVet: true,
+            status: 'ACTIVE',
+          }),
+        })
+      );
+      expect(result.membershipStatus).toBe('ACTIVE');
+    });
+
+    it('does not set isOrderingVet when isVet is false or omitted', async () => {
+      const mockTx = setupHappyPath();
+
+      await service.completeAdminOnboarding(dto);
+
+      const membershipData =
+        mockTx.userTenantMembership.create.mock.calls[0][0].data;
+      expect(membershipData.isOrderingVet).toBeUndefined();
+      expect(membershipData.status).toBeUndefined();
+    });
+
+    it('creates lab connection before checking vet membership status', async () => {
+      const tokenWithLab = makeOnboardingToken({ laboratoryId: 'lab-1' });
+      prisma.onboardingToken.findUnique.mockResolvedValue(tokenWithLab);
+      auth.createSupabaseUser.mockResolvedValue('supabase-uid');
+      prisma.tenant.findFirst.mockResolvedValue(null);
+
+      const mockTx = {
+        tenant: { create: jest.fn().mockResolvedValue({ id: 'tenant-id' }) },
+        user: { create: jest.fn().mockResolvedValue({}) },
+        userTenantMembership: { create: jest.fn().mockResolvedValue({}) },
+        onboardingToken: { update: jest.fn().mockResolvedValue({}) },
+        clinicLabConnection: {
+          create: jest.fn().mockResolvedValue({}),
+          findFirst: jest.fn().mockResolvedValue({
+            labId: 'lab-1',
+            lab: { laboratoryProfile: { vetVerificationRequired: true } },
+          }),
+        },
+        veterinarianProfile: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+        vetLabVerification: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+        veterinarianCredential: {
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+      };
+      prisma.$transaction.mockImplementation(
+        (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
+      );
+
+      await service.completeAdminOnboarding({ ...dto, isVet: true });
+
+      const labConnCallOrder =
+        mockTx.clinicLabConnection.create.mock.invocationCallOrder[0];
+      const membershipCallOrder =
+        mockTx.userTenantMembership.create.mock.invocationCallOrder[0];
+      expect(labConnCallOrder).toBeLessThan(membershipCallOrder);
     });
   });
 
@@ -1111,6 +1357,7 @@ describe('OnboardingService', () => {
 
       const mockTx = {
         order: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+        orderedTest: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
         resultTemplateDefinition: {
           updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         },
@@ -1153,6 +1400,10 @@ describe('OnboardingService', () => {
       expect(mockTx.order.updateMany).toHaveBeenCalledWith({
         where: { labTenantId: 'lab-tenant-id' },
         data: { labTenantId: null },
+      });
+      expect(mockTx.orderedTest.updateMany).toHaveBeenCalledWith({
+        where: { catalogItem: { labTenantId: 'lab-tenant-id' } },
+        data: { catalogItemId: null },
       });
       expect(mockTx.resultTemplateDefinition.updateMany).toHaveBeenCalledWith({
         where: { labTenantId: 'lab-tenant-id' },

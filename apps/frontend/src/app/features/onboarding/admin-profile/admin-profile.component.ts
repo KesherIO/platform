@@ -12,6 +12,7 @@ import {
 import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import { InputComponent } from '../../../shared/components/input/input.component';
 import { PrimaryButtonComponent } from '../../../shared/components/primary-button/primary-button.component';
 import { OutlineButtonComponent } from '../../../shared/components/outline-button/outline-button.component';
@@ -52,6 +53,8 @@ export class AdminProfileComponent implements OnInit {
   error = signal<string | null>(null);
   /** non-null when account was created but logo upload failed */
   logoUploadWarning = signal<string | null>(null);
+  /** When the admin is also a vet and needs credential submission */
+  vetProfileRequired = signal(false);
 
   ngOnInit(): void {
     // Restore previously entered data if user navigates back from a later step
@@ -70,6 +73,7 @@ export class AdminProfileComponent implements OnInit {
         ],
         email: [saved?.email ?? '', [Validators.required, Validators.email]],
         telephone: [saved?.telephone ?? ''],
+        isVet: [saved?.isVet ?? false],
         password: ['', [Validators.required, Validators.minLength(10)]],
         confirmPassword: ['', [Validators.required]],
       },
@@ -79,12 +83,14 @@ export class AdminProfileComponent implements OnInit {
 
   onBack(): void {
     // Save current form values (excluding passwords) so they're restored if user returns
-    const { firstName, lastName, email, telephone } = this.profileForm.value;
+    const { firstName, lastName, email, telephone, isVet } =
+      this.profileForm.value;
     this.onboardingService.storeAdminProfileDraft({
       firstName,
       lastName,
       email,
       telephone,
+      isVet,
     });
     this.router.navigate(['/onboarding/clinic-setup']);
   }
@@ -126,6 +132,7 @@ export class AdminProfileComponent implements OnInit {
       email: adminEmail,
       telephone,
       password,
+      isVet,
     } = this.profileForm.value;
 
     const payload = {
@@ -142,6 +149,7 @@ export class AdminProfileComponent implements OnInit {
       clinicPhone: clinic.telephone,
       notificationMethod: clinic.notificationMethod,
       ...(clinic.country ? { country: clinic.country } : {}),
+      ...(isVet ? { isVet: true } : {}),
     };
 
     this.onboardingService
@@ -154,6 +162,13 @@ export class AdminProfileComponent implements OnInit {
             this.logoUploadWarning.set(
               res.message ?? 'ADMIN_PROFILE.LOGO_UPLOAD_FAILED'
             );
+          }
+          TenantService.savePreference(res.userId, res.tenantId);
+          if (
+            res.membershipStatus === 'PROFILE_REQUIRED' ||
+            res.membershipStatus === 'VERIFICATION_PENDING'
+          ) {
+            this.vetProfileRequired.set(true);
           }
           this.completed.set(true);
         },

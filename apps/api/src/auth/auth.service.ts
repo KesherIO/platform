@@ -176,7 +176,7 @@ export class AuthService {
                 address: true,
                 logoUrl: true,
                 primaryColor: true,
-                labConnections: {
+                clinicConnections: {
                   where: { isActive: true },
                   select: { labId: true },
                   take: 1,
@@ -201,7 +201,7 @@ export class AuthService {
     if (user.veterinarianProfile) {
       const labIds = clinicMemberships
         .filter((m) => m.isOrderingVet)
-        .flatMap((m) => m.tenant.labConnections.map((c) => c.labId));
+        .flatMap((m) => m.tenant.clinicConnections.map((c) => c.labId));
 
       if (labIds.length > 0) {
         const verifications = await this.prisma.vetLabVerification.findMany({
@@ -218,11 +218,11 @@ export class AuthService {
     }
 
     const memberships = clinicMemberships.map((m) => {
-      const labId = m.tenant.labConnections[0]?.labId ?? null;
+      const labId = m.tenant.clinicConnections[0]?.labId ?? null;
       const verification = labId
         ? verificationsByLabId.get(labId) ?? null
         : null;
-      const { labConnections, ...tenant } = m.tenant;
+      const { clinicConnections, ...tenant } = m.tenant;
       return {
         role: m.role,
         status: m.status,

@@ -214,15 +214,47 @@ export class OrdersService {
 
     // 5 — Create order + requisition number atomically
     const order = await this.prisma.$transaction(async (tx) => {
-      // Atomic counter increment — safe under concurrent requests
+      const now = new Date();
+      const year = now.getUTCFullYear();
+      const labScope = labConnection?.labId ?? '__GLOBAL__';
+      const labTenantId = labConnection?.labId ?? null;
+      const counterName = `ORDER_SEQ:${labScope}:${year}`;
+      const reqPrefix = `REQ-${year}-`;
+
+      // Find the highest existing requisition number for this scope so the
+      // counter stays ahead of any orders created before this sequence existed.
+      const maxOrder = await tx.order.findFirst({
+        where: {
+          labTenantId,
+          requisitionNumber: { startsWith: reqPrefix },
+        },
+        orderBy: { requisitionNumber: 'desc' },
+        select: { requisitionNumber: true },
+      });
+      const maxExisting = maxOrder
+        ? parseInt(maxOrder.requisitionNumber.slice(reqPrefix.length), 10) || 0
+        : 0;
+
       const counter = await tx.counter.upsert({
-        where: { name: 'ORDER_SEQ' },
-        update: { value: { increment: 1 } },
-        create: { name: 'ORDER_SEQ', value: 1 },
+        where: { name: counterName },
+        update: {
+          value: { increment: 1 },
+        },
+        create: { name: counterName, value: maxExisting + 1 },
       });
 
-      const year = new Date().getFullYear();
-      const requisitionNumber = `REQ-${year}-${String(counter.value).padStart(
+      // If the counter fell behind existing orders, leap ahead.
+      const nextValue =
+        counter.value > maxExisting ? counter.value : maxExisting + 1;
+
+      if (nextValue !== counter.value) {
+        await tx.counter.update({
+          where: { name: counterName },
+          data: { value: nextValue },
+        });
+      }
+
+      const requisitionNumber = `REQ-${year}-${String(nextValue).padStart(
         6,
         '0'
       )}`;
@@ -232,7 +264,7 @@ export class OrdersService {
           requisitionNumber,
           caseId,
           tenantId,
-          labTenantId: labConnection?.labId ?? null,
+          labTenantId,
           status: 'PENDING',
           priority: body.priority ?? 'ROUTINE',
           deliveryMethod: body.deliveryMethod ?? null,

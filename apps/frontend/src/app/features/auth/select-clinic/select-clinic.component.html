@@ -1,0 +1,51 @@
+<div
+  class="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12"
+>
+  <div class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <h1 class="text-2xl font-bold text-gray-900">
+        {{ 'SELECT_CLINIC.TITLE' | translate }}
+      </h1>
+      <p class="mt-2 text-sm text-gray-500">
+        {{ 'SELECT_CLINIC.SUBTITLE' | translate }}
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-3">
+      @for (clinic of clinics(); track clinic.id) {
+      <button
+        type="button"
+        (click)="selectClinic(clinic.id)"
+        class="flex items-center gap-4 w-full p-4 bg-white rounded-2xl border border-gray-200 hover:border-cyan hover:shadow-sm transition-all text-left"
+      >
+        <img
+          [src]="clinic.logoUrl"
+          [alt]="clinic.name"
+          class="h-11 w-11 rounded-lg object-cover shrink-0"
+        />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-900 truncate">
+            {{ clinic.name }}
+          </p>
+          <p class="text-xs text-gray-400 mt-0.5">
+            {{ clinic.roleKey | translate }}
+          </p>
+        </div>
+        <svg
+          class="w-5 h-5 text-gray-300 shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </button>
+      }
+    </div>
+  </div>
+</div>

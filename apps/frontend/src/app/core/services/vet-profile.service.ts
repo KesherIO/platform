@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { VeterinarianProfileModel } from '@vet-ai/shared-types';
-import { AuthService } from './auth.service';
+import { TenantService } from './tenant.service';
 
 export interface VetVerificationStatusResponse {
   status: string;
@@ -21,12 +21,10 @@ export interface SubmitVerificationResponse {
 @Injectable({ providedIn: 'root' })
 export class VetProfileService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
+  private readonly tenant = inject(TenantService);
 
   private get tenantHeaders() {
-    const me = this.auth.me();
-    const tenantId = me?.activeTenantId ?? me?.memberships[0]?.tenant.id ?? '';
-    return { headers: { 'x-tenant-id': tenantId } };
+    return { headers: { 'x-tenant-id': this.tenant.activeTenantId() ?? '' } };
   }
 
   getProfile(): Observable<VeterinarianProfileModel> {

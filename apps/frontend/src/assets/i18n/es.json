@@ -133,7 +133,10 @@
     "SUCCESS_BUTTON": "Ir al inicio de sesión",
     "SUBMIT_BUTTON": "Crear cuenta",
     "COMPLETING": "Creando tu cuenta...",
-    "LOGO_UPLOAD_FAILED": "Cuenta creada correctamente, pero no se pudo subir el logo. Puedes subir tu logo más tarde desde Configuración."
+    "LOGO_UPLOAD_FAILED": "Cuenta creada correctamente, pero no se pudo subir el logo. Puedes subir tu logo más tarde desde Configuración.",
+    "IS_VET_LABEL": "También soy veterinario",
+    "IS_VET_HINT": "Activa esto si también ordenarás pruebas.",
+    "SUCCESS_BODY_VET": "Tu cuenta fue creada correctamente. Inicia sesión para completar tu perfil veterinario y enviar tus credenciales para verificación."
   },
   "STAFF_PROFILE": {
     "TITLE": "Crea tu cuenta",
@@ -525,8 +528,8 @@
     "ISSUING_AUTHORITY_LABEL": "Autoridad emisora (opcional)",
     "ISSUING_AUTHORITY_PLACEHOLDER": "ej. SENASICA",
     "LICENSE_EXPIRES_LABEL": "Fecha de vencimiento (opcional)",
-    "DOCUMENT_LABEL": "Documento de credencial",
-    "DOCUMENT_HINT": "Sube tu licencia o certificado. PDF, JPEG o PNG — máx. 10 MB.",
+    "DOCUMENT_LABEL": "Documento de identificación",
+    "DOCUMENT_HINT": "Sube tu documento de identificación. PDF, JPEG o PNG — máx. 10 MB.",
     "DOCUMENT_UPLOAD": "Subir documento",
     "DOCUMENT_CHANGE": "Cambiar documento",
     "DOCUMENT_TYPE_ERROR": "Tipo de archivo no válido. Sube un PDF, JPEG o PNG.",
@@ -585,5 +588,17 @@
     "TITLE": "Sin clínica asignada",
     "BODY": "Tu cuenta no está vinculada a ninguna clínica en este momento. Si crees que esto es un error, por favor contacta al administrador de tu clínica.",
     "SIGN_OUT": "Cerrar sesión"
+  },
+  "SELECT_CLINIC": {
+    "TITLE": "Selecciona una clínica",
+    "SUBTITLE": "Perteneces a varias clínicas. Elige una para continuar.",
+    "ROLE_ADMIN": "Administrador",
+    "ROLE_OWNER": "Propietario",
+    "ROLE_VET": "Veterinario",
+    "ROLE_TECHNICIAN": "Técnico",
+    "ROLE_RECEPTIONIST": "Recepcionista"
+  },
+  "CLINIC_SWITCHER": {
+    "SWITCH_CLINIC": "Cambiar clínica"
   }
 }

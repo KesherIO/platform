@@ -37,16 +37,33 @@ export class OnboardingService {
   ) {}
 
   /**
-   * Returns the membership status to assign when a new VET joins a clinic.
-   * If the clinic's connected lab requires vet verification, the vet starts
-   * in PROFILE_REQUIRED so the onboarding screens prompt them to upload
-   * credentials. If the lab does not require verification (or no lab is
-   * connected yet), the vet goes directly to ACTIVE.
+   * Returns the membership status to assign when a VET joins a clinic.
+   *
+   * When userId is provided (existing user), checks whether they already have
+   * a VeterinarianProfile and/or an approved VetLabVerification at the
+   * clinic's connected lab — so they aren't forced back through onboarding.
    */
   private async vetMembershipStatus(
-    tenantId: string
-  ): Promise<'PROFILE_REQUIRED' | 'ACTIVE'> {
-    const connection = await this.prisma.clinicLabConnection.findFirst({
+    tenantId: string,
+    userId?: string,
+    client?: Pick<
+      PrismaService,
+      | 'clinicLabConnection'
+      | 'veterinarianProfile'
+      | 'vetLabVerification'
+      | 'veterinarianCredential'
+    >
+  ): Promise<{
+    status: 'PROFILE_REQUIRED' | 'VERIFICATION_PENDING' | 'ACTIVE';
+    autoSubmit?: {
+      vetProfileId: string;
+      labTenantId: string;
+      credentialId: string;
+    };
+  }> {
+    const db = client ?? this.prisma;
+
+    const connection = await db.clinicLabConnection.findFirst({
       where: { clinicId: tenantId, isActive: true },
       include: {
         lab: {
@@ -56,9 +73,87 @@ export class OnboardingService {
         },
       },
     });
-    return connection?.lab?.laboratoryProfile?.vetVerificationRequired
-      ? 'PROFILE_REQUIRED'
-      : 'ACTIVE';
+
+    if (!connection?.lab?.laboratoryProfile?.vetVerificationRequired) {
+      return { status: 'ACTIVE' };
+    }
+
+    if (!userId) {
+      return { status: 'PROFILE_REQUIRED' };
+    }
+
+    const profile = await db.veterinarianProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!profile) {
+      return { status: 'PROFILE_REQUIRED' };
+    }
+
+    const verification = await db.vetLabVerification.findUnique({
+      where: {
+        vetProfileId_labTenantId: {
+          vetProfileId: profile.id,
+          labTenantId: connection.labId,
+        },
+      },
+      select: { status: true },
+    });
+
+    if (verification?.status === 'APPROVED') {
+      return { status: 'ACTIVE' };
+    }
+
+    if (verification) {
+      return { status: 'VERIFICATION_PENDING' };
+    }
+
+    // No verification record at this lab — auto-submit if active credential exists
+    const credential = await db.veterinarianCredential.findFirst({
+      where: { veterinarianProfileId: profile.id, replacedAt: null },
+      select: { id: true },
+    });
+
+    return {
+      status: 'VERIFICATION_PENDING',
+      ...(credential && {
+        autoSubmit: {
+          vetProfileId: profile.id,
+          labTenantId: connection.labId,
+          credentialId: credential.id,
+        },
+      }),
+    };
+  }
+
+  private async autoSubmitVerification(
+    vetProfileId: string,
+    labTenantId: string,
+    clinicTenantId: string,
+    userId: string,
+    credentialId: string
+  ) {
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      const v = await tx.vetLabVerification.create({
+        data: {
+          vetProfileId,
+          labTenantId,
+          initiatingClinicId: clinicTenantId,
+          status: 'PENDING',
+          submittedAt: now,
+        },
+      });
+      await tx.vetVerificationEvent.create({
+        data: {
+          verificationId: v.id,
+          eventType: 'SUBMITTED',
+          actorId: userId,
+          credentialVersionId: credentialId,
+        },
+      });
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -141,9 +236,9 @@ export class OnboardingService {
     const [firstName, ...rest] = dto.fullName.trim().split(' ');
     const lastName = rest.join(' ') || null;
 
-    const vetStatus =
+    const vetResult =
       tenantRole === TenantRole.VET
-        ? await this.vetMembershipStatus(tenantId)
+        ? await this.vetMembershipStatus(tenantId, userId)
         : null;
 
     await this.prisma.$transaction([
@@ -156,7 +251,9 @@ export class OnboardingService {
           userId,
           tenantId,
           role: tenantRole,
-          ...(vetStatus ? { isOrderingVet: true, status: vetStatus } : {}),
+          ...(vetResult
+            ? { isOrderingVet: true, status: vetResult.status }
+            : {}),
         },
       }),
       this.prisma.tenantInvitation.update({
@@ -164,6 +261,16 @@ export class OnboardingService {
         data: { acceptedAt: new Date() },
       }),
     ]);
+
+    if (vetResult?.autoSubmit) {
+      await this.autoSubmitVerification(
+        vetResult.autoSubmit.vetProfileId,
+        vetResult.autoSubmit.labTenantId,
+        tenantId,
+        userId,
+        vetResult.autoSubmit.credentialId
+      );
+    }
 
     return { userId };
   }
@@ -392,11 +499,6 @@ export class OnboardingService {
     const [firstName, ...rest] = (dto.fullName ?? '').trim().split(' ');
     const lastName = rest.join(' ') || null;
 
-    const vetStatus =
-      tenantRole === TenantRole.VET
-        ? await this.vetMembershipStatus(invite.tenantId)
-        : null;
-
     // 2. Re-invite path — user already exists (previously removed from clinic).
     //    Skip Supabase + User creation; just add the membership back.
     const existingUser = await this.prisma.user.findUnique({
@@ -417,13 +519,20 @@ export class OnboardingService {
         throw new ConflictException('User is already a member of this clinic.');
       }
 
+      const vetResult =
+        tenantRole === TenantRole.VET
+          ? await this.vetMembershipStatus(invite.tenantId, existingUser.id)
+          : null;
+
       await this.prisma.$transaction([
         this.prisma.userTenantMembership.create({
           data: {
             userId: existingUser.id,
             tenantId: invite.tenantId,
             role: tenantRole,
-            ...(vetStatus ? { isOrderingVet: true, status: vetStatus } : {}),
+            ...(vetResult
+              ? { isOrderingVet: true, status: vetResult.status }
+              : {}),
           },
         }),
         this.prisma.tenantInvitation.update({
@@ -432,7 +541,17 @@ export class OnboardingService {
         }),
       ]);
 
-      return { userId: existingUser.id };
+      if (vetResult?.autoSubmit) {
+        await this.autoSubmitVerification(
+          vetResult.autoSubmit.vetProfileId,
+          vetResult.autoSubmit.labTenantId,
+          invite.tenantId,
+          existingUser.id,
+          vetResult.autoSubmit.credentialId
+        );
+      }
+
+      return { userId: existingUser.id, tenantId: invite.tenantId };
     }
 
     // 3. New user — fullName and password are required.
@@ -449,6 +568,11 @@ export class OnboardingService {
       lastName ?? ''
     );
 
+    const vetResult =
+      tenantRole === TenantRole.VET
+        ? await this.vetMembershipStatus(invite.tenantId)
+        : null;
+
     await this.prisma.$transaction([
       this.prisma.user.create({
         data: {
@@ -463,7 +587,9 @@ export class OnboardingService {
           userId: supabaseUserId,
           tenantId: invite.tenantId,
           role: tenantRole,
-          ...(vetStatus ? { isOrderingVet: true, status: vetStatus } : {}),
+          ...(vetResult
+            ? { isOrderingVet: true, status: vetResult.status }
+            : {}),
         },
       }),
       this.prisma.tenantInvitation.update({
@@ -472,7 +598,7 @@ export class OnboardingService {
       }),
     ]);
 
-    return { userId: supabaseUserId };
+    return { userId: supabaseUserId, tenantId: invite.tenantId };
   }
 
   // ---------------------------------------------------------------------------
@@ -597,6 +723,8 @@ export class OnboardingService {
     let slug = slugify(dto.clinicName);
     let tenantId: string;
     let userId: string;
+    let vetResult: Awaited<ReturnType<typeof this.vetMembershipStatus>> | null =
+      null;
 
     try {
       const slugConflict = await this.prisma.tenant.findFirst({
@@ -607,7 +735,7 @@ export class OnboardingService {
         slug = `${slug}-${randomUUID().slice(0, 6)}`;
       }
 
-      ({ tenantId, userId } = await this.prisma.$transaction(async (tx) => {
+      const txResult = await this.prisma.$transaction(async (tx) => {
         // Create the Tenant — clinicEmail is the clinic contact address (not the login email)
         const tenant = await tx.tenant.create({
           data: {
@@ -634,15 +762,6 @@ export class OnboardingService {
           },
         });
 
-        // Create ADMIN membership
-        await tx.userTenantMembership.create({
-          data: {
-            userId: supabaseUserId,
-            tenantId: tenant.id,
-            role: TenantRole.ADMIN,
-          },
-        });
-
         // Mark token as used
         await tx.onboardingToken.update({
           where: { id: record.id },
@@ -661,14 +780,51 @@ export class OnboardingService {
           });
         }
 
-        return { tenantId: tenant.id, userId: supabaseUserId };
-      }));
+        // Create ADMIN membership — if the admin is also a vet, check
+        // whether the connected lab requires verification.
+        // Must run after ClinicLabConnection is created so the lookup works.
+        const isVet = dto.isVet === true;
+        const vetResult = isVet
+          ? await this.vetMembershipStatus(tenant.id, undefined, tx)
+          : null;
+
+        await tx.userTenantMembership.create({
+          data: {
+            userId: supabaseUserId,
+            tenantId: tenant.id,
+            role: TenantRole.ADMIN,
+            ...(vetResult
+              ? { isOrderingVet: true, status: vetResult.status }
+              : {}),
+          },
+        });
+
+        return {
+          tenantId: tenant.id,
+          userId: supabaseUserId,
+          vetResult,
+        };
+      });
+      ({ tenantId, userId, vetResult } = txResult);
     } catch (err) {
       // Compensating cleanup: remove the Supabase user that was created before
       // the transaction so it does not become an orphaned auth account.
       await this.authService.deleteSupabaseUser(supabaseUserId);
       throw err;
     }
+
+    // Auto-submit vet verification if the admin is a vet with existing credentials
+    if (vetResult?.autoSubmit) {
+      await this.autoSubmitVerification(
+        vetResult.autoSubmit.vetProfileId,
+        vetResult.autoSubmit.labTenantId,
+        tenantId,
+        userId,
+        vetResult.autoSubmit.credentialId
+      );
+    }
+
+    const membershipStatus = vetResult?.status;
 
     // 4. Upload logo now that we have a stable tenantId.
     //    Path: clinic-logos/{tenantId}/logo.{ext}
@@ -691,11 +847,12 @@ export class OnboardingService {
           logoUploadFailed: true as const,
           message:
             'Account created successfully, but logo upload failed. You can upload your logo later from Settings.',
+          membershipStatus,
         };
       }
     }
 
-    return { tenantId, userId };
+    return { tenantId, userId, membershipStatus };
   }
 
   // ---------------------------------------------------------------------------
@@ -886,6 +1043,10 @@ export class OnboardingService {
       await tx.order.updateMany({
         where: { labTenantId: tenantId },
         data: { labTenantId: null },
+      });
+      await tx.orderedTest.updateMany({
+        where: { catalogItem: { labTenantId: tenantId } },
+        data: { catalogItemId: null },
       });
       await tx.resultTemplateDefinition.updateMany({
         where: { labTenantId: tenantId },

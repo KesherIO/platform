@@ -18,6 +18,7 @@ import {
   catchError,
 } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { TenantService } from './tenant.service';
 
 // Captured at module-load time, before the Supabase SDK initialises and clears the hash.
 const initialHash = window.location.hash;
@@ -71,6 +72,7 @@ export interface MeResponse {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly tenantService = inject(TenantService);
 
   private readonly supabase: SupabaseClient = createClient(
     environment.supabaseUrl,
@@ -286,7 +288,10 @@ export class AuthService {
     phone?: string;
   }): Observable<void> {
     return this.http.patch<MeResponse>('/api/auth/me', data).pipe(
-      tap((me) => this.me.set(me)),
+      tap((me) => {
+        this.me.set(me);
+        this.tenantService.resolve(me);
+      }),
       map(() => undefined as void)
     );
   }
@@ -319,6 +324,7 @@ export class AuthService {
       switchMap(({ error }: { error: AuthError | null }) => {
         this.session.set(null);
         this.me.set(null);
+        this.tenantService.clearSelection();
         this.router.navigate(['/auth/login']);
         if (error) throw error;
         return of(undefined as void);
@@ -335,9 +341,12 @@ export class AuthService {
    * The AuthInterceptor will attach the Bearer token automatically.
    */
   loadMe(): Observable<MeResponse> {
-    return this.http
-      .get<MeResponse>('/api/auth/me')
-      .pipe(tap((me) => this.me.set(me)));
+    return this.http.get<MeResponse>('/api/auth/me').pipe(
+      tap((me) => {
+        this.me.set(me);
+        this.tenantService.resolve(me);
+      })
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -348,9 +357,23 @@ export class AuthService {
     const meData = this.me();
     if (!meData) return;
 
-    const activeMembership = meData.memberships?.[0];
+    if (!meData.memberships?.length) {
+      this.router.navigate(['/no-clinic']);
+      return;
+    }
 
-    switch (activeMembership?.status) {
+    if (this.tenantService.needsClinicSelection()) {
+      this.router.navigate(['/select-clinic']);
+      return;
+    }
+
+    const activeMembership = this.tenantService.activeMembership();
+    if (!activeMembership) {
+      this.router.navigate(['/select-clinic']);
+      return;
+    }
+
+    switch (activeMembership.status) {
       case 'PROFILE_REQUIRED':
         this.router.navigate(['/onboarding/vet-profile']);
         break;
@@ -370,11 +393,7 @@ export class AuthService {
         this.router.navigate(['/suspended']);
         break;
       default:
-        if (!meData.memberships?.length) {
-          this.router.navigate(['/no-clinic']);
-        } else {
-          this.router.navigate(['/dashboard']);
-        }
+        this.router.navigate(['/dashboard']);
     }
   }
 }

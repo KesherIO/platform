@@ -1,16 +1,28 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { TenantService } from '../services/tenant.service';
 import { switchMap, of, map, catchError } from 'rxjs';
 
-function resolveAccess(auth: AuthService, router: Router): boolean {
-  const membership = auth.me()?.memberships?.[0];
+function resolveAccess(
+  auth: AuthService,
+  tenant: TenantService,
+  router: Router
+): boolean {
+  if (!auth.me()?.memberships?.length) {
+    router.navigate(['/no-clinic']);
+    return false;
+  }
+
+  if (tenant.needsClinicSelection()) {
+    router.navigate(['/select-clinic']);
+    return false;
+  }
+
+  const membership = tenant.activeMembership();
   if (!membership) {
-    if (!auth.me()?.memberships?.length) {
-      router.navigate(['/no-clinic']);
-      return false;
-    }
-    return true;
+    router.navigate(['/select-clinic']);
+    return false;
   }
 
   switch (membership.status) {
@@ -37,6 +49,7 @@ function resolveAccess(auth: AuthService, router: Router): boolean {
  */
 export const authGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);
+  const tenant = inject(TenantService);
   const router = inject(Router);
 
   return auth.sessionReady$.pipe(
@@ -53,7 +66,7 @@ export const authGuard: CanActivateFn = (_route, state) => {
       // If loadMe() fails (expired token), redirect to login.
       if (!auth.me()) {
         return auth.loadMe().pipe(
-          map(() => resolveAccess(auth, router)),
+          map(() => resolveAccess(auth, tenant, router)),
           catchError(() => {
             auth.signOut().subscribe();
             router.navigate(['/auth/login'], {
@@ -64,7 +77,43 @@ export const authGuard: CanActivateFn = (_route, state) => {
         );
       }
 
-      return of(resolveAccess(auth, router));
+      return of(resolveAccess(auth, tenant, router));
+    })
+  );
+};
+
+/**
+ * Lightweight guard that only checks authentication — no membership or tenant checks.
+ * Used for routes like /select-clinic that need a logged-in user but must not
+ * redirect based on tenant state (which would loop).
+ */
+export const authOnlyGuard: CanActivateFn = (_route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  return auth.sessionReady$.pipe(
+    switchMap(() => {
+      if (!auth.isLoggedIn()) {
+        router.navigate(['/auth/login'], {
+          queryParams: { returnUrl: state.url },
+        });
+        return of(false);
+      }
+
+      if (!auth.me()) {
+        return auth.loadMe().pipe(
+          map(() => true),
+          catchError(() => {
+            auth.signOut().subscribe();
+            router.navigate(['/auth/login'], {
+              queryParams: { returnUrl: state.url },
+            });
+            return of(false as const);
+          })
+        );
+      }
+
+      return of(true);
     })
   );
 };

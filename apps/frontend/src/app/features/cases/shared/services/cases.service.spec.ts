@@ -5,7 +5,7 @@ import {
 } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { CasesService } from './cases.service';
-import { AuthService } from '../../../../core/services/auth.service';
+import { TenantService } from '../../../../core/services/tenant.service';
 import { CaseStatus, PatientSpecies, AgeUnit } from '@vet-ai/shared-types';
 import { firstValueFrom } from 'rxjs';
 import { signal } from '@angular/core';
@@ -33,7 +33,13 @@ describe('CasesService', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: AuthService, useValue: { me: signal(null) } },
+        {
+          provide: TenantService,
+          useValue: {
+            activeTenantId: signal('t1'),
+            registerCacheCleaner: vi.fn(),
+          },
+        },
       ],
     });
     service = TestBed.inject(CasesService);

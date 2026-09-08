@@ -2,29 +2,38 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ClinicSettingsComponent } from './clinic-settings.component';
 import { TranslateModule } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { of } from 'rxjs';
 import { signal } from '@angular/core';
 
-const MOCK_ME_ADMIN = {
-  user: { firstName: 'Karina', lastName: 'Martinez', email: 'k@test.com' },
-  tenants: [
-    {
-      id: 't1',
-      name: 'Vet Clinic',
-      email: 'clinic@test.com',
-      phone: '555-0001',
-      address: '123 Main St',
-      logoUrl: null,
-    },
-  ],
-  memberships: [{ tenant: { id: 't1' }, role: 'ADMIN' }],
-  activeTenantId: 't1',
+const MOCK_MEMBERSHIP_ADMIN = {
+  tenant: {
+    id: 't1',
+    name: 'Vet Clinic',
+    slug: 'vet-clinic',
+    email: 'clinic@test.com',
+    phone: '555-0001',
+    address: '123 Main St',
+    logoUrl: null,
+    primaryColor: null,
+  },
+  role: 'ADMIN',
+  status: 'ACTIVE',
+  isOrderingVet: false,
+  createdAt: '',
 };
 
-const MOCK_ME_STAFF = {
-  ...MOCK_ME_ADMIN,
-  memberships: [{ tenant: { id: 't1' }, role: 'VET' }],
+const MOCK_MEMBERSHIP_STAFF = {
+  ...MOCK_MEMBERSHIP_ADMIN,
+  role: 'VET',
+};
+
+const MOCK_ME_ADMIN = {
+  user: { firstName: 'Karina', lastName: 'Martinez', email: 'k@test.com' },
+  tenants: [MOCK_MEMBERSHIP_ADMIN.tenant],
+  memberships: [MOCK_MEMBERSHIP_ADMIN],
+  activeTenantId: 't1',
 };
 
 describe('ClinicSettingsComponent', () => {
@@ -34,12 +43,16 @@ describe('ClinicSettingsComponent', () => {
     me: ReturnType<typeof signal>;
     loadMe: ReturnType<typeof vi.fn>;
   };
+  let tenantService: { activeMembership: ReturnType<typeof signal> };
   let settingsService: { updateClinic: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     authService = {
       me: signal(MOCK_ME_ADMIN),
       loadMe: vi.fn().mockReturnValue(of(MOCK_ME_ADMIN)),
+    };
+    tenantService = {
+      activeMembership: signal(MOCK_MEMBERSHIP_ADMIN),
     };
     settingsService = {
       updateClinic: vi.fn().mockReturnValue(of(undefined)),
@@ -49,6 +62,7 @@ describe('ClinicSettingsComponent', () => {
       imports: [ClinicSettingsComponent, TranslateModule.forRoot()],
       providers: [
         { provide: AuthService, useValue: authService },
+        { provide: TenantService, useValue: tenantService },
         { provide: SettingsService, useValue: settingsService },
       ],
     }).compileComponents();
@@ -67,7 +81,7 @@ describe('ClinicSettingsComponent', () => {
   });
 
   it('isAdmin is false for non-admin role', () => {
-    authService.me.set(MOCK_ME_STAFF);
+    tenantService.activeMembership.set(MOCK_MEMBERSHIP_STAFF);
     expect(component.isAdmin()).toBe(false);
   });
 
@@ -107,9 +121,9 @@ describe('ClinicSettingsComponent', () => {
   });
 
   it('clinicEmail returns empty string when tenant has no email', () => {
-    authService.me.set({
-      ...MOCK_ME_ADMIN,
-      tenants: [{ ...MOCK_ME_ADMIN.tenants[0], email: null }],
+    tenantService.activeMembership.set({
+      ...MOCK_MEMBERSHIP_ADMIN,
+      tenant: { ...MOCK_MEMBERSHIP_ADMIN.tenant, email: null },
     });
     expect(component.clinicEmail()).toBe('');
   });

@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
-import { AuthService } from '../../../core/services/auth.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import { ClinicSettingsComponent } from '../clinic/clinic-settings.component';
 import { StaffSettingsComponent } from '../staff/staff-settings.component';
 import { ProfileSettingsComponent } from '../profile/profile-settings.component';
@@ -23,18 +23,13 @@ type SettingsTab = 'clinic' | 'staff' | 'profile' | 'contact-lab';
   styleUrl: './settings-shell.component.scss',
 })
 export class SettingsShellComponent {
-  private readonly auth = inject(AuthService);
+  private readonly tenant = inject(TenantService);
   private readonly location = inject(Location);
 
   readonly isAdmin = computed(() => {
-    const me = this.auth.me();
-    if (!me) return false;
-    const activeTenantId = me.activeTenantId ?? me.tenants[0]?.id;
-    return me.memberships.some(
-      (m) =>
-        m.tenant.id === activeTenantId &&
-        (m.role === 'ADMIN' || m.role === 'OWNER')
-    );
+    const membership = this.tenant.activeMembership();
+    if (!membership) return false;
+    return membership.role === 'ADMIN' || membership.role === 'OWNER';
   });
 
   readonly activeTab = signal<SettingsTab>('clinic');

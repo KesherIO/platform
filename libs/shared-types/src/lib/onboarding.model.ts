@@ -21,6 +21,7 @@ export interface AdminProfileDraft {
   lastName: string;
   email: string;
   telephone: string;
+  isVet?: boolean;
 }
 
 export type OnboardingStep =
@@ -104,6 +105,8 @@ export interface CompleteAdminOnboardingRequest {
   clinicPhone: string;
   notificationMethod: 'email' | 'sms';
   country?: string;
+  /** When true, the admin is also a veterinarian — sets isOrderingVet on their membership */
+  isVet?: boolean;
 }
 
 /** Response from POST /onboarding/complete */
@@ -113,4 +116,6 @@ export interface CompleteAdminOnboardingResponse {
   /** Present only when the account was created but the logo upload failed. */
   logoUploadFailed?: true;
   message?: string;
+  /** Present when the admin is also a vet and needs credential submission */
+  membershipStatus?: 'PROFILE_REQUIRED' | 'VERIFICATION_PENDING' | 'ACTIVE';
 }

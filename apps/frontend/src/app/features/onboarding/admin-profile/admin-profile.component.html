@@ -31,7 +31,11 @@
         {{ 'ADMIN_PROFILE.SUCCESS_TITLE' | translate }}
       </h1>
       <p class="text-base text-gray-600 max-w-sm leading-relaxed mb-8">
+        @if (vetProfileRequired()) {
+        {{ 'ADMIN_PROFILE.SUCCESS_BODY_VET' | translate }}
+        } @else {
         {{ 'ADMIN_PROFILE.SUCCESS_BODY' | translate }}
+        }
       </p>
 
       <!-- Logo upload warning (non-fatal) -->
@@ -104,6 +108,31 @@
       class="flex-1 px-6 pt-2"
     >
       <div class="space-y-8 mb-6">
+        <!-- "I'm also a veterinarian" toggle -->
+        <label class="flex items-start gap-3 cursor-pointer group mb-4">
+          <div class="relative flex-shrink-0 mt-0.5">
+            <input
+              type="checkbox"
+              formControlName="isVet"
+              class="sr-only peer"
+            />
+            <div
+              class="w-10 h-6 bg-gray-200 rounded-full peer-checked:bg-cyan transition-colors"
+            ></div>
+            <div
+              class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4"
+            ></div>
+          </div>
+          <div>
+            <span class="text-sm font-medium text-gray-900">
+              {{ 'ADMIN_PROFILE.IS_VET_LABEL' | translate }}
+            </span>
+            <p class="text-xs text-gray-500 mt-0.5">
+              {{ 'ADMIN_PROFILE.IS_VET_HINT' | translate }}
+            </p>
+          </div>
+        </label>
+
         <!-- First Name -->
         <app-input
           id="firstName"
