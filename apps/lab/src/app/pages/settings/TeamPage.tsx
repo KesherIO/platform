@@ -163,6 +163,7 @@ export function TeamPage() {
     firstName: '',
     lastName: '',
     email: '',
+    role: 'TECHNICIAN',
     schedule: makeEmptySchedule(),
     canPerformPickups: false,
   });
