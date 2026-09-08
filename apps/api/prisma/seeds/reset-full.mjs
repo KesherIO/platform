@@ -97,7 +97,9 @@ async function deleteSupabaseUsers() {
       if (delRes.ok) {
         deleted++;
       } else {
-        console.warn(`  ⚠  Failed to delete auth user ${user.email} (${delRes.status})`);
+        console.warn(
+          `  ⚠  Failed to delete auth user ${user.email} (${delRes.status})`
+        );
       }
     }
 
@@ -141,8 +143,7 @@ async function main() {
   // ── 1. Amendment analytes & amendments ──
   const { count: amendAnalytes } =
     await prisma.resultReportAmendmentAnalyte.deleteMany();
-  const { count: amendments } =
-    await prisma.resultReportAmendment.deleteMany();
+  const { count: amendments } = await prisma.resultReportAmendment.deleteMany();
   console.log(
     `✓ Deleted ${amendments} amendments (${amendAnalytes} amendment analytes)`
   );
@@ -159,8 +160,7 @@ async function main() {
   });
   const { count: releaseTests } =
     await prisma.resultReportReleaseTest.deleteMany();
-  const { count: releases } =
-    await prisma.resultReportRelease.deleteMany();
+  const { count: releases } = await prisma.resultReportRelease.deleteMany();
   console.log(
     `✓ Deleted ${releases} releases (${releaseTests} test snapshots, ${releaseAnalytes} analyte snapshots, ${releaseArtifacts} artifacts)`
   );
@@ -178,11 +178,12 @@ async function main() {
   // ── 4. Pickup timeline events, pickups ──
   const { count: timelineEvents } = await prisma.timelineEvent.deleteMany();
   const { count: pickups } = await prisma.pickup.deleteMany();
-  console.log(`✓ Deleted ${pickups} pickups (${timelineEvents} timeline events)`);
+  console.log(
+    `✓ Deleted ${pickups} pickups (${timelineEvents} timeline events)`
+  );
 
   // ── 5. Specimen links, specimens ──
-  const { count: otSpecimens } =
-    await prisma.orderedTestSpecimen.deleteMany();
+  const { count: otSpecimens } = await prisma.orderedTestSpecimen.deleteMany();
   const { count: specimens } = await prisma.specimen.deleteMany();
   console.log(
     `✓ Deleted ${specimens} specimens (${otSpecimens} test-specimen links)`
@@ -191,17 +192,14 @@ async function main() {
   // ── 6. Ordered test sources, ordered tests ──
   const { count: otSources } = await prisma.orderedTestSource.deleteMany();
   const { count: orderedTests } = await prisma.orderedTest.deleteMany();
-  console.log(
-    `✓ Deleted ${orderedTests} ordered tests (${otSources} sources)`
-  );
+  console.log(`✓ Deleted ${orderedTests} ordered tests (${otSources} sources)`);
 
   // ── 7. Orders ──
   const { count: orders } = await prisma.order.deleteMany();
   console.log(`✓ Deleted ${orders} orders`);
 
   // ── 8. Case catalog items, cases ──
-  const { count: caseCatalogItems } =
-    await prisma.caseCatalogItem.deleteMany();
+  const { count: caseCatalogItems } = await prisma.caseCatalogItem.deleteMany();
   const { count: cases } = await prisma.case.deleteMany();
   console.log(
     `✓ Deleted ${cases} cases (${caseCatalogItems} catalog item selections)`
@@ -210,8 +208,7 @@ async function main() {
   // ── 9. Lab test configs (specimen requirements cascade) ──
   const { count: specimenReqs } =
     await prisma.labTestSpecimenRequirement.deleteMany();
-  const { count: testConfigs } =
-    await prisma.labTestConfiguration.deleteMany();
+  const { count: testConfigs } = await prisma.labTestConfiguration.deleteMany();
   console.log(
     `✓ Deleted ${testConfigs} lab test configurations (${specimenReqs} specimen requirements)`
   );
@@ -242,27 +239,22 @@ async function main() {
 
   // ── 13. Lab signers, laboratory profiles ──
   const { count: signers } = await prisma.labSigner.deleteMany();
-  const { count: labProfiles } =
-    await prisma.laboratoryProfile.deleteMany();
+  const { count: labProfiles } = await prisma.laboratoryProfile.deleteMany();
   console.log(
     `✓ Deleted ${labProfiles} laboratory profiles (${signers} signers)`
   );
 
   // ── 14. Vet verification events, verifications, credentials, profiles ──
   const { count: verEvents } = await prisma.vetVerificationEvent.deleteMany();
-  const { count: verifications } =
-    await prisma.vetLabVerification.deleteMany();
-  const { count: vetCreds } =
-    await prisma.veterinarianCredential.deleteMany();
-  const { count: vetProfiles } =
-    await prisma.veterinarianProfile.deleteMany();
+  const { count: verifications } = await prisma.vetLabVerification.deleteMany();
+  const { count: vetCreds } = await prisma.veterinarianCredential.deleteMany();
+  const { count: vetProfiles } = await prisma.veterinarianProfile.deleteMany();
   console.log(
     `✓ Deleted ${vetProfiles} vet profiles (${vetCreds} credentials, ${verifications} verifications, ${verEvents} events)`
   );
 
   // ── 15. Clinic-lab connections ──
-  const { count: connections } =
-    await prisma.clinicLabConnection.deleteMany();
+  const { count: connections } = await prisma.clinicLabConnection.deleteMany();
   console.log(`✓ Deleted ${connections} clinic-lab connections`);
 
   // ── 16. Push subscriptions ──
@@ -271,15 +263,13 @@ async function main() {
 
   // ── 17. Invitations, onboarding tokens ──
   const { count: invitations } = await prisma.tenantInvitation.deleteMany();
-  const { count: onboardingTokens } =
-    await prisma.onboardingToken.deleteMany();
+  const { count: onboardingTokens } = await prisma.onboardingToken.deleteMany();
   console.log(
     `✓ Deleted ${invitations} invitations, ${onboardingTokens} onboarding tokens`
   );
 
   // ── 18. Memberships ──
-  const { count: memberships } =
-    await prisma.userTenantMembership.deleteMany();
+  const { count: memberships } = await prisma.userTenantMembership.deleteMany();
   console.log(`✓ Deleted ${memberships} memberships`);
 
   // ── 19. Users (DB) ──
@@ -309,7 +299,9 @@ async function main() {
   console.log('\n' + '─'.repeat(50));
   console.log('PRESERVED:');
   console.log(`  ${platformTemplates} platform-scope template definitions`);
-  console.log(`  ${knowledgeDocs} knowledge documents (${knowledgeChunks} chunks)`);
+  console.log(
+    `  ${knowledgeDocs} knowledge documents (${knowledgeChunks} chunks)`
+  );
   console.log('─'.repeat(50));
   console.log('\nNext steps:');
   console.log('  1. node apps/api/prisma/seeds/seed-lab-tenant.mjs');
