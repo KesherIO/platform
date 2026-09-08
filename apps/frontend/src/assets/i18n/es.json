@@ -580,5 +580,10 @@
     "US": "Estados Unidos",
     "UY": "Uruguay",
     "VE": "Venezuela"
+  },
+  "NO_CLINIC": {
+    "TITLE": "Sin clínica asignada",
+    "BODY": "Tu cuenta no está vinculada a ninguna clínica en este momento. Si crees que esto es un error, por favor contacta al administrador de tu clínica.",
+    "SIGN_OUT": "Cerrar sesión"
   }
 }

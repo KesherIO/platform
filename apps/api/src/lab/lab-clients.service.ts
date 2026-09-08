@@ -304,13 +304,10 @@ export class LabClientsService {
       return { tenant, invitation };
     });
 
-    const frontendUrl =
-      process.env['FRONTEND_URL'] || 'https://clinic.kesherio.com';
-
     return {
       clientId: result.tenant.id,
       onboardingToken: rawToken,
-      onboardingLink: `${frontendUrl}/onboarding/welcome?token=${rawToken}`,
+      onboardingLink: `/onboarding/welcome?token=${rawToken}`,
       expiresAt,
     };
   }
@@ -426,12 +423,9 @@ export class LabClientsService {
       });
     });
 
-    const frontendUrl =
-      process.env['FRONTEND_URL'] || 'https://clinic.kesherio.com';
-
     return {
       onboardingToken: rawToken,
-      onboardingLink: `${frontendUrl}/onboarding/welcome?token=${rawToken}`,
+      onboardingLink: `/onboarding/welcome?token=${rawToken}`,
       expiresAt,
     };
   }

@@ -22,7 +22,14 @@ export class CreateLabUserDto {
   @IsString()
   lastName!: string;
 
-  @IsEnum(['ADMIN', 'TECHNICIAN', 'MESSENGER'])
+  @IsEnum([
+    'ADMIN',
+    'TECHNICIAN',
+    'ANALYST',
+    'REVIEWER',
+    'DATA_ENTRY',
+    'MESSENGER',
+  ])
   role!: string;
 
   /** MESSENGER only — recurring weekly availability. Shape validated in the service. */

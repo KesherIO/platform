@@ -580,5 +580,10 @@
     "US": "United States",
     "UY": "Uruguay",
     "VE": "Venezuela"
+  },
+  "NO_CLINIC": {
+    "TITLE": "No clinic assigned",
+    "BODY": "Your account is not linked to any clinic right now. If you think this is a mistake, please contact your clinic administrator.",
+    "SIGN_OUT": "Sign out"
   }
 }

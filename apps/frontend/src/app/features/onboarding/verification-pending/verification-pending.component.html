@@ -1,69 +1,72 @@
-<div class="min-h-screen bg-white flex flex-col">
-  <div
-    class="flex-1 flex flex-col items-center justify-center px-6 text-center gap-5"
-  >
-    <!-- Spinner / icon -->
-    @if (loading()) {
-    <p class="text-sm text-gray-400">{{ 'COMMON.LOADING' | translate }}</p>
-    } @else {
-    <!-- Brand header -->
-    <div class="mb-7">
-      <app-auth-branding />
-    </div>
-
-    <!-- Pending icon -->
+<div class="min-h-screen bg-white flex flex-col items-center">
+  <div class="w-full max-w-md flex flex-col flex-1">
     <div
-      class="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center"
+      class="flex-1 flex flex-col items-center justify-center px-6 text-center gap-5"
     >
-      <svg
-        class="w-8 h-8 text-yellow-500"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+      <!-- Spinner / icon -->
+      @if (loading()) {
+      <p class="text-sm text-gray-400">{{ 'COMMON.LOADING' | translate }}</p>
+      } @else {
+      <!-- Brand header -->
+      <div class="mb-7">
+        <app-auth-branding />
+      </div>
+
+      <!-- Pending icon -->
+      <div
+        class="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    </div>
+        <svg
+          class="w-8 h-8 text-yellow-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      </div>
 
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900 mb-2">
-        {{ 'VERIFICATION_PENDING.TITLE' | translate }}
-      </h1>
-      <p class="text-sm text-gray-600">
-        {{ 'VERIFICATION_PENDING.SUBTITLE' | translate }}
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">
+          {{ 'VERIFICATION_PENDING.TITLE' | translate }}
+        </h1>
+        <p class="text-sm text-gray-600">
+          {{ 'VERIFICATION_PENDING.SUBTITLE' | translate }}
+        </p>
+      </div>
+
+      @if (status()?.labName) {
+      <div class="w-full bg-gray-50 rounded-xl px-4 py-3 text-left">
+        <p class="text-xs text-gray-400 mb-1">
+          {{ 'VERIFICATION_PENDING.LAB_LABEL' | translate }}
+        </p>
+        <p class="text-sm font-medium text-gray-900">{{ status()!.labName }}</p>
+      </div>
+      } @if (status()?.submittedAt) {
+      <p class="text-xs text-gray-400">
+        {{
+          'VERIFICATION_PENDING.SUBMITTED_ON'
+            | translate : { date: status()!.submittedAt | date : 'mediumDate' }
+        }}
       </p>
-    </div>
+      }
 
-    @if (status()?.labName) {
-    <div class="w-full bg-gray-50 rounded-xl px-4 py-3 text-left">
-      <p class="text-xs text-gray-400 mb-1">
-        {{ 'VERIFICATION_PENDING.LAB_LABEL' | translate }}
+      <p class="text-xs text-gray-400 mt-2">
+        {{ 'VERIFICATION_PENDING.CONTACT_HINT' | translate }}
       </p>
-      <p class="text-sm font-medium text-gray-900">{{ status()!.labName }}</p>
+      }
     </div>
-    } @if (status()?.submittedAt) {
-    <p class="text-xs text-gray-400">
-      {{
-        'VERIFICATION_PENDING.SUBMITTED_ON'
-          | translate : { date: status()!.submittedAt | date : 'mediumDate' }
-      }}
-    </p>
-    }
 
-    <p class="text-xs text-gray-400 mt-2">
-      {{ 'VERIFICATION_PENDING.CONTACT_HINT' | translate }}
-    </p>
-    }
+    <div
+      class="h-8 bg-white border-t border-gray-200 flex items-center justify-center"
+    >
+      <div class="w-32 h-1 bg-black rounded-full"></div>
+    </div>
   </div>
-
-  <div
-    class="h-8 bg-white border-t border-gray-200 flex items-center justify-center"
-  >
-    <div class="w-32 h-1 bg-black rounded-full"></div>
-  </div>
+  <!-- /max-w-md -->
 </div>

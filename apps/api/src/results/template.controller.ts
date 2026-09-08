@@ -46,7 +46,14 @@ export class TemplateController {
   }
 
   @Post('templates')
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.ADMIN,
+    TenantRole.OWNER,
+    TenantRole.TECHNICIAN,
+    TenantRole.ANALYST,
+    TenantRole.REVIEWER,
+    TenantRole.DATA_ENTRY
+  )
   createDefinition(
     @CurrentTenant() tenant: TenantContext,
     @Body() dto: CreateTemplateDefinitionDto
@@ -55,7 +62,14 @@ export class TemplateController {
   }
 
   @Post('templates/:id/clone')
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.ADMIN,
+    TenantRole.OWNER,
+    TenantRole.TECHNICIAN,
+    TenantRole.ANALYST,
+    TenantRole.REVIEWER,
+    TenantRole.DATA_ENTRY
+  )
   @HttpCode(HttpStatus.OK)
   cloneFromPlatform(
     @CurrentTenant() tenant: TenantContext,
@@ -65,13 +79,27 @@ export class TemplateController {
   }
 
   @Post('templates/:id/draft')
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.ADMIN,
+    TenantRole.OWNER,
+    TenantRole.TECHNICIAN,
+    TenantRole.ANALYST,
+    TenantRole.REVIEWER,
+    TenantRole.DATA_ENTRY
+  )
   createDraftVersion(@Param('id') id: string) {
     return this.templateService.createDraftVersion(id);
   }
 
   @Patch('template-versions/:id')
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.ADMIN,
+    TenantRole.OWNER,
+    TenantRole.TECHNICIAN,
+    TenantRole.ANALYST,
+    TenantRole.REVIEWER,
+    TenantRole.DATA_ENTRY
+  )
   updateDraftVersion(
     @Param('id') id: string,
     @Body() dto: UpdateDraftVersionDto
@@ -80,21 +108,42 @@ export class TemplateController {
   }
 
   @Post('template-versions/:id/publish')
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.ADMIN,
+    TenantRole.OWNER,
+    TenantRole.TECHNICIAN,
+    TenantRole.ANALYST,
+    TenantRole.REVIEWER,
+    TenantRole.DATA_ENTRY
+  )
   @HttpCode(HttpStatus.OK)
   publishVersion(@Param('id') id: string) {
     return this.templateService.publishVersion(id);
   }
 
   @Post('template-versions/:id/archive')
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.ADMIN,
+    TenantRole.OWNER,
+    TenantRole.TECHNICIAN,
+    TenantRole.ANALYST,
+    TenantRole.REVIEWER,
+    TenantRole.DATA_ENTRY
+  )
   @HttpCode(HttpStatus.OK)
   archiveVersion(@Param('id') id: string) {
     return this.templateService.archiveVersion(id);
   }
 
   @Delete('templates/:id')
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(
+    TenantRole.ADMIN,
+    TenantRole.OWNER,
+    TenantRole.TECHNICIAN,
+    TenantRole.ANALYST,
+    TenantRole.REVIEWER,
+    TenantRole.DATA_ENTRY
+  )
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteDefinition(
     @CurrentTenant() tenant: TenantContext,

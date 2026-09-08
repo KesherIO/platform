@@ -21,6 +21,9 @@ enum TenantRole {
   TECHNICIAN
   RECEPTIONIST
   MESSENGER
+  ANALYST
+  REVIEWER
+  DATA_ENTRY
 }
 
 enum DeliveryMethod {

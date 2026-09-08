@@ -5,7 +5,13 @@ import { switchMap, of, map, catchError } from 'rxjs';
 
 function resolveAccess(auth: AuthService, router: Router): boolean {
   const membership = auth.me()?.memberships?.[0];
-  if (!membership) return true;
+  if (!membership) {
+    if (!auth.me()?.memberships?.length) {
+      router.navigate(['/no-clinic']);
+      return false;
+    }
+    return true;
+  }
 
   switch (membership.status) {
     case 'PROFILE_REQUIRED':

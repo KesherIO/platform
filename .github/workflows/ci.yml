@@ -27,6 +27,8 @@ jobs:
 
       - run: npm ci
 
+      - run: node apps/frontend/scripts/write-sentry-env.js
+
       - run: npx nx format:check --base="origin/main"
 
       - run: npx nx affected -t lint test build typecheck --base=origin/main --head=HEAD

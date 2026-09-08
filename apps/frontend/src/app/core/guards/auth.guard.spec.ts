@@ -113,13 +113,14 @@ describe('authGuard — membership status routing', () => {
     ]);
   });
 
-  it('no memberships allows access', async () => {
+  it('no memberships redirects to /no-clinic', async () => {
     setup({ ...makeMe('ACTIVE'), memberships: [] });
     const result = await firstValueFrom(
       TestBed.runInInjectionContext(() =>
         authGuard(mockRoute, mockState)
       ) as Observable<boolean>
     );
-    expect(result).toBe(true);
+    expect(result).toBe(false);
+    expect(router.navigate).toHaveBeenCalledWith(['/no-clinic']);
   });
 });

@@ -134,24 +134,28 @@ export function Layout() {
                 label: t('nav.analyzers'),
                 icon: Cpu,
               },
-              {
-                to: '/settings/test-config',
-                label: t('nav.test_config'),
-                icon: Wrench,
-              },
-              {
-                to: '/templates',
-                label: t('nav.templates'),
-                icon: FileText,
-              },
             ]
           : []),
         {
-          to: '/collections',
-          label: t('nav.collections'),
-          icon: Truck,
-          badge: unassignedCount > 0 ? unassignedCount : undefined,
+          to: '/settings/test-config',
+          label: t('nav.test_config'),
+          icon: Wrench,
         },
+        {
+          to: '/templates',
+          label: t('nav.templates'),
+          icon: FileText,
+        },
+        ...(!['ANALYST', 'REVIEWER', 'DATA_ENTRY'].includes(labRole ?? '')
+          ? [
+              {
+                to: '/collections',
+                label: t('nav.collections'),
+                icon: Truck,
+                badge: unassignedCount > 0 ? unassignedCount : undefined,
+              },
+            ]
+          : []),
         ...(canPerformPickups
           ? [
               {
@@ -162,7 +166,7 @@ export function Layout() {
               },
             ]
           : []),
-        ...(vetVerificationRequired
+        ...(vetVerificationRequired && isAdmin
           ? [
               {
                 to: '/verifications',
@@ -176,12 +180,16 @@ export function Layout() {
             ]
           : []),
         { to: '/clients', label: t('nav.clients'), icon: Handshake },
-        { to: '/settings/users', label: t('nav.team'), icon: Users },
-        {
-          to: '/settings/laboratory',
-          label: t('nav.settings'),
-          icon: SettingsIcon,
-        },
+        ...(isAdmin
+          ? [
+              { to: '/settings/users', label: t('nav.team'), icon: Users },
+              {
+                to: '/settings/laboratory',
+                label: t('nav.settings'),
+                icon: SettingsIcon,
+              },
+            ]
+          : []),
       ];
 
   return (

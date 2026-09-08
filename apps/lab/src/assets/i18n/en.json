@@ -360,7 +360,6 @@
     "default_observations": "Default observations",
     "report_disclaimer": "Report disclaimer (NOTA)",
     "report_disclaimer_placeholder": "Legal note shown at the bottom of every released report",
-    "signature_url": "Digital signature URL",
     "signers_title": "Lab signers",
     "signers_subtitle": "Technicians and reviewers who sign reports",
     "signer_name": "Full name",
@@ -653,6 +652,9 @@
       "OWNER": "Owner",
       "ADMIN": "Admin",
       "TECHNICIAN": "Staff",
+      "ANALYST": "Analyst",
+      "REVIEWER": "Reviewer",
+      "DATA_ENTRY": "Data Entry",
       "MESSENGER": "Messenger"
     },
     "schedule": {
