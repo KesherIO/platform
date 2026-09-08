@@ -252,10 +252,7 @@ export class CatalogService {
     disabled: number;
     total: number;
   }> {
-    const catalogPath = join(
-      process.cwd(),
-      'apps/api/prisma/seeds/catalog.json'
-    );
+    const catalogPath = join(__dirname, 'assets', 'catalog.json');
     const raw = JSON.parse(readFileSync(catalogPath, 'utf-8'));
     const result = await this.import({
       labTenantId,

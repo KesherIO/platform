@@ -25,7 +25,7 @@ async function main() {
   console.log(`Seeding platform catalog for: ${lab.name} (${lab.id})`);
 
   const { items } = JSON.parse(
-    readFileSync(join(__dirname, 'catalog.json'), 'utf-8')
+    readFileSync(join(__dirname, '../../src/assets/catalog.json'), 'utf-8')
   );
 
   let created = 0;
