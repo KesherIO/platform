@@ -28,7 +28,10 @@ export class LabUsersService {
 
   async bootstrapAdmin(labTenantId: string, dto: CreateLabUserDto) {
     const existing = await this.prisma.userTenantMembership.findFirst({
-      where: { tenantId: labTenantId, role: TenantRole.ADMIN },
+      where: {
+        tenantId: labTenantId,
+        role: { in: [TenantRole.ADMIN, TenantRole.OWNER] },
+      },
     });
     if (existing) {
       throw new ConflictException(

@@ -957,3 +957,29 @@ export interface VetVerificationsQuery {
   page?: number;
   pageSize?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Lab onboarding (public, unauthenticated flow)
+// ---------------------------------------------------------------------------
+
+export interface VerifyLabTokenResponse {
+  valid: boolean;
+  type?: string;
+  labName?: string;
+  labEmail?: string;
+  reason?: 'expired' | 'used' | 'not_found' | 'revoked';
+}
+
+export interface CompleteLabOnboardingRequest {
+  token: string;
+  adminFirstName: string;
+  adminLastName: string;
+  adminEmail: string;
+  password: string;
+  labName: string;
+}
+
+export interface CompleteLabOnboardingResponse {
+  tenantId: string;
+  userId: string;
+}

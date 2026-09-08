@@ -12,7 +12,7 @@ import {
 } from '../../shared/components/WeeklyScheduleEditor';
 import type { LabMember, LabRole, WeeklySchedule } from '../../types/lab.types';
 
-const ROLES: LabRole[] = ['ADMIN', 'TECHNICIAN', 'MESSENGER'];
+const ROLES: LabRole[] = ['OWNER', 'ADMIN', 'TECHNICIAN', 'MESSENGER'];
 
 const ROLE_COLORS: Record<LabRole, string> = {
   OWNER: 'bg-amber-400/20 text-amber-300',

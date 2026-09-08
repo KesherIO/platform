@@ -81,6 +81,7 @@ enum TimelineEventType {
 
 enum OnboardingTokenType {
   ADMIN
+  LAB_ADMIN
 }
 
 enum PatientSpecies {
@@ -464,6 +465,8 @@ model OnboardingToken {
   type             OnboardingTokenType @default(ADMIN)
   clinicName       String
   clinicEmail      String // contact email for the clinic (Tenant.email)
+  labName          String?
+  labEmail         String?
   clientType       ClientType?
   externalClinicId String? // optional external reference from the platform
   laboratoryId     String? // lab tenant that created this invitation

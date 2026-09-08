@@ -15,7 +15,7 @@ export class RequestIdMiddleware implements NestMiddleware {
         ? incoming
         : randomUUID();
 
-    (req as Record<string, unknown>)['requestId'] = requestId;
+    (req as unknown as Record<string, unknown>)['requestId'] = requestId;
     res.setHeader('x-request-id', requestId);
 
     const scope = Sentry.getIsolationScope();

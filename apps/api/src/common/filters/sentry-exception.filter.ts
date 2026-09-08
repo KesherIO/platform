@@ -1,4 +1,5 @@
-import { ArgumentsHost, Catch, HttpException, HttpServer } from '@nestjs/common';
+import { ArgumentsHost, Catch, HttpException } from '@nestjs/common';
+import type { HttpServer } from '@nestjs/common';
 import { SentryGlobalFilter } from '@sentry/nestjs/setup';
 import * as Sentry from '@sentry/nestjs';
 import { Request } from 'express';
@@ -12,13 +13,12 @@ export class SentryExceptionFilter extends SentryGlobalFilter {
   override catch(exception: unknown, host: ArgumentsHost) {
     if (host.getType() === 'http') {
       const request = host.switchToHttp().getRequest<Request>();
-      const user = request['user'] as
-        | { id?: string; email?: string }
-        | undefined;
-      const tenant = request['tenant'] as
+      const req = request as unknown as Record<string, unknown>;
+      const user = req['user'] as { id?: string; email?: string } | undefined;
+      const tenant = req['tenant'] as
         | { tenantId?: string; role?: string }
         | undefined;
-      const requestId = request['requestId'] as string | undefined;
+      const requestId = req['requestId'] as string | undefined;
 
       Sentry.withScope((scope) => {
         if (requestId) {

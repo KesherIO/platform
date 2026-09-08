@@ -650,6 +650,7 @@
     "empty": "No team members yet.",
     "you": "you",
     "roles": {
+      "OWNER": "Owner",
       "ADMIN": "Admin",
       "TECHNICIAN": "Staff",
       "MESSENGER": "Messenger"
@@ -1103,5 +1104,36 @@
       "DOCUMENT_VIEWED": "Document viewed"
     },
     "profile_changed_warning": "The credential on file has changed since this approval was granted. Review the current document and credential details before taking further action."
+  },
+  "onboarding": {
+    "welcome_title": "Welcome to Kesher IO",
+    "welcome_subtitle": "You've been invited to set up <strong>{{labName}}</strong> on the laboratory platform.",
+    "continue": "Continue",
+    "setup_title": "Set up your laboratory",
+    "setup_subtitle": "Create your admin account to get started.",
+    "lab_name": "Laboratory name",
+    "first_name": "First name",
+    "last_name": "Last name",
+    "email": "Admin email",
+    "password": "Password",
+    "password_hint": "Minimum 8 characters",
+    "confirm_password": "Confirm password",
+    "password_mismatch": "Passwords do not match.",
+    "submit": "Create account",
+    "submitting": "Creating account...",
+    "success_title": "Account created!",
+    "success_message": "Your laboratory account has been created. You can now sign in.",
+    "go_to_login": "Go to sign in",
+    "error_expired_title": "Link expired",
+    "error_expired_body": "This onboarding link has expired. Please request a new one.",
+    "error_used_title": "Link already used",
+    "error_used_body": "This onboarding link has already been used to create an account.",
+    "error_not_found_title": "Link not found",
+    "error_not_found_body": "This onboarding link is invalid. Please check the URL or request a new one.",
+    "error_no_token_title": "Missing link",
+    "error_no_token_body": "No onboarding token was found in the URL.",
+    "error_revoked_title": "Link revoked",
+    "error_revoked_body": "This onboarding link has been revoked.",
+    "error_generic": "Something went wrong. Please try again."
   }
 }
