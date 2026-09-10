@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Skeleton } from '../../shared/components/Skeleton';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
@@ -26,21 +26,24 @@ type Analyte = {
   selectValue: string | null;
 };
 
+type ResultSession = {
+  test: { id: string; name: string; code: string | null; status: string };
+  sections: { id: string | null; name: string | null; analytes: Analyte[] }[];
+  report: { id: string; observations: string | null; correctionNotes: string | null } | null;
+};
+
 function TestResultSection({
   orderId,
   testId,
+  session,
   readOnly,
 }: {
   orderId: string;
   testId: string;
+  session: ResultSession | undefined;
   readOnly: boolean;
 }) {
   const { t } = useTranslation();
-  const { data: session } = useQuery({
-    queryKey: ['result-session', testId],
-    queryFn: () => labApi.resultEntry.getSession(testId),
-    staleTime: 30_000,
-  });
 
   if (!session) {
     return (
@@ -184,6 +187,7 @@ function ReviewerPanel({
   setSelectedAnalystId,
   reviewNotes,
   setReviewNotes,
+  needsAttention,
 }: {
   selectedSignerId: string;
   setSelectedSignerId: (v: string) => void;
@@ -191,6 +195,7 @@ function ReviewerPanel({
   setSelectedAnalystId: (v: string) => void;
   reviewNotes: string;
   setReviewNotes: (v: string) => void;
+  needsAttention?: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -231,7 +236,11 @@ function ReviewerPanel({
   );
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-4">
+    <div className={`rounded-xl p-5 space-y-4 ${
+      needsAttention
+        ? 'border-2 border-cyan/50 bg-cyan/5'
+        : 'border border-gray-800 bg-gray-900'
+    }`}>
       <h3 className="text-sm font-semibold text-white">
         {t('review.reviewer_panel_title')}
       </h3>
@@ -621,6 +630,7 @@ function AmendmentPanel({
 
 export function ReviewReleasePage() {
   const { orderId } = useParams<{ orderId: string }>();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const toast = useToast();
   const confirm = useConfirm();
@@ -636,6 +646,8 @@ export function ReviewReleasePage() {
   const [correctionNotes, setCorrectionNotes] = useState('');
   const [showCorrections, setShowCorrections] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [highlightReviewer, setHighlightReviewer] = useState(false);
+  const reviewerRef = useRef<HTMLDivElement>(null);
 
   const { data: order, isLoading: loading } = useQuery({
     queryKey: ['order', orderId],
@@ -649,15 +661,34 @@ export function ReviewReleasePage() {
   });
   const hasReviewers = (reviewerSigners?.length ?? 0) > 0;
 
+  // Single batch query for all result sessions — no per-test fetches
+  const resultTestIds = order?.orderedTests
+    .filter((ot: { status: string }) =>
+      ['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED'].includes(ot.status)
+    )
+    .map((ot: { id: string }) => ot.id) ?? [];
+
+  const { data: batchSessions } = useQuery({
+    queryKey: ['batch-result-sessions', orderId, resultTestIds.join(',')],
+    queryFn: () => labApi.resultEntry.batchGetSessions(resultTestIds),
+    enabled: resultTestIds.length > 0,
+    staleTime: 30_000,
+  });
+
+  const sessionByTestId = new Map<string, ResultSession>();
+  if (batchSessions) {
+    for (const s of batchSessions) {
+      if (s?.test?.id) sessionByTestId.set(s.test.id, s as ResultSession);
+    }
+  }
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+    queryClient.removeQueries({ queryKey: ['worklist'] });
+    queryClient.removeQueries({ queryKey: ['worklist-counts'] });
     queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
     queryClient.invalidateQueries({ queryKey: ['release-history', orderId] });
-    order?.orderedTests.forEach((ot) => {
-      queryClient.invalidateQueries({
-        queryKey: ['result-session', ot.id],
-      });
-    });
+    queryClient.invalidateQueries({ queryKey: ['batch-result-sessions', orderId] });
     setSelectedTestIds([]);
     setAmendingTestId(null);
     setSelectedSignerId('');
@@ -674,6 +705,11 @@ export function ReviewReleasePage() {
       await labApi.review.submitForReview(orderId, testIds);
       toast.success(t('review.submit_for_review_success'));
       invalidate();
+      setHighlightReviewer(true);
+      setTimeout(() => {
+        reviewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+      setTimeout(() => setHighlightReviewer(false), 3000);
     } catch (e) {
       toast.error(
         `${t('review.submit_for_review_error')} ${(e as Error).message}`
@@ -712,6 +748,7 @@ export function ReviewReleasePage() {
       });
       toast.success(t('review.approve_success'));
       invalidate();
+      navigate('/orders');
     } catch (e) {
       toast.error(`${t('review.approve_error')} ${(e as Error).message}`);
     } finally {
@@ -951,7 +988,14 @@ export function ReviewReleasePage() {
 
       {/* Reviewer controls (admin + IN_REVIEW) */}
       {showActionButtons && (
-        <div className="mb-4">
+        <div
+          ref={reviewerRef}
+          className={`mb-4 rounded-xl transition-all duration-500 ${
+            highlightReviewer
+              ? 'ring-2 ring-cyan shadow-[0_0_15px_rgba(6,214,160,0.3)]'
+              : ''
+          }`}
+        >
           <ReviewerPanel
             selectedSignerId={selectedSignerId}
             setSelectedSignerId={setSelectedSignerId}
@@ -959,6 +1003,7 @@ export function ReviewReleasePage() {
             setSelectedAnalystId={setSelectedAnalystId}
             reviewNotes={reviewNotes}
             setReviewNotes={setReviewNotes}
+            needsAttention={!selectedSignerId}
           />
         </div>
       )}
@@ -1036,6 +1081,7 @@ export function ReviewReleasePage() {
               <TestResultSection
                 orderId={order.id}
                 testId={test.id}
+                session={sessionByTestId.get(test.id)}
                 readOnly={readOnly}
               />
 

@@ -190,14 +190,11 @@ describe('WorklistService', () => {
 
   describe('getWorklistCounts', () => {
     it('returns per-department counts', async () => {
-      prisma.orderedTest.groupBy
-        .mockResolvedValueOnce([
-          { department: 'HEMATOLOGY', status: 'READY', _count: 3 },
-          { department: 'HEMATOLOGY', status: 'IN_PROGRESS', _count: 1 },
-          { department: 'CHEMISTRY', status: 'READY', _count: 5 },
-        ])
-        .mockResolvedValueOnce([]);
-      prisma.orderedTest.count.mockResolvedValueOnce(6);
+      prisma.orderedTest.groupBy.mockResolvedValueOnce([
+        { department: 'HEMATOLOGY', status: 'READY', assignedUserId: null, _count: 3 },
+        { department: 'HEMATOLOGY', status: 'IN_PROGRESS', assignedUserId: 'user-1', _count: 1 },
+        { department: 'CHEMISTRY', status: 'READY', assignedUserId: null, _count: 5 },
+      ]);
 
       const result = await service.getWorklistCounts(labTenantId);
       expect(result.departments).toHaveLength(2);
@@ -205,7 +202,7 @@ describe('WorklistService', () => {
         (d) => d.department === 'HEMATOLOGY'
       );
       expect(hema).toMatchObject({ ready: 3, inProgress: 1, total: 4 });
-      expect(result.totalReady).toBe(6);
+      expect(result.totalReady).toBe(8);
     });
   });
 

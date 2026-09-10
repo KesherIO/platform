@@ -415,21 +415,69 @@ export class LabService {
     }
 
     const now = new Date();
-    return this.prisma.$transaction(
-      Array.from(testMap.values()).map((entry) =>
-        this.prisma.orderedTest.create({
-          data: {
-            orderId,
-            catalogItemId: entry.catalogItemId,
-            catalogItemCode: entry.catalogItemCode ?? null,
-            catalogItemName: entry.catalogItemName,
-            updatedAt: now,
-            sources: { create: entry.sources },
-          },
-          include: { sources: true },
-        })
-      )
-    );
+    const entries = Array.from(testMap.values());
+
+    return this.prisma.$transaction(async (tx) => {
+      // Batch-create all ordered tests in one query
+      await tx.orderedTest.createMany({
+        data: entries.map((entry) => ({
+          orderId,
+          catalogItemId: entry.catalogItemId,
+          catalogItemCode: entry.catalogItemCode ?? null,
+          catalogItemName: entry.catalogItemName,
+          updatedAt: now,
+        })),
+      });
+
+      // Fetch the just-created tests to get their IDs
+      const created = await tx.orderedTest.findMany({
+        where: { orderId },
+        select: { id: true, catalogItemId: true },
+      });
+
+      const testIdByCatalogItemId = new Map(
+        created.map((t) => [t.catalogItemId, t.id])
+      );
+
+      // Batch-create all sources in one query
+      const allSources: Array<{
+        orderedTestId: string;
+        originCatalogItemId: string;
+        sourceType: OrderedTestSourceType;
+        originalOrderItemKey: string;
+        originalOrderItemIndex: number;
+        quantity: number;
+        originCode: string | null;
+        originName: string;
+      }> = [];
+
+      for (const entry of entries) {
+        const testId = testIdByCatalogItemId.get(entry.catalogItemId);
+        if (!testId) continue;
+        for (const src of entry.sources) {
+          const originId =
+            'connect' in src.originCatalogItem
+              ? src.originCatalogItem.connect!.id!
+              : '';
+          allSources.push({
+            orderedTestId: testId,
+            originCatalogItemId: originId,
+            sourceType: src.sourceType,
+            originalOrderItemKey: src.originalOrderItemKey,
+            originalOrderItemIndex: src.originalOrderItemIndex,
+            quantity: src.quantity ?? 1,
+            originCode: src.originCode ?? null,
+            originName: src.originName,
+          });
+        }
+      }
+
+      if (allSources.length > 0) {
+        await tx.orderedTestSource.createMany({ data: allSources });
+      }
+
+      return created;
+    });
   }
 
   async updateOrderedTest(

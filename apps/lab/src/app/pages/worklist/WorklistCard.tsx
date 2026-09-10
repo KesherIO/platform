@@ -157,7 +157,7 @@ export function WorklistCard({
           {canEnterResults && (
             <Link
               to={`/orders/${item.orderId}/tests/${item.id}/results`}
-              className="rounded-md bg-purple-500/15 px-2.5 py-1.5 text-xs font-medium text-purple-400 hover:bg-purple-500/25"
+              className="rounded-md bg-purple px-2.5 py-1.5 text-xs font-semibold text-white hover:opacity-90"
             >
               {t('worklist.actions.enter_results')}
             </Link>

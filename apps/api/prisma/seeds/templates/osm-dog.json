@@ -8,13 +8,31 @@
       "sortOrder": 0,
       "analytes": [
         {
+          "code": "GLU",
+          "name": "Glucosa",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 0,
+          "isHeader": false,
+          "isRequired": false
+        },
+        {
+          "code": "BUN",
+          "name": "BUN (Nitrógeno Ureico)",
+          "valueType": "NUMERIC",
+          "unit": "mg/dL",
+          "sortOrder": 1,
+          "isHeader": false,
+          "isRequired": false
+        },
+        {
           "code": "OSM",
           "name": "Osmolalidad",
           "technique": "Parámetro calculado",
           "formula": "(2*([NA]+[K]))+([GLU]/18)+([BUN]/2.8)",
           "valueType": "NUMERIC",
           "unit": "mOsm/Kg",
-          "sortOrder": 0,
+          "sortOrder": 2,
           "isHeader": false,
           "referenceRange": {
             "min": 250.0,

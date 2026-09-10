@@ -366,6 +366,28 @@ export const labApi = {
       post<{ status: string }>(`lab/ordered-tests/${testId}/submit-results`),
     batchGetSessions: (testIds: string[]) =>
       post<unknown[]>('lab/ordered-tests/batch-result-sessions', { testIds }),
+    batchSaveAndSubmit: (
+      tests: Array<{
+        testId: string;
+        analytes: Array<{
+          templateAnalyteId: string;
+          numericValue?: number | null;
+          textValue?: string | null;
+          booleanValue?: boolean | null;
+          selectValue?: string | null;
+        }>;
+        observations?: string | null;
+      }>,
+      submitAfterSave: boolean
+    ) =>
+      post<{
+        results: Array<{
+          testId: string;
+          reportId: string;
+          saved: number;
+          submitted: boolean;
+        }>;
+      }>('lab/ordered-tests/batch-save-submit', { tests, submitAfterSave }),
     releaseReport: (reportId: string) =>
       post<{ id: string; status: string }>(`lab/reports/${reportId}/release`),
   },
