@@ -327,11 +327,15 @@ describe('LabService', () => {
         ],
         orderedTests: [],
       });
-      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
       (prisma.orderedTest.findMany as jest.Mock).mockResolvedValue([
         { id: 'ot-1', catalogItemId: 'cat-1' },
       ]);
-      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({
+        count: 1,
+      });
       (prisma.$transaction as jest.Mock).mockImplementation((cb) => cb(prisma));
 
       await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
@@ -386,12 +390,16 @@ describe('LabService', () => {
           component: { id: 'comp-glu', code: 'GLU', name: 'Glucosa' },
         },
       ]);
-      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({
+        count: 2,
+      });
       (prisma.orderedTest.findMany as jest.Mock).mockResolvedValue([
         { id: 'ot-alb', catalogItemId: 'comp-alb' },
         { id: 'ot-glu', catalogItemId: 'comp-glu' },
       ]);
-      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({
+        count: 2,
+      });
       (prisma.$transaction as jest.Mock).mockImplementation((cb) => cb(prisma));
 
       await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
@@ -404,8 +412,16 @@ describe('LabService', () => {
       });
       expect(prisma.orderedTest.createMany).toHaveBeenCalledWith({
         data: expect.arrayContaining([
-          expect.objectContaining({ catalogItemId: 'comp-alb', catalogItemCode: 'ALB', catalogItemName: 'Albumina' }),
-          expect.objectContaining({ catalogItemId: 'comp-glu', catalogItemCode: 'GLU', catalogItemName: 'Glucosa' }),
+          expect.objectContaining({
+            catalogItemId: 'comp-alb',
+            catalogItemCode: 'ALB',
+            catalogItemName: 'Albumina',
+          }),
+          expect.objectContaining({
+            catalogItemId: 'comp-glu',
+            catalogItemCode: 'GLU',
+            catalogItemName: 'Glucosa',
+          }),
         ]),
       });
       expect(prisma.orderedTestSource.createMany).toHaveBeenCalledWith({
@@ -457,12 +473,16 @@ describe('LabService', () => {
           component: { id: 'comp-crea', code: 'CREA', name: 'Creatinina' },
         },
       ]);
-      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({
+        count: 2,
+      });
       (prisma.orderedTest.findMany as jest.Mock).mockResolvedValue([
         { id: 'ot-alb', catalogItemId: 'comp-alb' },
         { id: 'ot-crea', catalogItemId: 'comp-crea' },
       ]);
-      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({ count: 3 });
+      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({
+        count: 3,
+      });
       (prisma.$transaction as jest.Mock).mockImplementation((cb) => cb(prisma));
 
       await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
@@ -526,13 +546,17 @@ describe('LabService', () => {
           component: { id: 'comp-alb', code: 'ALB', name: 'Albumina' },
         },
       ]);
-      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({ count: 3 });
+      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({
+        count: 3,
+      });
       (prisma.orderedTest.findMany as jest.Mock).mockResolvedValue([
         { id: 'ot-cbc', catalogItemId: 'cat-cbc' },
         { id: 'ot-alb', catalogItemId: 'comp-alb' },
         { id: 'ot-uri', catalogItemId: 'cat-uri' },
       ]);
-      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({ count: 3 });
+      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({
+        count: 3,
+      });
       (prisma.$transaction as jest.Mock).mockImplementation((cb) => cb(prisma));
 
       await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
@@ -610,13 +634,17 @@ describe('LabService', () => {
           component: { id: 'comp-crea', code: 'CREA', name: 'Creatinina' },
         },
       ]);
-      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({ count: 3 });
+      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({
+        count: 3,
+      });
       (prisma.orderedTest.findMany as jest.Mock).mockResolvedValue([
         { id: 'ot-crea', catalogItemId: 'comp-crea' },
         { id: 'ot-bun', catalogItemId: 'comp-bun' },
         { id: 'ot-alt', catalogItemId: 'comp-alt' },
       ]);
-      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({ count: 4 });
+      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({
+        count: 4,
+      });
       (prisma.$transaction as jest.Mock).mockImplementation((cb) => cb(prisma));
 
       await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);
@@ -668,12 +696,16 @@ describe('LabService', () => {
         ],
         orderedTests: [],
       });
-      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+      (prisma.orderedTest.createMany as jest.Mock).mockResolvedValue({
+        count: 2,
+      });
       (prisma.orderedTest.findMany as jest.Mock).mockResolvedValue([
         { id: 'ot-1', catalogItemId: 'cat-1' },
         { id: 'ot-2', catalogItemId: 'cat-2' },
       ]);
-      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({ count: 2 });
+      (prisma.orderedTestSource.createMany as jest.Mock).mockResolvedValue({
+        count: 2,
+      });
       (prisma.$transaction as jest.Mock).mockImplementation((cb) => cb(prisma));
 
       await service.initOrderedTests(LAB_TENANT_ID, ORDER_ID);

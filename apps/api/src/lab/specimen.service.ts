@@ -271,7 +271,10 @@ export class SpecimenService {
     for (const test of order.orderedTests) {
       uniqueCodes.add(test.catalogItem?.code ?? test.catalogItemCode ?? '');
     }
-    const templateCache = new Map<string, Awaited<ReturnType<typeof this.templateVersionService.resolveTemplate>>>();
+    const templateCache = new Map<
+      string,
+      Awaited<ReturnType<typeof this.templateVersionService.resolveTemplate>>
+    >();
     await Promise.all(
       Array.from(uniqueCodes).map(async (code) => {
         const tmpl = await this.templateVersionService.resolveTemplate(
@@ -354,7 +357,9 @@ export class SpecimenService {
               actorName,
               description: s.accepted
                 ? `Specimen ${s.accessionNumber} (${s.specimenType}) accepted`
-                : `Specimen ${s.accessionNumber} (${s.specimenType}) rejected: ${buildRejectionReason(s)}`,
+                : `Specimen ${s.accessionNumber} (${
+                    s.specimenType
+                  }) rejected: ${buildRejectionReason(s)}`,
               metadata: {
                 specimenId: specimen.id,
                 accessionNumber: s.accessionNumber,
@@ -425,8 +430,7 @@ export class SpecimenService {
                   data: {
                     status: 'READY',
                     department: config?.department ?? null,
-                    processingMethod:
-                      config?.defaultProcessingMethod ?? null,
+                    processingMethod: config?.defaultProcessingMethod ?? null,
                     analyzerId: config?.defaultAnalyzerId ?? null,
                     version: { increment: 1 },
                   },
@@ -571,8 +575,9 @@ export class SpecimenService {
     );
 
     // Derive and persist order status after transaction
-    const { orderStatus } =
-      await this.orderStatusService.deriveAndPersist(orderId);
+    const { orderStatus } = await this.orderStatusService.deriveAndPersist(
+      orderId
+    );
 
     return {
       specimens: result,

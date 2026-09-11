@@ -191,9 +191,24 @@ describe('WorklistService', () => {
   describe('getWorklistCounts', () => {
     it('returns per-department counts', async () => {
       prisma.orderedTest.groupBy.mockResolvedValueOnce([
-        { department: 'HEMATOLOGY', status: 'READY', assignedUserId: null, _count: 3 },
-        { department: 'HEMATOLOGY', status: 'IN_PROGRESS', assignedUserId: 'user-1', _count: 1 },
-        { department: 'CHEMISTRY', status: 'READY', assignedUserId: null, _count: 5 },
+        {
+          department: 'HEMATOLOGY',
+          status: 'READY',
+          assignedUserId: null,
+          _count: 3,
+        },
+        {
+          department: 'HEMATOLOGY',
+          status: 'IN_PROGRESS',
+          assignedUserId: 'user-1',
+          _count: 1,
+        },
+        {
+          department: 'CHEMISTRY',
+          status: 'READY',
+          assignedUserId: null,
+          _count: 5,
+        },
       ]);
 
       const result = await service.getWorklistCounts(labTenantId);

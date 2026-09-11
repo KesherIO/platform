@@ -298,7 +298,11 @@ export class ReleaseService {
         const now = new Date();
 
         // Collect all analyte operations to batch them
-        const allAnalyteUpdates: { id: string; flag: string | null; referenceSnapshot: Prisma.InputJsonValue }[] = [];
+        const allAnalyteUpdates: {
+          id: string;
+          flag: string | null;
+          referenceSnapshot: Prisma.InputJsonValue;
+        }[] = [];
         const allReleaseAnalytes: {
           releaseTestId: string;
           code: string;

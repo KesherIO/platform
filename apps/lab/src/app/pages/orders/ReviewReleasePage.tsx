@@ -29,7 +29,11 @@ type Analyte = {
 type ResultSession = {
   test: { id: string; name: string; code: string | null; status: string };
   sections: { id: string | null; name: string | null; analytes: Analyte[] }[];
-  report: { id: string; observations: string | null; correctionNotes: string | null } | null;
+  report: {
+    id: string;
+    observations: string | null;
+    correctionNotes: string | null;
+  } | null;
 };
 
 function TestResultSection({
@@ -236,11 +240,13 @@ function ReviewerPanel({
   );
 
   return (
-    <div className={`rounded-xl p-5 space-y-4 ${
-      needsAttention
-        ? 'border-2 border-cyan/50 bg-cyan/5'
-        : 'border border-gray-800 bg-gray-900'
-    }`}>
+    <div
+      className={`rounded-xl p-5 space-y-4 ${
+        needsAttention
+          ? 'border-2 border-cyan/50 bg-cyan/5'
+          : 'border border-gray-800 bg-gray-900'
+      }`}
+    >
       <h3 className="text-sm font-semibold text-white">
         {t('review.reviewer_panel_title')}
       </h3>
@@ -662,11 +668,12 @@ export function ReviewReleasePage() {
   const hasReviewers = (reviewerSigners?.length ?? 0) > 0;
 
   // Single batch query for all result sessions — no per-test fetches
-  const resultTestIds = order?.orderedTests
-    .filter((ot: { status: string }) =>
-      ['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED'].includes(ot.status)
-    )
-    .map((ot: { id: string }) => ot.id) ?? [];
+  const resultTestIds =
+    order?.orderedTests
+      .filter((ot: { status: string }) =>
+        ['RESULTS_ENTERED', 'IN_REVIEW', 'COMPLETED'].includes(ot.status)
+      )
+      .map((ot: { id: string }) => ot.id) ?? [];
 
   const { data: batchSessions } = useQuery({
     queryKey: ['batch-result-sessions', orderId, resultTestIds.join(',')],
@@ -688,7 +695,9 @@ export function ReviewReleasePage() {
     queryClient.removeQueries({ queryKey: ['worklist-counts'] });
     queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
     queryClient.invalidateQueries({ queryKey: ['release-history', orderId] });
-    queryClient.invalidateQueries({ queryKey: ['batch-result-sessions', orderId] });
+    queryClient.invalidateQueries({
+      queryKey: ['batch-result-sessions', orderId],
+    });
     setSelectedTestIds([]);
     setAmendingTestId(null);
     setSelectedSignerId('');
@@ -707,7 +716,10 @@ export function ReviewReleasePage() {
       invalidate();
       setHighlightReviewer(true);
       setTimeout(() => {
-        reviewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        reviewerRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
       }, 300);
       setTimeout(() => setHighlightReviewer(false), 3000);
     } catch (e) {

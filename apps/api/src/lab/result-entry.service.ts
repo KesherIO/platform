@@ -650,8 +650,13 @@ export class ResultEntryService {
     for (const fa of formulaAnalytes) {
       const value = computed[fa.code] ?? null;
       if (value === null) {
-        const refs = fa.formula!.match(/\[([^\]]+)\]/g)?.map((r: string) => r.slice(1, -1)) ?? [];
-        const allRefsAvailable = refs.every((ref: string) => availableCodes.has(ref));
+        const refs =
+          fa
+            .formula!.match(/\[([^\]]+)\]/g)
+            ?.map((r: string) => r.slice(1, -1)) ?? [];
+        const allRefsAvailable = refs.every((ref: string) =>
+          availableCodes.has(ref)
+        );
         if (allRefsAvailable) {
           failedFormulas.push(fa.name);
         }
@@ -784,7 +789,9 @@ export class ResultEntryService {
         : null;
 
     // 2. Resolve templates once per unique code (shared species/age across batch)
-    const uniqueCodes = [...new Set(orderedTests.map((t) => t.catalogItemCode ?? ''))];
+    const uniqueCodes = [
+      ...new Set(orderedTests.map((t) => t.catalogItemCode ?? '')),
+    ];
     const templateCache = new Map<
       string,
       Awaited<ReturnType<typeof this.templateVersionService.resolveTemplate>>
@@ -792,7 +799,10 @@ export class ResultEntryService {
     await Promise.all(
       uniqueCodes.map(async (code) => {
         const tmpl = await this.templateVersionService.resolveTemplate(
-          code, labTenantId, species, ageWeeks
+          code,
+          labTenantId,
+          species,
+          ageWeeks
         );
         templateCache.set(code, tmpl);
       })
@@ -842,14 +852,25 @@ export class ResultEntryService {
     const reportTestIds = [...reportTestByTestId.values()];
     const existingAnalytes = await this.prisma.resultReportAnalyte.findMany({
       where: { reportTestId: { in: reportTestIds } },
-      select: { id: true, reportTestId: true, templateAnalyteId: true, code: true, numericValue: true },
+      select: {
+        id: true,
+        reportTestId: true,
+        templateAnalyteId: true,
+        code: true,
+        numericValue: true,
+      },
     });
     const existingByKey = new Map(
-      existingAnalytes.map((a) => [`${a.reportTestId}::${a.templateAnalyteId}`, a])
+      existingAnalytes.map((a) => [
+        `${a.reportTestId}::${a.templateAnalyteId}`,
+        a,
+      ])
     );
 
     // 6. Save all analyte values (batch creates + batch updates)
-    const creates: Parameters<typeof this.prisma.resultReportAnalyte.create>[0]['data'][] = [];
+    const creates: Parameters<
+      typeof this.prisma.resultReportAnalyte.create
+    >[0]['data'][] = [];
     const updates: Array<{ id: string; data: Record<string, unknown> }> = [];
 
     for (const entry of tests) {
@@ -864,7 +885,9 @@ export class ResultEntryService {
 
       const version = templateDef.activeVersion;
       const analyteById = new Map(version.analytes.map((a) => [a.id, a]));
-      const sectionNameById = new Map(version.sections.map((s) => [s.id, s.name]));
+      const sectionNameById = new Map(
+        version.sections.map((s) => [s.id, s.name])
+      );
 
       for (const input of entry.analytes) {
         const templateAnalyte = analyteById.get(input.templateAnalyteId);
@@ -905,7 +928,9 @@ export class ResultEntryService {
 
     // Execute batch writes in a transaction
     await this.prisma.$transaction([
-      ...creates.map((data) => this.prisma.resultReportAnalyte.create({ data })),
+      ...creates.map((data) =>
+        this.prisma.resultReportAnalyte.create({ data })
+      ),
       ...updates.map(({ id, data }) =>
         this.prisma.resultReportAnalyte.update({ where: { id }, data })
       ),
@@ -923,15 +948,24 @@ export class ResultEntryService {
     // 8. Compute formulas for all tests (sibling values now in DB)
     const allSavedRows = await this.prisma.resultReportAnalyte.findMany({
       where: { reportTestId: { in: reportTestIds } },
-      select: { reportTestId: true, code: true, numericValue: true, templateAnalyteId: true, id: true },
+      select: {
+        reportTestId: true,
+        code: true,
+        numericValue: true,
+        templateAnalyteId: true,
+        id: true,
+      },
     });
     const allSavedByCode = new Map<string, number | null>();
     for (const r of allSavedRows) {
       allSavedByCode.set(r.code, r.numericValue);
     }
 
-    const formulaCreates: Parameters<typeof this.prisma.resultReportAnalyte.create>[0]['data'][] = [];
-    const formulaUpdates: Array<{ id: string; numericValue: number | null }> = [];
+    const formulaCreates: Parameters<
+      typeof this.prisma.resultReportAnalyte.create
+    >[0]['data'][] = [];
+    const formulaUpdates: Array<{ id: string; numericValue: number | null }> =
+      [];
 
     for (const ot of orderedTests) {
       const templateDef = templateCache.get(ot.catalogItemCode ?? '');
@@ -941,10 +975,14 @@ export class ResultEntryService {
       if (!rtId) continue;
 
       const version = templateDef.activeVersion;
-      const formulaAnalytes = version.analytes.filter((a) => a.formula && !a.isHeader);
+      const formulaAnalytes = version.analytes.filter(
+        (a) => a.formula && !a.isHeader
+      );
       if (formulaAnalytes.length === 0) continue;
 
-      const sectionNameById = new Map(version.sections.map((s) => [s.id, s.name]));
+      const sectionNameById = new Map(
+        version.sections.map((s) => [s.id, s.name])
+      );
 
       const allForEval = version.analytes
         .filter((a) => !a.isHeader)
@@ -966,8 +1004,11 @@ export class ResultEntryService {
       for (const fa of formulaAnalytes) {
         const value = computed[fa.code] ?? null;
         const key = `${rtId}::${fa.id}`;
-        const existing = existingByKey.get(key)
-          ?? allSavedRows.find((r) => r.reportTestId === rtId && r.templateAnalyteId === fa.id);
+        const existing =
+          existingByKey.get(key) ??
+          allSavedRows.find(
+            (r) => r.reportTestId === rtId && r.templateAnalyteId === fa.id
+          );
 
         if (existing) {
           formulaUpdates.push({ id: existing.id, numericValue: value });
@@ -994,9 +1035,14 @@ export class ResultEntryService {
 
     if (formulaCreates.length > 0 || formulaUpdates.length > 0) {
       await this.prisma.$transaction([
-        ...formulaCreates.map((data) => this.prisma.resultReportAnalyte.create({ data })),
+        ...formulaCreates.map((data) =>
+          this.prisma.resultReportAnalyte.create({ data })
+        ),
         ...formulaUpdates.map(({ id, numericValue }) =>
-          this.prisma.resultReportAnalyte.update({ where: { id }, data: { numericValue } })
+          this.prisma.resultReportAnalyte.update({
+            where: { id },
+            data: { numericValue },
+          })
         ),
       ]);
     }
@@ -1009,7 +1055,11 @@ export class ResultEntryService {
         ...readyTests.map((t) =>
           this.prisma.orderedTest.update({
             where: { id: t.id },
-            data: { status: 'IN_PROGRESS', startedAt: now, version: { increment: 1 } },
+            data: {
+              status: 'IN_PROGRESS',
+              startedAt: now,
+              version: { increment: 1 },
+            },
           })
         ),
         ...readyTests.map((t) =>
@@ -1046,7 +1096,15 @@ export class ResultEntryService {
       // Re-fetch all saved analytes for validation
       const allAnalyteRows = await this.prisma.resultReportAnalyte.findMany({
         where: { reportTestId: { in: reportTestIds } },
-        select: { reportTestId: true, templateAnalyteId: true, code: true, numericValue: true, textValue: true, booleanValue: true, selectValue: true },
+        select: {
+          reportTestId: true,
+          templateAnalyteId: true,
+          code: true,
+          numericValue: true,
+          textValue: true,
+          booleanValue: true,
+          selectValue: true,
+        },
       });
 
       const submittable: typeof orderedTests = [];
@@ -1063,35 +1121,47 @@ export class ResultEntryService {
         if (!rtId) continue;
 
         const version = templateDef.activeVersion;
-        const rtAnalytes = allAnalyteRows.filter((a) => a.reportTestId === rtId);
-        const savedByTemplateId = new Map(rtAnalytes.map((r) => [r.templateAnalyteId, r]));
+        const rtAnalytes = allAnalyteRows.filter(
+          (a) => a.reportTestId === rtId
+        );
+        const savedByTemplateId = new Map(
+          rtAnalytes.map((r) => [r.templateAnalyteId, r])
+        );
 
         // Check required fields
         const missingFields: string[] = [];
         for (const analyte of version.analytes) {
-          if (analyte.isHeader || analyte.formula || !analyte.isRequired) continue;
+          if (analyte.isHeader || analyte.formula || !analyte.isRequired)
+            continue;
           const saved = savedByTemplateId.get(analyte.id);
-          const hasValue = saved && (
-            saved.numericValue !== null ||
-            (saved.textValue !== null && saved.textValue !== '') ||
-            saved.booleanValue !== null ||
-            (saved.selectValue !== null && saved.selectValue !== '')
-          );
+          const hasValue =
+            saved &&
+            (saved.numericValue !== null ||
+              (saved.textValue !== null && saved.textValue !== '') ||
+              saved.booleanValue !== null ||
+              (saved.selectValue !== null && saved.selectValue !== ''));
           if (!hasValue) missingFields.push(analyte.name);
         }
         if (missingFields.length > 0) {
           throw new BadRequestException(
-            `Missing required fields for ${ot.catalogItemName}: ${missingFields.join(', ')}`
+            `Missing required fields for ${
+              ot.catalogItemName
+            }: ${missingFields.join(', ')}`
           );
         }
 
         // Validate formulas
-        const formulaAnalytes = version.analytes.filter((a) => a.formula && !a.isHeader);
+        const formulaAnalytes = version.analytes.filter(
+          (a) => a.formula && !a.isHeader
+        );
         const allCodes = new Set(allAnalyteRows.map((r) => r.code));
         for (const fa of formulaAnalytes) {
           const saved = savedByTemplateId.get(fa.id);
           if (!saved || saved.numericValue === null) {
-            const refs = fa.formula!.match(/\[([^\]]+)\]/g)?.map((r: string) => r.slice(1, -1)) ?? [];
+            const refs =
+              fa
+                .formula!.match(/\[([^\]]+)\]/g)
+                ?.map((r: string) => r.slice(1, -1)) ?? [];
             if (refs.every((ref: string) => allCodes.has(ref))) {
               allFailedFormulas.push(`${ot.catalogItemName}: ${fa.name}`);
             }
@@ -1113,7 +1183,11 @@ export class ResultEntryService {
           ...submittable.map((t) =>
             this.prisma.orderedTest.update({
               where: { id: t.id },
-              data: { status: 'RESULTS_ENTERED', completedAt: submitNow, version: { increment: 1 } },
+              data: {
+                status: 'RESULTS_ENTERED',
+                completedAt: submitNow,
+                version: { increment: 1 },
+              },
             })
           ),
           ...submittable.map((t) =>
@@ -1189,13 +1263,19 @@ export class ResultEntryService {
       string,
       Awaited<ReturnType<typeof this.templateVersionService.resolveTemplate>>
     >();
-    const cacheKeys = new Map<string, { code: string; species: PatientSpecies; ageWeeks: number | null }>();
+    const cacheKeys = new Map<
+      string,
+      { code: string; species: PatientSpecies; ageWeeks: number | null }
+    >();
     for (const t of eligible) {
       const code = t.catalogItemCode ?? '';
       const species = t.order.case.patientSpecies as PatientSpecies;
       const ageWeeks =
         t.order.case.patientAge && t.order.case.patientAgeUnit
-          ? ageToWeeks(t.order.case.patientAge, t.order.case.patientAgeUnit as AgeUnit)
+          ? ageToWeeks(
+              t.order.case.patientAge,
+              t.order.case.patientAgeUnit as AgeUnit
+            )
           : null;
       const key = `${code}::${species}::${ageWeeks}`;
       if (!cacheKeys.has(key)) {
@@ -1203,15 +1283,17 @@ export class ResultEntryService {
       }
     }
     await Promise.all(
-      Array.from(cacheKeys.entries()).map(async ([key, { code, species, ageWeeks }]) => {
-        const tmpl = await this.templateVersionService.resolveTemplate(
-          code,
-          labTenantId,
-          species,
-          ageWeeks
-        );
-        templateCache.set(key, tmpl);
-      })
+      Array.from(cacheKeys.entries()).map(
+        async ([key, { code, species, ageWeeks }]) => {
+          const tmpl = await this.templateVersionService.resolveTemplate(
+            code,
+            labTenantId,
+            species,
+            ageWeeks
+          );
+          templateCache.set(key, tmpl);
+        }
+      )
     );
 
     // Batch-fetch all saved analyte values in one query
@@ -1251,7 +1333,10 @@ export class ResultEntryService {
       const species = test.order.case.patientSpecies as PatientSpecies;
       const ageWeeks =
         test.order.case.patientAge && test.order.case.patientAgeUnit
-          ? ageToWeeks(test.order.case.patientAge, test.order.case.patientAgeUnit as AgeUnit)
+          ? ageToWeeks(
+              test.order.case.patientAge,
+              test.order.case.patientAgeUnit as AgeUnit
+            )
           : null;
       const code = test.catalogItemCode ?? '';
       const key = `${code}::${species}::${ageWeeks}`;
@@ -1259,7 +1344,12 @@ export class ResultEntryService {
 
       if (!templateDef?.activeVersion) {
         return {
-          test: { id: test.id, name: test.catalogItemName, code: test.catalogItemCode, status: test.status },
+          test: {
+            id: test.id,
+            name: test.catalogItemName,
+            code: test.catalogItemCode,
+            status: test.status,
+          },
           template: null,
           report: null,
           sections: [],
@@ -1275,11 +1365,21 @@ export class ResultEntryService {
 
       const sectionMap = new Map<
         string | null,
-        { id: string | null; code: string | null; name: string | null; analytes: unknown[] }
+        {
+          id: string | null;
+          code: string | null;
+          name: string | null;
+          analytes: unknown[];
+        }
       >();
       sectionMap.set(null, { id: null, code: null, name: null, analytes: [] });
       for (const s of version.sections) {
-        sectionMap.set(s.id, { id: s.id, code: s.code ?? null, name: s.name, analytes: [] });
+        sectionMap.set(s.id, {
+          id: s.id,
+          code: s.code ?? null,
+          name: s.name,
+          analytes: [],
+        });
       }
 
       for (const analyte of version.analytes) {
@@ -1313,7 +1413,12 @@ export class ResultEntryService {
       );
 
       return {
-        test: { id: test.id, name: test.catalogItemName, code: test.catalogItemCode, status: test.status },
+        test: {
+          id: test.id,
+          name: test.catalogItemName,
+          code: test.catalogItemCode,
+          status: test.status,
+        },
         template: {
           title: version.title,
           defaultObservations: version.defaultObservations ?? null,
