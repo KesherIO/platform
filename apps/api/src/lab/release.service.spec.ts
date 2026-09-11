@@ -112,7 +112,7 @@ describe('ReleaseService', () => {
       resultReportAmendment: { findMany: jest.fn() },
       resultReportRelease: { create: jest.fn(), findMany: jest.fn() },
       resultReportReleaseTest: { create: jest.fn(), findMany: jest.fn() },
-      resultReportReleaseAnalyte: { create: jest.fn() },
+      resultReportReleaseAnalyte: { create: jest.fn(), createMany: jest.fn() },
       resultReportReleaseArtifact: { create: jest.fn() },
       resultReportAnalyte: { update: jest.fn() },
       orderedTest: { findMany: jest.fn(), update: jest.fn() },

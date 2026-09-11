@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TemplateVersionService } from '../results/template-version.service';
 import { OrderStatusService } from './order-status.service';
 import type { AccessionOrderDto } from './dto/accession-order.dto';
-import type { AgeUnit, PatientSpecies } from '@prisma/client';
+import type { AgeUnit, PatientSpecies, Prisma } from '@prisma/client';
 
 const CONDITION_FLAG_LABELS: Record<string, string> = {
   isHemolyzed: 'hemolyzed',
@@ -248,104 +248,107 @@ export class SpecimenService {
 
     // Generate accession numbers for specimens that don't have one
     const year = new Date().getFullYear();
-    const specimenData = await Promise.all(
-      dto.specimens.map(async (s, idx) => {
-        let accessionNumber = s.accessionNumber;
-        if (!accessionNumber) {
-          // Use a counter per lab — pad to 6 digits
-          const count = await this.prisma.specimen.count({
-            where: { labTenantId },
-          });
-          accessionNumber = `SPEC-${year}-${String(count + idx + 1).padStart(
-            6,
-            '0'
-          )}`;
-        }
-        return { ...s, accessionNumber };
-      })
-    );
+    const needsAccession = dto.specimens.some((s) => !s.accessionNumber);
+    const baseCount = needsAccession
+      ? await this.prisma.specimen.count({ where: { labTenantId } })
+      : 0;
+    let accessionOffset = 0;
+    const specimenData = dto.specimens.map((s) => {
+      let accessionNumber = s.accessionNumber;
+      if (!accessionNumber) {
+        accessionOffset++;
+        accessionNumber = `SPEC-${year}-${String(
+          baseCount + accessionOffset
+        ).padStart(6, '0')}`;
+      }
+      return { ...s, accessionNumber };
+    });
 
     const now = new Date();
+
+    // Pre-resolve templates for all unique catalog codes (avoids N+1 inside transaction)
+    const uniqueCodes = new Set<string>();
+    for (const test of order.orderedTests) {
+      uniqueCodes.add(test.catalogItem?.code ?? test.catalogItemCode ?? '');
+    }
+    const templateCache = new Map<
+      string,
+      Awaited<ReturnType<typeof this.templateVersionService.resolveTemplate>>
+    >();
+    await Promise.all(
+      Array.from(uniqueCodes).map(async (code) => {
+        const tmpl = await this.templateVersionService.resolveTemplate(
+          code,
+          labTenantId,
+          patientSpecies,
+          ageWeeks
+        );
+        templateCache.set(code, tmpl);
+      })
+    );
 
     // Create / update specimens and link tests in a transaction
     const result = await this.prisma.$transaction(
       async (tx) => {
-        const createdSpecimens: {
-          id: string;
-          accepted: boolean;
-          specimenType: string;
-          containerType: string;
-          tubeIndex: number;
-        }[] = [];
+        const timelineEvents: Prisma.TimelineEventCreateManyInput[] = [];
 
-        for (const s of specimenData) {
-          const tubeIndex = s.tubeIndex ?? 1;
+        // --- Specimens: parallel create/update ---
+        const createdSpecimens = await Promise.all(
+          specimenData.map(async (s) => {
+            const tubeIndex = s.tubeIndex ?? 1;
 
-          // Idempotency: find existing specimen for this tube slot
-          const existing = order.specimens.find(
-            (sp) =>
-              sp.specimenType === s.specimenType &&
-              sp.containerType === s.containerType &&
-              sp.tubeIndex === tubeIndex
-          );
+            const existing = order.specimens.find(
+              (sp) =>
+                sp.specimenType === s.specimenType &&
+                sp.containerType === s.containerType &&
+                sp.tubeIndex === tubeIndex
+            );
 
-          const specimenStatus = s.accepted ? 'ACCEPTED' : 'REJECTED';
+            const specimenStatus = s.accepted ? 'ACCEPTED' : 'REJECTED';
+            const conditionData = {
+              isHemolyzed: s.isHemolyzed ?? false,
+              isLipemic: s.isLipemic ?? false,
+              isIcteric: s.isIcteric ?? false,
+              isInsufficient: s.isInsufficient ?? false,
+              isContaminated: s.isContaminated ?? false,
+              isWrongContainer: s.isWrongContainer ?? false,
+              isLeaking: s.isLeaking ?? false,
+            };
 
-          let specimen;
-          if (existing) {
-            specimen = await tx.specimen.update({
-              where: { id: existing.id },
-              data: {
-                status: specimenStatus,
-                isHemolyzed: s.isHemolyzed ?? false,
-                isLipemic: s.isLipemic ?? false,
-                isIcteric: s.isIcteric ?? false,
-                isInsufficient: s.isInsufficient ?? false,
-                isContaminated: s.isContaminated ?? false,
-                isWrongContainer: s.isWrongContainer ?? false,
-                isLeaking: s.isLeaking ?? false,
-                rejectionReason: s.accepted ? null : s.rejectionReason ?? null,
-                notes: s.notes ?? null,
-                receivedAt: now,
-                receivedById: actorId,
-              },
-            });
-          } else {
-            specimen = await tx.specimen.create({
-              data: {
-                orderId,
-                labTenantId,
-                accessionNumber: s.accessionNumber!,
-                specimenType: s.specimenType,
-                containerType: s.containerType,
-                tubeIndex,
-                status: specimenStatus,
-                isHemolyzed: s.isHemolyzed ?? false,
-                isLipemic: s.isLipemic ?? false,
-                isIcteric: s.isIcteric ?? false,
-                isInsufficient: s.isInsufficient ?? false,
-                isContaminated: s.isContaminated ?? false,
-                isWrongContainer: s.isWrongContainer ?? false,
-                isLeaking: s.isLeaking ?? false,
-                rejectionReason: s.accepted ? null : s.rejectionReason ?? null,
-                notes: s.notes ?? null,
-                receivedAt: now,
-                receivedById: actorId,
-              },
-            });
-          }
+            const specimen = existing
+              ? await tx.specimen.update({
+                  where: { id: existing.id },
+                  data: {
+                    status: specimenStatus,
+                    ...conditionData,
+                    rejectionReason: s.accepted
+                      ? null
+                      : s.rejectionReason ?? null,
+                    notes: s.notes ?? null,
+                    receivedAt: now,
+                    receivedById: actorId,
+                  },
+                })
+              : await tx.specimen.create({
+                  data: {
+                    orderId,
+                    labTenantId,
+                    accessionNumber: s.accessionNumber!,
+                    specimenType: s.specimenType,
+                    containerType: s.containerType,
+                    tubeIndex,
+                    status: specimenStatus,
+                    ...conditionData,
+                    rejectionReason: s.accepted
+                      ? null
+                      : s.rejectionReason ?? null,
+                    notes: s.notes ?? null,
+                    receivedAt: now,
+                    receivedById: actorId,
+                  },
+                });
 
-          createdSpecimens.push({
-            id: specimen.id,
-            accepted: s.accepted,
-            specimenType: s.specimenType,
-            containerType: s.containerType,
-            tubeIndex,
-          });
-
-          // Timeline event per specimen
-          await tx.timelineEvent.create({
-            data: {
+            timelineEvents.push({
               orderId,
               eventType: s.accepted ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED',
               actorId,
@@ -362,76 +365,76 @@ export class SpecimenService {
                 reason: s.rejectionReason,
                 conditions: buildConditionFlags(s),
               },
-            },
-          });
-        }
+            });
 
-        // Link tests to accepted specimens and transition statuses
-        for (const test of order.orderedTests) {
-          const config = test.catalogItem?.labTestConfigurations[0];
-          const primaryReq = config?.specimenRequirements.find(
-            (r) => !r.isAlternativeWithinGroup
-          );
+            return {
+              id: specimen.id,
+              accepted: s.accepted,
+              specimenType: s.specimenType,
+              containerType: s.containerType,
+              tubeIndex,
+            };
+          })
+        );
 
-          // Find an accepted specimen matching this test's requirement
-          const matchingAccepted = createdSpecimens.find(
-            (sp) =>
-              sp.accepted &&
-              (!primaryReq ||
-                (sp.specimenType === primaryReq.specimenType &&
-                  sp.containerType === primaryReq.containerType))
-          );
+        // --- Tests: parallel link + status transition ---
+        await Promise.all(
+          order.orderedTests.map(async (test) => {
+            const config = test.catalogItem?.labTestConfigurations[0];
+            const primaryReq = config?.specimenRequirements.find(
+              (r) => !r.isAlternativeWithinGroup
+            );
 
-          const matchingRejected =
-            !matchingAccepted &&
-            createdSpecimens.find(
+            const matchingAccepted = createdSpecimens.find(
               (sp) =>
-                !sp.accepted &&
+                sp.accepted &&
                 (!primaryReq ||
                   (sp.specimenType === primaryReq.specimenType &&
                     sp.containerType === primaryReq.containerType))
             );
 
-          if (matchingAccepted) {
-            // Link test ↔ specimen (idempotent)
-            await tx.orderedTestSpecimen.upsert({
-              where: {
-                orderedTestId_specimenId: {
+            const matchingRejected =
+              !matchingAccepted &&
+              createdSpecimens.find(
+                (sp) =>
+                  !sp.accepted &&
+                  (!primaryReq ||
+                    (sp.specimenType === primaryReq.specimenType &&
+                      sp.containerType === primaryReq.containerType))
+              );
+
+            if (matchingAccepted) {
+              const catalogCode =
+                test.catalogItem?.code ?? test.catalogItemCode ?? '';
+              const templateDef = templateCache.get(catalogCode) ?? null;
+
+              const upsertPromise = tx.orderedTestSpecimen.upsert({
+                where: {
+                  orderedTestId_specimenId: {
+                    orderedTestId: test.id,
+                    specimenId: matchingAccepted.id,
+                  },
+                },
+                create: {
                   orderedTestId: test.id,
                   specimenId: matchingAccepted.id,
                 },
-              },
-              create: {
-                orderedTestId: test.id,
-                specimenId: matchingAccepted.id,
-              },
-              update: {},
-            });
-
-            // Resolve template
-            const catalogCode =
-              test.catalogItem?.code ?? test.catalogItemCode ?? '';
-            const templateDef =
-              await this.templateVersionService.resolveTemplate(
-                catalogCode,
-                labTenantId,
-                patientSpecies,
-                ageWeeks
-              );
-
-            if (templateDef?.activeVersionId) {
-              await tx.orderedTest.update({
-                where: { id: test.id },
-                data: {
-                  status: 'READY',
-                  department: config?.department ?? null,
-                  processingMethod: config?.defaultProcessingMethod ?? null,
-                  analyzerId: config?.defaultAnalyzerId ?? null,
-                  version: { increment: 1 },
-                },
+                update: {},
               });
-              await tx.timelineEvent.create({
-                data: {
+
+              if (templateDef?.activeVersionId) {
+                const updatePromise = tx.orderedTest.update({
+                  where: { id: test.id },
+                  data: {
+                    status: 'READY',
+                    department: config?.department ?? null,
+                    processingMethod: config?.defaultProcessingMethod ?? null,
+                    analyzerId: config?.defaultAnalyzerId ?? null,
+                    version: { increment: 1 },
+                  },
+                });
+                await Promise.all([upsertPromise, updatePromise]);
+                timelineEvents.push({
                   orderId,
                   eventType: 'TEMPLATE_RESOLVED',
                   actorId,
@@ -442,20 +445,19 @@ export class SpecimenService {
                     templateDefinitionId: templateDef.id,
                     templateVersionId: templateDef.activeVersionId,
                   },
-                },
-              });
-            } else {
-              await tx.orderedTest.update({
-                where: { id: test.id },
-                data: {
-                  status: 'BLOCKED',
-                  blockReason: 'MISSING_RESULT_TEMPLATE',
-                  blockReasonDetail: `No published template for ${catalogCode} + ${patientSpecies}`,
-                  version: { increment: 1 },
-                },
-              });
-              await tx.timelineEvent.create({
-                data: {
+                });
+              } else {
+                const updatePromise = tx.orderedTest.update({
+                  where: { id: test.id },
+                  data: {
+                    status: 'BLOCKED',
+                    blockReason: 'MISSING_RESULT_TEMPLATE',
+                    blockReasonDetail: `No published template for ${catalogCode} + ${patientSpecies}`,
+                    version: { increment: 1 },
+                  },
+                });
+                await Promise.all([upsertPromise, updatePromise]);
+                timelineEvents.push({
                   orderId,
                   eventType: 'TEST_BLOCKED',
                   actorId,
@@ -467,21 +469,19 @@ export class SpecimenService {
                     catalogCode,
                     species: patientSpecies,
                   },
+                });
+              }
+            } else if (matchingRejected) {
+              await tx.orderedTest.update({
+                where: { id: test.id },
+                data: {
+                  status: 'BLOCKED',
+                  blockReason: 'REJECTED_SPECIMEN',
+                  blockReasonDetail: `Specimen rejected: ${matchingRejected.specimenType}`,
+                  version: { increment: 1 },
                 },
               });
-            }
-          } else if (matchingRejected) {
-            await tx.orderedTest.update({
-              where: { id: test.id },
-              data: {
-                status: 'BLOCKED',
-                blockReason: 'REJECTED_SPECIMEN',
-                blockReasonDetail: `Specimen rejected: ${matchingRejected.specimenType}`,
-                version: { increment: 1 },
-              },
-            });
-            await tx.timelineEvent.create({
-              data: {
+              timelineEvents.push({
                 orderId,
                 eventType: 'TEST_BLOCKED',
                 actorId,
@@ -491,28 +491,18 @@ export class SpecimenService {
                   orderedTestId: test.id,
                   blockReason: 'REJECTED_SPECIMEN',
                 },
-              },
-            });
-          } else if (!primaryReq) {
-            // Unconfigured test with no specimen submitted — resolve template anyway
-            // so it can still be entered without a specimen configuration.
-            const catalogCode =
-              test.catalogItem?.code ?? test.catalogItemCode ?? '';
-            const templateDef =
-              await this.templateVersionService.resolveTemplate(
-                catalogCode,
-                labTenantId,
-                patientSpecies,
-                ageWeeks
-              );
-
-            if (templateDef?.activeVersionId) {
-              await tx.orderedTest.update({
-                where: { id: test.id },
-                data: { status: 'READY', version: { increment: 1 } },
               });
-              await tx.timelineEvent.create({
-                data: {
+            } else if (!primaryReq) {
+              const catalogCode =
+                test.catalogItem?.code ?? test.catalogItemCode ?? '';
+              const templateDef = templateCache.get(catalogCode) ?? null;
+
+              if (templateDef?.activeVersionId) {
+                await tx.orderedTest.update({
+                  where: { id: test.id },
+                  data: { status: 'READY', version: { increment: 1 } },
+                });
+                timelineEvents.push({
                   orderId,
                   eventType: 'TEMPLATE_RESOLVED',
                   actorId,
@@ -523,20 +513,18 @@ export class SpecimenService {
                     templateDefinitionId: templateDef.id,
                     templateVersionId: templateDef.activeVersionId,
                   },
-                },
-              });
-            } else {
-              await tx.orderedTest.update({
-                where: { id: test.id },
-                data: {
-                  status: 'BLOCKED',
-                  blockReason: 'MISSING_RESULT_TEMPLATE',
-                  blockReasonDetail: `No published template for ${catalogCode} + ${patientSpecies}`,
-                  version: { increment: 1 },
-                },
-              });
-              await tx.timelineEvent.create({
-                data: {
+                });
+              } else {
+                await tx.orderedTest.update({
+                  where: { id: test.id },
+                  data: {
+                    status: 'BLOCKED',
+                    blockReason: 'MISSING_RESULT_TEMPLATE',
+                    blockReasonDetail: `No published template for ${catalogCode} + ${patientSpecies}`,
+                    version: { increment: 1 },
+                  },
+                });
+                timelineEvents.push({
                   orderId,
                   eventType: 'TEST_BLOCKED',
                   actorId,
@@ -548,35 +536,36 @@ export class SpecimenService {
                     catalogCode,
                     species: patientSpecies,
                   },
-                },
-              });
+                });
+              }
             }
-          }
-        }
-
-        // Stamp receivedAt on all tests that haven't been marked received yet
-        await tx.orderedTest.updateMany({
-          where: { orderId, receivedAt: null },
-          data: { receivedAt: now },
-        });
+          })
+        );
 
         // Overall accessioning event
-        await tx.timelineEvent.create({
-          data: {
-            orderId,
-            eventType: 'SAMPLE_ACCESSIONED',
-            actorId,
-            actorName,
-            description: `Order accessioned — ${
-              createdSpecimens.filter((s) => s.accepted).length
-            } specimen(s) accepted`,
-            metadata: {
-              totalSpecimens: createdSpecimens.length,
-              accepted: createdSpecimens.filter((s) => s.accepted).length,
-              rejected: createdSpecimens.filter((s) => !s.accepted).length,
-            },
+        timelineEvents.push({
+          orderId,
+          eventType: 'SAMPLE_ACCESSIONED',
+          actorId,
+          actorName,
+          description: `Order accessioned — ${
+            createdSpecimens.filter((s) => s.accepted).length
+          } specimen(s) accepted`,
+          metadata: {
+            totalSpecimens: createdSpecimens.length,
+            accepted: createdSpecimens.filter((s) => s.accepted).length,
+            rejected: createdSpecimens.filter((s) => !s.accepted).length,
           },
         });
+
+        // Batch: stamp receivedAt + all timeline events in parallel
+        await Promise.all([
+          tx.orderedTest.updateMany({
+            where: { orderId, receivedAt: null },
+            data: { receivedAt: now },
+          }),
+          tx.timelineEvent.createMany({ data: timelineEvents }),
+        ]);
 
         return createdSpecimens;
       },
@@ -584,14 +573,13 @@ export class SpecimenService {
     );
 
     // Derive and persist order status after transaction
-    await this.orderStatusService.deriveAndPersist(orderId);
+    const { orderStatus } = await this.orderStatusService.deriveAndPersist(
+      orderId
+    );
 
     return {
       specimens: result,
-      order: await this.prisma.order.findUnique({
-        where: { id: orderId },
-        select: { id: true, status: true },
-      }),
+      order: { id: orderId, status: orderStatus },
     };
   }
 

@@ -14,9 +14,17 @@ export class PlatformSeedService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     if (process.env['NODE_ENV'] === 'test') return;
 
-    const existing = await this.prisma.resultTemplateDefinition.count({
-      where: { scope: 'PLATFORM' },
-    });
+    let existing: number;
+    try {
+      existing = await this.prisma.resultTemplateDefinition.count({
+        where: { scope: 'PLATFORM' },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Could not check platform templates (DB unreachable?) — skipping seed. ${err}`
+      );
+      return;
+    }
 
     if (existing > 0) {
       this.logger.log(`Platform templates already seeded (${existing} found).`);

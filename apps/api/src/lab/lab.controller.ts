@@ -1570,6 +1570,39 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Post('ordered-tests/batch-save-submit')
+  @HttpCode(HttpStatus.OK)
+  batchSaveAndSubmit(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body()
+    body: {
+      tests: Array<{
+        testId: string;
+        analytes: Array<{
+          templateAnalyteId: string;
+          numericValue?: number | null;
+          textValue?: string | null;
+          booleanValue?: boolean | null;
+          selectValue?: string | null;
+        }>;
+        observations?: string | null;
+      }>;
+      submitAfterSave: boolean;
+    }
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.resultEntryService.batchSaveAndSubmit(
+      tenant.tenantId,
+      body.tests,
+      body.submitAfterSave,
+      user.id,
+      actorName
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Post('ordered-tests/batch-result-sessions')
   @HttpCode(HttpStatus.OK)
   batchGetResultSessions(

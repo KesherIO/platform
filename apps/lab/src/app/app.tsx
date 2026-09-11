@@ -29,6 +29,7 @@ import { WorklistPage } from './pages/worklist/WorklistPage';
 import { VetVerificationQueuePage } from './pages/verifications/VetVerificationQueuePage';
 import { LabOnboardingWelcome } from './pages/onboarding/LabOnboardingWelcome';
 import { LabOnboardingSetup } from './pages/onboarding/LabOnboardingSetup';
+import { ScrollToTop } from './shared/components/ScrollToTop';
 
 export function App() {
   return (
@@ -36,6 +37,7 @@ export function App() {
       <ToastProvider>
         <ConfirmDialogProvider>
           <AuthProvider>
+            <ScrollToTop />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />

@@ -184,6 +184,7 @@ export class ReleaseService {
       if (!analyst) throw new NotFoundException('Analyst not found.');
     }
 
+    const formulaUpdates: { id: string; numericValue: number }[] = [];
     for (const rt of reportTests) {
       const hasFormulas = rt.analytes.some((a) => a.formula && !a.isHeader);
       if (!hasFormulas) continue;
@@ -202,13 +203,20 @@ export class ReleaseService {
         if (!a.formula || a.isHeader) continue;
         const value = computed[a.code] ?? null;
         if (value !== null) {
-          await this.prisma.resultReportAnalyte.update({
-            where: { id: a.id },
-            data: { numericValue: value },
-          });
+          formulaUpdates.push({ id: a.id, numericValue: value });
           (a as { numericValue: typeof value }).numericValue = value;
         }
       }
+    }
+    if (formulaUpdates.length > 0) {
+      await Promise.all(
+        formulaUpdates.map((u) =>
+          this.prisma.resultReportAnalyte.update({
+            where: { id: u.id },
+            data: { numericValue: u.numericValue },
+          })
+        )
+      );
     }
 
     const result = await this.prisma.$transaction(
@@ -289,6 +297,31 @@ export class ReleaseService {
 
         const now = new Date();
 
+        // Collect all analyte operations to batch them
+        const allAnalyteUpdates: {
+          id: string;
+          flag: string | null;
+          referenceSnapshot: Prisma.InputJsonValue;
+        }[] = [];
+        const allReleaseAnalytes: {
+          releaseTestId: string;
+          code: string;
+          name: string;
+          sectionName: string | null;
+          sortOrder: number;
+          isHeader: boolean;
+          valueType: string;
+          numericValue: number | null;
+          textValue: string | null;
+          booleanValue: boolean | null;
+          selectValue: string | null;
+          unit: string | null;
+          technique: string | null;
+          formula: string | null;
+          flag: string | null;
+          referenceSnapshot: Prisma.InputJsonValue;
+        }[] = [];
+
         for (const rt of reportTests) {
           const ot = order.orderedTests.find((t) => t.id === rt.orderedTestId);
           const specimens = ot?.specimens ?? [];
@@ -326,35 +359,31 @@ export class ReleaseService {
                 ? this.computeFlag(ref, Number(a.numericValue))
                 : null;
 
-            await tx.resultReportAnalyte.update({
-              where: { id: a.id },
-              data: {
-                flag,
-                referenceSnapshot:
-                  (ref as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-              },
+            allAnalyteUpdates.push({
+              id: a.id,
+              flag,
+              referenceSnapshot:
+                (ref as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
             });
 
-            await tx.resultReportReleaseAnalyte.create({
-              data: {
-                releaseTestId: releaseTest.id,
-                code: a.code,
-                name: a.name,
-                sectionName: a.sectionName ?? null,
-                sortOrder: a.sortOrder,
-                isHeader: a.isHeader,
-                valueType: a.valueType,
-                numericValue: a.numericValue ?? null,
-                textValue: a.textValue ?? null,
-                booleanValue: a.booleanValue ?? null,
-                selectValue: a.selectValue ?? null,
-                unit: a.unit ?? null,
-                technique: a.technique ?? null,
-                formula: a.formula ?? null,
-                flag,
-                referenceSnapshot:
-                  (ref as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-              },
+            allReleaseAnalytes.push({
+              releaseTestId: releaseTest.id,
+              code: a.code,
+              name: a.name,
+              sectionName: a.sectionName ?? null,
+              sortOrder: a.sortOrder,
+              isHeader: a.isHeader,
+              valueType: a.valueType,
+              numericValue: a.numericValue ?? null,
+              textValue: a.textValue ?? null,
+              booleanValue: a.booleanValue ?? null,
+              selectValue: a.selectValue ?? null,
+              unit: a.unit ?? null,
+              technique: a.technique ?? null,
+              formula: a.formula ?? null,
+              flag,
+              referenceSnapshot:
+                (ref as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
             });
           }
 
@@ -377,6 +406,28 @@ export class ReleaseService {
               },
             });
           }
+        }
+
+        // Batch create all release analyte snapshots
+        if (allReleaseAnalytes.length > 0) {
+          await tx.resultReportReleaseAnalyte.createMany({
+            data: allReleaseAnalytes as never,
+          });
+        }
+
+        // Batch update analyte flags/references
+        if (allAnalyteUpdates.length > 0) {
+          await Promise.all(
+            allAnalyteUpdates.map((u) =>
+              tx.resultReportAnalyte.update({
+                where: { id: u.id },
+                data: {
+                  flag: u.flag,
+                  referenceSnapshot: u.referenceSnapshot,
+                },
+              })
+            )
+          );
         }
 
         const updatedTests = await tx.resultReportTest.findMany({

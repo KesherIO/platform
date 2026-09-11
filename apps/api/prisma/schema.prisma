@@ -748,6 +748,7 @@ model ResultTemplateDefinition {
   @@unique([catalogItemCode, species, ageMinWeeks, ageMaxWeeks, ownerKey])
   @@index([ownerKey])
   @@index([catalogItemCode])
+  @@index([catalogItemCode, scope, species])
   @@map("result_template_definitions")
 }
 
@@ -1158,6 +1159,8 @@ model OrderedTest {
   @@index([orderId])
   @@index([catalogItemId])
   @@index([assignedUserId])
+  @@index([status, assignedUserId])
+  @@index([status, department])
   @@map("ordered_tests")
 }
 

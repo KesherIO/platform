@@ -22,6 +22,7 @@ type Analyte = {
   options: string[];
   referenceRange: { min?: number; max?: number; displayText: string } | null;
   isHeader: boolean;
+  isRequired: boolean;
   formula: string | null;
   sortOrder: number;
   savedValueId: string | null;
@@ -151,6 +152,40 @@ export function BatchResultEntryPage() {
         : session.template.defaultObservations ?? '';
     }
 
+    // Auto-fill optional analytes from sibling tests' saved values.
+    // E.g. OSM has optional GLU/BUN inputs — if GLU/BUN tests are in this batch
+    // with saved values, copy them so the OSM formula can compute.
+    const siblingCodeValues = new Map<string, AnalyteValue>();
+    for (const session of sessions) {
+      for (const section of session.sections) {
+        for (const a of section.analytes) {
+          if (a.isHeader || a.formula) continue;
+          if (a.savedValueId && !siblingCodeValues.has(a.code)) {
+            siblingCodeValues.set(a.code, {
+              numericValue: a.numericValue,
+              textValue: a.textValue,
+              booleanValue: a.booleanValue,
+              selectValue: a.selectValue,
+            });
+          }
+        }
+      }
+    }
+
+    for (const session of sessions) {
+      const testVals = initValues[session.test.id];
+      for (const section of session.sections) {
+        for (const a of section.analytes) {
+          if (a.isHeader || a.formula || a.isRequired) continue;
+          if (a.savedValueId) continue;
+          const sibling = siblingCodeValues.get(a.code);
+          if (sibling) {
+            testVals[a.id] = { ...sibling };
+          }
+        }
+      }
+    }
+
     setValues(initValues);
     setObservations(initObs);
     savedValuesRef.current = initValues;
@@ -158,6 +193,20 @@ export function BatchResultEntryPage() {
   }, [sessions]);
 
   const formulaResults = useMemo(() => {
+    // Build a merged map of all analyte values across all tests in this batch,
+    // so cross-test formulas (e.g. Anion Gap referencing NA, CL, CO2 from sibling tests) resolve.
+    const allCodeValues: Record<string, number | null> = {};
+    for (const session of sessions) {
+      const testVals = values[session.test.id] ?? {};
+      for (const section of session.sections) {
+        for (const a of section.analytes) {
+          if (!a.isHeader && !a.formula) {
+            allCodeValues[a.code] = testVals[a.id]?.numericValue ?? null;
+          }
+        }
+      }
+    }
+
     const result: Record<string, Record<string, number | null>> = {};
     for (const session of sessions) {
       const allAnalytes = session.sections.flatMap((s) => s.analytes);
@@ -169,6 +218,15 @@ export function BatchResultEntryPage() {
           formula: a.formula,
           numericValue: testVals[a.id]?.numericValue ?? null,
         }));
+
+      // Add sibling test values for codes not present in this test
+      const currentCodes = new Set(forEval.map((a) => a.code));
+      for (const [code, numericValue] of Object.entries(allCodeValues)) {
+        if (!currentCodes.has(code)) {
+          forEval.push({ code, formula: null, numericValue });
+        }
+      }
+
       const computed = evaluateAllFormulas(forEval);
       const byAnalyteId: Record<string, number | null> = {};
       for (const a of allAnalytes) {
@@ -235,22 +293,19 @@ export function BatchResultEntryPage() {
     if (!sessions.length) return;
     setSaving(true);
     try {
-      await Promise.all(
-        sessions.map((s) =>
-          labApi.resultEntry.saveAnalytes(
-            s.test.id,
-            buildPayloadForTest(s.test.id),
-            observations[s.test.id] || null
-          )
-        )
+      await labApi.resultEntry.batchSaveAndSubmit(
+        sessions.map((s) => ({
+          testId: s.test.id,
+          analytes: buildPayloadForTest(s.test.id),
+          observations: observations[s.test.id] || null,
+        })),
+        false
       );
       savedValuesRef.current = { ...values };
       savedObservationsRef.current = { ...observations };
-      for (const s of sessions) {
-        queryClient.invalidateQueries({
-          queryKey: ['result-session', s.test.id],
-        });
-      }
+      queryClient.invalidateQueries({
+        queryKey: ['batch-result-sessions'],
+      });
       toast.success(t('batch_result_entry.saved'));
     } catch (e) {
       toast.error((e as Error).message);
@@ -263,22 +318,17 @@ export function BatchResultEntryPage() {
     if (!orderId || !sessions.length) return;
     setSubmitting(true);
     try {
-      for (const s of sessions) {
-        await labApi.resultEntry.saveAnalytes(
-          s.test.id,
-          buildPayloadForTest(s.test.id),
-          observations[s.test.id] || null
-        );
-        const isUpdate = s.test.status === 'RESULTS_ENTERED';
-        if (!isUpdate) {
-          await labApi.resultEntry.submit(s.test.id);
-        }
-      }
-      for (const s of sessions) {
-        queryClient.invalidateQueries({
-          queryKey: ['result-session', s.test.id],
-        });
-      }
+      await labApi.resultEntry.batchSaveAndSubmit(
+        sessions.map((s) => ({
+          testId: s.test.id,
+          analytes: buildPayloadForTest(s.test.id),
+          observations: observations[s.test.id] || null,
+        })),
+        true
+      );
+      queryClient.invalidateQueries({
+        queryKey: ['batch-result-sessions'],
+      });
       queryClient.invalidateQueries({ queryKey: ['order', orderId] });
       queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
       queryClient.invalidateQueries({ queryKey: ['worklist'] });

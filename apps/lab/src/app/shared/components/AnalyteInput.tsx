@@ -81,15 +81,25 @@ export function AnalyteInput({
 
       <div className="flex items-center gap-2">
         {analyte.formula ? (
-          <input
-            type="number"
-            readOnly
-            placeholder="—"
-            value={formulaResult ?? ''}
-            className={`w-24 rounded-lg border border-gray-700 bg-gray-800/50 px-2 py-1.5 text-right text-sm text-gray-400 focus:outline-none ${
-              isHigh || isLow ? flagColor : ''
-            }`}
-          />
+          <>
+            <input
+              type="number"
+              readOnly
+              placeholder="—"
+              value={formulaResult ?? ''}
+              className={`w-24 rounded-lg border border-gray-700 bg-gray-800/50 px-2 py-1.5 text-right text-sm text-gray-400 focus:outline-none ${
+                isHigh || isLow ? flagColor : ''
+              }`}
+            />
+            {formulaResult == null && (
+              <span className="text-[10px] text-gray-600 max-w-[120px] leading-tight">
+                Requiere:{' '}
+                {(analyte.formula.match(/\[([^\]]+)\]/g) ?? [])
+                  .map((r) => r.slice(1, -1))
+                  .join(', ')}
+              </span>
+            )}
+          </>
         ) : analyte.valueType === 'NUMERIC' ? (
           <input
             type="number"

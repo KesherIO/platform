@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { ListWorklistDto } from './dto/list-worklist.dto';
 import type { TenantRole } from '@prisma/client';
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 50;
 const ACTIONABLE_STATUSES = ['READY', 'IN_PROGRESS'];
 const PRIORITY_WEIGHT: Record<string, number> = {
   STAT: 0,
@@ -198,57 +198,41 @@ export class WorklistService {
 
   async getWorklistCounts(labTenantId: string) {
     const groups = await this.prisma.orderedTest.groupBy({
-      by: ['department', 'status'],
+      by: ['department', 'status', 'assignedUserId'],
       where: {
         order: { labTenantId },
         status: { in: ACTIONABLE_STATUSES as never },
-        department: { not: null },
       },
       _count: true,
-    });
-
-    const noDeptGroups = await this.prisma.orderedTest.groupBy({
-      by: ['status'],
-      where: {
-        order: { labTenantId },
-        status: { in: ACTIONABLE_STATUSES as never },
-        department: null,
-      },
-      _count: true,
-    });
-
-    const totalReady = await this.prisma.orderedTest.count({
-      where: {
-        order: { labTenantId },
-        status: 'READY',
-        assignedUserId: null,
-      },
     });
 
     const deptMap = new Map<
       string,
       { ready: number; inProgress: number; total: number }
     >();
-
-    for (const g of groups) {
-      const dept = g.department as string;
-      if (!deptMap.has(dept)) {
-        deptMap.set(dept, { ready: 0, inProgress: 0, total: 0 });
-      }
-      const entry = deptMap.get(dept)!;
-      entry.total += g._count;
-      if (g.status === 'READY') entry.ready += g._count;
-      if (g.status === 'IN_PROGRESS') entry.inProgress += g._count;
-    }
-
     let noDept: { ready: number; inProgress: number; total: number } | null =
       null;
-    if (noDeptGroups.length > 0) {
-      noDept = { ready: 0, inProgress: 0, total: 0 };
-      for (const g of noDeptGroups) {
+    let totalReady = 0;
+
+    for (const g of groups) {
+      if (g.status === 'READY' && g.assignedUserId === null) {
+        totalReady += g._count;
+      }
+
+      if (g.department === null) {
+        if (!noDept) noDept = { ready: 0, inProgress: 0, total: 0 };
         noDept.total += g._count;
         if (g.status === 'READY') noDept.ready += g._count;
         if (g.status === 'IN_PROGRESS') noDept.inProgress += g._count;
+      } else {
+        const dept = g.department as string;
+        if (!deptMap.has(dept)) {
+          deptMap.set(dept, { ready: 0, inProgress: 0, total: 0 });
+        }
+        const entry = deptMap.get(dept)!;
+        entry.total += g._count;
+        if (g.status === 'READY') entry.ready += g._count;
+        if (g.status === 'IN_PROGRESS') entry.inProgress += g._count;
       }
     }
 

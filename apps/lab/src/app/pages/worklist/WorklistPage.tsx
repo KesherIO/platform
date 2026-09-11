@@ -19,7 +19,7 @@ const TOOLBAR_TAB_ACTIVE = 'border-cyan/30 bg-cyan/10 text-cyan';
 const TOOLBAR_TAB_INACTIVE =
   'border-gray-800 text-gray-400 hover:bg-gray-800 hover:text-white';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 50;
 const POLL_MS = 30_000;
 
 const STATUS_FILTERS = [
