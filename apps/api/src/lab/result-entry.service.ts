@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TemplateVersionService } from '../results/template-version.service';
-import { PatientSpecies, AgeUnit } from '@prisma/client';
+import { PatientSpecies, AgeUnit, Prisma } from '@prisma/client';
 import { evaluateAllFormulas } from './formula.util';
 
 function ageToWeeks(age: number, unit: AgeUnit): number {
@@ -868,9 +868,7 @@ export class ResultEntryService {
     );
 
     // 6. Save all analyte values (batch creates + batch updates)
-    const creates: Parameters<
-      typeof this.prisma.resultReportAnalyte.create
-    >[0]['data'][] = [];
+    const creates: Prisma.ResultReportAnalyteUncheckedCreateInput[] = [];
     const updates: Array<{ id: string; data: Record<string, unknown> }> = [];
 
     for (const entry of tests) {
@@ -937,7 +935,9 @@ export class ResultEntryService {
     ]);
 
     // 7. Update observations (last one wins since they share a report)
-    const lastObs = tests.findLast((t) => t.observations !== undefined);
+    const lastObs = [...tests]
+      .reverse()
+      .find((t) => t.observations !== undefined);
     if (lastObs?.observations !== undefined) {
       await this.prisma.resultReport.update({
         where: { id: reportId },
@@ -961,9 +961,7 @@ export class ResultEntryService {
       allSavedByCode.set(r.code, r.numericValue);
     }
 
-    const formulaCreates: Parameters<
-      typeof this.prisma.resultReportAnalyte.create
-    >[0]['data'][] = [];
+    const formulaCreates: Prisma.ResultReportAnalyteUncheckedCreateInput[] = [];
     const formulaUpdates: Array<{ id: string; numericValue: number | null }> =
       [];
 

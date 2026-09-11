@@ -684,8 +684,8 @@ export function ReviewReleasePage() {
 
   const sessionByTestId = new Map<string, ResultSession>();
   if (batchSessions) {
-    for (const s of batchSessions) {
-      if (s?.test?.id) sessionByTestId.set(s.test.id, s as ResultSession);
+    for (const s of batchSessions as ResultSession[]) {
+      if (s?.test?.id) sessionByTestId.set(s.test.id, s);
     }
   }
 

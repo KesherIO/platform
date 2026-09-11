@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TemplateVersionService } from '../results/template-version.service';
 import { OrderStatusService } from './order-status.service';
 import type { AccessionOrderDto } from './dto/accession-order.dto';
-import type { AgeUnit, PatientSpecies } from '@prisma/client';
+import type { AgeUnit, PatientSpecies, Prisma } from '@prisma/client';
 
 const CONDITION_FLAG_LABELS: Record<string, string> = {
   isHemolyzed: 'hemolyzed',
@@ -290,9 +290,7 @@ export class SpecimenService {
     // Create / update specimens and link tests in a transaction
     const result = await this.prisma.$transaction(
       async (tx) => {
-        const timelineEvents: Parameters<
-          typeof tx.timelineEvent.createMany
-        >[0]['data'] = [];
+        const timelineEvents: Prisma.TimelineEventCreateManyInput[] = [];
 
         // --- Specimens: parallel create/update ---
         const createdSpecimens = await Promise.all(
