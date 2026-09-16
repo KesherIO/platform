@@ -63,13 +63,19 @@ export class LabService {
       // orders don't pile up in the daily queue indefinitely.
       const startOfToday = await this.startOfTodayForLab(labTenantId);
       baseCondition.OR = [
-        { status: { not: 'COMPLETED' } },
+        { status: { notIn: ['COMPLETED', 'CANCELLED'] } },
         { status: 'COMPLETED', completedAt: { gte: startOfToday } },
+        { status: 'CANCELLED', cancelledAt: { gte: startOfToday } },
       ];
     } else if (statuses.length === 1 && statuses[0] === 'COMPLETED') {
       // Default "Completed" tab — recent completions only.
       baseCondition.status = 'COMPLETED';
-      baseCondition.createdAt = {
+      baseCondition.completedAt = {
+        gte: new Date(Date.now() - COMPLETED_DEFAULT_LOOKBACK_MS),
+      };
+    } else if (statuses.length === 1 && statuses[0] === 'CANCELLED') {
+      baseCondition.status = 'CANCELLED';
+      baseCondition.cancelledAt = {
         gte: new Date(Date.now() - COMPLETED_DEFAULT_LOOKBACK_MS),
       };
     } else {

@@ -11,12 +11,18 @@ import { AuthenticatedUser, JwtPayload } from '@vet-ai/shared-types';
 @Injectable()
 export class AuthService {
   private readonly supabaseAdmin: SupabaseClient;
+  private readonly supabaseUrl: string;
+  private readonly supabaseServiceRoleKey: string;
 
   constructor(private readonly prisma: PrismaService, config: ConfigService) {
+    this.supabaseUrl = config.getOrThrow<string>('SUPABASE_URL');
+    this.supabaseServiceRoleKey = config.getOrThrow<string>(
+      'SUPABASE_SERVICE_ROLE_KEY'
+    );
     this.supabaseAdmin = createClient(
-      config.getOrThrow<string>('SUPABASE_URL'),
+      this.supabaseUrl,
       // Service-role key required for Admin API (bypasses RLS and email confirmation)
-      config.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY')
+      this.supabaseServiceRoleKey
     );
   }
 
@@ -72,6 +78,42 @@ export class AuthService {
         error.message
       );
     }
+  }
+
+  /**
+   * Finds a Supabase Auth user by email and deletes them.
+   * Used to clean up orphaned auth accounts — Supabase users left behind when
+   * a client was deleted from the app DB without removing their auth record.
+   * Returns the deleted user's ID, or null if no user was found.
+   */
+  async deleteSupabaseUserByEmail(email: string): Promise<string | null> {
+    // The JS SDK types don't expose the `filter` param, so we call the
+    // Supabase Admin REST API directly to avoid a full user list scan.
+    const res = await fetch(
+      `${this.supabaseUrl}/auth/v1/admin/users?filter=${encodeURIComponent(
+        email
+      )}&per_page=1`,
+      {
+        headers: {
+          apikey: this.supabaseServiceRoleKey,
+          Authorization: `Bearer ${this.supabaseServiceRoleKey}`,
+        },
+      }
+    );
+    if (!res.ok) {
+      console.error(
+        'deleteSupabaseUserByEmail: list users request failed',
+        res.status
+      );
+      return null;
+    }
+    const body = (await res.json()) as {
+      users?: { id: string; email?: string }[];
+    };
+    const user = body.users?.find((u) => u.email === email);
+    if (!user) return null;
+    await this.deleteSupabaseUser(user.id);
+    return user.id;
   }
 
   /**

@@ -711,15 +711,37 @@ export class OnboardingService {
     }
 
     // 2. Create the Supabase Auth user — fail fast before any DB writes.
-    const supabaseUserId = await this.authService.createSupabaseUser(
-      dto.adminEmail,
-      dto.password,
-      dto.adminFirstName,
-      dto.adminLastName
-    );
+    //    If Supabase already has this email but the app DB does not, the auth
+    //    user is orphaned (left behind when a client was deleted without cleaning
+    //    up auth). In that case, delete the orphan and recreate.
+    let supabaseUserId: string;
+    try {
+      supabaseUserId = await this.authService.createSupabaseUser(
+        dto.adminEmail,
+        dto.password,
+        dto.adminFirstName,
+        dto.adminLastName
+      );
+    } catch (e) {
+      if (!(e instanceof ConflictException)) throw e;
+      const appUser = await this.prisma.user.findUnique({
+        where: { email: dto.adminEmail },
+      });
+      if (appUser) throw e; // real conflict — user exists in both places
+      // Orphaned Supabase auth user — clean it up and recreate
+      await this.authService.deleteSupabaseUserByEmail(dto.adminEmail);
+      supabaseUserId = await this.authService.createSupabaseUser(
+        dto.adminEmail,
+        dto.password,
+        dto.adminFirstName,
+        dto.adminLastName
+      );
+    }
 
-    // 3. Create Tenant + User row + ADMIN membership + mark token used — all in one transaction.
+    // 3. Activate/create Tenant + User row + ADMIN membership + mark token used — all in one transaction.
     //    If anything below fails, delete the Supabase user so it does not become an orphan.
+    //    When the token has a clinicTenantId (lab-created client), activate that existing tenant
+    //    instead of creating a new one — avoids the duplicate-tenant bug.
     let slug = slugify(dto.clinicName);
     let tenantId: string;
     let userId: string;
@@ -727,30 +749,66 @@ export class OnboardingService {
       null;
 
     try {
-      const slugConflict = await this.prisma.tenant.findFirst({
-        where: { slug },
-        select: { id: true },
-      });
-      if (slugConflict) {
-        slug = `${slug}-${randomUUID().slice(0, 6)}`;
+      if (!record.clinicTenantId) {
+        // Legacy path (KesherIO-created tokens): resolve slug before the transaction.
+        const slugConflict = await this.prisma.tenant.findFirst({
+          where: { slug },
+          select: { id: true },
+        });
+        if (slugConflict) {
+          slug = `${slug}-${randomUUID().slice(0, 6)}`;
+        }
       }
 
       const txResult = await this.prisma.$transaction(async (tx) => {
-        // Create the Tenant — clinicEmail is the clinic contact address (not the login email)
-        const tenant = await tx.tenant.create({
-          data: {
-            name: dto.clinicName,
-            slug,
-            address: dto.clinicAddress,
-            city: dto.clinicCity,
-            email: dto.clinicEmail,
-            phone: dto.clinicPhone,
-            notificationMethod: dto.notificationMethod,
-            clientType: record.clientType ?? undefined,
-            clientStatus: 'ACTIVE',
-            ...(dto.country ? { country: dto.country } : {}),
-          },
-        });
+        let resolvedTenantId: string;
+
+        if (record.clinicTenantId) {
+          // Lab-created client: activate the pre-existing tenant with the form data.
+          // The ClinicLabConnection already exists — do not recreate it.
+          const updated = await tx.tenant.update({
+            where: { id: record.clinicTenantId },
+            data: {
+              name: dto.clinicName,
+              address: dto.clinicAddress,
+              city: dto.clinicCity,
+              email: dto.clinicEmail,
+              phone: dto.clinicPhone,
+              notificationMethod: dto.notificationMethod,
+              clientStatus: 'ACTIVE',
+              ...(dto.country ? { country: dto.country } : {}),
+            },
+          });
+          resolvedTenantId = updated.id;
+        } else {
+          // Legacy path: create a brand-new tenant.
+          const tenant = await tx.tenant.create({
+            data: {
+              name: dto.clinicName,
+              slug,
+              address: dto.clinicAddress,
+              city: dto.clinicCity,
+              email: dto.clinicEmail,
+              phone: dto.clinicPhone,
+              notificationMethod: dto.notificationMethod,
+              clientType: record.clientType ?? undefined,
+              clientStatus: 'ACTIVE',
+              ...(dto.country ? { country: dto.country } : {}),
+            },
+          });
+          resolvedTenantId = tenant.id;
+
+          if (record.laboratoryId) {
+            await tx.clinicLabConnection.create({
+              data: {
+                clinicId: resolvedTenantId,
+                labId: record.laboratoryId,
+                isDefault: true,
+                isActive: true,
+              },
+            });
+          }
+        }
 
         // Create the local User row
         await tx.user.create({
@@ -768,30 +826,18 @@ export class OnboardingService {
           data: { used: true, usedAt: new Date() },
         });
 
-        // Create lab connection if this invitation was created by a lab
-        if (record.laboratoryId) {
-          await tx.clinicLabConnection.create({
-            data: {
-              clinicId: tenant.id,
-              labId: record.laboratoryId,
-              isDefault: true,
-              isActive: true,
-            },
-          });
-        }
-
         // Create ADMIN membership — if the admin is also a vet, check
         // whether the connected lab requires verification.
         // Must run after ClinicLabConnection is created so the lookup works.
         const isVet = dto.isVet === true;
         const vetResult = isVet
-          ? await this.vetMembershipStatus(tenant.id, undefined, tx)
+          ? await this.vetMembershipStatus(resolvedTenantId, undefined, tx)
           : null;
 
         await tx.userTenantMembership.create({
           data: {
             userId: supabaseUserId,
-            tenantId: tenant.id,
+            tenantId: resolvedTenantId,
             role: TenantRole.ADMIN,
             ...(vetResult
               ? { isOrderingVet: true, status: vetResult.status }
@@ -800,7 +846,7 @@ export class OnboardingService {
         });
 
         return {
-          tenantId: tenant.id,
+          tenantId: resolvedTenantId,
           userId: supabaseUserId,
           vetResult,
         };

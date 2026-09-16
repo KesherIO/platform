@@ -153,7 +153,10 @@ export function ClientDetailPage() {
     return (
       <div className="p-6">
         <button
-          onClick={() => navigate('/clients')}
+          onClick={() => {
+            queryClient.invalidateQueries({ queryKey: ['clients'] });
+            navigate('/clients');
+          }}
           className="mb-4 text-sm text-gray-400 hover:text-white"
         >
           {t('clients.detail.back')}
