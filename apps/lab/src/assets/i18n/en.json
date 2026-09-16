@@ -136,11 +136,13 @@
     "date_range": "Date range",
     "filter": {
       "all": "All",
+      "all_tooltip": "Active orders + today's completed and cancelled",
       "awaiting_sample": "Awaiting sample",
       "in_transit": "In transit",
       "received": "Received",
       "processing": "Processing",
-      "completed": "Completed"
+      "completed": "Completed",
+      "cancelled": "Cancelled"
     },
     "actions": {
       "mark_received": "Mark as received",

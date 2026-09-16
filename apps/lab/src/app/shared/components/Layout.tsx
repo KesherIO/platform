@@ -201,7 +201,7 @@ export function Layout() {
             <img
               src={logoUrl || '/default_logo.png'}
               alt="Lab logo"
-              className="h-8 w-8 rounded-lg object-cover"
+              className="h-8 w-8 rounded-lg object-contain"
             />
             {isMessenger && unacceptedCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-3 w-3">
@@ -290,7 +290,7 @@ export function Layout() {
           <img
             src={logoUrl || '/default_logo.png'}
             alt="Lab logo"
-            className="h-9 w-9 shrink-0 rounded-lg object-cover"
+            className="h-9 w-9 shrink-0 rounded-lg object-contain"
           />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-white">

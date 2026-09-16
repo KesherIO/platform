@@ -126,10 +126,14 @@ describe('LabService', () => {
               {
                 labTenantId: LAB_TENANT_ID,
                 OR: [
-                  { status: { not: 'COMPLETED' } },
+                  { status: { notIn: ['COMPLETED', 'CANCELLED'] } },
                   {
                     status: 'COMPLETED',
                     completedAt: { gte: expect.any(Date) },
+                  },
+                  {
+                    status: 'CANCELLED',
+                    cancelledAt: { gte: expect.any(Date) },
                   },
                 ],
               },
@@ -152,7 +156,7 @@ describe('LabService', () => {
               {
                 labTenantId: LAB_TENANT_ID,
                 status: 'COMPLETED',
-                createdAt: { gte: expect.any(Date) },
+                completedAt: { gte: expect.any(Date) },
               },
             ],
           },

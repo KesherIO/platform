@@ -58,6 +58,18 @@ export class ContactLabSettingsComponent implements OnInit {
     );
   });
 
+  readonly googleMapsUrl = computed(() => {
+    const l = this.lab();
+    if (l?.mapLat == null || l?.mapLng == null) return null;
+    return `https://www.google.com/maps/search/?api=1&query=${l.mapLat},${l.mapLng}`;
+  });
+
+  readonly wazeUrl = computed(() => {
+    const l = this.lab();
+    if (l?.mapLat == null || l?.mapLng == null) return null;
+    return `https://www.waze.com/ul?ll=${l.mapLat},${l.mapLng}&navigate=yes`;
+  });
+
   ngOnInit(): void {
     this.settings
       .getLabContact()

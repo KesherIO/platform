@@ -382,6 +382,7 @@ model Tenant {
   labTemplateDefinitions ResultTemplateDefinition[] @relation("LabTemplateDefinitions")
   labVerifications       VetLabVerification[]       @relation("LabVerifications")
   clinicVerifications    VetLabVerification[]       @relation("ClinicVerifications")
+  onboardingTokens       OnboardingToken[]          @relation("ClinicOnboardingTokens")
 
   @@map("tenants")
 }
@@ -473,6 +474,7 @@ model OnboardingToken {
   clientType       ClientType?
   externalClinicId String? // optional external reference from the platform
   laboratoryId     String? // lab tenant that created this invitation
+  clinicTenantId   String? // pre-created clinic tenant (lab flow) — when set, onboarding activates this tenant instead of creating a new one
   expiresAt        DateTime
   used             Boolean             @default(false)
   usedAt           DateTime?
@@ -480,8 +482,11 @@ model OnboardingToken {
   createdByUserId  String?
   createdAt        DateTime            @default(now())
 
+  clinicTenant Tenant? @relation("ClinicOnboardingTokens", fields: [clinicTenantId], references: [id], onDelete: SetNull)
+
   @@index([token])
   @@index([tokenHash])
+  @@index([clinicTenantId])
   @@map("onboarding_tokens")
 }
 

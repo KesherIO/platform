@@ -136,11 +136,13 @@
     "date_range": "Rango de fechas",
     "filter": {
       "all": "Todos",
+      "all_tooltip": "Órdenes activas + completadas y canceladas de hoy",
       "awaiting_sample": "Esperando muestra",
       "in_transit": "En tránsito",
       "received": "Recibidos",
       "processing": "En proceso",
-      "completed": "Completados"
+      "completed": "Completados",
+      "cancelled": "Cancelados"
     },
     "actions": {
       "mark_received": "Marcar como recibido",

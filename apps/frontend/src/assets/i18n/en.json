@@ -185,7 +185,9 @@
       "PHONE_WHATSAPP": "WhatsApp",
       "PHONE_COMMERCIAL": "Commercial",
       "PHONE_PERSONAL": "Personal",
-      "PHONE_OTHER": "Other"
+      "PHONE_OTHER": "Other",
+      "OPEN_GOOGLE_MAPS": "Google Maps",
+      "OPEN_WAZE": "Waze"
     },
     "CLINIC": {
       "EDIT": "Edit",

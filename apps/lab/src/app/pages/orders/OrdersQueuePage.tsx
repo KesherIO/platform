@@ -63,8 +63,16 @@ export function OrdersQueuePage() {
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
 
-  const FILTER_TABS = [
-    { label: t('orders.filter.all'), value: undefined },
+  const FILTER_TABS: Array<{
+    label: string;
+    value: string | undefined;
+    tooltip?: string;
+  }> = [
+    {
+      label: t('orders.filter.all'),
+      value: undefined,
+      tooltip: t('orders.filter.all_tooltip'),
+    },
     {
       label: t('orders.filter.awaiting_sample'),
       value: 'PENDING,READY_FOR_PICKUP',
@@ -73,6 +81,7 @@ export function OrdersQueuePage() {
     { label: t('orders.filter.received'), value: 'RECEIVED_BY_LAB' },
     { label: t('orders.filter.processing'), value: 'PROCESSING' },
     { label: t('orders.filter.completed'), value: 'COMPLETED' },
+    { label: t('orders.filter.cancelled'), value: 'CANCELLED' },
   ];
 
   const handleSearchChange = useCallback((value: string) => {
@@ -115,6 +124,7 @@ export function OrdersQueuePage() {
             <button
               key={tab.label}
               onClick={() => handleFilterChange(tab.value)}
+              title={tab.tooltip}
               className={`${TOOLBAR_TAB} ${
                 activeFilter === tab.value
                   ? TOOLBAR_TAB_ACTIVE
