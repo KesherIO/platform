@@ -133,9 +133,13 @@ export class AuthService {
     };
     const user = body.users?.find((u) => u.email === email);
     if (!user) return null;
-    const { error: deleteError } = await this.supabaseAdmin.auth.admin.deleteUser(user.id);
+    const { error: deleteError } =
+      await this.supabaseAdmin.auth.admin.deleteUser(user.id);
     if (deleteError) {
-      console.error('deleteSupabaseUserByEmail: delete failed', deleteError.message);
+      console.error(
+        'deleteSupabaseUserByEmail: delete failed',
+        deleteError.message
+      );
       return null;
     }
     return user.id;

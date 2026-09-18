@@ -86,8 +86,9 @@ export class AdminProfileComponent implements OnInit {
       { validators: passwordsMatch }
     );
 
-    this.profileForm.get('useClinicData')!.valueChanges
-      .pipe(takeUntilDestroyed(this.destroyRef))
+    this.profileForm
+      .get('useClinicData')!
+      .valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((use: boolean) => {
         if (use) {
           this.profileForm.patchValue({
