@@ -56,13 +56,20 @@ export class AdminProfileComponent implements OnInit {
   /** When the admin is also a vet and needs credential submission */
   vetProfileRequired = signal(false);
 
+  private clinicEmail = '';
+  private clinicPhone = '';
+
   ngOnInit(): void {
-    // Restore previously entered data if user navigates back from a later step
-    const saved =
-      this.onboardingService.getOnboardingState()().adminProfileDraft;
+    const state = this.onboardingService.getOnboardingState()();
+    const saved = state.adminProfileDraft;
+
+    this.clinicEmail = state.clinic?.email ?? '';
+    this.clinicPhone = state.clinic?.telephone ?? '';
 
     this.profileForm = this.fb.group(
       {
+        isVet: [saved?.isVet ?? false],
+        useClinicData: [false],
         firstName: [
           saved?.firstName ?? '',
           [Validators.required, Validators.minLength(2)],
@@ -73,12 +80,23 @@ export class AdminProfileComponent implements OnInit {
         ],
         email: [saved?.email ?? '', [Validators.required, Validators.email]],
         telephone: [saved?.telephone ?? ''],
-        isVet: [saved?.isVet ?? false],
         password: ['', [Validators.required, Validators.minLength(10)]],
         confirmPassword: ['', [Validators.required]],
       },
       { validators: passwordsMatch }
     );
+
+    this.profileForm
+      .get('useClinicData')!
+      .valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((use: boolean) => {
+        if (use) {
+          this.profileForm.patchValue({
+            email: this.clinicEmail,
+            telephone: this.clinicPhone,
+          });
+        }
+      });
   }
 
   onBack(): void {

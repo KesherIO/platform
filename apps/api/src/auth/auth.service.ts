@@ -65,6 +65,27 @@ export class AuthService {
   }
 
   /**
+   * Updates the password of an existing Supabase Auth user via the Admin API.
+   * Used in the re-onboarding path where we reuse an existing account instead
+   * of creating a new one — the user sets a new password in the onboarding form
+   * and we must apply it so they can sign in immediately after.
+   */
+  async updateSupabaseUserPassword(
+    userId: string,
+    password: string
+  ): Promise<void> {
+    const { error } = await this.supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { password }
+    );
+    if (error) {
+      throw new InternalServerErrorException(
+        `Failed to update Supabase user password: ${error.message}`
+      );
+    }
+  }
+
+  /**
    * Deletes a Supabase Auth user by ID using the Admin API.
    * Called as compensating cleanup when the Prisma transaction fails after
    * a Supabase user was already created (prevents orphaned auth accounts).
@@ -112,7 +133,15 @@ export class AuthService {
     };
     const user = body.users?.find((u) => u.email === email);
     if (!user) return null;
-    await this.deleteSupabaseUser(user.id);
+    const { error: deleteError } =
+      await this.supabaseAdmin.auth.admin.deleteUser(user.id);
+    if (deleteError) {
+      console.error(
+        'deleteSupabaseUserByEmail: delete failed',
+        deleteError.message
+      );
+      return null;
+    }
     return user.id;
   }
 
