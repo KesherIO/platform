@@ -710,32 +710,86 @@ export class OnboardingService {
       throw new BadRequestException('This onboarding link has expired');
     }
 
-    // 2. Create the Supabase Auth user — fail fast before any DB writes.
-    //    If Supabase already has this email but the app DB does not, the auth
-    //    user is orphaned (left behind when a client was deleted without cleaning
-    //    up auth). In that case, delete the orphan and recreate.
+    // 2. Resolve the Supabase user — three possible situations:
+    //
+    //    a) Re-onboarding (lab-created client deleted + recreated): the User row
+    //       still exists in the app DB (deleteClient does not remove it) but the
+    //       membership was deleted. Reuse the existing account — no Supabase call.
+    //
+    //    b) Truly new user: create in Supabase + app DB.
+    //
+    //    c) Orphaned Supabase auth user (Supabase has the email, app DB does not):
+    //       delete the orphan and recreate.
     let supabaseUserId: string;
-    try {
-      supabaseUserId = await this.authService.createSupabaseUser(
-        dto.adminEmail,
-        dto.password,
-        dto.adminFirstName,
-        dto.adminLastName
-      );
-    } catch (e) {
-      if (!(e instanceof ConflictException)) throw e;
-      const appUser = await this.prisma.user.findUnique({
+    let createdNewSupabaseUser = false;
+
+    if (record.clinicTenantId) {
+      // Lab-created client path — check for an existing User row first.
+      const existingUser = await this.prisma.user.findUnique({
         where: { email: dto.adminEmail },
       });
-      if (appUser) throw e; // real conflict — user exists in both places
-      // Orphaned Supabase auth user — clean it up and recreate
-      await this.authService.deleteSupabaseUserByEmail(dto.adminEmail);
-      supabaseUserId = await this.authService.createSupabaseUser(
-        dto.adminEmail,
-        dto.password,
-        dto.adminFirstName,
-        dto.adminLastName
-      );
+      if (existingUser) {
+        const existingMembership =
+          await this.prisma.userTenantMembership.findUnique({
+            where: {
+              userId_tenantId: {
+                userId: existingUser.id,
+                tenantId: record.clinicTenantId,
+              },
+            },
+          });
+        if (existingMembership) {
+          throw new ConflictException(
+            'A user with this email address already exists'
+          );
+        }
+        // User exists but has no membership at this clinic — safe to re-onboard.
+        // Update their Supabase password to what they set in the onboarding form
+        // so they can sign in immediately after completing this flow.
+        await this.authService.updateSupabaseUserPassword(
+          existingUser.id,
+          dto.password
+        );
+        supabaseUserId = existingUser.id;
+      } else {
+        supabaseUserId = await this.authService.createSupabaseUser(
+          dto.adminEmail,
+          dto.password,
+          dto.adminFirstName,
+          dto.adminLastName
+        );
+        createdNewSupabaseUser = true;
+      }
+    } else {
+      // Legacy path (KesherIO tokens) — always create a new Supabase user,
+      // handling orphaned auth accounts as before.
+      try {
+        supabaseUserId = await this.authService.createSupabaseUser(
+          dto.adminEmail,
+          dto.password,
+          dto.adminFirstName,
+          dto.adminLastName
+        );
+        createdNewSupabaseUser = true;
+      } catch (e) {
+        if (!(e instanceof ConflictException)) throw e;
+        const appUser = await this.prisma.user.findUnique({
+          where: { email: dto.adminEmail },
+        });
+        if (appUser) throw e; // real conflict — user exists in both places
+        // Orphaned Supabase auth user — clean it up and recreate
+        const deletedId = await this.authService.deleteSupabaseUserByEmail(
+          dto.adminEmail
+        );
+        if (!deletedId) throw e; // deletion failed — surface original conflict
+        supabaseUserId = await this.authService.createSupabaseUser(
+          dto.adminEmail,
+          dto.password,
+          dto.adminFirstName,
+          dto.adminLastName
+        );
+        createdNewSupabaseUser = true;
+      }
     }
 
     // 3. Activate/create Tenant + User row + ADMIN membership + mark token used — all in one transaction.
@@ -810,15 +864,17 @@ export class OnboardingService {
           }
         }
 
-        // Create the local User row
-        await tx.user.create({
-          data: {
-            id: supabaseUserId,
-            email: dto.adminEmail,
-            firstName: dto.adminFirstName,
-            lastName: dto.adminLastName,
-          },
-        });
+        // Create the local User row (skip if re-onboarding an existing user)
+        if (createdNewSupabaseUser) {
+          await tx.user.create({
+            data: {
+              id: supabaseUserId,
+              email: dto.adminEmail,
+              firstName: dto.adminFirstName,
+              lastName: dto.adminLastName,
+            },
+          });
+        }
 
         // Mark token as used
         await tx.onboardingToken.update({
@@ -853,9 +909,11 @@ export class OnboardingService {
       });
       ({ tenantId, userId, vetResult } = txResult);
     } catch (err) {
-      // Compensating cleanup: remove the Supabase user that was created before
-      // the transaction so it does not become an orphaned auth account.
-      await this.authService.deleteSupabaseUser(supabaseUserId);
+      // Compensating cleanup: only remove the Supabase user if we created it —
+      // never delete a pre-existing account that belonged to a re-onboarding user.
+      if (createdNewSupabaseUser) {
+        await this.authService.deleteSupabaseUser(supabaseUserId);
+      }
       throw err;
     }
 

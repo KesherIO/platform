@@ -45,6 +45,7 @@ export function ClientsPage() {
         page,
         pageSize,
       }),
+    staleTime: 0,
   });
 
   const clients = data?.data ?? [];

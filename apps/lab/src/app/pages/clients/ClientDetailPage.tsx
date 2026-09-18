@@ -36,6 +36,7 @@ export function ClientDetailPage() {
     queryKey: ['client', id],
     queryFn: () => labApi.clients.getById(id!),
     enabled: !!id,
+    staleTime: 0,
   });
 
   const error = queryError ? t('clients.errors.load_detail') : null;
@@ -139,6 +140,8 @@ export function ClientDetailPage() {
         onConfirm: () => labApi.clients.remove(id),
       });
       if (!confirmed) return;
+      queryClient.removeQueries({ queryKey: ['client', id] });
+      queryClient.removeQueries({ queryKey: ['clients'] });
       navigate('/clients');
     } catch (err) {
       setActionError(`${t('clients.errors.delete')} ${(err as Error).message}`);
