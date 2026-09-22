@@ -10,7 +10,7 @@ import {
   GripVertical,
   Code2,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
@@ -116,6 +116,7 @@ export function TemplateBuilderPage() {
   const confirm = useConfirm();
   const toast = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { definitionId, versionId } = useParams<{
     definitionId: string;
     versionId: string;
@@ -412,6 +413,7 @@ export function TemplateBuilderPage() {
       });
       if (!confirmed) return;
       toast.success(t('templates.published_success'));
+      await queryClient.invalidateQueries({ queryKey: ['templates'] });
       navigate('/templates');
     } catch (err) {
       const msg = (err as Error).message;

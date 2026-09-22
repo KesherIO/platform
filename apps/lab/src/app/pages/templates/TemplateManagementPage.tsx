@@ -120,6 +120,7 @@ export function TemplateManagementPage() {
       if (!confirmed) return;
       toast.success(t('templates.customized_success'));
       invalidate();
+      setActiveTab('LABORATORY');
     } catch (err) {
       toast.error((err as Error).message);
     }

@@ -14,6 +14,12 @@ import type {
   TenantRole,
 } from '@vet-ai/shared-types';
 
+// In-process cache keyed by "userId:tenantId" (or "userId" for the fallback
+// path). Entries are evicted after TTL_MS so role/tenant changes propagate
+// within that window without restarting the server.
+const TTL_MS = 60_000;
+const cache = new Map<string, { value: TenantContext; expiresAt: number }>();
+
 /**
  * Guards lab-only endpoints. Works like TenantGuard but additionally verifies
  * that the resolved tenant has type LAB or PLATFORM — clinic users are rejected
@@ -31,6 +37,13 @@ export class LabTenantGuard implements CanActivate {
     const user = request.user as AuthenticatedUser;
 
     const tenantId = request.headers['x-tenant-id'] as string | undefined;
+    const cacheKey = tenantId ? `${user.id}:${tenantId}` : user.id;
+
+    const cached = cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      request.tenant = cached.value;
+      return this.checkRoles(cached.value.role as TenantRole, context);
+    }
 
     let membership;
 
@@ -82,25 +95,30 @@ export class LabTenantGuard implements CanActivate {
       tenantName: membership.tenant.name,
       tenantLogoUrl: membership.tenant.logoUrl,
       role: membership.role as TenantRole,
-      isOrderingVet: false, // lab staff are never ordering vets
+      isOrderingVet: false,
       status: 'ACTIVE' as MembershipStatus,
       canPerformPickups: membership.canPerformPickups,
     };
+
+    cache.set(cacheKey, {
+      value: tenantContext,
+      expiresAt: Date.now() + TTL_MS,
+    });
     request.tenant = tenantContext;
 
+    return this.checkRoles(tenantContext.role as TenantRole, context);
+  }
+
+  private checkRoles(role: TenantRole, context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<TenantRole[]>(
       ROLES_KEY,
       [context.getHandler(), context.getClass()]
     );
-    if (
-      requiredRoles?.length &&
-      !requiredRoles.includes(membership.role as TenantRole)
-    ) {
+    if (requiredRoles?.length && !requiredRoles.includes(role)) {
       throw new ForbiddenException(
         'You do not have the required role for this action.'
       );
     }
-
     return true;
   }
 }

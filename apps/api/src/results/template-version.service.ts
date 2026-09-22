@@ -609,9 +609,9 @@ export class TemplateVersionService {
         },
       });
 
-      for (const analyte of section.analytes) {
-        await (tx as PrismaService).resultTemplateAnalyte.create({
-          data: {
+      if (section.analytes.length > 0) {
+        await (tx as PrismaService).resultTemplateAnalyte.createMany({
+          data: section.analytes.map((analyte) => ({
             versionId,
             sectionId: newSection.id,
             code: analyte.code,
@@ -625,7 +625,7 @@ export class TemplateVersionService {
             isRequired: analyte.isRequired ?? true,
             formula: analyte.formula,
             referenceRange: analyte.referenceRange ?? undefined,
-          },
+          })),
         });
       }
     }

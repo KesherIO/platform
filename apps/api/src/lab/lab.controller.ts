@@ -130,6 +130,7 @@ export class LabController {
     const vetVerificationRequired =
       await this.labService.getVetVerificationRequired(tenant.tenantId);
     return {
+      tenantId: tenant.tenantId,
       role: tenant.role,
       tenantName: tenant.tenantName,
       logoUrl: tenant.tenantLogoUrl,
