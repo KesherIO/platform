@@ -103,6 +103,7 @@ function makePrismaMock() {
     },
     resultTemplateAnalyte: {
       create: jest.fn(),
+      createMany: jest.fn().mockResolvedValue({ count: 1 }),
       deleteMany: jest.fn(),
     },
     $transaction: jest

@@ -231,6 +231,7 @@ describe('LabController', () => {
   it('getMe returns role, tenant info, and canPerformPickups', async () => {
     const result = await controller.getMe(tenant);
     expect(result).toEqual({
+      tenantId: 'lab-1',
       role: 'ADMIN',
       tenantName: 'Test Lab',
       logoUrl: null,
