@@ -4,14 +4,10 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { passportJwtSecret } from 'jwks-rsa';
 import { JwtPayload, AuthenticatedUser } from '@vet-ai/shared-types';
-import { AuthService } from '../auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(
-    config: ConfigService,
-    private readonly authService: AuthService
-  ) {
+  constructor(config: ConfigService) {
     const supabaseUrl = config.getOrThrow<string>('SUPABASE_URL');
 
     // Supabase uses ES256 (asymmetric) — verify against the public JWKS endpoint,
