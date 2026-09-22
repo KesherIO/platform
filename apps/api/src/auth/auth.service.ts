@@ -170,7 +170,20 @@ export class AuthService {
    * lastName) are updated by the onboarding flow, not here.
    */
   async upsertUserFromJwt(payload: JwtPayload): Promise<AuthenticatedUser> {
-    const user = await this.prisma.user.upsert({
+    const select = { id: true, email: true, firstName: true, lastName: true };
+
+    const existing = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select,
+    });
+
+    // Hot path: established user with unchanged email — no write needed.
+    if (existing && existing.email === payload.email) {
+      return existing;
+    }
+
+    // New user or email changed in Supabase Auth.
+    return this.prisma.user.upsert({
       where: { id: payload.sub },
       create: {
         id: payload.sub,
@@ -178,19 +191,9 @@ export class AuthService {
         firstName: payload.user_metadata?.first_name ?? null,
         lastName: payload.user_metadata?.last_name ?? null,
       },
-      update: {
-        // Email can change in Supabase Auth — keep it in sync
-        email: payload.email,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-      },
+      update: { email: payload.email },
+      select,
     });
-
-    return user;
   }
 
   /**

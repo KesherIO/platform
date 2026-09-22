@@ -37,13 +37,21 @@ import type {
   VetVerificationsQuery,
 } from '../../types/lab.types';
 
+let _tenantId: string | null = null;
+
+export function setActiveTenantId(id: string | null) {
+  _tenantId = id;
+}
+
 async function authHeaders(): Promise<HeadersInit> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token ?? '';
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
   };
+  if (_tenantId) headers['X-Tenant-ID'] = _tenantId;
+  return headers;
 }
 
 async function get<T>(path: string): Promise<T> {

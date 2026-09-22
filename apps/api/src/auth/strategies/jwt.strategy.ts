@@ -10,7 +10,7 @@ import { AuthService } from '../auth.service';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     config: ConfigService,
-    private readonly authService: AuthService,
+    private readonly authService: AuthService
   ) {
     const supabaseUrl = config.getOrThrow<string>('SUPABASE_URL');
 
@@ -32,6 +32,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
-    return this.authService.upsertUserFromJwt(payload);
+    // JWT is already cryptographically verified by passport-jwt + jwks-rsa.
+    // Avoid a DB round-trip on every request — trust the verified payload.
+    // firstName/lastName come from user_metadata set at account creation;
+    // profile updates (via /auth/me) sync to the DB but not Supabase metadata,
+    // so audit-trail names may lag until the token is refreshed (~1h).
+    return {
+      id: payload.sub,
+      email: payload.email,
+      firstName: payload.user_metadata?.first_name ?? null,
+      lastName: payload.user_metadata?.last_name ?? null,
+    };
   }
 }

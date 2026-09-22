@@ -30,7 +30,7 @@ export class LabVetVerificationService {
       };
     }
 
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.vetLabVerification.findMany({
         where,
         skip,

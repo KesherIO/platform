@@ -8,6 +8,7 @@ import {
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { setActiveTenantId } from '../shared/api/labApi';
 import type { LabRole } from '../types/lab.types';
 
 interface AuthContextValue {
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setVetVerificationRequired(false);
     setTenantName(null);
     setLogoUrl(null);
+    setActiveTenantId(null);
     void supabase.auth.signOut();
   };
 
@@ -70,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setVetVerificationRequired(data.vetVerificationRequired ?? false);
       setTenantName(data.tenantName ?? null);
       setLogoUrl(data.logoUrl ?? null);
+      setActiveTenantId(data.tenantId ?? null);
     } catch {
       // network error — role stays null, UI defaults to non-admin
     }
@@ -107,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setVetVerificationRequired(false);
           setTenantName(null);
           setLogoUrl(null);
+          setActiveTenantId(null);
         }
         setLoading(false);
       }
