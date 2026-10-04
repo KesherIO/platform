@@ -749,6 +749,7 @@ model ResultTemplateDefinition {
   versions             ResultTemplateVersion[]    @relation("DefinitionVersions")
   reportTests          ResultReportTest[]
   releaseTestSnapshots ResultReportReleaseTest[]  @relation("ReleaseTestTemplateDef")
+  orderedTestOverrides OrderedTest[]              @relation("OrderedTestTemplateOverride")
 
   @@unique([catalogItemCode, species, ageMinWeeks, ageMaxWeeks, ownerKey])
   @@index([ownerKey])
@@ -1132,6 +1133,11 @@ model OrderedTest {
   catalogItemCode String?
   catalogItemName String
 
+  // Template the lab picked by hand when none matched the patient's species/age.
+  // When set, result entry uses this definition's active version instead of
+  // resolving by catalogItemCode + species + age.
+  templateDefinitionId String?
+
   // Lab assignment
   assignedUserId String? // lab technician responsible for this test
   instrumentId   String? // analyzer / instrument used (future integration anchor)
@@ -1154,6 +1160,7 @@ model OrderedTest {
 
   order            Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   catalogItem      CatalogItem?              @relation(fields: [catalogItemId], references: [id], onDelete: SetNull)
+  templateDefinition ResultTemplateDefinition? @relation("OrderedTestTemplateOverride", fields: [templateDefinitionId], references: [id], onDelete: SetNull)
   assignedTo       User?                     @relation(fields: [assignedUserId], references: [id])
   analyzer         Analyzer?                 @relation(fields: [analyzerId], references: [id])
   sources          OrderedTestSource[]
@@ -1383,7 +1390,10 @@ model ResultReportRelease {
   labDirectorCredentials String?
   labLogoUrl             String?
   labAddress             String?
+  labCity                String?
   labPhone               String?
+  labPhoneNumbers        Json? // [{label, number}] — Lab Settings phone list at release time
+  labEmail               String?
   reportDisclaimer       String?
 
   // ── Order identity snapshot ──
@@ -1541,6 +1551,14 @@ model ResultReportReleaseArtifact {
   retryCount   Int                   @default(0)
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
+
+  // ── Worker claim fields (mutable, for background processor coordination) ──
+  claimedAt                   DateTime? @map("claimed_at")
+  claimToken                  String?   @map("claim_token")
+  nextRetryAt                 DateTime? @map("next_retry_at")
+  logoStoragePath             String?   @map("logo_storage_path")
+  signerSignatureStoragePath  String?   @map("signer_signature_storage_path")
+  analystSignatureStoragePath String?   @map("analyst_signature_storage_path")
 
   release ResultReportRelease @relation(fields: [releaseId], references: [id], onDelete: Restrict)
 

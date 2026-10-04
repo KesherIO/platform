@@ -350,3 +350,103 @@ describe('SpecimenService — reverseMissing', () => {
     expect(orderStatusService.deriveAndPersist).toHaveBeenCalledWith('order-1');
   });
 });
+
+describe('SpecimenService — assignTemplateToBlockedTest', () => {
+  let service: SpecimenService;
+  let prisma: Record<string, any>;
+
+  beforeEach(async () => {
+    prisma = {
+      orderedTest: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'ot-1',
+          catalogItemName: 'Progesterone',
+          orderId: 'order-1',
+        }),
+        update: jest.fn().mockReturnValue('update-op'),
+      },
+      resultTemplateVersion: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'ver-dog', definitionId: 'def-dog' }),
+      },
+      timelineEvent: { create: jest.fn().mockReturnValue('timeline-op') },
+      $transaction: jest.fn().mockResolvedValue([]),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SpecimenService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: TemplateVersionService, useValue: {} },
+        {
+          provide: OrderStatusService,
+          useValue: { deriveAndPersist: jest.fn().mockResolvedValue({}) },
+        },
+      ],
+    }).compile();
+
+    service = module.get<SpecimenService>(SpecimenService);
+  });
+
+  it('saves the picked template on the test so result entry can use it', async () => {
+    const result = await service.assignTemplateToBlockedTest(
+      'ot-1',
+      'ver-dog',
+      'lab-1',
+      'user-1',
+      'User'
+    );
+
+    expect(result).toEqual({
+      resolved: true,
+      test: { id: 'ot-1', status: 'READY' },
+    });
+    expect(prisma.orderedTest.update).toHaveBeenCalledWith({
+      where: { id: 'ot-1' },
+      data: expect.objectContaining({
+        status: 'READY',
+        templateDefinitionId: 'def-dog',
+      }),
+    });
+  });
+
+  it('only accepts templates from the platform or this lab', async () => {
+    await service.assignTemplateToBlockedTest(
+      'ot-1',
+      'ver-dog',
+      'lab-1',
+      'user-1',
+      'User'
+    );
+
+    expect(prisma.resultTemplateVersion.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'ver-dog',
+        status: 'PUBLISHED',
+        definition: {
+          OR: [
+            { scope: 'PLATFORM' },
+            { scope: 'LABORATORY', labTenantId: 'lab-1' },
+          ],
+        },
+      },
+      select: { id: true, definitionId: true },
+    });
+  });
+
+  it("throws NotFoundException for another lab's template", async () => {
+    prisma.resultTemplateVersion.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.assignTemplateToBlockedTest(
+        'ot-1',
+        'ver-x',
+        'lab-1',
+        'user-1',
+        'User'
+      )
+    ).rejects.toThrow(NotFoundException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});

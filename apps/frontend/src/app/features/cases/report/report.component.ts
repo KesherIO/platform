@@ -1,4 +1,12 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  HostListener,
+  inject,
+  signal,
+  computed,
+  OnInit,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { take } from 'rxjs';
@@ -9,6 +17,7 @@ import {
   AiInterpretationModel,
   ClinicReleasedResultsModel,
   ClinicReleaseStatus,
+  ClinicReleaseSummaryModel,
   ReleasedTestResult,
 } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
@@ -33,6 +42,21 @@ export class ReportComponent implements OnInit {
   error = signal<string | null>(null);
   case = signal<CaseModel | null>(null);
   released = signal<ClinicReleasedResultsModel | null>(null);
+  private destroyRef = inject(DestroyRef);
+
+  releases = signal<ClinicReleaseSummaryModel[]>([]);
+  requisitionNumber = signal<string | null>(null);
+  pdfMenuOpen = signal(false);
+  downloadingReleaseId = signal<string | null>(null);
+  pdfDownloadError = signal(false);
+  releasesLoadError = signal(false);
+
+  /** Newest release first — the dropdown lists every release PDF. */
+  releasesNewestFirst = computed(() =>
+    [...this.releases()].sort((a, b) => b.releaseSequence - a.releaseSequence)
+  );
+
+  private releasesPollTimer: ReturnType<typeof setTimeout> | null = null;
 
   activeTab = signal<'results' | 'ai'>('results');
 
@@ -202,6 +226,9 @@ export class ReportComponent implements OnInit {
   pendingTestsDisplay = computed(() => this.pendingTestNames().join(', '));
 
   ngOnInit(): void {
+    this.destroyRef.onDestroy(() => {
+      if (this.releasesPollTimer) clearTimeout(this.releasesPollTimer);
+    });
     this.casesService
       .getCase(this.caseId())
       .pipe(take(1))
@@ -221,6 +248,7 @@ export class ReportComponent implements OnInit {
               next: (r) => {
                 this.released.set(r);
                 this.loading.set(false);
+                this.loadReleases(orderId);
                 if (r.releaseStatus === 'ALL_RELEASED') {
                   this.casesService
                     .getExistingInterpretation(
@@ -262,6 +290,73 @@ export class ReportComponent implements OnInit {
         error: () => {
           this.interpretationError.set('REPORT.AI_INTERPRETATION.ERROR');
           this.isInterpreting.set(false);
+        },
+      });
+  }
+
+  /** Loads release history; re-polls every 5 s while any PDF is still generating. */
+  private loadReleases(orderId: string): void {
+    this.casesService
+      .getOrderReleases(orderId)
+      .pipe(take(1))
+      .subscribe({
+        next: (resp) => {
+          this.releasesLoadError.set(false);
+          this.releases.set(resp.releases);
+          this.requisitionNumber.set(resp.requisitionNumber);
+          const hasPending = resp.releases.some(
+            (r) => r.pdfStatus === 'PENDING' || r.pdfStatus === 'GENERATING'
+          );
+          if (hasPending) {
+            this.releasesPollTimer = setTimeout(
+              () => this.loadReleases(orderId),
+              5_000
+            );
+          }
+        },
+        error: () => {
+          // Non-critical — the report still renders, but say why there is no PDF button
+          this.releasesLoadError.set(true);
+        },
+      });
+  }
+
+  formatReleaseDate(iso: string): string {
+    return new Date(iso).toLocaleString('es-CO', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  togglePdfMenu(): void {
+    this.pdfMenuOpen.update((open) => !open);
+  }
+
+  @HostListener('document:keydown.escape')
+  closePdfMenu(): void {
+    this.pdfMenuOpen.set(false);
+  }
+
+  downloadPdf(release: ClinicReleaseSummaryModel): void {
+    const orderId = this.case()?.order?.orderId;
+    if (!orderId || this.downloadingReleaseId()) return;
+    const prefix = this.requisitionNumber() ?? 'report';
+    const filename = `${prefix}-release-${release.releaseSequence}.pdf`;
+    this.downloadingReleaseId.set(release.id);
+    this.pdfDownloadError.set(false);
+    this.casesService
+      .downloadReleasePdf(orderId, release.releaseSequence, filename)
+      .pipe(take(1))
+      .subscribe({
+        next: () => {
+          this.downloadingReleaseId.set(null);
+          this.pdfMenuOpen.set(false);
+        },
+        error: () => {
+          this.downloadingReleaseId.set(null);
+          this.pdfDownloadError.set(true);
         },
       });
   }

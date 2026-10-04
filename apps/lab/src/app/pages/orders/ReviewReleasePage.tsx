@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Skeleton } from '../../shared/components/Skeleton';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +8,17 @@ import { StatusBadge } from '../../shared/components/StatusBadge';
 import { useToast } from '../../shared/components/ToastProvider';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useAuth } from '../../auth/AuthContext';
-import type { LabOrderDetail, LabSigner } from '../../types/lab.types';
+import type {
+  AmendmentAnalyteInfo,
+  AmendmentValue,
+  LabOrderDetail,
+  LabSigner,
+} from '../../types/lab.types';
+import {
+  AmendmentValuesTable,
+  isEditableAmendmentAnalyte,
+  isSameAmendmentValue,
+} from './AmendmentValuesTable';
 
 type Analyte = {
   id: string;
@@ -238,6 +248,9 @@ function ReviewerPanel({
   const selectedSigner = signers.find(
     (s: LabSigner) => s.id === selectedSignerId
   );
+  const selectedAnalyst = analysts?.find(
+    (a: LabSigner) => a.id === selectedAnalystId
+  );
 
   return (
     <div
@@ -277,6 +290,11 @@ function ReviewerPanel({
             {selectedSigner.university ? ` · ${selectedSigner.university}` : ''}
           </p>
         )}
+        {selectedSigner && !selectedSigner.signatureUrl && (
+          <p className="mt-1 text-xs text-yellow-400">
+            {t('review.signer_missing_signature')}
+          </p>
+        )}
       </div>
 
       {/* Analyst dropdown */}
@@ -300,6 +318,11 @@ function ReviewerPanel({
               </option>
             ))}
           </select>
+          {selectedAnalyst && !selectedAnalyst.signatureUrl && (
+            <p className="mt-1 text-xs text-yellow-400">
+              {t('review.analyst_missing_signature')}
+            </p>
+          )}
         </div>
       )}
 
@@ -337,12 +360,106 @@ function CorrectionBanner({ notes }: { notes: string }) {
   );
 }
 
+function PdfActions({
+  release,
+  orderId,
+}: {
+  release: { id: string; pdfStatus: string; releaseSequence: number };
+  orderId: string;
+}) {
+  const { t } = useTranslation();
+  const { isAdmin } = useAuth();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [downloading, setDownloading] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await labApi.release.downloadPdf(
+        release.id,
+        `release-${release.releaseSequence}.pdf`
+      );
+    } catch {
+      toast.error(t('review.pdf_failed'));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      await labApi.release.retryPdf(release.id);
+      // Invalidate so the query sees PENDING and restarts polling
+      await queryClient.invalidateQueries({
+        queryKey: ['release-history', orderId],
+      });
+      toast.success(t('review.pdf_generating'));
+    } catch {
+      toast.error(t('review.pdf_failed'));
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  if (release.pdfStatus === 'COMPLETED') {
+    return (
+      <button
+        onClick={() => void handleDownload()}
+        disabled={downloading}
+        className="text-xs text-cyan-400 hover:text-cyan-300 disabled:opacity-50"
+      >
+        {downloading ? '...' : t('review.pdf_download')}
+      </button>
+    );
+  }
+
+  if (release.pdfStatus === 'FAILED' && isAdmin) {
+    return (
+      <button
+        onClick={() => void handleRetry()}
+        disabled={retrying}
+        className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+      >
+        {retrying ? '...' : t('review.pdf_retry')}
+      </button>
+    );
+  }
+
+  if (release.pdfStatus === 'PENDING' || release.pdfStatus === 'GENERATING') {
+    return (
+      <span className="text-xs text-gray-500 italic">
+        {t('review.pdf_generating')}
+      </span>
+    );
+  }
+
+  if (release.pdfStatus === 'FAILED') {
+    return (
+      <span className="text-xs text-red-400">{t('review.pdf_failed')}</span>
+    );
+  }
+
+  return null;
+}
+
 function ReleaseHistorySection({ orderId }: { orderId: string }) {
   const { t } = useTranslation();
   const { data } = useQuery({
     queryKey: ['release-history', orderId],
     queryFn: () => labApi.release.getHistory(orderId),
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const releases = query.state.data?.releases ?? [];
+      const hasPending = releases.some(
+        (r) => r.pdfStatus === 'PENDING' || r.pdfStatus === 'GENERATING'
+      );
+      // Returns false (no poll) when all releases are terminal; React Query
+      // also stops polling automatically when the component unmounts.
+      return hasPending ? 5_000 : false;
+    },
   });
 
   if (!data || data.releases.length === 0) return null;
@@ -366,7 +483,7 @@ function ReleaseHistorySection({ orderId }: { orderId: string }) {
               </span>
               <StatusBadge status={release.releaseType} size="sm" />
             </div>
-            <div className="text-right">
+            <div className="flex flex-col items-end gap-1">
               <p className="text-xs text-gray-400">{release.signerName}</p>
               <p className="text-xs text-gray-500">
                 {new Date(release.releasedAt).toLocaleString()}
@@ -376,6 +493,7 @@ function ReleaseHistorySection({ orderId }: { orderId: string }) {
                   {t('workspace.requesting_vet')}: {release.orderingVetName}
                 </p>
               )}
+              <PdfActions release={release} orderId={orderId} />
             </div>
           </div>
         ))}
@@ -390,49 +508,147 @@ function ReleaseHistorySection({ orderId }: { orderId: string }) {
 
 function AmendmentPanel({
   orderId,
-  reportTestId,
+  orderedTestId,
+  activeAmendmentId,
   testName,
   onDone,
 }: {
   orderId: string;
-  reportTestId: string;
+  orderedTestId: string;
+  /** Open amendment for this test, if any — the panel resumes it */
+  activeAmendmentId?: string;
   testName: string;
   onDone: () => void;
 }) {
   const { t } = useTranslation();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const { isAdmin } = useAuth();
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [approverId, setApproverId] = useState('');
+
+  const { data: reviewerSigners } = useQuery({
+    queryKey: ['reviewer-signers'],
+    queryFn: () => labApi.review.getReviewerSigners(),
+    enabled: isAdmin,
+  });
+  const approver = reviewerSigners?.find((s) => s.id === approverId);
+
+  const refreshActiveAmendments = () =>
+    queryClient.invalidateQueries({
+      queryKey: ['active-amendments', orderId],
+    });
   const [amendmentId, setAmendmentId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const [analytes, setAnalytes] = useState<
-    Array<{
-      id: string;
-      name: string;
-      sectionName: string | null;
-      isHeader: boolean;
-      valueType: string;
-      numericValue: number | null;
-      textValue: string | null;
-      booleanValue: boolean | null;
-      selectValue: string | null;
-      unit: string | null;
-      flag: string | null;
-    }>
-  >([]);
+  const [analytes, setAnalytes] = useState<AmendmentAnalyteInfo[]>([]);
+  // Values as released (to show before → after) and as last saved to the draft
+  const [released, setReleased] = useState<Record<string, AmendmentValue>>({});
+  const [saved, setSaved] = useState<Record<string, AmendmentValue>>({});
+
+  const editable = analytes.filter(isEditableAmendmentAnalyte);
+  const changedCount = editable.filter(
+    (a) => released[a.id] && !isSameAmendmentValue(a, released[a.id])
+  ).length;
+  const hasUnsavedEdits = editable.some(
+    (a) => saved[a.id] && !isSameAmendmentValue(a, saved[a.id])
+  );
+
+  const valuesById = (rows: AmendmentAnalyteInfo[]) =>
+    Object.fromEntries(
+      rows.map((a) => [
+        a.id,
+        {
+          numericValue: a.numericValue,
+          textValue: a.textValue,
+          booleanValue: a.booleanValue,
+          selectValue: a.selectValue,
+        },
+      ])
+    );
+
+  // Resume an amendment started earlier (e.g. before a page reload)
+  useEffect(() => {
+    if (!activeAmendmentId) return;
+    let cancelled = false;
+    setBusy(true);
+    labApi.amendment
+      .get(orderId, activeAmendmentId)
+      .then(({ amendment, sourceAnalytes }) => {
+        if (cancelled) return;
+        const releasedByCode = new Map(sourceAnalytes.map((a) => [a.code, a]));
+        setAmendmentId(amendment.id);
+        setStatus(amendment.status);
+        setReason(amendment.reason);
+        setAnalytes(amendment.analytes);
+        setSaved(valuesById(amendment.analytes));
+        setReleased(
+          valuesById(
+            amendment.analytes.map((a) => ({
+              ...a,
+              ...(releasedByCode.get(a.code) ?? {}),
+              id: a.id,
+            }))
+          )
+        );
+      })
+      .catch((e) =>
+        toast.error(`${t('review.amendment_error')} ${(e as Error).message}`)
+      )
+      .finally(() => !cancelled && setBusy(false));
+    return () => {
+      cancelled = true;
+    };
+    // Load once per amendment
+  }, [orderId, activeAmendmentId]);
+
+  const handleValueChange = (analyteId: string, value: AmendmentValue) =>
+    setAnalytes((prev) =>
+      prev.map((a) => (a.id === analyteId ? { ...a, ...value } : a))
+    );
+
+  const saveDraft = async (id: string) => {
+    await labApi.amendment.editAnalytes(
+      orderId,
+      id,
+      editable.map((a) => ({
+        id: a.id,
+        numericValue: a.numericValue,
+        textValue: a.textValue,
+        booleanValue: a.booleanValue,
+        selectValue: a.selectValue,
+      }))
+    );
+    setSaved(valuesById(analytes));
+  };
+
+  const handleSaveDraft = async () => {
+    if (!amendmentId) return;
+    setBusy(true);
+    try {
+      await saveDraft(amendmentId);
+      toast.success(t('review.amend_draft_saved'));
+    } catch (e) {
+      toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleInitiate = async () => {
     if (!reason.trim()) return;
     setBusy(true);
     try {
       const result = await labApi.amendment.initiate(orderId, {
-        reportTestId,
+        orderedTestId,
         reason,
       });
       setAmendmentId(result.amendmentId);
       setStatus(result.status);
       setAnalytes(result.analytes);
+      setReleased(valuesById(result.analytes));
+      setSaved(valuesById(result.analytes));
+      refreshActiveAmendments();
       toast.success(t('review.amendment_initiated'));
     } catch (e) {
       toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
@@ -445,11 +661,13 @@ function AmendmentPanel({
     if (!amendmentId) return;
     setBusy(true);
     try {
+      if (hasUnsavedEdits) await saveDraft(amendmentId);
       const result = await labApi.amendment.submitForReview(
         orderId,
         amendmentId
       );
       setStatus(result.status);
+      refreshActiveAmendments();
       toast.success(t('review.amendment_submitted'));
     } catch (e) {
       toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
@@ -459,19 +677,14 @@ function AmendmentPanel({
   };
 
   const handleApprove = async () => {
-    if (!amendmentId) return;
-    // For MVP, use the first available reviewer signer
+    if (!amendmentId || !approverId) return;
     setBusy(true);
     try {
-      const signers = await labApi.review.getReviewerSigners();
-      if (!signers.length) {
-        toast.error(t('review.no_reviewer_signers'));
-        return;
-      }
       await labApi.amendment.approve(orderId, amendmentId, {
-        signerId: signers[0].id,
+        signerId: approverId,
       });
       toast.success(t('review.amendment_approved'));
+      refreshActiveAmendments();
       onDone();
     } catch (e) {
       toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
@@ -485,10 +698,13 @@ function AmendmentPanel({
     setBusy(true);
     try {
       await labApi.amendment.cancel(orderId, amendmentId);
+      refreshActiveAmendments();
       toast.success(t('review.amendment_cancelled'));
       setAmendmentId(null);
       setStatus(null);
       setAnalytes([]);
+      setReleased({});
+      setSaved({});
       setReason('');
     } catch (e) {
       toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
@@ -539,7 +755,7 @@ function AmendmentPanel({
     );
   }
 
-  // State: initiated (DRAFT) — show analytes read-only, submit/cancel
+  // State: initiated (DRAFT) — correct values, then submit for review
   if (status === 'DRAFT') {
     return (
       <div className="mt-3 rounded-lg border border-blue-800/40 bg-blue-900/10 p-4 space-y-3">
@@ -549,42 +765,39 @@ function AmendmentPanel({
           </p>
           <StatusBadge status="DRAFT" size="sm" />
         </div>
+        <p className="text-xs text-gray-400">
+          {t('review.amend_reason_label')}:{' '}
+          <span className="text-gray-300">{reason}</span>
+        </p>
 
-        {/* Read-only analyte values */}
-        <div className="rounded-lg border border-gray-800 bg-gray-900 p-3">
-          {analytes
-            .filter((a) => !a.isHeader)
-            .map((a) => {
-              const displayVal =
-                a.numericValue !== null
-                  ? String(a.numericValue)
-                  : a.textValue ??
-                    a.selectValue ??
-                    a.booleanValue?.toString() ??
-                    '—';
-              return (
-                <div
-                  key={a.id}
-                  className="flex items-center justify-between border-b border-gray-800/40 py-1.5 last:border-0"
-                >
-                  <span className="text-sm text-gray-300">{a.name}</span>
-                  <span className="text-sm text-gray-200">
-                    {displayVal}
-                    {a.unit && (
-                      <span className="ml-1 text-xs text-gray-500">
-                        {a.unit}
-                      </span>
-                    )}
-                  </span>
-                </div>
-              );
-            })}
-        </div>
+        <AmendmentValuesTable
+          analytes={analytes}
+          released={released}
+          onChange={handleValueChange}
+        />
 
-        <div className="flex gap-2">
+        <p
+          className={`text-xs ${
+            changedCount > 0 ? 'text-amber-400' : 'text-gray-500'
+          }`}
+        >
+          {changedCount > 0
+            ? t('review.amend_changed_count', { count: changedCount })
+            : t('review.amend_no_changes')}
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleSaveDraft}
+            disabled={!hasUnsavedEdits}
+            className="rounded-lg border border-blue-800/50 px-4 py-2 text-sm text-blue-300 hover:bg-blue-900/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t('review.amend_save_draft')}
+          </button>
           <button
             onClick={handleSubmitForReview}
-            className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+            disabled={changedCount === 0}
+            className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t('review.amend_submit_for_review')}
           </button>
@@ -599,7 +812,7 @@ function AmendmentPanel({
     );
   }
 
-  // State: IN_REVIEW — waiting, or approve if admin
+  // State: IN_REVIEW — reviewer sees the changes, picks who signs, approves
   if (status === 'IN_REVIEW') {
     return (
       <div className="mt-3 rounded-lg border border-indigo-800/40 bg-indigo-900/10 p-4 space-y-3">
@@ -609,22 +822,68 @@ function AmendmentPanel({
           </p>
           <StatusBadge status="IN_REVIEW" size="sm" />
         </div>
+        <p className="text-xs text-gray-400">
+          {t('review.amend_reason_label')}:{' '}
+          <span className="text-gray-300">{reason}</span>
+        </p>
 
-        {isAdmin && (
-          <div className="flex gap-2">
-            <button
-              onClick={handleApprove}
-              className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-            >
-              {t('review.amend_approve')}
-            </button>
-            <button
-              onClick={handleCancel}
-              className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
-            >
-              {t('review.amend_cancel')}
-            </button>
-          </div>
+        <AmendmentValuesTable analytes={analytes} released={released} />
+
+        {isAdmin ? (
+          <>
+            {reviewerSigners && reviewerSigners.length === 0 ? (
+              <p className="text-xs text-yellow-300">
+                {t('review.no_reviewer_signers')}
+              </p>
+            ) : (
+              <div>
+                <label className="mb-1 block text-xs text-gray-400">
+                  {t('review.select_signer')}
+                </label>
+                <select
+                  value={approverId}
+                  onChange={(e) => setApproverId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+                >
+                  <option value="">
+                    {t('review.select_signer_placeholder')}
+                  </option>
+                  {reviewerSigners?.map((signer) => (
+                    <option key={signer.id} value={signer.id}>
+                      {signer.name} — {signer.title}
+                      {signer.registrationNumber
+                        ? ` (${signer.registrationNumber})`
+                        : ''}
+                    </option>
+                  ))}
+                </select>
+                {approver && !approver.signatureUrl && (
+                  <p className="mt-1 text-xs text-yellow-400">
+                    {t('review.signer_missing_signature')}
+                  </p>
+                )}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={handleApprove}
+                disabled={!approverId}
+                className="rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t('review.amend_approve')}
+              </button>
+              <button
+                onClick={handleCancel}
+                className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+              >
+                {t('review.amend_cancel')}
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-gray-500">
+            {t('review.amend_awaiting_approval')}
+          </p>
         )}
       </div>
     );
@@ -654,12 +913,23 @@ export function ReviewReleasePage() {
   const [busy, setBusy] = useState(false);
   const [highlightReviewer, setHighlightReviewer] = useState(false);
   const reviewerRef = useRef<HTMLDivElement>(null);
+  const pageTopRef = useRef<HTMLDivElement>(null);
 
   const { data: order, isLoading: loading } = useQuery({
     queryKey: ['order', orderId],
     queryFn: () => labApi.orders.getById(orderId!) as Promise<LabOrderDetail>,
     enabled: !!orderId,
   });
+
+  // Open amendments, so a draft started earlier can be resumed
+  const { data: activeAmendments } = useQuery({
+    queryKey: ['active-amendments', orderId],
+    queryFn: () => labApi.amendment.listActive(orderId ?? ''),
+    enabled: !!orderId,
+  });
+  const activeAmendmentByTestId = new Map(
+    (activeAmendments ?? []).map((a) => [a.orderedTestId, a])
+  );
 
   const { data: reviewerSigners } = useQuery({
     queryKey: ['reviewer-signers-check'],
@@ -689,12 +959,16 @@ export function ReviewReleasePage() {
     }
   }
 
+  // Resolves once the order has refetched, so callers can act on the new layout
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+    const orderRefetched = queryClient.invalidateQueries({
+      queryKey: ['order', orderId],
+    });
     queryClient.removeQueries({ queryKey: ['worklist'] });
     queryClient.removeQueries({ queryKey: ['worklist-counts'] });
     queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
     queryClient.invalidateQueries({ queryKey: ['release-history', orderId] });
+    queryClient.invalidateQueries({ queryKey: ['active-amendments', orderId] });
     queryClient.invalidateQueries({
       queryKey: ['batch-result-sessions', orderId],
     });
@@ -705,6 +979,7 @@ export function ReviewReleasePage() {
     setReviewNotes('');
     setCorrectionNotes('');
     setShowCorrections(false);
+    return orderRefetched;
   };
 
   const handleSubmitForReview = async (testIds?: string[]) => {
@@ -713,14 +988,24 @@ export function ReviewReleasePage() {
     try {
       await labApi.review.submitForReview(orderId, testIds);
       toast.success(t('review.submit_for_review_success'));
-      invalidate();
+      // Wait for the refetch so the reviewer panel (rendered only once tests
+      // are IN_REVIEW) exists before scrolling to it
+      await invalidate();
       setHighlightReviewer(true);
-      setTimeout(() => {
-        reviewerRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-      }, 300);
+      requestAnimationFrame(() => {
+        if (reviewerRef.current) {
+          reviewerRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        } else {
+          // Non-admins don't get the reviewer panel — go back to the top
+          pageTopRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          });
+        }
+      });
       setTimeout(() => setHighlightReviewer(false), 3000);
     } catch (e) {
       toast.error(
@@ -875,7 +1160,7 @@ export function ReviewReleasePage() {
   const showActionButtons = hasSelectableTests && isAdmin;
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div ref={pageTopRef} className="p-6 max-w-3xl">
       {/* Sticky header */}
       <div className="sticky top-0 z-10 -mx-6 -mt-6 mb-4 bg-gray-950 px-6 pt-4 pb-3 border-b border-gray-800">
         <div className="mb-2">
@@ -1061,6 +1346,7 @@ export function ReviewReleasePage() {
         testsWithResults.map((test) => {
           const isTestInReview = test.status === 'IN_REVIEW';
           const isTestCompleted = test.status === 'COMPLETED';
+          const activeAmendment = activeAmendmentByTestId.get(test.id);
           const isSelected = selectedTestIds.includes(test.id);
           const readOnly = isTestInReview || isTestCompleted;
 
@@ -1093,7 +1379,11 @@ export function ReviewReleasePage() {
               <TestResultSection
                 orderId={order.id}
                 testId={test.id}
-                session={sessionByTestId.get(test.id)}
+                // No session renders the skeleton — shown while saving, since
+                // the results are about to change
+                session={
+                  busy || submitting ? undefined : sessionByTestId.get(test.id)
+                }
                 readOnly={readOnly}
               />
 
@@ -1103,10 +1393,19 @@ export function ReviewReleasePage() {
                   {amendingTestId === test.id ? (
                     <AmendmentPanel
                       orderId={order.id}
-                      reportTestId={test.id}
+                      orderedTestId={test.id}
+                      activeAmendmentId={activeAmendment?.amendmentId}
                       testName={test.catalogItemName}
                       onDone={invalidate}
                     />
+                  ) : activeAmendment ? (
+                    <button
+                      onClick={() => setAmendingTestId(test.id)}
+                      className="flex items-center gap-2 rounded-lg border border-amber-700/50 px-3 py-1.5 text-xs text-amber-300 hover:bg-amber-900/20"
+                    >
+                      {t('review.amend_continue')}
+                      <StatusBadge status={activeAmendment.status} size="sm" />
+                    </button>
                   ) : (
                     <button
                       onClick={() => setAmendingTestId(test.id)}

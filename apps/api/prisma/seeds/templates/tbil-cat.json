@@ -2,7 +2,6 @@
   "catalogItemCode": "TBIL",
   "species": "CAT",
   "title": "Bilirrubinas",
-  "defaultObservations": "Tipo de muestra: suero.",
   "sections": [
     {
       "name": "Bilirrubinas",

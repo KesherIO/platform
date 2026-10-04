@@ -493,6 +493,18 @@
     "PARTIAL_BANNER_TITLE": "Some tests are still in progress",
     "PARTIAL_BANNER_TESTS": "Pending: {{tests}}",
     "TEST_RELEASED_BY": "Released by {{name}}",
+    "RELEASE_SEQUENCE": "Release #{{seq}}",
+    "DOWNLOAD_PDF": "Download PDF",
+    "PDF_GENERATING": "Generating...",
+    "PDF_FAILED": "PDF unavailable",
+    "DOWNLOAD_PDF_SHORT": "Download",
+    "PDF_DOWNLOAD_ERROR": "Could not download the PDF. Please try again.",
+    "PDF_UNAVAILABLE": "PDF download unavailable right now",
+    "RELEASE_TYPE": {
+      "PARTIAL": "Partial",
+      "FINAL": "Final release",
+      "AMENDMENT": "Amendment"
+    },
     "DEPT": {
       "HEMATOLOGY": "Hematology",
       "CHEMISTRY": "Clinical Chemistry",

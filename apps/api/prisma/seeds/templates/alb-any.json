@@ -2,7 +2,6 @@
   "catalogItemCode": "ALB",
   "species": "ANY",
   "title": "Albúmina (sin valores de referencia)",
-  "defaultObservations": "Tipo de muestra: suero.",
   "sections": [
     {
       "name": "Resultados",

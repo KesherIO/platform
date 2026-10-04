@@ -2,7 +2,6 @@
   "catalogItemCode": "BUN",
   "species": "DOG",
   "title": "Nitrógeno Ureico (BUN)",
-  "defaultObservations": "Tipo de muestra: suero.",
   "sections": [
     {
       "name": "Resultados",

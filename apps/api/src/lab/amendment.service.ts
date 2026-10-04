@@ -6,17 +6,46 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Prisma, type ReleaseType } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { OrderStatusService } from './order-status.service';
+import { labPhoneNumbersSnapshot } from './lab-contact.util';
 import { evaluateAllFormulas } from './formula.util';
 import type { ReferenceRangeSnapshot } from '@vet-ai/shared-types';
 
 type TxClient = Prisma.TransactionClient;
 
+type AnalyteValueFields = {
+  numericValue: number | null;
+  textValue: string | null;
+  booleanValue: boolean | null;
+  selectValue: string | null;
+};
+
+function isEmptyValue(v: AnalyteValueFields | undefined): boolean {
+  return (
+    !v ||
+    (v.numericValue === null &&
+      (v.textValue === null || v.textValue === '') &&
+      v.booleanValue === null &&
+      (v.selectValue === null || v.selectValue === ''))
+  );
+}
+
+function sameValue(a: AnalyteValueFields, b: AnalyteValueFields): boolean {
+  return (
+    a.numericValue === b.numericValue &&
+    (a.textValue ?? '') === (b.textValue ?? '') &&
+    a.booleanValue === b.booleanValue &&
+    (a.selectValue ?? '') === (b.selectValue ?? '')
+  );
+}
+
 interface InitiateAmendmentInput {
   orderId: string;
   labTenantId: string;
-  reportTestId: string;
+  orderedTestId: string;
   reason: string;
   actorId: string;
   actorName: string;
@@ -66,11 +95,12 @@ interface CancelAmendmentInput {
 export class AmendmentService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly orderStatusService: OrderStatusService
+    private readonly orderStatusService: OrderStatusService,
+    private readonly storage: StorageService
   ) {}
 
   async initiateAmendment(input: InitiateAmendmentInput) {
-    const { orderId, labTenantId, reportTestId, reason, actorId, actorName } =
+    const { orderId, labTenantId, orderedTestId, reason, actorId, actorName } =
       input;
 
     if (!reason || reason.trim().length === 0) {
@@ -88,8 +118,14 @@ export class AmendmentService {
     if (!order.resultReport)
       throw new BadRequestException('No report exists for this order.');
 
+    // The lab works with ordered tests; each has one report test per report
     const reportTest = await this.prisma.resultReportTest.findUnique({
-      where: { id: reportTestId },
+      where: {
+        reportId_orderedTestId: {
+          reportId: order.resultReport.id,
+          orderedTestId,
+        },
+      },
       select: {
         id: true,
         reportId: true,
@@ -98,9 +134,10 @@ export class AmendmentService {
       },
     });
 
-    if (!reportTest || reportTest.reportId !== order.resultReport.id) {
+    if (!reportTest) {
       throw new NotFoundException('Report test not found.');
     }
+    const reportTestId = reportTest.id;
 
     if (reportTest.status !== 'RELEASED') {
       throw new BadRequestException('Only released tests can be amended.');
@@ -192,11 +229,44 @@ export class AmendmentService {
       return { amendment, analytes: amendmentAnalytes };
     });
 
+    const options = await this.optionsByCode(reportTestId);
     return {
       amendmentId: result.amendment.id,
       status: result.amendment.status,
-      analytes: result.analytes,
+      analytes: result.analytes.map((a) => ({
+        ...a,
+        options: options.get(a.code) ?? [],
+      })),
     };
+  }
+
+  /** Open (DRAFT / IN_REVIEW) amendments on an order, so the lab can resume them. */
+  async getActiveAmendments(orderId: string, labTenantId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, labTenantId },
+      select: { id: true, resultReport: { select: { id: true } } },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+    if (!order.resultReport) return [];
+
+    const amendments = await this.prisma.resultReportAmendment.findMany({
+      where: {
+        reportId: order.resultReport.id,
+        status: { in: ['DRAFT', 'IN_REVIEW'] },
+      },
+      select: {
+        id: true,
+        status: true,
+        reason: true,
+        reportTest: { select: { orderedTestId: true } },
+      },
+    });
+    return amendments.map((a) => ({
+      amendmentId: a.id,
+      status: a.status,
+      reason: a.reason,
+      orderedTestId: a.reportTest.orderedTestId,
+    }));
   }
 
   async getAmendment(
@@ -241,7 +311,17 @@ export class AmendmentService {
         })
       : [];
 
-    return { amendment, sourceAnalytes };
+    const options = await this.optionsByCode(amendment.reportTestId);
+    return {
+      amendment: {
+        ...amendment,
+        analytes: amendment.analytes.map((a) => ({
+          ...a,
+          options: options.get(a.code) ?? [],
+        })),
+      },
+      sourceAnalytes,
+    };
   }
 
   async editAmendmentAnalytes(input: EditAmendmentAnalytesInput) {
@@ -272,9 +352,12 @@ export class AmendmentService {
       );
     }
 
+    // Scoped to this amendment; headers and formula rows aren't editable
+    // (formulas are recomputed on approval)
+    let updated = 0;
     for (const a of analytes) {
-      await this.prisma.resultReportAmendmentAnalyte.update({
-        where: { id: a.id },
+      const res = await this.prisma.resultReportAmendmentAnalyte.updateMany({
+        where: { id: a.id, amendmentId, isHeader: false, formula: null },
         data: {
           numericValue: a.numericValue ?? null,
           textValue: a.textValue ?? null,
@@ -282,9 +365,10 @@ export class AmendmentService {
           selectValue: a.selectValue ?? null,
         },
       });
+      updated += res.count;
     }
 
-    return { updated: analytes.length };
+    return { updated };
   }
 
   async submitForReview(input: SubmitAmendmentInput) {
@@ -317,12 +401,30 @@ export class AmendmentService {
     const nonHeaderAnalytes = amendment.analytes.filter(
       (a) => !a.isHeader && !a.formula
     );
+    const releasedByCode = new Map(
+      (
+        await this.prisma.resultReportReleaseAnalyte.findMany({
+          where: {
+            releaseTest: {
+              releaseId: amendment.sourceReleaseId,
+              sourceReportTestId: amendment.reportTestId,
+            },
+          },
+          select: {
+            code: true,
+            numericValue: true,
+            textValue: true,
+            booleanValue: true,
+            selectValue: true,
+          },
+        })
+      ).map((a) => [a.code, a])
+    );
+
+    // A value may stay empty only if it was already empty when released
+    // (optional analytes); clearing a released value is not allowed.
     const missingValues = nonHeaderAnalytes.filter(
-      (a) =>
-        a.numericValue === null &&
-        (a.textValue === null || a.textValue === '') &&
-        a.booleanValue === null &&
-        (a.selectValue === null || a.selectValue === '')
+      (a) => isEmptyValue(a) && !isEmptyValue(releasedByCode.get(a.code))
     );
 
     if (missingValues.length > 0) {
@@ -330,6 +432,16 @@ export class AmendmentService {
         `Missing required analyte values: ${missingValues
           .map((a) => a.name)
           .join(', ')}`
+      );
+    }
+
+    const hasChanges = nonHeaderAnalytes.some((a) => {
+      const released = releasedByCode.get(a.code);
+      return !released || !sameValue(a, released);
+    });
+    if (!hasChanges) {
+      throw new BadRequestException(
+        'The amendment has no changes from the released result.'
       );
     }
 
@@ -451,6 +563,22 @@ export class AmendmentService {
 
     const priorReleaseTestId = await this.findPriorReleaseTestId(amendment);
 
+    const releaseId = randomUUID();
+
+    // The PDF header is branded with the ordering clinic, so snapshot its logo
+    const clinicTenant = await this.prisma.tenant.findUnique({
+      where: { id: order.tenantId },
+      select: { logoUrl: true },
+    });
+    const imageStoragePaths = await this.storage.snapshotReleaseImages(
+      releaseId,
+      {
+        logoUrl: clinicTenant?.logoUrl ?? null,
+        signerSignatureUrl: signer.signatureUrl ?? null,
+        analystSignatureUrl: null,
+      }
+    );
+
     const hasFormulas = amendment.analytes.some(
       (a) => a.formula && !a.isHeader
     );
@@ -496,6 +624,7 @@ export class AmendmentService {
 
         const release = await tx.resultReportRelease.create({
           data: {
+            id: releaseId,
             reportId,
             releaseSequence: newSequence,
             releaseType,
@@ -599,7 +728,13 @@ export class AmendmentService {
         });
 
         await tx.resultReportReleaseArtifact.create({
-          data: { releaseId: release.id, artifactType: 'PDF' },
+          data: {
+            releaseId: release.id,
+            artifactType: 'PDF',
+            logoStoragePath: imageStoragePaths.logoStoragePath,
+            signerSignatureStoragePath:
+              imageStoragePaths.signerSignatureStoragePath,
+          },
         });
 
         await tx.timelineEvent.create({
@@ -693,6 +828,26 @@ export class AmendmentService {
     return { status: 'CANCELLED' as const };
   }
 
+  /**
+   * Option lists (SELECT values, TEXT suggestions) aren't snapshotted on
+   * releases, so read them from the report test's template version.
+   */
+  private async optionsByCode(
+    reportTestId: string
+  ): Promise<Map<string, string[]>> {
+    const rt = await this.prisma.resultReportTest.findUnique({
+      where: { id: reportTestId },
+      select: {
+        templateVersion: {
+          select: { analytes: { select: { code: true, options: true } } },
+        },
+      },
+    });
+    return new Map(
+      (rt?.templateVersion?.analytes ?? []).map((a) => [a.code, a.options])
+    );
+  }
+
   private async findPriorReleaseTestId(amendment: {
     reportTest: { id: string; latestReleaseId: string | null };
   }): Promise<string | null> {
@@ -753,13 +908,27 @@ export class AmendmentService {
       labDirectorCredentials: null as string | null,
       labLogoUrl: null as string | null,
       labAddress: null as string | null,
+      labCity: null as string | null,
       labPhone: null as string | null,
+      labPhoneNumbers: Prisma.DbNull as ReturnType<
+        typeof labPhoneNumbersSnapshot
+      >,
+      labEmail: null as string | null,
+      reportDisclaimer: null as string | null,
     };
 
     if (order.labTenantId) {
       const labTenant = await tx.tenant.findUnique({
         where: { id: order.labTenantId },
-        select: { name: true, address: true, phone: true, logoUrl: true },
+        select: {
+          name: true,
+          address: true,
+          city: true,
+          phone: true,
+          phoneNumbers: true,
+          email: true,
+          logoUrl: true,
+        },
       });
       const labProfile = await tx.laboratoryProfile.findUnique({
         where: { tenantId: order.labTenantId },
@@ -767,6 +936,7 @@ export class AmendmentService {
           accreditationNumber: true,
           directorName: true,
           directorCredentials: true,
+          reportDisclaimer: true,
         },
       });
       labSnapshot = {
@@ -777,7 +947,14 @@ export class AmendmentService {
         labDirectorCredentials: labProfile?.directorCredentials ?? null,
         labLogoUrl: labTenant?.logoUrl ?? null,
         labAddress: labTenant?.address ?? null,
+        labCity: labTenant?.city ?? null,
         labPhone: labTenant?.phone ?? null,
+        labPhoneNumbers: labPhoneNumbersSnapshot(
+          labTenant?.phoneNumbers,
+          labTenant?.phone
+        ),
+        labEmail: labTenant?.email ?? null,
+        reportDisclaimer: labProfile?.reportDisclaimer ?? null,
       };
     }
 

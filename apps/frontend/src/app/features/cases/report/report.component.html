@@ -91,7 +91,7 @@
             <p class="text-xs text-gray-500 mt-0.5">
               {{ 'REPORT.ORDER_NO' | translate }}:
               <span class="font-medium text-gray-700">{{
-                released()!.orderId
+                case()!.order?.orderId
               }}</span>
             </p>
           </div>
@@ -111,6 +111,125 @@
             } @if (latestReleasedDate()) {
             <p class="text-xs text-gray-400 mt-1.5">
               {{ latestReleasedDate() }}
+            </p>
+            }
+
+            <!-- Download PDF: direct action for one release, dropdown for several -->
+            @if (releases().length === 1) { @let only = releases()[0]; @if
+            (only.pdfStatus === 'COMPLETED') {
+            <button
+              type="button"
+              (click)="downloadPdf(only)"
+              [disabled]="downloadingReleaseId() !== null"
+              class="mt-2 inline-flex items-center rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-cyan shadow-sm transition-colors hover:bg-gray-900 disabled:opacity-50"
+            >
+              {{
+                (downloadingReleaseId()
+                  ? 'COMMON.LOADING'
+                  : 'REPORT.DOWNLOAD_PDF'
+                ) | translate
+              }}
+            </button>
+            } @else if (only.pdfStatus === 'FAILED') {
+            <p class="mt-2 text-xs text-red-500">
+              {{ 'REPORT.PDF_FAILED' | translate }}
+            </p>
+            } @else {
+            <p class="mt-2 text-xs italic text-gray-400">
+              {{ 'REPORT.PDF_GENERATING' | translate }}
+            </p>
+            } } @else if (releases().length > 1) {
+            <div class="relative mt-2 inline-block text-left">
+              <button
+                type="button"
+                (click)="togglePdfMenu()"
+                [attr.aria-expanded]="pdfMenuOpen()"
+                aria-haspopup="menu"
+                class="inline-flex items-center gap-1 rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-cyan shadow-sm transition-colors hover:bg-gray-900"
+              >
+                {{ 'REPORT.DOWNLOAD_PDF' | translate }}
+                <svg
+                  class="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              @if (pdfMenuOpen()) {
+              <!-- Click-outside catcher -->
+              <div class="fixed inset-0 z-10" (click)="closePdfMenu()"></div>
+              <div
+                role="menu"
+                class="absolute right-0 top-full z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-100 bg-white p-1.5 shadow-lg"
+              >
+                @for (rel of releasesNewestFirst(); track rel.id) {
+                <div
+                  class="flex items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-gray-50"
+                >
+                  <div class="min-w-0">
+                    <p class="text-xs font-medium text-gray-800">
+                      {{
+                        'REPORT.RELEASE_SEQUENCE'
+                          | translate : { seq: rel.releaseSequence }
+                      }}
+                      ·
+                      {{ 'REPORT.RELEASE_TYPE.' + rel.releaseType | translate }}
+                    </p>
+                    <p class="text-xs text-gray-400">
+                      {{ formatReleaseDate(rel.releasedAt) }}
+                    </p>
+                    <p
+                      class="truncate text-xs text-gray-500"
+                      [title]="rel.testNames.join(', ')"
+                    >
+                      {{ rel.testNames.join(', ') }}
+                    </p>
+                  </div>
+                  <div class="shrink-0">
+                    @if (rel.pdfStatus === 'COMPLETED') {
+                    <button
+                      type="button"
+                      role="menuitem"
+                      (click)="downloadPdf(rel)"
+                      [disabled]="downloadingReleaseId() !== null"
+                      class="text-xs font-medium text-cyan-600 hover:text-cyan-700 disabled:opacity-50"
+                    >
+                      {{
+                        (downloadingReleaseId() === rel.id
+                          ? 'COMMON.LOADING'
+                          : 'REPORT.DOWNLOAD_PDF_SHORT'
+                        ) | translate
+                      }}
+                    </button>
+                    } @else if (rel.pdfStatus === 'FAILED') {
+                    <span class="text-xs text-red-500">
+                      {{ 'REPORT.PDF_FAILED' | translate }}
+                    </span>
+                    } @else {
+                    <span class="text-xs italic text-gray-400">
+                      {{ 'REPORT.PDF_GENERATING' | translate }}
+                    </span>
+                    }
+                  </div>
+                </div>
+                }
+              </div>
+              }
+            </div>
+            } @else if (releasesLoadError()) {
+            <p class="mt-2 text-xs text-gray-400">
+              {{ 'REPORT.PDF_UNAVAILABLE' | translate }}
+            </p>
+            } @if (pdfDownloadError()) {
+            <p class="mt-1.5 text-xs text-red-500">
+              {{ 'REPORT.PDF_DOWNLOAD_ERROR' | translate }}
             </p>
             }
           </div>
@@ -562,6 +681,7 @@
           }
         </div>
       </div>
+
       } } } @else {
 
       <!-- Tab: AI Interpretation -->

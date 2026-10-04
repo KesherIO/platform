@@ -456,6 +456,40 @@ export class TemplateVersionService {
     return candidates[0];
   }
 
+  /**
+   * Template for one ordered test: the template the lab picked by hand when
+   * none matched (OrderedTest.templateDefinitionId), otherwise the usual
+   * catalog code + species + age match.
+   */
+  async resolveTemplateForTest(
+    test: {
+      catalogItemCode: string | null;
+      templateDefinitionId: string | null;
+    },
+    labTenantId: string,
+    species: PatientSpecies,
+    ageWeeks: number | null
+  ) {
+    if (test.templateDefinitionId) {
+      return this.prisma.resultTemplateDefinition.findFirst({
+        where: {
+          id: test.templateDefinitionId,
+          activeVersionId: { not: null },
+          OR: [{ scope: 'PLATFORM' }, { scope: 'LABORATORY', labTenantId }],
+        },
+        include: {
+          activeVersion: { include: VERSION_INCLUDE },
+        },
+      });
+    }
+    return this.resolveTemplate(
+      test.catalogItemCode ?? '',
+      labTenantId,
+      species,
+      ageWeeks
+    );
+  }
+
   private templateScore(
     d: { species: PatientSpecies; ageMinWeeks: number; ageMaxWeeks: number },
     patientSpecies: PatientSpecies

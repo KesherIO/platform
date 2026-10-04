@@ -56,6 +56,7 @@ interface AnalyteFormState {
   unit: string;
   technique: string;
   isHeader: boolean;
+  isRequired: boolean;
   sortOrder: number;
   options: string[];
   formula: string;
@@ -81,6 +82,7 @@ function toAnalyteForm(a: TemplateAnalyte): AnalyteFormState {
     unit: a.unit ?? '',
     technique: a.technique ?? '',
     isHeader: a.isHeader,
+    isRequired: a.isRequired ?? true,
     sortOrder: a.sortOrder,
     options: a.options,
     formula: a.formula ?? '',
@@ -239,6 +241,7 @@ export function TemplateBuilderPage() {
               unit: '',
               technique: '',
               isHeader: false,
+              isRequired: true,
               sortOrder: s.analytes.length,
               options: [],
               formula: '',
@@ -314,6 +317,7 @@ export function TemplateBuilderPage() {
           unit: a.unit || null,
           technique: a.technique || null,
           isHeader: a.isHeader,
+          isRequired: a.isRequired,
           sortOrder: ai,
           options: a.options,
           formula: a.formula || null,
@@ -639,6 +643,9 @@ export function TemplateBuilderPage() {
                             {t('templates.analyte_is_header')}
                           </th>
                           <th className="pb-2 pr-2 text-center">
+                            {t('templates.analyte_is_required')}
+                          </th>
+                          <th className="pb-2 pr-2 text-center">
                             {t('templates.analyte_sort_order')}
                           </th>
                           <th className="pb-2" />
@@ -891,6 +898,17 @@ function AnalyteRow({
         </td>
         <td className="py-1.5 pr-2 text-center">
           <input
+            type="checkbox"
+            checked={analyte.isRequired}
+            disabled={analyte.isHeader || !!analyte.formula}
+            onChange={(e) =>
+              onUpdate(sectionId, analyte.id, { isRequired: e.target.checked })
+            }
+            className="h-4 w-4 rounded border-gray-600 bg-gray-950 text-cyan accent-cyan disabled:opacity-40"
+          />
+        </td>
+        <td className="py-1.5 pr-2 text-center">
+          <input
             type="number"
             value={analyte.sortOrder}
             onChange={(e) =>
@@ -914,7 +932,7 @@ function AnalyteRow({
       </tr>
       {analyte.valueType === 'NUMERIC' && (
         <tr className="border-b border-gray-800/50">
-          <td colSpan={8} className="pb-2 pl-6 pt-1">
+          <td colSpan={9} className="pb-2 pl-6 pt-1">
             <div className="flex items-center gap-3 text-xs text-gray-400">
               <label className="flex items-center gap-1">
                 {t('templates.ref_min')}
@@ -1007,7 +1025,7 @@ function OptionsEditorRow({
 
   return (
     <tr className="border-b border-gray-800/50">
-      <td colSpan={8} className="pb-2 pl-6 pt-1">
+      <td colSpan={9} className="pb-2 pl-6 pt-1">
         <div className="text-xs text-gray-400">
           <span className="mb-1 block font-medium">
             {t('templates.options_label')}

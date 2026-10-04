@@ -115,3 +115,76 @@ describe('ResultEntryService — BLOCKED/CANCELLED guards', () => {
     });
   });
 });
+
+describe('ResultEntryService — manually picked template', () => {
+  let service: ResultEntryService;
+  let prisma: Record<string, any>;
+  let templateVersionService: { resolveTemplateForTest: jest.Mock };
+
+  const bovineProgesterone = {
+    id: 'ot-1',
+    catalogItemCode: 'PROG',
+    templateDefinitionId: 'def-dog',
+    catalogItemName: 'Progesterone',
+    status: 'READY',
+    order: {
+      id: 'order-1',
+      case: {
+        patientSpecies: 'BOVINE',
+        patientAge: null,
+        patientAgeUnit: null,
+      },
+      resultReport: null,
+    },
+  };
+
+  beforeEach(async () => {
+    prisma = {
+      orderedTest: {
+        findFirst: jest.fn().mockResolvedValue(bovineProgesterone),
+      },
+    };
+    templateVersionService = {
+      resolveTemplateForTest: jest.fn().mockResolvedValue({
+        id: 'def-dog',
+        activeVersion: {
+          title: 'Progesterona canina',
+          defaultObservations: null,
+          observationPhrases: null,
+          sections: [],
+          analytes: [],
+        },
+      }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ResultEntryService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: TemplateVersionService, useValue: templateVersionService },
+      ],
+    }).compile();
+
+    service = module.get<ResultEntryService>(ResultEntryService);
+  });
+
+  it('opens the result session with the template picked at accessioning', async () => {
+    const session = await service.getResultSession('ot-1', 'lab-1');
+
+    expect(templateVersionService.resolveTemplateForTest).toHaveBeenCalledWith(
+      bovineProgesterone,
+      'lab-1',
+      'BOVINE',
+      null
+    );
+    expect(session.template.title).toBe('Progesterona canina');
+  });
+
+  it('still 404s when neither a pick nor a species match exists', async () => {
+    templateVersionService.resolveTemplateForTest.mockResolvedValue(null);
+
+    await expect(service.getResultSession('ot-1', 'lab-1')).rejects.toThrow(
+      NotFoundException
+    );
+  });
+});

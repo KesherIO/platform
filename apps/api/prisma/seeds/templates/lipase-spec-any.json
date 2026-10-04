@@ -2,7 +2,6 @@
   "catalogItemCode": "LIPASE_SPEC",
   "species": "ANY",
   "title": "Lipasa Pancreática Específica Canina (Spec cPL) (sin valores de referencia)",
-  "defaultObservations": "Tipo de muestra: suero.",
   "sections": [
     {
       "name": "Resultados",

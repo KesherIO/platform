@@ -31,6 +31,174 @@ export class ResultEntryService {
     private readonly templateVersionService: TemplateVersionService
   ) {}
 
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  private computeAgeWeeks(
+    patientAge: number | null,
+    patientAgeUnit: string | null
+  ): number | null {
+    return patientAge && patientAgeUnit
+      ? ageToWeeks(patientAge, patientAgeUnit as AgeUnit)
+      : null;
+  }
+
+  /** Cache key for a test's template — a manual pick wins over the code match. */
+  private templateKey(test: {
+    catalogItemCode: string | null;
+    templateDefinitionId: string | null;
+  }): string {
+    return test.templateDefinitionId
+      ? `def:${test.templateDefinitionId}`
+      : test.catalogItemCode ?? '';
+  }
+
+  private async resolveTemplateOrThrow(
+    test: {
+      catalogItemCode: string | null;
+      templateDefinitionId: string | null;
+    },
+    labTenantId: string,
+    species: PatientSpecies,
+    ageWeeks: number | null
+  ) {
+    const def = await this.templateVersionService.resolveTemplateForTest(
+      test,
+      labTenantId,
+      species,
+      ageWeeks
+    );
+    if (!def?.activeVersion) {
+      throw new NotFoundException(
+        'No active result template found for this test.'
+      );
+    }
+    return { def, version: def.activeVersion };
+  }
+
+  private analyteHasValue(
+    saved:
+      | {
+          numericValue: number | null;
+          textValue: string | null;
+          booleanValue: boolean | null;
+          selectValue: string | null;
+        }
+      | null
+      | undefined
+  ): boolean {
+    return !!(
+      saved &&
+      (saved.numericValue !== null ||
+        (saved.textValue !== null && saved.textValue !== '') ||
+        saved.booleanValue !== null ||
+        (saved.selectValue !== null && saved.selectValue !== ''))
+    );
+  }
+
+  private validateRequiredFields(
+    analytes: Array<{
+      id: string;
+      name: string;
+      isHeader: boolean;
+      formula: string | null;
+      isRequired: boolean;
+    }>,
+    savedByTemplateId: Map<
+      string | null,
+      {
+        numericValue: number | null;
+        textValue: string | null;
+        booleanValue: boolean | null;
+        selectValue: string | null;
+      }
+    >
+  ): string[] {
+    const missing: string[] = [];
+    for (const analyte of analytes) {
+      if (analyte.isHeader || analyte.formula || !analyte.isRequired) continue;
+      if (!this.analyteHasValue(savedByTemplateId.get(analyte.id))) {
+        missing.push(analyte.name);
+      }
+    }
+    return missing;
+  }
+
+  private buildSections(
+    version: {
+      sections: Array<{ id: string; code?: string | null; name: string }>;
+      analytes: Array<{
+        id: string;
+        code: string;
+        name: string;
+        technique?: string | null;
+        valueType: string;
+        unit?: string | null;
+        options?: unknown;
+        referenceRange?: unknown;
+        isHeader: boolean;
+        isRequired: boolean;
+        formula?: string | null;
+        sortOrder: number;
+        sectionId?: string | null;
+      }>;
+    },
+    savedByTemplateId: Map<
+      string | null,
+      {
+        id: string;
+        numericValue: number | null;
+        textValue: string | null;
+        booleanValue: boolean | null;
+        selectValue: string | null;
+      }
+    >
+  ) {
+    const sectionMap = new Map<
+      string | null,
+      {
+        id: string | null;
+        code: string | null;
+        name: string | null;
+        analytes: unknown[];
+      }
+    >();
+    sectionMap.set(null, { id: null, code: null, name: null, analytes: [] });
+    for (const s of version.sections) {
+      sectionMap.set(s.id, {
+        id: s.id,
+        code: s.code ?? null,
+        name: s.name,
+        analytes: [],
+      });
+    }
+    for (const analyte of version.analytes) {
+      const saved = savedByTemplateId.get(analyte.id);
+      const entry = {
+        id: analyte.id,
+        code: analyte.code,
+        name: analyte.name,
+        technique: analyte.technique ?? null,
+        valueType: analyte.valueType,
+        unit: analyte.unit ?? null,
+        options: analyte.options ?? [],
+        referenceRange: analyte.referenceRange ?? null,
+        isHeader: analyte.isHeader,
+        isRequired: analyte.isRequired,
+        formula: analyte.formula ?? null,
+        sortOrder: analyte.sortOrder,
+        savedValueId: saved?.id ?? null,
+        numericValue: saved?.numericValue ?? null,
+        textValue: saved?.textValue ?? null,
+        booleanValue: saved?.booleanValue ?? null,
+        selectValue: saved?.selectValue ?? null,
+      };
+      const section =
+        sectionMap.get(analyte.sectionId ?? null) ?? sectionMap.get(null)!;
+      section.analytes.push(entry);
+    }
+    return Array.from(sectionMap.values()).filter((s) => s.analytes.length > 0);
+  }
+
   // GET /lab/ordered-tests/:testId/result-session
   // Returns the resolved template sections + existing saved values for this test.
   async getResultSession(testId: string, labTenantId: string) {
@@ -39,6 +207,7 @@ export class ResultEntryService {
       select: {
         id: true,
         catalogItemCode: true,
+        templateDefinitionId: true,
         catalogItemName: true,
         status: true,
         order: {
@@ -73,28 +242,17 @@ export class ResultEntryService {
     }
 
     const species = test.order.case.patientSpecies as PatientSpecies;
-    const ageWeeks =
-      test.order.case.patientAge && test.order.case.patientAgeUnit
-        ? ageToWeeks(
-            test.order.case.patientAge,
-            test.order.case.patientAgeUnit as AgeUnit
-          )
-        : null;
+    const ageWeeks = this.computeAgeWeeks(
+      test.order.case.patientAge,
+      test.order.case.patientAgeUnit
+    );
 
-    const templateDef = await this.templateVersionService.resolveTemplate(
-      test.catalogItemCode ?? '',
+    const { version } = await this.resolveTemplateOrThrow(
+      test,
       labTenantId,
       species,
       ageWeeks
     );
-
-    if (!templateDef?.activeVersion) {
-      throw new NotFoundException(
-        'No active result template found for this test.'
-      );
-    }
-
-    const version = templateDef.activeVersion;
 
     // Get saved analyte values via ResultReportTest → analytes
     const reportTest = test.order.resultReport
@@ -126,55 +284,7 @@ export class ResultEntryService {
       savedAnalytes.map((a) => [a.templateAnalyteId, a])
     );
 
-    // Build sections with analytes merged with existing values
-    const sectionMap = new Map<
-      string | null,
-      {
-        id: string | null;
-        code: string | null;
-        name: string | null;
-        analytes: unknown[];
-      }
-    >();
-    sectionMap.set(null, { id: null, code: null, name: null, analytes: [] });
-    for (const s of version.sections) {
-      sectionMap.set(s.id, {
-        id: s.id,
-        code: s.code ?? null,
-        name: s.name,
-        analytes: [],
-      });
-    }
-
-    for (const analyte of version.analytes) {
-      const saved = savedByTemplateId.get(analyte.id);
-      const entry = {
-        id: analyte.id,
-        code: analyte.code,
-        name: analyte.name,
-        technique: analyte.technique ?? null,
-        valueType: analyte.valueType,
-        unit: analyte.unit ?? null,
-        options: analyte.options ?? [],
-        referenceRange: analyte.referenceRange ?? null,
-        isHeader: analyte.isHeader,
-        isRequired: analyte.isRequired,
-        formula: analyte.formula ?? null,
-        sortOrder: analyte.sortOrder,
-        savedValueId: saved?.id ?? null,
-        numericValue: saved?.numericValue ?? null,
-        textValue: saved?.textValue ?? null,
-        booleanValue: saved?.booleanValue ?? null,
-        selectValue: saved?.selectValue ?? null,
-      };
-      const section =
-        sectionMap.get(analyte.sectionId ?? null) ?? sectionMap.get(null)!;
-      section.analytes.push(entry);
-    }
-
-    const sections = Array.from(sectionMap.values()).filter(
-      (s) => s.analytes.length > 0
-    );
+    const sections = this.buildSections(version, savedByTemplateId);
 
     return {
       test: {
@@ -220,6 +330,7 @@ export class ResultEntryService {
       select: {
         id: true,
         catalogItemCode: true,
+        templateDefinitionId: true,
         catalogItemName: true,
         status: true,
         order: {
@@ -259,28 +370,18 @@ export class ResultEntryService {
     }
 
     const species = test.order.case.patientSpecies as PatientSpecies;
-    const ageWeeks =
-      test.order.case.patientAge && test.order.case.patientAgeUnit
-        ? ageToWeeks(
-            test.order.case.patientAge,
-            test.order.case.patientAgeUnit as AgeUnit
-          )
-        : null;
+    const ageWeeks = this.computeAgeWeeks(
+      test.order.case.patientAge,
+      test.order.case.patientAgeUnit
+    );
 
-    const templateDef = await this.templateVersionService.resolveTemplate(
-      test.catalogItemCode ?? '',
+    const { def: templateDef, version } = await this.resolveTemplateOrThrow(
+      test,
       labTenantId,
       species,
       ageWeeks
     );
 
-    if (!templateDef?.activeVersion) {
-      throw new NotFoundException(
-        'No active result template found for this test.'
-      );
-    }
-
-    const version = templateDef.activeVersion;
     const analyteById = new Map(version.analytes.map((a) => [a.id, a]));
     const sectionNameById = new Map(
       version.sections.map((s) => [s.id, s.name])
@@ -507,6 +608,7 @@ export class ResultEntryService {
       select: {
         id: true,
         catalogItemCode: true,
+        templateDefinitionId: true,
         catalogItemName: true,
         status: true,
         order: {
@@ -552,28 +654,18 @@ export class ResultEntryService {
     }
 
     const species = test.order.case.patientSpecies as PatientSpecies;
-    const ageWeeks =
-      test.order.case.patientAge && test.order.case.patientAgeUnit
-        ? ageToWeeks(
-            test.order.case.patientAge,
-            test.order.case.patientAgeUnit as AgeUnit
-          )
-        : null;
+    const ageWeeks = this.computeAgeWeeks(
+      test.order.case.patientAge,
+      test.order.case.patientAgeUnit
+    );
 
-    const templateDef = await this.templateVersionService.resolveTemplate(
-      test.catalogItemCode ?? '',
+    const { version } = await this.resolveTemplateOrThrow(
+      test,
       labTenantId,
       species,
       ageWeeks
     );
 
-    if (!templateDef?.activeVersion) {
-      throw new NotFoundException(
-        'No active result template found for this test.'
-      );
-    }
-
-    const version = templateDef.activeVersion;
     const savedRows = await this.prisma.resultReportAnalyte.findMany({
       where: { reportTestId: reportTest.id },
       select: {
@@ -589,21 +681,10 @@ export class ResultEntryService {
       savedRows.map((r) => [r.templateAnalyteId, r])
     );
 
-    const missingFields: string[] = [];
-    for (const analyte of version.analytes) {
-      if (analyte.isHeader || analyte.formula || !analyte.isRequired) continue;
-      const saved = savedByTemplateId.get(analyte.id);
-      const hasValue =
-        saved &&
-        (saved.numericValue !== null ||
-          (saved.textValue !== null && saved.textValue !== '') ||
-          saved.booleanValue !== null ||
-          (saved.selectValue !== null && saved.selectValue !== ''));
-      if (!hasValue) {
-        missingFields.push(analyte.name);
-      }
-    }
-
+    const missingFields = this.validateRequiredFields(
+      version.analytes,
+      savedByTemplateId
+    );
     if (missingFields.length > 0) {
       throw new BadRequestException(
         `Missing required fields: ${missingFields.join(', ')}`
@@ -755,6 +836,7 @@ export class ResultEntryService {
       select: {
         id: true,
         catalogItemCode: true,
+        templateDefinitionId: true,
         catalogItemName: true,
         status: true,
         order: {
@@ -780,31 +862,28 @@ export class ResultEntryService {
 
     const firstTest = orderedTests[0];
     const species = firstTest.order.case.patientSpecies as PatientSpecies;
-    const ageWeeks =
-      firstTest.order.case.patientAge && firstTest.order.case.patientAgeUnit
-        ? ageToWeeks(
-            firstTest.order.case.patientAge,
-            firstTest.order.case.patientAgeUnit as AgeUnit
-          )
-        : null;
+    const ageWeeks = this.computeAgeWeeks(
+      firstTest.order.case.patientAge,
+      firstTest.order.case.patientAgeUnit
+    );
 
-    // 2. Resolve templates once per unique code (shared species/age across batch)
-    const uniqueCodes = [
-      ...new Set(orderedTests.map((t) => t.catalogItemCode ?? '')),
-    ];
+    // 2. Resolve templates once per unique code or manual pick (shared species/age across batch)
+    const testsByTemplateKey = new Map(
+      orderedTests.map((t) => [this.templateKey(t), t])
+    );
     const templateCache = new Map<
       string,
       Awaited<ReturnType<typeof this.templateVersionService.resolveTemplate>>
     >();
     await Promise.all(
-      uniqueCodes.map(async (code) => {
-        const tmpl = await this.templateVersionService.resolveTemplate(
-          code,
+      Array.from(testsByTemplateKey.entries()).map(async ([key, t]) => {
+        const tmpl = await this.templateVersionService.resolveTemplateForTest(
+          t,
           labTenantId,
           species,
           ageWeeks
         );
-        templateCache.set(code, tmpl);
+        templateCache.set(key, tmpl);
       })
     );
 
@@ -833,7 +912,7 @@ export class ResultEntryService {
     );
     for (const ot of orderedTests) {
       if (!reportTestByTestId.has(ot.id)) {
-        const templateDef = templateCache.get(ot.catalogItemCode ?? '');
+        const templateDef = templateCache.get(this.templateKey(ot));
         if (!templateDef?.activeVersion) continue;
         const rt = await this.prisma.resultReportTest.create({
           data: {
@@ -878,7 +957,7 @@ export class ResultEntryService {
       const rtId = reportTestByTestId.get(entry.testId);
       if (!rtId) continue;
 
-      const templateDef = templateCache.get(ot.catalogItemCode ?? '');
+      const templateDef = templateCache.get(this.templateKey(ot));
       if (!templateDef?.activeVersion) continue;
 
       const version = templateDef.activeVersion;
@@ -966,7 +1045,7 @@ export class ResultEntryService {
       [];
 
     for (const ot of orderedTests) {
-      const templateDef = templateCache.get(ot.catalogItemCode ?? '');
+      const templateDef = templateCache.get(this.templateKey(ot));
       if (!templateDef?.activeVersion) continue;
 
       const rtId = reportTestByTestId.get(ot.id);
@@ -1112,7 +1191,7 @@ export class ResultEntryService {
         const status = statusMap.get(ot.id);
         if (!status || !['READY', 'IN_PROGRESS'].includes(status)) continue;
 
-        const templateDef = templateCache.get(ot.catalogItemCode ?? '');
+        const templateDef = templateCache.get(this.templateKey(ot));
         if (!templateDef?.activeVersion) continue;
 
         const rtId = reportTestByTestId.get(ot.id);
@@ -1127,19 +1206,10 @@ export class ResultEntryService {
         );
 
         // Check required fields
-        const missingFields: string[] = [];
-        for (const analyte of version.analytes) {
-          if (analyte.isHeader || analyte.formula || !analyte.isRequired)
-            continue;
-          const saved = savedByTemplateId.get(analyte.id);
-          const hasValue =
-            saved &&
-            (saved.numericValue !== null ||
-              (saved.textValue !== null && saved.textValue !== '') ||
-              saved.booleanValue !== null ||
-              (saved.selectValue !== null && saved.selectValue !== ''));
-          if (!hasValue) missingFields.push(analyte.name);
-        }
+        const missingFields = this.validateRequiredFields(
+          version.analytes,
+          savedByTemplateId
+        );
         if (missingFields.length > 0) {
           throw new BadRequestException(
             `Missing required fields for ${
@@ -1227,6 +1297,7 @@ export class ResultEntryService {
         id: true,
         status: true,
         catalogItemCode: true,
+        templateDefinitionId: true,
         catalogItemName: true,
         order: {
           select: {
@@ -1256,35 +1327,35 @@ export class ResultEntryService {
     );
     if (eligible.length === 0) return [];
 
-    // Resolve templates once per unique (catalogCode, species, ageWeeks)
+    // Resolve templates once per unique (catalogCode or manual pick, species, ageWeeks)
     const templateCache = new Map<
       string,
       Awaited<ReturnType<typeof this.templateVersionService.resolveTemplate>>
     >();
     const cacheKeys = new Map<
       string,
-      { code: string; species: PatientSpecies; ageWeeks: number | null }
+      {
+        test: (typeof eligible)[number];
+        species: PatientSpecies;
+        ageWeeks: number | null;
+      }
     >();
     for (const t of eligible) {
-      const code = t.catalogItemCode ?? '';
       const species = t.order.case.patientSpecies as PatientSpecies;
-      const ageWeeks =
-        t.order.case.patientAge && t.order.case.patientAgeUnit
-          ? ageToWeeks(
-              t.order.case.patientAge,
-              t.order.case.patientAgeUnit as AgeUnit
-            )
-          : null;
-      const key = `${code}::${species}::${ageWeeks}`;
+      const ageWeeks = this.computeAgeWeeks(
+        t.order.case.patientAge,
+        t.order.case.patientAgeUnit
+      );
+      const key = `${this.templateKey(t)}::${species}::${ageWeeks}`;
       if (!cacheKeys.has(key)) {
-        cacheKeys.set(key, { code, species, ageWeeks });
+        cacheKeys.set(key, { test: t, species, ageWeeks });
       }
     }
     await Promise.all(
       Array.from(cacheKeys.entries()).map(
-        async ([key, { code, species, ageWeeks }]) => {
-          const tmpl = await this.templateVersionService.resolveTemplate(
-            code,
+        async ([key, { test, species, ageWeeks }]) => {
+          const tmpl = await this.templateVersionService.resolveTemplateForTest(
+            test,
             labTenantId,
             species,
             ageWeeks
@@ -1329,15 +1400,11 @@ export class ResultEntryService {
 
     return eligible.map((test) => {
       const species = test.order.case.patientSpecies as PatientSpecies;
-      const ageWeeks =
-        test.order.case.patientAge && test.order.case.patientAgeUnit
-          ? ageToWeeks(
-              test.order.case.patientAge,
-              test.order.case.patientAgeUnit as AgeUnit
-            )
-          : null;
-      const code = test.catalogItemCode ?? '';
-      const key = `${code}::${species}::${ageWeeks}`;
+      const ageWeeks = this.computeAgeWeeks(
+        test.order.case.patientAge,
+        test.order.case.patientAgeUnit
+      );
+      const key = `${this.templateKey(test)}::${species}::${ageWeeks}`;
       const templateDef = templateCache.get(key) ?? null;
 
       if (!templateDef?.activeVersion) {
@@ -1361,54 +1428,7 @@ export class ResultEntryService {
         savedAnalytes.map((a) => [a.templateAnalyteId, a])
       );
 
-      const sectionMap = new Map<
-        string | null,
-        {
-          id: string | null;
-          code: string | null;
-          name: string | null;
-          analytes: unknown[];
-        }
-      >();
-      sectionMap.set(null, { id: null, code: null, name: null, analytes: [] });
-      for (const s of version.sections) {
-        sectionMap.set(s.id, {
-          id: s.id,
-          code: s.code ?? null,
-          name: s.name,
-          analytes: [],
-        });
-      }
-
-      for (const analyte of version.analytes) {
-        const saved = savedByTemplateId.get(analyte.id);
-        const entry = {
-          id: analyte.id,
-          code: analyte.code,
-          name: analyte.name,
-          technique: analyte.technique ?? null,
-          valueType: analyte.valueType,
-          unit: analyte.unit ?? null,
-          options: analyte.options ?? [],
-          referenceRange: analyte.referenceRange ?? null,
-          isHeader: analyte.isHeader,
-          isRequired: analyte.isRequired,
-          formula: analyte.formula ?? null,
-          sortOrder: analyte.sortOrder,
-          savedValueId: saved?.id ?? null,
-          numericValue: saved?.numericValue ?? null,
-          textValue: saved?.textValue ?? null,
-          booleanValue: saved?.booleanValue ?? null,
-          selectValue: saved?.selectValue ?? null,
-        };
-        const section =
-          sectionMap.get(analyte.sectionId ?? null) ?? sectionMap.get(null)!;
-        section.analytes.push(entry);
-      }
-
-      const sections = Array.from(sectionMap.values()).filter(
-        (s) => s.analytes.length > 0
-      );
+      const sections = this.buildSections(version, savedByTemplateId);
 
       return {
         test: {

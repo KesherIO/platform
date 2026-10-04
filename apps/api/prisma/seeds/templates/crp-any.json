@@ -2,7 +2,6 @@
   "catalogItemCode": "CRP",
   "species": "ANY",
   "title": "Proteína C Reactiva Canina (sin valores de referencia)",
-  "defaultObservations": "Tipo de muestra: suero.",
   "sections": [
     {
       "name": "Resultados",

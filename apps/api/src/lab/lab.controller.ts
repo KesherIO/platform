@@ -11,7 +11,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
 import { LabTenantGuard } from './lab-tenant.guard';
@@ -83,6 +86,8 @@ import {
   ApproveAmendmentDto,
 } from './dto/amendment.dto';
 import { ReadinessService } from './readiness.service';
+import { PdfProcessorService } from '../pdf/pdf-processor.service';
+import { StorageService } from '../storage/storage.service';
 
 @Controller('lab')
 export class LabController {
@@ -100,7 +105,9 @@ export class LabController {
     private readonly releaseService: ReleaseService,
     private readonly amendmentService: AmendmentService,
     private readonly worklistService: WorklistService,
-    private readonly readinessService: ReadinessService
+    private readonly readinessService: ReadinessService,
+    private readonly pdfProcessor: PdfProcessorService,
+    private readonly storageService: StorageService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -686,11 +693,29 @@ export class LabController {
     return this.amendmentService.initiateAmendment({
       orderId,
       labTenantId: tenant.tenantId,
-      reportTestId: dto.reportTestId,
+      orderedTestId: dto.orderedTestId,
       reason: dto.reason,
       actorId: user.id,
       actorName,
     });
+  }
+
+  // GET /api/lab/orders/:orderId/active-amendments
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(
+    TenantRole.TECHNICIAN,
+    TenantRole.ANALYST,
+    TenantRole.REVIEWER,
+    TenantRole.DATA_ENTRY,
+    TenantRole.ADMIN,
+    TenantRole.OWNER
+  )
+  @Get('orders/:orderId/active-amendments')
+  getActiveAmendments(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string
+  ) {
+    return this.amendmentService.getActiveAmendments(orderId, tenant.tenantId);
   }
 
   // GET /api/lab/orders/:orderId/amendments/:amendmentId
@@ -1635,5 +1660,67 @@ export class LabController {
     @Param('id') catalogItemId: string
   ) {
     return this.readinessService.checkReadiness(tenant.tenantId, catalogItemId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PDF artifacts
+  // GET  lab/releases/:releaseId/artifacts/pdf          — status
+  // GET  lab/releases/:releaseId/artifacts/pdf/download — binary download
+  // POST lab/releases/:releaseId/artifacts/pdf/retry    — admin retry
+  // ---------------------------------------------------------------------------
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('releases/:releaseId/artifacts/pdf')
+  async getPdfArtifactStatus(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('releaseId') releaseId: string
+  ) {
+    const artifact = await this.releaseService.getPdfArtifact(
+      releaseId,
+      tenant.tenantId
+    );
+    return artifact;
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Get('releases/:releaseId/artifacts/pdf/download')
+  async downloadPdf(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('releaseId') releaseId: string,
+    @Res() res: Response
+  ) {
+    const artifact = await this.releaseService.getPdfArtifact(
+      releaseId,
+      tenant.tenantId
+    );
+    if (artifact.status !== 'COMPLETED' || !artifact.storageUrl) {
+      throw new NotFoundException('PDF not ready yet.');
+    }
+    const buffer = await this.storageService.downloadObject(
+      'lab-reports',
+      artifact.storageUrl
+    );
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="release-${releaseId}.pdf"`,
+      'Content-Length': buffer.length.toString(),
+    });
+    res.end(buffer);
+  }
+
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('releases/:releaseId/artifacts/pdf/retry')
+  @HttpCode(HttpStatus.OK)
+  async retryPdf(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('releaseId') releaseId: string
+  ) {
+    const artifact = await this.releaseService.getPdfArtifact(
+      releaseId,
+      tenant.tenantId
+    );
+    await this.pdfProcessor.retryArtifact(artifact.id);
+    return { queued: true };
   }
 }

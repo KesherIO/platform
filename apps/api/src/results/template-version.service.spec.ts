@@ -88,6 +88,7 @@ function makePrismaMock() {
     resultTemplateDefinition: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -445,6 +446,53 @@ describe('TemplateVersionService', () => {
       );
 
       expect(result?.id).toBe('def-dog');
+    });
+  });
+  describe('resolveTemplateForTest', () => {
+    it('uses the manually picked definition, scoped to this lab', async () => {
+      const picked = { ...DEFINITION, id: 'def-dog', activeVersion: VERSION };
+      prisma.resultTemplateDefinition.findFirst.mockResolvedValue(picked);
+
+      const result = await service.resolveTemplateForTest(
+        { catalogItemCode: 'PROG', templateDefinitionId: 'def-dog' },
+        'lab-1',
+        'BOVINE' as any,
+        null
+      );
+
+      expect(result).toBe(picked);
+      expect(prisma.resultTemplateDefinition.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 'def-dog',
+            activeVersionId: { not: null },
+            OR: [
+              { scope: 'PLATFORM' },
+              { scope: 'LABORATORY', labTenantId: 'lab-1' },
+            ],
+          },
+        })
+      );
+      expect(prisma.resultTemplateDefinition.findMany).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the species match when nothing was picked', async () => {
+      prisma.resultTemplateDefinition.findMany.mockResolvedValue([]);
+
+      const result = await service.resolveTemplateForTest(
+        { catalogItemCode: 'PROG', templateDefinitionId: null },
+        'lab-1',
+        'BOVINE' as any,
+        null
+      );
+
+      expect(result).toBeNull();
+      expect(prisma.resultTemplateDefinition.findFirst).not.toHaveBeenCalled();
+      expect(prisma.resultTemplateDefinition.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ catalogItemCode: 'PROG' }),
+        })
+      );
     });
   });
 });

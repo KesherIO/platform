@@ -327,6 +327,7 @@ export interface LabContactInfo {
   email: string;
   logoUrl: string | null;
   address: string;
+  city: string;
   phoneNumbers: LabPhoneNumber[];
   mapLat: number | null;
   mapLng: number | null;
@@ -650,6 +651,7 @@ export interface TemplateAnalyte {
   options: string[];
   sortOrder: number;
   isHeader: boolean;
+  isRequired: boolean;
   formula: string | null;
   referenceRange: ReferenceRange | null;
 }
@@ -812,6 +814,8 @@ export interface ReleaseInfo {
   releaseType: ReleaseType;
   signerName: string;
   releasedAt: string;
+  pdfStatus: string;
+  pdfUrl: string | null;
   tests: ReleaseTestInfo[];
   artifacts: Array<{
     status: string;
@@ -841,8 +845,25 @@ export interface AmendmentAnalyteInfo {
   booleanValue: boolean | null;
   selectValue: string | null;
   unit: string | null;
+  formula: string | null;
+  /** SELECT values / TEXT suggestions, from the template version */
+  options: string[];
   flag: string | null;
   referenceSnapshot: unknown;
+}
+
+/** One editable value in a draft amendment (only the value fields). */
+export type AmendmentValue = Pick<
+  AmendmentAnalyteInfo,
+  'numericValue' | 'textValue' | 'booleanValue' | 'selectValue'
+>;
+
+/** An open (DRAFT / IN_REVIEW) amendment, used to resume it after a reload. */
+export interface ActiveAmendmentSummary {
+  amendmentId: string;
+  status: AmendmentStatus;
+  reason: string;
+  orderedTestId: string;
 }
 
 export interface AmendmentInfo {

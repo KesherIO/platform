@@ -34,6 +34,10 @@ export class UpdateLabContactDto {
 
   @IsString()
   @IsOptional()
+  city?: string;
+
+  @IsString()
+  @IsOptional()
   logoUrl?: string;
 
   @IsArray()

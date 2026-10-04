@@ -2,7 +2,6 @@
   "catalogItemCode": "NH3",
   "species": "ANY",
   "title": "Amoníaco (sin valores de referencia)",
-  "defaultObservations": "Tipo de muestra: plasma con EDTA. Procesar dentro de los 30 minutos de la toma.",
   "sections": [
     {
       "name": "Resultados",

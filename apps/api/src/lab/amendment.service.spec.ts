@@ -8,11 +8,13 @@ import {
 import { AmendmentService } from './amendment.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStatusService } from './order-status.service';
+import { StorageService } from '../storage/storage.service';
 
 describe('AmendmentService', () => {
   let service: AmendmentService;
   let prisma: Record<string, any>;
   let orderStatusService: Record<string, any>;
+  let storage: Record<string, jest.Mock>;
 
   const baseSigner = {
     id: 'signer-1',
@@ -45,13 +47,17 @@ describe('AmendmentService', () => {
       resultReportAmendmentAnalyte: {
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       resultReportReleaseTest: {
         findFirst: jest.fn(),
         create: jest.fn(),
       },
       resultReportRelease: { create: jest.fn() },
-      resultReportReleaseAnalyte: { create: jest.fn() },
+      resultReportReleaseAnalyte: {
+        create: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       resultReportReleaseArtifact: { create: jest.fn() },
       labSigner: { findUnique: jest.fn() },
       timelineEvent: { create: jest.fn() },
@@ -68,12 +74,20 @@ describe('AmendmentService', () => {
     orderStatusService = {
       deriveAndPersist: jest.fn().mockResolvedValue({ changed: false }),
     };
+    storage = {
+      snapshotReleaseImages: jest.fn().mockResolvedValue({
+        logoStoragePath: null,
+        signerSignatureStoragePath: null,
+        analystSignatureStoragePath: null,
+      }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AmendmentService,
         { provide: PrismaService, useValue: prisma },
         { provide: OrderStatusService, useValue: orderStatusService },
+        { provide: StorageService, useValue: storage },
       ],
     }).compile();
 
@@ -84,13 +98,66 @@ describe('AmendmentService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('getActiveAmendments', () => {
+    it('lists open amendments with the ordered test they belong to', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        id: 'order-1',
+        resultReport: { id: 'report-1' },
+      });
+      prisma.resultReportAmendment.findMany.mockResolvedValue([
+        {
+          id: 'amend-1',
+          status: 'DRAFT',
+          reason: 'Wrong value',
+          reportTest: { orderedTestId: 'ot-1' },
+        },
+      ]);
+
+      const result = await service.getActiveAmendments('order-1', 'lab-1');
+
+      expect(result).toEqual([
+        {
+          amendmentId: 'amend-1',
+          status: 'DRAFT',
+          reason: 'Wrong value',
+          orderedTestId: 'ot-1',
+        },
+      ]);
+      expect(prisma.resultReportAmendment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            reportId: 'report-1',
+            status: { in: ['DRAFT', 'IN_REVIEW'] },
+          },
+        })
+      );
+    });
+
+    it('returns an empty list when the order has no report', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        id: 'order-1',
+        resultReport: null,
+      });
+
+      expect(await service.getActiveAmendments('order-1', 'lab-1')).toEqual([]);
+    });
+
+    it('throws NotFoundException for an order outside the lab', async () => {
+      prisma.order.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.getActiveAmendments('order-1', 'lab-1')
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('initiateAmendment', () => {
     it('scenario 14: throws BadRequestException without reason', async () => {
       await expect(
         service.initiateAmendment({
           orderId: 'order-1',
           labTenantId: 'lab-1',
-          reportTestId: 'rt-1',
+          orderedTestId: 'ot-1',
           reason: '',
           actorId: 'user-1',
           actorName: 'User',
@@ -114,7 +181,7 @@ describe('AmendmentService', () => {
         service.initiateAmendment({
           orderId: 'order-1',
           labTenantId: 'lab-1',
-          reportTestId: 'rt-1',
+          orderedTestId: 'ot-1',
           reason: 'Incorrect WBC value',
           actorId: 'user-1',
           actorName: 'User',
@@ -141,12 +208,41 @@ describe('AmendmentService', () => {
         service.initiateAmendment({
           orderId: 'order-1',
           labTenantId: 'lab-1',
-          reportTestId: 'rt-1',
+          orderedTestId: 'ot-1',
           reason: 'Incorrect WBC value',
           actorId: 'user-1',
           actorName: 'User',
         })
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('finds the report test from the ordered test ID the lab sends', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        id: 'order-1',
+        resultReport: { id: 'report-1' },
+      });
+      prisma.resultReportTest.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.initiateAmendment({
+          orderId: 'order-1',
+          labTenantId: 'lab-1',
+          orderedTestId: 'ot-1',
+          reason: 'Incorrect WBC value',
+          actorId: 'user-1',
+          actorName: 'User',
+        })
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.resultReportTest.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            reportId_orderedTestId: {
+              reportId: 'report-1',
+              orderedTestId: 'ot-1',
+            },
+          },
+        })
+      );
     });
 
     it('creates amendment with DRAFT status and copies analytes from release snapshot', async () => {
@@ -206,7 +302,7 @@ describe('AmendmentService', () => {
       const result = await service.initiateAmendment({
         orderId: 'order-1',
         labTenantId: 'lab-1',
-        reportTestId: 'rt-1',
+        orderedTestId: 'ot-1',
         reason: 'Incorrect WBC value',
         actorId: 'user-1',
         actorName: 'User',
@@ -244,7 +340,9 @@ describe('AmendmentService', () => {
         status: 'DRAFT',
         reportTest: { report: { orderId: 'order-1' } },
       });
-      prisma.resultReportAmendmentAnalyte.update.mockResolvedValue({});
+      prisma.resultReportAmendmentAnalyte.updateMany.mockResolvedValue({
+        count: 1,
+      });
 
       const result = await service.editAmendmentAnalytes({
         orderId: 'order-1',
@@ -254,8 +352,16 @@ describe('AmendmentService', () => {
       });
 
       expect(result.updated).toBe(1);
-      expect(prisma.resultReportAmendmentAnalyte.update).toHaveBeenCalledWith({
-        where: { id: 'ama-1' },
+      // Scoped to this amendment's own editable rows
+      expect(
+        prisma.resultReportAmendmentAnalyte.updateMany
+      ).toHaveBeenCalledWith({
+        where: {
+          id: 'ama-1',
+          amendmentId: 'amend-1',
+          isHeader: false,
+          formula: null,
+        },
         data: {
           numericValue: 15.0,
           textValue: null,
@@ -287,7 +393,104 @@ describe('AmendmentService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    const draftWithWbc = (numericValue: number | null) => ({
+      id: 'amend-1',
+      status: 'DRAFT',
+      sourceReleaseId: 'rel-1',
+      reportTestId: 'rt-1',
+      analytes: [
+        {
+          id: 'ama-1',
+          code: 'WBC',
+          name: 'WBC',
+          isHeader: false,
+          formula: null,
+          numericValue,
+          textValue: null,
+          booleanValue: null,
+          selectValue: null,
+        },
+      ],
+      reportTest: { report: { orderId: 'order-1' } },
+    });
+    const releasedWbc = (numericValue: number | null) => [
+      {
+        code: 'WBC',
+        numericValue,
+        textValue: null,
+        booleanValue: null,
+        selectValue: null,
+      },
+    ];
+    const submit = () =>
+      service.submitForReview({
+        orderId: 'order-1',
+        labTenantId: 'lab-1',
+        amendmentId: 'amend-1',
+        actorId: 'user-1',
+        actorName: 'User',
+      });
+
+    it('rejects an amendment with no changes from the release', async () => {
+      prisma.order.findFirst.mockResolvedValue({ id: 'order-1' });
+      prisma.resultReportAmendment.findUnique.mockResolvedValue(
+        draftWithWbc(15)
+      );
+      prisma.resultReportReleaseAnalyte.findMany.mockResolvedValue(
+        releasedWbc(15)
+      );
+
+      await expect(submit()).rejects.toThrow(
+        'The amendment has no changes from the released result.'
+      );
+      expect(prisma.resultReportAmendment.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects clearing a value that was released', async () => {
+      prisma.order.findFirst.mockResolvedValue({ id: 'order-1' });
+      prisma.resultReportAmendment.findUnique.mockResolvedValue(
+        draftWithWbc(null)
+      );
+      prisma.resultReportReleaseAnalyte.findMany.mockResolvedValue(
+        releasedWbc(15)
+      );
+
+      await expect(submit()).rejects.toThrow(
+        'Missing required analyte values: WBC'
+      );
+    });
+
+    it('allows an optional value that was already empty when released', async () => {
+      prisma.order.findFirst.mockResolvedValue({ id: 'order-1' });
+      const draft = draftWithWbc(16);
+      draft.analytes.push({
+        ...draft.analytes[0],
+        id: 'ama-2',
+        code: 'ATB',
+        name: 'Antibiograma',
+        numericValue: null,
+      });
+      prisma.resultReportAmendment.findUnique.mockResolvedValue(draft);
+      prisma.resultReportReleaseAnalyte.findMany.mockResolvedValue([
+        ...releasedWbc(15),
+        {
+          code: 'ATB',
+          numericValue: null,
+          textValue: null,
+          booleanValue: null,
+          selectValue: null,
+        },
+      ]);
+      prisma.resultReportAmendment.update.mockResolvedValue({});
+      prisma.timelineEvent.create.mockResolvedValue({});
+
+      expect((await submit()).status).toBe('IN_REVIEW');
+    });
+
     it('transitions to IN_REVIEW when all analytes have values', async () => {
+      prisma.resultReportReleaseAnalyte.findMany.mockResolvedValue(
+        releasedWbc(12)
+      );
       prisma.order.findFirst.mockResolvedValue({ id: 'order-1' });
       prisma.resultReportAmendment.findUnique.mockResolvedValue({
         id: 'amend-1',
@@ -324,6 +527,7 @@ describe('AmendmentService', () => {
 
   describe('approveAmendment', () => {
     it('scenario 16: amendment does not reopen test/order — OrderedTest stays COMPLETED', async () => {
+      let lastTx: ReturnType<typeof buildPrismaMock> = buildPrismaMock();
       prisma.order.findFirst.mockResolvedValue({
         id: 'order-1',
         caseId: 'case-1',
@@ -432,10 +636,13 @@ describe('AmendmentService', () => {
           accreditationNumber: 'ACC-123',
           directorName: 'Dr. Lab',
           directorCredentials: 'PhD',
+          reportDisclaimer:
+            'Resultados válidos solo para la muestra analizada.',
         });
         (orderStatusService.deriveAndPersist as jest.Mock).mockResolvedValue({
           changed: false,
         });
+        lastTx = tx;
         return fn(tx);
       });
 
@@ -454,6 +661,20 @@ describe('AmendmentService', () => {
       expect(result.releaseSequence).toBe(2);
       expect(result.amendsReleaseTestId).toBe('rlt-1');
       expect(result.aggregateReportStatus).toBe('ALL_RELEASED');
+      // The lab's report note is printed before the signatures, as on regular releases
+      expect(lastTx.resultReportRelease.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          reportDisclaimer:
+            'Resultados válidos solo para la muestra analizada.',
+        }),
+      });
+      expect(storage.snapshotReleaseImages).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          signerSignatureUrl: baseSigner.signatureUrl ?? null,
+          analystSignatureUrl: null,
+        })
+      );
     });
 
     it('scenario 17: report status unaffected by pending amendment', async () => {
@@ -490,7 +711,7 @@ describe('AmendmentService', () => {
       const result = await service.initiateAmendment({
         orderId: 'order-1',
         labTenantId: 'lab-1',
-        reportTestId: 'rt-1',
+        orderedTestId: 'ot-1',
         reason: 'Typo correction',
         actorId: 'user-1',
         actorName: 'User',

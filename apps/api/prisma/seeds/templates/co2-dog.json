@@ -2,7 +2,6 @@
   "catalogItemCode": "CO2",
   "species": "DOG",
   "title": "Bicarbonato",
-  "defaultObservations": "Tipo de muestra: suero.",
   "sections": [
     {
       "name": "Resultados",
