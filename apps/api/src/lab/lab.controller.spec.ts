@@ -157,15 +157,13 @@ describe('LabController', () => {
               aggregateReportStatus: 'PARTIAL_RESULTS',
             }),
             getCurrentResults: jest.fn().mockResolvedValue({ tests: [] }),
-            getPdfArtifact: jest
-              .fn()
-              .mockResolvedValue({
-                id: 'art-1',
-                status: 'COMPLETED',
-                storageUrl: null,
-                errorMessage: null,
-                retryCount: 0,
-              }),
+            getPdfArtifact: jest.fn().mockResolvedValue({
+              id: 'art-1',
+              status: 'COMPLETED',
+              storageUrl: null,
+              errorMessage: null,
+              retryCount: 0,
+            }),
           },
         },
         {
