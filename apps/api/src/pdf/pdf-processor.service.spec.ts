@@ -249,7 +249,9 @@ describe('PdfProcessorService', () => {
       });
 
       const logger = (service as any).logger;
-      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => undefined);
+      const warnSpy = jest
+        .spyOn(logger, 'warn')
+        .mockImplementation(() => undefined);
 
       await expect((service as any).claimAndProcess()).resolves.not.toThrow();
       expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/reclaim/i));
