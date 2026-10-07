@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
 import { PdfProcessorService } from './pdf-processor.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -87,7 +86,7 @@ describe('PdfProcessorService', () => {
     // Prevent the poll loop from auto-starting during module init
     jest
       .spyOn(PdfProcessorService.prototype, 'onModuleInit')
-      .mockImplementation(() => {});
+      .mockImplementation(() => undefined);
 
     prisma = buildPrismaMock();
     storage = {
@@ -111,10 +110,6 @@ describe('PdfProcessorService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: StorageService, useValue: storage },
         { provide: PdfRendererService, useValue: renderer },
-        {
-          provide: ConfigService,
-          useValue: { get: jest.fn().mockReturnValue('') },
-        },
       ],
     }).compile();
 
@@ -254,7 +249,7 @@ describe('PdfProcessorService', () => {
       });
 
       const logger = (service as any).logger;
-      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => undefined);
 
       await expect((service as any).claimAndProcess()).resolves.not.toThrow();
       expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/reclaim/i));
@@ -356,7 +351,7 @@ describe('PdfProcessorService', () => {
       });
       const warnSpy = jest
         .spyOn((service as any).logger, 'warn')
-        .mockImplementation(() => {});
+        .mockImplementation(() => undefined);
 
       await (service as any).recoverStale();
 
@@ -369,7 +364,7 @@ describe('PdfProcessorService', () => {
       });
       const warnSpy = jest
         .spyOn((service as any).logger, 'warn')
-        .mockImplementation(() => {});
+        .mockImplementation(() => undefined);
 
       await (service as any).recoverStale();
 
@@ -428,7 +423,7 @@ describe('PdfProcessorService', () => {
     it('onModuleDestroy clears the pending timer', () => {
       jest.useFakeTimers();
       // Simulate a timer handle as if runCycle had already run
-      const handle = setTimeout(() => {}, 5_000);
+      const handle = setTimeout(() => undefined, 5_000);
       (service as any).pollTimer = handle;
 
       const clearSpy = jest.spyOn(global, 'clearTimeout');

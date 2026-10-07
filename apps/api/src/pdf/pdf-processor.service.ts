@@ -4,7 +4,6 @@ import {
   OnModuleInit,
   OnModuleDestroy,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,8 +26,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
-    private readonly renderer: PdfRendererService,
-    private readonly config: ConfigService
+    private readonly renderer: PdfRendererService
   ) {}
 
   onModuleInit() {
