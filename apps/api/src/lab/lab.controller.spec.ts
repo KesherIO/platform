@@ -16,6 +16,8 @@ import { AmendmentService } from './amendment.service';
 import { ReadinessService } from './readiness.service';
 import { LabVetVerificationService } from './lab-vet-verification.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PdfProcessorService } from '../pdf/pdf-processor.service';
+import { StorageService } from '../storage/storage.service';
 
 describe('LabController', () => {
   let controller: LabController;
@@ -155,6 +157,23 @@ describe('LabController', () => {
               aggregateReportStatus: 'PARTIAL_RESULTS',
             }),
             getCurrentResults: jest.fn().mockResolvedValue({ tests: [] }),
+            getPdfArtifact: jest.fn().mockResolvedValue({
+              id: 'art-1',
+              status: 'COMPLETED',
+              storageUrl: null,
+              errorMessage: null,
+              retryCount: 0,
+            }),
+          },
+        },
+        {
+          provide: PdfProcessorService,
+          useValue: { retryArtifact: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: StorageService,
+          useValue: {
+            downloadObject: jest.fn().mockResolvedValue(Buffer.from('pdf')),
           },
         },
         {
@@ -165,6 +184,7 @@ describe('LabController', () => {
               status: 'DRAFT',
               analytes: [],
             }),
+            getActiveAmendments: jest.fn().mockResolvedValue([]),
             getAmendment: jest.fn().mockResolvedValue({
               amendment: {},
               sourceAnalytes: [],
@@ -332,7 +352,7 @@ describe('LabController', () => {
 
     it('initiateAmendment delegates to amendmentService', async () => {
       await controller.initiateAmendment(tenant, user, 'order-1', {
-        reportTestId: 'rt-1',
+        orderedTestId: 'ot-1',
         reason: 'Wrong value',
       });
 
@@ -340,9 +360,17 @@ describe('LabController', () => {
         expect.objectContaining({
           orderId: 'order-1',
           labTenantId: 'lab-1',
-          reportTestId: 'rt-1',
+          orderedTestId: 'ot-1',
           reason: 'Wrong value',
         })
+      );
+    });
+
+    it('getActiveAmendments delegates to amendmentService', async () => {
+      await controller.getActiveAmendments(tenant, 'order-1');
+      expect(amendmentService.getActiveAmendments).toHaveBeenCalledWith(
+        'order-1',
+        'lab-1'
       );
     });
 

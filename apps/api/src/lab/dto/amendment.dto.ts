@@ -32,7 +32,7 @@ class AmendmentAnalyteInput {
 
 export class InitiateAmendmentDto {
   @IsString()
-  reportTestId!: string;
+  orderedTestId!: string;
 
   @IsString()
   @IsNotEmpty()

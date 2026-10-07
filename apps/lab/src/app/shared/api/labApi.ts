@@ -31,6 +31,7 @@ import type {
   ReleaseHistoryResponse,
   CurrentResultsResponse,
   AmendmentInfo,
+  ActiveAmendmentSummary,
   AmendmentAnalyteInfo,
   VetVerificationSummary,
   VetVerificationDetail,
@@ -443,11 +444,39 @@ export const labApi = {
       get<ReleaseHistoryResponse>(`lab/orders/${orderId}/releases`),
     getCurrentResults: (orderId: string) =>
       get<CurrentResultsResponse>(`lab/orders/${orderId}/current-results`),
+    getArtifactStatus: (releaseId: string) =>
+      get<{
+        id: string;
+        status: string;
+        errorMessage: string | null;
+        retryCount: number;
+      }>(`lab/releases/${releaseId}/artifacts/pdf`),
+    downloadPdf: async (releaseId: string, filename: string): Promise<void> => {
+      const headers = await authHeaders();
+      const res = await fetch(
+        `/api/lab/releases/${releaseId}/artifacts/pdf/download`,
+        { headers }
+      );
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+    retryPdf: (releaseId: string) =>
+      post<{ queued: boolean }>(
+        `lab/releases/${releaseId}/artifacts/pdf/retry`,
+        {}
+      ),
   },
   amendment: {
+    listActive: (orderId: string) =>
+      get<ActiveAmendmentSummary[]>(`lab/orders/${orderId}/active-amendments`),
     initiate: (
       orderId: string,
-      data: { reportTestId: string; reason: string }
+      data: { orderedTestId: string; reason: string }
     ) =>
       post<{
         amendmentId: string;

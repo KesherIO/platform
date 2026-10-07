@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -18,13 +19,22 @@ const LOGO_BUCKET = 'clinic-logos';
 /** Private Supabase Storage bucket for vet credential documents */
 const VET_CREDENTIALS_BUCKET = 'vet-credentials';
 
+/** Private bucket for generated lab report PDFs */
+const PDF_BUCKET = 'lab-reports';
+
+/** Private bucket for release-specific image assets (logos, signatures) */
+const RELEASE_ASSETS_BUCKET = 'release-assets';
+
 @Injectable()
 export class StorageService {
+  private readonly logger = new Logger(StorageService.name);
   private readonly supabase: SupabaseClient;
+  private readonly supabaseUrl: string;
 
   constructor(config: ConfigService) {
+    this.supabaseUrl = config.getOrThrow<string>('SUPABASE_URL');
     this.supabase = createClient(
-      config.getOrThrow<string>('SUPABASE_URL'),
+      this.supabaseUrl,
       // Use the service-role key for server-side storage operations (bypasses RLS)
       config.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY')
     );
@@ -109,9 +119,184 @@ export class StorageService {
     return data.signedUrl;
   }
 
+  /**
+   * Upload a PDF to the private lab-reports bucket.
+   * `upsert: false` — path includes releaseId so it is unique; never overwrites.
+   */
+  async uploadPdf(path: string, buffer: Buffer): Promise<void> {
+    const { error } = await this.supabase.storage
+      .from(PDF_BUCKET)
+      .upload(path, buffer, { contentType: 'application/pdf', upsert: false });
+    if (error) {
+      throw new InternalServerErrorException(
+        `PDF upload failed: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * Download an object from any private bucket into a Buffer.
+   */
+  async downloadObject(bucket: string, path: string): Promise<Buffer> {
+    const { data, error } = await this.supabase.storage
+      .from(bucket)
+      .download(path);
+    if (error || !data) {
+      throw new InternalServerErrorException(
+        `Failed to download ${bucket}/${path}: ${error?.message ?? 'no data'}`
+      );
+    }
+    const arrayBuffer = await data.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
+  /**
+   * Return true if the object at path exists in the given bucket.
+   */
+  async headObject(bucket: string, path: string): Promise<boolean> {
+    const { error } = await this.supabase.storage.from(bucket).download(path);
+    return !error;
+  }
+
+  /**
+   * Upload a release image asset (logo / signature) to the release-assets bucket.
+   * Bucket must be private and created in Supabase before use.
+   */
+  async uploadReleaseAsset(
+    path: string,
+    buffer: Buffer,
+    contentType: string
+  ): Promise<void> {
+    const { error } = await this.supabase.storage
+      .from(RELEASE_ASSETS_BUCKET)
+      .upload(path, buffer, { contentType, upsert: false });
+    if (error) {
+      throw new InternalServerErrorException(
+        `Release asset upload failed: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * Copy a logo or signature into the release-assets bucket so the PDF never
+   * depends on the live image. Accepts `data:` URLs (how lab signer signatures
+   * are stored) and Supabase-hosted URLs (clinic logos).
+   *
+   * Returns the stored path, or null when there is no image or it is not a
+   * PNG/JPEG (the only formats pdfkit can embed). Upload errors are thrown.
+   */
+  async snapshotReleaseImage(
+    releaseId: string,
+    name: string,
+    url: string | null
+  ): Promise<string | null> {
+    if (!url) return null;
+    const buffer = await this.loadImage(url);
+    if (!buffer) return null;
+
+    const type = this.detectPdfImageType(buffer);
+    if (!type) return null;
+
+    const path = `${releaseId}/${name}.${type === 'jpeg' ? 'jpg' : 'png'}`;
+    await this.uploadReleaseAsset(path, buffer, `image/${type}`);
+    return path;
+  }
+
+  /**
+   * Snapshot every image a release PDF uses. Never throws: a missing or
+   * unusable image leaves its path null — the PDF then omits the logo, or
+   * draws an empty signature line for manual signing — so releasing is never
+   * blocked by an image problem.
+   */
+  async snapshotReleaseImages(
+    releaseId: string,
+    urls: {
+      logoUrl: string | null;
+      signerSignatureUrl: string | null;
+      analystSignatureUrl: string | null;
+    }
+  ): Promise<{
+    logoStoragePath: string | null;
+    signerSignatureStoragePath: string | null;
+    analystSignatureStoragePath: string | null;
+  }> {
+    const snapshot = async (name: string, url: string | null) => {
+      try {
+        const path = await this.snapshotReleaseImage(releaseId, name, url);
+        if (url && !path) {
+          this.logger.warn(
+            `Release ${releaseId}: ${name} is not a usable PNG/JPEG image — omitted from PDF`
+          );
+        }
+        return path;
+      } catch (err) {
+        this.logger.warn(
+          `Release ${releaseId}: failed to store ${name}: ${
+            err instanceof Error ? err.message : err
+          }`
+        );
+        return null;
+      }
+    };
+
+    const [
+      logoStoragePath,
+      signerSignatureStoragePath,
+      analystSignatureStoragePath,
+    ] = await Promise.all([
+      snapshot('logo', urls.logoUrl),
+      snapshot('signer-sig', urls.signerSignatureUrl),
+      snapshot('analyst-sig', urls.analystSignatureUrl),
+    ]);
+    return {
+      logoStoragePath,
+      signerSignatureStoragePath,
+      analystSignatureStoragePath,
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * Decode a base64 `data:` URL, or fetch a URL hosted on our Supabase project.
+   * Any other host is refused to prevent arbitrary external fetches.
+   */
+  private async loadImage(url: string): Promise<Buffer | null> {
+    if (url.startsWith('data:')) {
+      const match = /^data:[^;,]*;base64,(.+)$/s.exec(url);
+      return match ? Buffer.from(match[1], 'base64') : null;
+    }
+    if (!url.startsWith(this.supabaseUrl)) return null;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
+    } catch {
+      return null;
+    }
+  }
+
+  /** Identify PNG/JPEG by magic bytes — file extensions and MIME labels lie. */
+  private detectPdfImageType(buffer: Buffer): 'png' | 'jpeg' | null {
+    if (
+      buffer.length > 8 &&
+      buffer[0] === 0x89 &&
+      buffer.toString('ascii', 1, 4) === 'PNG'
+    ) {
+      return 'png';
+    }
+    if (
+      buffer.length > 3 &&
+      buffer[0] === 0xff &&
+      buffer[1] === 0xd8 &&
+      buffer[2] === 0xff
+    ) {
+      return 'jpeg';
+    }
+    return null;
+  }
 
   private validateLogoFile(file: Express.Multer.File): void {
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {

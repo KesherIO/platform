@@ -7,12 +7,14 @@ import {
 } from '@nestjs/common';
 import { ReleaseService } from './release.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { OrderStatusService } from './order-status.service';
 
 describe('ReleaseService', () => {
   let service: ReleaseService;
   let prisma: Record<string, any>;
   let orderStatusService: Record<string, any>;
+  let storage: Record<string, jest.Mock>;
 
   const baseSigner = {
     id: 'signer-1',
@@ -131,12 +133,20 @@ describe('ReleaseService', () => {
     orderStatusService = {
       deriveAndPersist: jest.fn().mockResolvedValue({ changed: false }),
     };
+    storage = {
+      snapshotReleaseImages: jest.fn().mockResolvedValue({
+        logoStoragePath: null,
+        signerSignatureStoragePath: null,
+        analystSignatureStoragePath: null,
+      }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ReleaseService,
         { provide: PrismaService, useValue: prisma },
         { provide: OrderStatusService, useValue: orderStatusService },
+        { provide: StorageService, useValue: storage },
       ],
     }).compile();
 
@@ -379,6 +389,55 @@ describe('ReleaseService', () => {
       expect(result.releaseSequence).toBe(1);
       expect(result.releasedTests).toHaveLength(1);
       expect(result.releasedTests[0].reportTestId).toBe('rt-1');
+    });
+
+    it('snapshots the clinic logo and signer signature onto the PDF artifact', async () => {
+      const tx = buildTxMock();
+      prisma.order.findFirst.mockResolvedValue(baseOrder);
+      prisma.resultReportTest.findMany.mockResolvedValue([baseReportTest]);
+      prisma.resultReportAmendment.findMany.mockResolvedValue([]);
+      prisma.labSigner.findUnique.mockResolvedValue(baseSigner);
+      prisma.tenant.findUnique.mockResolvedValue({
+        logoUrl: 'https://supabase.test/logo.png',
+      });
+      prisma.$transaction.mockImplementation(async (fn) => fn(tx));
+      storage.snapshotReleaseImages.mockResolvedValue({
+        logoStoragePath: 'rel/logo.png',
+        signerSignatureStoragePath: 'rel/signer-sig.png',
+        analystSignatureStoragePath: null,
+      });
+
+      await service.approveAndRelease({
+        orderId: 'order-1',
+        labTenantId: 'lab-1',
+        signerId: 'signer-1',
+        testIds: ['rt-1'],
+        actorId: 'user-1',
+        actorName: 'User',
+      });
+
+      expect(prisma.tenant.findUnique).toHaveBeenCalledWith({
+        where: { id: 'clinic-1' },
+        select: { logoUrl: true },
+      });
+      const releaseId = storage.snapshotReleaseImages.mock.calls[0][0];
+      expect(storage.snapshotReleaseImages).toHaveBeenCalledWith(releaseId, {
+        logoUrl: 'https://supabase.test/logo.png',
+        signerSignatureUrl: '/assets/sig.png',
+        analystSignatureUrl: null,
+      });
+      expect(tx.resultReportRelease.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ id: releaseId }),
+        })
+      );
+      expect(tx.resultReportReleaseArtifact.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          logoStoragePath: 'rel/logo.png',
+          signerSignatureStoragePath: 'rel/signer-sig.png',
+          analystSignatureStoragePath: null,
+        }),
+      });
     });
 
     it('scenario 2: multiple selected tests released together', async () => {

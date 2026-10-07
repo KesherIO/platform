@@ -30,6 +30,7 @@ const EMPTY_CONTACT: LabContactInfo = {
   email: '',
   logoUrl: null,
   address: '',
+  city: '',
   phoneNumbers: [],
   mapLat: null,
   mapLng: null,
@@ -656,6 +657,21 @@ export function LaboratorySettingsPage() {
               />
             </div>
 
+            {/* City */}
+            <div>
+              <label className={labelClass}>{t('settings.city')}</label>
+              <input
+                type="text"
+                value={contactInfo.city ?? ''}
+                readOnly={!isAdmin}
+                onChange={(e) =>
+                  setContactInfo({ ...contactInfo, city: e.target.value })
+                }
+                placeholder={t('settings.city_placeholder')}
+                className={inputClass}
+              />
+            </div>
+
             {/* Timezone */}
             <div>
               <label className={labelClass}>{t('settings.timezone')}</label>
@@ -1059,7 +1075,8 @@ export function LaboratorySettingsPage() {
                         {t('settings.signer_signature_hint')}
                         <input
                           type="file"
-                          accept="image/*"
+                          // pdfkit can only embed PNG/JPEG in the release PDF
+                          accept="image/png,image/jpeg"
                           className="hidden"
                           onChange={(e) => handleSignerSignatureChange(i, e)}
                         />

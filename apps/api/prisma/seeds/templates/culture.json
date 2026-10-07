@@ -76,6 +76,7 @@
           "unit": null,
           "sortOrder": 6,
           "isHeader": false,
+          "isRequired": false,
           "referenceRange": null
         },
         {
@@ -96,6 +97,7 @@
           "unit": null,
           "sortOrder": 8,
           "isHeader": false,
+          "isRequired": false,
           "referenceRange": null
         }
       ]

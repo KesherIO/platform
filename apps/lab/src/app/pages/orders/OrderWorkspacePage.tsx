@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { Skeleton } from '../../shared/components/Skeleton';
+import { ReleasePdfMenu } from '../../shared/components/ReleasePdfMenu';
 import { AccessionDialog } from './AccessionDialog';
 import { useToast } from '../../shared/components/ToastProvider';
 import { useAuth } from '../../auth/AuthContext';
@@ -154,7 +155,7 @@ export function OrderWorkspacePage() {
     string | null
   >(null);
   const [availableTemplates, setAvailableTemplates] = useState<
-    { versionId: string; label: string }[]
+    { versionId: string; label: string; species: string }[]
   >([]);
   const [assigningTemplate, setAssigningTemplate] = useState(false);
   const [templateSearch, setTemplateSearch] = useState('');
@@ -184,6 +185,21 @@ export function OrderWorkspacePage() {
     queryKey: ['timeline', orderId],
     queryFn: () => labApi.timeline.forOrder(orderId!),
     enabled: !!orderId,
+  });
+
+  const isReleased = order?.resultReport?.status === 'RELEASED';
+  const { data: releaseHistory } = useQuery({
+    queryKey: ['release-history', order?.id],
+    queryFn: () => labApi.release.getHistory(order!.id),
+    enabled: isReleased,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const releases = query.state.data?.releases ?? [];
+      const hasPending = releases.some(
+        (r) => r.pdfStatus === 'PENDING' || r.pdfStatus === 'GENERATING'
+      );
+      return hasPending ? 5_000 : false;
+    },
   });
 
   const error = orderError ? (orderError as Error).message : null;
@@ -275,6 +291,7 @@ export function OrderWorkspacePage() {
         label: `${d.activeVersion!.title} (${d.catalogItemCode} · ${
           d.species
         })`,
+        species: d.species,
       }));
     setAvailableTemplates(options);
     setPickingTemplateForTestId(testId);
@@ -897,7 +914,7 @@ export function OrderWorkspacePage() {
                       to={`/orders/${order.id}/review`}
                       className={
                         isFullyReleased
-                          ? 'rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800'
+                          ? 'rounded-lg border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-gray-700'
                           : 'rounded-lg bg-purple px-4 py-2 text-sm font-semibold text-white hover:opacity-90'
                       }
                     >
@@ -907,6 +924,15 @@ export function OrderWorkspacePage() {
                     </Link>
                   );
                 })()}
+              {order.resultReport &&
+                releaseHistory &&
+                releaseHistory.releases.length > 0 && (
+                  <ReleasePdfMenu
+                    orderId={order.id}
+                    requisitionNumber={order.requisitionNumber}
+                    releases={releaseHistory.releases}
+                  />
+                )}
             </div>
           </div>
 
@@ -1091,6 +1117,22 @@ export function OrderWorkspacePage() {
                         className="w-full rounded-lg border border-gray-800 bg-gray-900 px-4 py-3 text-left text-sm text-white hover:border-cyan/50 hover:bg-gray-800 disabled:opacity-50"
                       >
                         {tpl.label}
+                        {tpl.species !== 'ANY' &&
+                          tpl.species !== c.patientSpecies && (
+                            <span className="mt-1 block text-xs text-yellow-400">
+                              {t('workspace.template_other_species_warning', {
+                                templateSpecies: t(`species.${tpl.species}`, {
+                                  defaultValue: tpl.species,
+                                }),
+                                patientSpecies: t(
+                                  `species.${c.patientSpecies}`,
+                                  {
+                                    defaultValue: c.patientSpecies,
+                                  }
+                                ),
+                              })}
+                            </span>
+                          )}
                       </button>
                     ))}
                 </div>

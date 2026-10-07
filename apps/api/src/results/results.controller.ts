@@ -9,7 +9,11 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Res,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -30,11 +34,17 @@ import {
   SaveAnalytesDto,
   ReleaseReportDto,
 } from './dto/results.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 
 @ApiTags('results')
 @Controller('results')
 export class ResultsController {
-  constructor(private readonly resultsService: ResultsService) {}
+  constructor(
+    private readonly resultsService: ResultsService,
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService
+  ) {}
 
   // ---------------------------------------------------------------------------
   // GET /results/templates
@@ -262,5 +272,123 @@ export class ResultsController {
       user?.id,
       safeLang
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /results/by-order/:orderId/releases
+  // Clinic reads the release history with PDF status for an order.
+  // ---------------------------------------------------------------------------
+
+  @Get('by-order/:orderId/releases')
+  @ApiBearerAuth()
+  @ApiSecurity('x-tenant-id')
+  @UseGuards(TenantGuard)
+  @ApiOperation({
+    summary: 'Get release history with PDF status (clinic view)',
+  })
+  async getOrderReleases(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string
+  ) {
+    // Clinic-facing :orderId is the requisition number (same as /released).
+    const order = await this.prisma.order.findFirst({
+      where: { requisitionNumber: orderId, tenantId: tenant.tenantId },
+      select: {
+        id: true,
+        requisitionNumber: true,
+        resultReport: { select: { id: true } },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+    if (!order.resultReport) {
+      return { requisitionNumber: order.requisitionNumber, releases: [] };
+    }
+
+    const releases = await this.prisma.resultReportRelease.findMany({
+      where: { reportId: order.resultReport.id },
+      include: {
+        tests: { select: { catalogItemName: true } },
+        artifacts: {
+          where: { artifactType: 'PDF' },
+          select: { status: true },
+          take: 1,
+        },
+      },
+      orderBy: { releaseSequence: 'asc' },
+    });
+
+    return {
+      requisitionNumber: order.requisitionNumber,
+      releases: releases.map((r) => ({
+        id: r.id,
+        releaseSequence: r.releaseSequence,
+        releaseType: r.releaseType,
+        signerName: r.signerName,
+        releasedAt: r.releasedAt.toISOString(),
+        pdfStatus: r.artifacts[0]?.status ?? 'PENDING',
+        testNames: r.tests.map((t) => t.catalogItemName),
+      })),
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /results/by-order/:orderId/pdf?releaseSequence=N
+  // Clinic downloads a specific release PDF.
+  // ---------------------------------------------------------------------------
+
+  @Get('by-order/:orderId/pdf')
+  @ApiBearerAuth()
+  @ApiSecurity('x-tenant-id')
+  @UseGuards(TenantGuard)
+  @ApiOperation({ summary: 'Download a release PDF (clinic view)' })
+  async downloadReleasePdf(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string,
+    @Query('releaseSequence') releaseSequenceRaw: string,
+    @Res() res: Response
+  ) {
+    const releaseSequence = parseInt(releaseSequenceRaw, 10);
+    if (isNaN(releaseSequence) || releaseSequence < 1) {
+      throw new BadRequestException('Invalid releaseSequence.');
+    }
+
+    // Clinic-facing :orderId is the requisition number (same as /released).
+    const order = await this.prisma.order.findFirst({
+      where: { requisitionNumber: orderId, tenantId: tenant.tenantId },
+      select: { id: true, resultReport: { select: { id: true } } },
+    });
+    if (!order || !order.resultReport) {
+      throw new NotFoundException('Order or report not found.');
+    }
+
+    const release = await this.prisma.resultReportRelease.findUnique({
+      where: {
+        reportId_releaseSequence: {
+          reportId: order.resultReport.id,
+          releaseSequence,
+        },
+      },
+      select: { id: true },
+    });
+    if (!release) throw new NotFoundException('Release not found.');
+
+    const artifact = await this.prisma.resultReportReleaseArtifact.findFirst({
+      where: { releaseId: release.id, artifactType: 'PDF' },
+      select: { status: true, storageUrl: true },
+    });
+    if (!artifact || artifact.status !== 'COMPLETED' || !artifact.storageUrl) {
+      throw new NotFoundException('PDF not ready yet.');
+    }
+
+    const buffer = await this.storageService.downloadObject(
+      'lab-reports',
+      artifact.storageUrl
+    );
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="release-${releaseSequence}.pdf"`,
+      'Content-Length': buffer.length.toString(),
+    });
+    res.end(buffer);
   }
 }

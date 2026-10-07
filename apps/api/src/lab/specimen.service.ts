@@ -206,6 +206,7 @@ export class SpecimenService {
             catalogItemCode: true,
             catalogItemName: true,
             status: true,
+            templateDefinitionId: true,
             catalogItem: {
               select: {
                 code: true,
@@ -266,24 +267,32 @@ export class SpecimenService {
 
     const now = new Date();
 
-    // Pre-resolve templates for all unique catalog codes (avoids N+1 inside transaction)
-    const uniqueCodes = new Set<string>();
-    for (const test of order.orderedTests) {
-      uniqueCodes.add(test.catalogItem?.code ?? test.catalogItemCode ?? '');
-    }
+    // Pre-resolve templates for all unique catalog codes (avoids N+1 inside transaction).
+    // A template the lab already picked by hand wins, so re-accessioning never
+    // re-blocks that test.
+    const templateKey = (test: (typeof order.orderedTests)[number]) =>
+      test.templateDefinitionId
+        ? `def:${test.templateDefinitionId}`
+        : test.catalogItem?.code ?? test.catalogItemCode ?? '';
+    const testsByTemplateKey = new Map(
+      order.orderedTests.map((test) => [templateKey(test), test])
+    );
     const templateCache = new Map<
       string,
       Awaited<ReturnType<typeof this.templateVersionService.resolveTemplate>>
     >();
     await Promise.all(
-      Array.from(uniqueCodes).map(async (code) => {
-        const tmpl = await this.templateVersionService.resolveTemplate(
-          code,
+      Array.from(testsByTemplateKey.entries()).map(async ([key, test]) => {
+        const tmpl = await this.templateVersionService.resolveTemplateForTest(
+          {
+            catalogItemCode: test.catalogItem?.code ?? test.catalogItemCode,
+            templateDefinitionId: test.templateDefinitionId,
+          },
           labTenantId,
           patientSpecies,
           ageWeeks
         );
-        templateCache.set(code, tmpl);
+        templateCache.set(key, tmpl);
       })
     );
 
@@ -406,7 +415,7 @@ export class SpecimenService {
             if (matchingAccepted) {
               const catalogCode =
                 test.catalogItem?.code ?? test.catalogItemCode ?? '';
-              const templateDef = templateCache.get(catalogCode) ?? null;
+              const templateDef = templateCache.get(templateKey(test)) ?? null;
 
               const upsertPromise = tx.orderedTestSpecimen.upsert({
                 where: {
@@ -495,7 +504,7 @@ export class SpecimenService {
             } else if (!primaryReq) {
               const catalogCode =
                 test.catalogItem?.code ?? test.catalogItemCode ?? '';
-              const templateDef = templateCache.get(catalogCode) ?? null;
+              const templateDef = templateCache.get(templateKey(test)) ?? null;
 
               if (templateDef?.activeVersionId) {
                 await tx.orderedTest.update({
@@ -787,8 +796,15 @@ export class SpecimenService {
       );
     }
 
+    // Only templates this lab can use: platform-wide or its own
     const version = await this.prisma.resultTemplateVersion.findFirst({
-      where: { id: templateVersionId, status: 'PUBLISHED' },
+      where: {
+        id: templateVersionId,
+        status: 'PUBLISHED',
+        definition: {
+          OR: [{ scope: 'PLATFORM' }, { scope: 'LABORATORY', labTenantId }],
+        },
+      },
       select: { id: true, definitionId: true },
     });
     if (!version) {
@@ -804,6 +820,8 @@ export class SpecimenService {
           status: 'READY',
           blockReason: null,
           blockReasonDetail: null,
+          // Result entry reads this instead of re-resolving by species
+          templateDefinitionId: version.definitionId,
           version: { increment: 1 },
         },
       }),

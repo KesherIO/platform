@@ -2,7 +2,6 @@
   "catalogItemCode": "LIPASE_SPEC",
   "species": "CAT",
   "title": "Lipasa Pancreática Específica Felina (Spec fPL)",
-  "defaultObservations": "Tipo de muestra: suero / plasma EDTA.",
   "sections": [
     {
       "name": "Resultados",

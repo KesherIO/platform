@@ -125,3 +125,26 @@ export interface ClinicReleasedResultsModel {
   pendingTestNames: string[];
   latestReleasedAt: string | null;
 }
+
+export type ClinicReleaseType = 'PARTIAL' | 'FINAL' | 'AMENDMENT';
+export type ReleasePdfStatus =
+  | 'PENDING'
+  | 'GENERATING'
+  | 'COMPLETED'
+  | 'FAILED';
+
+/** One entry of GET /results/by-order/:orderId/releases — each release has its own PDF. */
+export interface ClinicReleaseSummaryModel {
+  id: string;
+  releaseSequence: number;
+  releaseType: ClinicReleaseType;
+  signerName: string;
+  releasedAt: string;
+  pdfStatus: ReleasePdfStatus;
+  testNames: string[];
+}
+
+export interface ClinicOrderReleasesModel {
+  requisitionNumber: string;
+  releases: ClinicReleaseSummaryModel[];
+}

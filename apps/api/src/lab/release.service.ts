@@ -6,8 +6,11 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Prisma, type ReleaseType } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { OrderStatusService } from './order-status.service';
+import { labPhoneNumbersSnapshot } from './lab-contact.util';
 import { evaluateAllFormulas } from './formula.util';
 import type { ReferenceRangeSnapshot } from '@vet-ai/shared-types';
 
@@ -29,7 +32,8 @@ interface ApproveReleaseInput {
 export class ReleaseService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly orderStatusService: OrderStatusService
+    private readonly orderStatusService: OrderStatusService,
+    private readonly storage: StorageService
   ) {}
 
   async approveAndRelease(input: ApproveReleaseInput) {
@@ -184,6 +188,22 @@ export class ReleaseService {
       if (!analyst) throw new NotFoundException('Analyst not found.');
     }
 
+    const releaseId = randomUUID();
+
+    // The PDF header is branded with the ordering clinic, so snapshot its logo
+    const clinicTenant = await this.prisma.tenant.findUnique({
+      where: { id: order.tenantId },
+      select: { logoUrl: true },
+    });
+    const imageStoragePaths = await this.storage.snapshotReleaseImages(
+      releaseId,
+      {
+        logoUrl: clinicTenant?.logoUrl ?? null,
+        signerSignatureUrl: signer.signatureUrl ?? null,
+        analystSignatureUrl: analyst?.signatureUrl ?? null,
+      }
+    );
+
     const formulaUpdates: { id: string; numericValue: number }[] = [];
     for (const rt of reportTests) {
       const hasFormulas = rt.analytes.some((a) => a.formula && !a.isHeader);
@@ -265,6 +285,7 @@ export class ReleaseService {
 
         const release = await tx.resultReportRelease.create({
           data: {
+            id: releaseId,
             reportId,
             releaseSequence: newSequence,
             releaseType,
@@ -453,7 +474,15 @@ export class ReleaseService {
         });
 
         await tx.resultReportReleaseArtifact.create({
-          data: { releaseId: release.id, artifactType: 'PDF' },
+          data: {
+            releaseId: release.id,
+            artifactType: 'PDF',
+            logoStoragePath: imageStoragePaths.logoStoragePath,
+            signerSignatureStoragePath:
+              imageStoragePaths.signerSignatureStoragePath,
+            analystSignatureStoragePath:
+              imageStoragePaths.analystSignatureStoragePath,
+          },
         });
 
         await tx.timelineEvent.create({
@@ -683,6 +712,27 @@ export class ReleaseService {
     };
   }
 
+  async getPdfArtifact(releaseId: string, labTenantId: string) {
+    const release = await this.prisma.resultReportRelease.findFirst({
+      where: { id: releaseId, labTenantId },
+      select: { id: true },
+    });
+    if (!release) throw new NotFoundException('Release not found.');
+
+    const artifact = await this.prisma.resultReportReleaseArtifact.findFirst({
+      where: { releaseId, artifactType: 'PDF' },
+      select: {
+        id: true,
+        status: true,
+        storageUrl: true,
+        errorMessage: true,
+        retryCount: true,
+      },
+    });
+    if (!artifact) throw new NotFoundException('PDF artifact not found.');
+    return artifact;
+  }
+
   private async buildSnapshotFields(
     tx: TxClient,
     order: {
@@ -726,14 +776,27 @@ export class ReleaseService {
       labDirectorCredentials: null as string | null,
       labLogoUrl: null as string | null,
       labAddress: null as string | null,
+      labCity: null as string | null,
       labPhone: null as string | null,
+      labPhoneNumbers: Prisma.DbNull as ReturnType<
+        typeof labPhoneNumbersSnapshot
+      >,
+      labEmail: null as string | null,
       reportDisclaimer: null as string | null,
     };
 
     if (order.labTenantId) {
       const labTenant = await tx.tenant.findUnique({
         where: { id: order.labTenantId },
-        select: { name: true, address: true, phone: true, logoUrl: true },
+        select: {
+          name: true,
+          address: true,
+          city: true,
+          phone: true,
+          phoneNumbers: true,
+          email: true,
+          logoUrl: true,
+        },
       });
       const labProfile = await tx.laboratoryProfile.findUnique({
         where: { tenantId: order.labTenantId },
@@ -752,7 +815,13 @@ export class ReleaseService {
         labDirectorCredentials: labProfile?.directorCredentials ?? null,
         labLogoUrl: labTenant?.logoUrl ?? null,
         labAddress: labTenant?.address ?? null,
+        labCity: labTenant?.city ?? null,
         labPhone: labTenant?.phone ?? null,
+        labPhoneNumbers: labPhoneNumbersSnapshot(
+          labTenant?.phoneNumbers,
+          labTenant?.phone
+        ),
+        labEmail: labTenant?.email ?? null,
         reportDisclaimer: labProfile?.reportDisclaimer ?? null,
       };
     }

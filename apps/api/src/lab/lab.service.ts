@@ -770,6 +770,7 @@ export class LabService {
         email: true,
         phone: true,
         address: true,
+        city: true,
         logoUrl: true,
         phoneNumbers: true,
         mapLat: true,
@@ -786,6 +787,7 @@ export class LabService {
       email?: string;
       phone?: string;
       address?: string;
+      city?: string;
       logoUrl?: string;
       phoneNumbers?: { label: string; number: string }[];
       mapLat?: number;
@@ -811,6 +813,7 @@ export class LabService {
         email: true,
         phone: true,
         address: true,
+        city: true,
         logoUrl: true,
         phoneNumbers: true,
         mapLat: true,

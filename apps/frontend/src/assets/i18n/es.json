@@ -493,6 +493,18 @@
     "PARTIAL_BANNER_TITLE": "Algunas pruebas aún están en proceso",
     "PARTIAL_BANNER_TESTS": "Pendientes: {{tests}}",
     "TEST_RELEASED_BY": "Liberado por {{name}}",
+    "RELEASE_SEQUENCE": "Liberación #{{seq}}",
+    "DOWNLOAD_PDF": "Descargar PDF",
+    "PDF_GENERATING": "Generando...",
+    "PDF_FAILED": "PDF no disponible",
+    "DOWNLOAD_PDF_SHORT": "Descargar",
+    "PDF_DOWNLOAD_ERROR": "No se pudo descargar el PDF. Inténtalo de nuevo.",
+    "PDF_UNAVAILABLE": "Descarga del PDF no disponible por ahora",
+    "RELEASE_TYPE": {
+      "PARTIAL": "Parcial",
+      "FINAL": "Liberación final",
+      "AMENDMENT": "Enmienda"
+    },
     "DEPT": {
       "HEMATOLOGY": "Hematología",
       "CHEMISTRY": "Química Clínica",

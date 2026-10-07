@@ -20,6 +20,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { ResultsModule } from '../results/results.module';
 import { CatalogModule } from '../catalog/catalog.module';
 import { StorageModule } from '../storage/storage.module';
+import { PdfModule } from '../pdf/pdf.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { StorageModule } from '../storage/storage.module';
     ResultsModule,
     CatalogModule,
     StorageModule,
+    PdfModule,
   ],
   controllers: [LabController],
   providers: [

@@ -2,7 +2,6 @@
   "catalogItemCode": "BILE_ACIDS",
   "species": "ANY",
   "title": "Ácidos Biliares Totales Canino (sin valores de referencia)",
-  "defaultObservations": "Tipo de muestra: suero. Ayuno de 12 h para muestra preprandial; muestra posprandial 2 h después de alimentar.",
   "sections": [
     {
       "name": "Resultados",
