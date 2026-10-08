@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
+import {
+  provideHttpClientTesting,
+  HttpTestingController,
+} from '@angular/common/http/testing';
 import { OnboardingService } from './onboarding.service';
 
 describe('OnboardingService', () => {
@@ -110,7 +113,12 @@ describe('OnboardingService', () => {
 
   describe('initializeOnboarding()', () => {
     it('makes GET request to branding endpoint and updates state', () => {
-      const branding = { tenantId: 'tenant-abc', tenantName: 'LabX', logoUrl: '', primaryColor: '' };
+      const branding = {
+        tenantId: 'tenant-abc',
+        tenantName: 'LabX',
+        logoUrl: '',
+        primaryColor: '',
+      };
 
       service.initializeOnboarding('tenant-abc').subscribe();
 
@@ -124,7 +132,12 @@ describe('OnboardingService', () => {
     });
 
     it('sets step to staff-profile and stores invite token when token provided', () => {
-      const branding = { tenantId: 'tenant-abc', tenantName: 'LabX', logoUrl: '', primaryColor: '' };
+      const branding = {
+        tenantId: 'tenant-abc',
+        tenantName: 'LabX',
+        logoUrl: '',
+        primaryColor: '',
+      };
 
       service.initializeOnboarding('tenant-abc', 'invite-xyz').subscribe();
       httpMock.expectOne('/api/onboarding/tenant-abc/branding').flush(branding);
@@ -139,19 +152,30 @@ describe('OnboardingService', () => {
   describe('generateMagicLink()', () => {
     it('throws immediately when tenantId is empty', () => {
       let errorThrown = false;
-      service.generateMagicLink().subscribe({ error: () => (errorThrown = true) });
+      service
+        .generateMagicLink()
+        .subscribe({ error: () => (errorThrown = true) });
       expect(errorThrown).toBe(true);
       httpMock.expectNone('/api/onboarding/invite');
     });
 
     it('makes POST request when tenantId is set', () => {
-      service['onboardingState'].update((s) => ({ ...s, tenantId: 'tenant-abc' }));
+      service['onboardingState'].update((s) => ({
+        ...s,
+        tenantId: 'tenant-abc',
+      }));
 
       service.generateMagicLink().subscribe();
 
-      const req = httpMock.expectOne('/api/onboarding/invite?tenantId=tenant-abc');
+      const req = httpMock.expectOne(
+        '/api/onboarding/invite?tenantId=tenant-abc'
+      );
       expect(req.request.method).toBe('POST');
-      req.flush({ token: 'tok-123', tenantId: 'tenant-abc', expiresAt: new Date().toISOString() });
+      req.flush({
+        token: 'tok-123',
+        tenantId: 'tenant-abc',
+        expiresAt: new Date().toISOString(),
+      });
     });
   });
 
@@ -161,7 +185,12 @@ describe('OnboardingService', () => {
 
       const req = httpMock.expectOne('/api/onboarding/verify/hex-abc');
       expect(req.request.method).toBe('GET');
-      req.flush({ valid: true, type: 'ADMIN', clinicName: 'City Vet', clinicEmail: 'info@cityvet.com' });
+      req.flush({
+        valid: true,
+        type: 'ADMIN',
+        clinicName: 'City Vet',
+        clinicEmail: 'info@cityvet.com',
+      });
 
       const state = service.getOnboardingState()();
       expect(state.onboardingToken).toBe('hex-abc');
@@ -169,9 +198,33 @@ describe('OnboardingService', () => {
       expect(state.step).toBe('clinic-setup');
     });
 
+    it('stores the clinic profile on record for prefilling', () => {
+      const clinic = {
+        name: 'City Vet',
+        email: 'info@cityvet.com',
+        primaryContactName: 'Dr. Ana',
+        phone: '555-0100',
+        address: '123 Main St',
+        city: 'Austin',
+        country: 'US',
+      };
+      service.verifyOnboardingToken('hex-abc').subscribe();
+      httpMock.expectOne('/api/onboarding/verify/hex-abc').flush({
+        valid: true,
+        type: 'ADMIN',
+        clinicName: 'City Vet',
+        clinicEmail: 'info@cityvet.com',
+        clinic,
+      });
+
+      expect(service.getOnboardingState()().prefillClinic).toEqual(clinic);
+    });
+
     it('does not update state on invalid token response', () => {
       service.verifyOnboardingToken('bad-token').subscribe();
-      httpMock.expectOne('/api/onboarding/verify/bad-token').flush({ valid: false, reason: 'expired' });
+      httpMock
+        .expectOne('/api/onboarding/verify/bad-token')
+        .flush({ valid: false, reason: 'expired' });
 
       // Step should remain unchanged
       expect(service.getOnboardingState()().step).toBe('welcome');

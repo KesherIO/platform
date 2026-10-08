@@ -6,7 +6,9 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
@@ -244,40 +246,60 @@ export class CompleteAdminOnboardingDto {
 
   // ── Clinic details (collected on clinic-setup screen) ──────────────────
 
+  // Lab-created clients: omit any clinic field the admin left untouched and
+  // the value already on record is kept. Platform invitations must send name,
+  // address, city, email and phone. A field that is sent cannot be empty.
+
   /** Clinic display name — user may have edited the KesherIO-provided default */
-  @ApiProperty({ example: 'City Vet Clinic' })
+  @ApiPropertyOptional({ example: 'City Vet Clinic' })
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString()
   @MinLength(2)
-  clinicName!: string;
+  clinicName?: string;
 
-  @ApiProperty({ example: '123 Main St' })
+  @ApiPropertyOptional({ example: '123 Main St' })
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString()
   @IsNotEmpty()
-  clinicAddress!: string;
+  clinicAddress?: string;
 
-  @ApiProperty({ example: 'Austin' })
+  @ApiPropertyOptional({ example: 'Austin' })
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString()
   @IsNotEmpty()
-  clinicCity!: string;
+  clinicCity?: string;
 
   /** Clinic contact email — stored on Tenant, distinct from adminEmail */
-  @ApiProperty({ example: 'info@cityvetclinic.com' })
+  @ApiPropertyOptional({ example: 'info@cityvetclinic.com' })
+  @ValidateIf((_o, v) => v !== undefined)
   @IsEmail()
-  clinicEmail!: string;
+  clinicEmail?: string;
 
-  @ApiProperty({ example: '+1 512 555 0100' })
+  @ApiPropertyOptional({ example: '+1 512 555 0100' })
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString()
   @IsNotEmpty()
-  clinicPhone!: string;
+  clinicPhone?: string;
 
   @ApiProperty({ enum: ['email', 'sms'] })
   @IsEnum(['email', 'sms'])
   notificationMethod!: 'email' | 'sms';
 
+  /** Omit to keep the value already on record (lab-created clients); '' clears it */
   @ApiPropertyOptional({ example: 'US' })
   @IsOptional()
   @IsString()
   country?: string;
+
+  /**
+   * Clinic's primary contact person — independent of the onboarding admin.
+   * Omit to keep the value already on record (lab-created clients); '' clears it.
+   */
+  @ApiPropertyOptional({ example: 'Dr. Ana Gómez' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  primaryContactName?: string;
 
   /** When true, the admin is also a veterinarian — sets isOrderingVet on their membership */
   @ApiPropertyOptional({ example: true })

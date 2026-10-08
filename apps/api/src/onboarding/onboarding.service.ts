@@ -18,6 +18,36 @@ import {
   CreateLabLinkDto,
   CompleteLabOnboardingDto,
 } from './dto/onboarding.dto';
+import {
+  CLINIC_PROFILE_SELECT,
+  buildClinicProfileUpdate,
+} from '../tenants/clinic-profile.util';
+
+/**
+ * A lab-created ADMIN invitation that has no clinicTenantId: either created
+ * before clinicTenantId existed, or its clinic was deleted (FK sets it null).
+ * Completing one would take the legacy path and create a duplicate clinic, so
+ * it is treated as revoked — the lab regenerates it from the client page.
+ * Platform invitations (no laboratoryId) are unaffected.
+ */
+/** Clinic details onboarding must end up with, as [dto field, profile field]. */
+const REQUIRED_CLINIC_DETAILS = [
+  ['clinicName', 'name'],
+  ['clinicEmail', 'email'],
+  ['clinicAddress', 'address'],
+  ['clinicCity', 'city'],
+  ['clinicPhone', 'phone'],
+] as const;
+
+function isUnresolvedLabInvitation(record: {
+  type: string;
+  laboratoryId: string | null;
+  clinicTenantId: string | null;
+}): boolean {
+  return (
+    record.type === 'ADMIN' && !!record.laboratoryId && !record.clinicTenantId
+  );
+}
 
 /** Derive a URL-safe slug from a clinic name. */
 function slugify(name: string): string {
@@ -652,7 +682,7 @@ export class OnboardingService {
       return { valid: false as const, reason: 'used' as const };
     }
 
-    if (record.revokedAt) {
+    if (record.revokedAt || isUnresolvedLabInvitation(record)) {
       return { valid: false as const, reason: 'revoked' as const };
     }
 
@@ -669,11 +699,25 @@ export class OnboardingService {
       };
     }
 
+    // Lab-created client: prefill from the clinic's current profile (the lab
+    // may have edited it since the invitation was sent).
+    const clinic = record.clinicTenantId
+      ? await this.prisma.tenant.findUnique({
+          where: { id: record.clinicTenantId },
+          select: CLINIC_PROFILE_SELECT,
+        })
+      : null;
+
+    if (record.clinicTenantId && !clinic) {
+      return { valid: false as const, reason: 'revoked' as const };
+    }
+
     return {
       valid: true as const,
       type: record.type,
-      clinicName: record.clinicName,
-      clinicEmail: record.clinicEmail,
+      clinicName: clinic?.name ?? record.clinicName,
+      clinicEmail: clinic?.email ?? record.clinicEmail,
+      ...(clinic && { clinic }),
     };
   }
 
@@ -703,11 +747,35 @@ export class OnboardingService {
     if (record.used) {
       throw new ConflictException('This onboarding link has already been used');
     }
-    if (record.revokedAt) {
+    if (record.revokedAt || isUnresolvedLabInvitation(record)) {
       throw new BadRequestException('This onboarding link has been revoked');
     }
     if (record.expiresAt < new Date()) {
       throw new BadRequestException('This onboarding link has expired');
+    }
+
+    // Lab-created client: the wizard omits fields the admin left untouched, so
+    // they keep the value on record. Load the record now to check that every
+    // required detail is either sent or already on file.
+    let onRecord: Record<string, string | null> | null = null;
+    if (record.clinicTenantId) {
+      onRecord = await this.prisma.tenant.findUnique({
+        where: { id: record.clinicTenantId },
+        select: CLINIC_PROFILE_SELECT,
+      });
+      if (!onRecord) {
+        // Clinic was deleted after the link was sent.
+        throw new BadRequestException('This onboarding link has been revoked');
+      }
+    }
+    const missing = REQUIRED_CLINIC_DETAILS.filter(
+      ([dtoField, profileField]) =>
+        !dto[dtoField]?.trim() && !onRecord?.[profileField]?.trim()
+    ).map(([dtoField]) => dtoField);
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `Missing clinic details: ${missing.join(', ')}`
+      );
     }
 
     // 2. Resolve the Supabase user — three possible situations:
@@ -796,7 +864,7 @@ export class OnboardingService {
     //    If anything below fails, delete the Supabase user so it does not become an orphan.
     //    When the token has a clinicTenantId (lab-created client), activate that existing tenant
     //    instead of creating a new one — avoids the duplicate-tenant bug.
-    let slug = slugify(dto.clinicName);
+    let slug = slugify(dto.clinicName ?? '');
     let tenantId: string;
     let userId: string;
     let vetResult: Awaited<ReturnType<typeof this.vetMembershipStatus>> | null =
@@ -820,48 +888,49 @@ export class OnboardingService {
         if (record.clinicTenantId) {
           // Lab-created client: activate the pre-existing tenant with the form data.
           // The ClinicLabConnection already exists — do not recreate it.
+          // Every profile field the form omitted keeps what is on record.
           const updated = await tx.tenant.update({
             where: { id: record.clinicTenantId },
             data: {
-              name: dto.clinicName,
-              address: dto.clinicAddress,
-              city: dto.clinicCity,
-              email: dto.clinicEmail,
-              phone: dto.clinicPhone,
+              ...buildClinicProfileUpdate({
+                name: dto.clinicName,
+                email: dto.clinicEmail,
+                primaryContactName: dto.primaryContactName,
+                phone: dto.clinicPhone,
+                address: dto.clinicAddress,
+                city: dto.clinicCity,
+                country: dto.country,
+              }),
               notificationMethod: dto.notificationMethod,
               clientStatus: 'ACTIVE',
-              ...(dto.country ? { country: dto.country } : {}),
             },
           });
           resolvedTenantId = updated.id;
         } else {
-          // Legacy path: create a brand-new tenant.
+          // Platform invitation (no laboratoryId): create a brand-new tenant.
+          // Lab invitations always reach the branch above —
+          // isUnresolvedLabInvitation() rejects them earlier otherwise.
+          // REQUIRED_CLINIC_DETAILS were checked above, so name is present.
+          const profile = buildClinicProfileUpdate({
+            name: dto.clinicName,
+            email: dto.clinicEmail,
+            primaryContactName: dto.primaryContactName,
+            phone: dto.clinicPhone,
+            address: dto.clinicAddress,
+            city: dto.clinicCity,
+            country: dto.country,
+          });
           const tenant = await tx.tenant.create({
             data: {
-              name: dto.clinicName,
+              ...profile,
+              name: profile.name ?? '',
               slug,
-              address: dto.clinicAddress,
-              city: dto.clinicCity,
-              email: dto.clinicEmail,
-              phone: dto.clinicPhone,
               notificationMethod: dto.notificationMethod,
               clientType: record.clientType ?? undefined,
               clientStatus: 'ACTIVE',
-              ...(dto.country ? { country: dto.country } : {}),
             },
           });
           resolvedTenantId = tenant.id;
-
-          if (record.laboratoryId) {
-            await tx.clinicLabConnection.create({
-              data: {
-                clinicId: resolvedTenantId,
-                labId: record.laboratoryId,
-                isDefault: true,
-                isActive: true,
-              },
-            });
-          }
         }
 
         // Create the local User row (skip if re-onboarding an existing user)
@@ -884,7 +953,7 @@ export class OnboardingService {
 
         // Create ADMIN membership — if the admin is also a vet, check
         // whether the connected lab requires verification.
-        // Must run after ClinicLabConnection is created so the lookup works.
+        // Lab-created clients already have their ClinicLabConnection, so the lookup works.
         const isVet = dto.isVet === true;
         const vetResult = isVet
           ? await this.vetMembershipStatus(resolvedTenantId, undefined, tx)

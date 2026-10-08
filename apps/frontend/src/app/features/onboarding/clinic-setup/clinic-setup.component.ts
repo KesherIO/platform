@@ -70,6 +70,8 @@ export class ClinicSetupComponent implements OnInit {
     this.prefillClinicEmail.set(state.prefillClinicEmail ?? '');
     // Restore previously entered data if user navigates back
     const saved = state.clinic;
+    // Details the lab already entered for this clinic (lab-created clients)
+    const onRecord = state.prefillClinic;
 
     // Restore pending logo file and preview after back navigation
     if (saved?.pendingLogoFile) {
@@ -85,15 +87,25 @@ export class ClinicSetupComponent implements OnInit {
         saved?.name ?? prefillName,
         [Validators.required, Validators.minLength(2)],
       ],
-      address: [saved?.address ?? '', [Validators.required]],
-      city: [saved?.city ?? '', [Validators.required]],
-      telephone: [saved?.telephone ?? '', [Validators.required]],
+      primaryContactName: [
+        saved?.primaryContactName ?? onRecord?.primaryContactName ?? '',
+      ],
+      address: [
+        saved?.address ?? onRecord?.address ?? '',
+        [Validators.required],
+      ],
+      city: [saved?.city ?? onRecord?.city ?? '', [Validators.required]],
+      telephone: [
+        saved?.telephone ?? onRecord?.phone ?? '',
+        [Validators.required],
+      ],
       notificationMethod: [
         saved?.notificationMethod ?? 'email',
         [Validators.required],
       ],
       country: [
         saved?.country ??
+          onRecord?.country ??
           (this.languageService.currentLang() === 'es' ? 'CO' : ''),
       ],
     });

@@ -20,6 +20,21 @@
         <p class="text-xs text-gray-400 mt-0.5 truncate">
           {{ clinicAddress() }}
         </p>
+        } @if (clinicCity() || clinicCountryLabel()) {
+        <p class="text-xs text-gray-400 mt-0.5 truncate">
+          @if (clinicCity()) {
+          <span>{{ clinicCity() }}</span>
+          } @if (clinicCity() && clinicCountryLabel()) {
+          <span>·</span>
+          } @if (clinicCountryLabel(); as countryKey) {
+          <span>{{ countryKey | translate }}</span>
+          }
+        </p>
+        } @if (clinicContactName()) {
+        <p class="text-xs text-gray-400 mt-0.5 truncate">
+          {{ 'SETTINGS.CLINIC.CONTACT_NAME' | translate }}:
+          {{ clinicContactName() }}
+        </p>
         }
       </div>
       @if (isAdmin()) {
@@ -144,8 +159,25 @@
       />
     </div>
 
+    <!-- Primary contact -->
+    <div class="mb-3">
+      <label
+        for="clinic-contact-name"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
+        {{ 'SETTINGS.CLINIC.CONTACT_NAME' | translate }}
+      </label>
+      <input
+        id="clinic-contact-name"
+        type="text"
+        [value]="editContactName()"
+        (input)="editContactName.set($any($event.target).value)"
+        class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors"
+      />
+    </div>
+
     <!-- Address -->
-    <div class="mb-5">
+    <div class="mb-3">
       <label
         for="clinic-address"
         class="block text-xs font-medium text-gray-600 mb-1.5"
@@ -159,6 +191,51 @@
         (input)="editAddress.set($any($event.target).value)"
         class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors"
       />
+    </div>
+
+    <!-- City -->
+    <div class="mb-3">
+      <label
+        for="clinic-city"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
+        {{ 'SETTINGS.CLINIC.CITY' | translate }}
+      </label>
+      <input
+        id="clinic-city"
+        type="text"
+        [value]="editCity()"
+        (input)="editCity.set($any($event.target).value)"
+        class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors"
+      />
+    </div>
+
+    <!-- Country -->
+    <div class="mb-5">
+      <label
+        for="clinic-country"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
+        {{ 'SETTINGS.CLINIC.COUNTRY' | translate }}
+      </label>
+      <select
+        id="clinic-country"
+        [value]="editCountry()"
+        (change)="editCountry.set($any($event.target).value)"
+        class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors bg-white"
+      >
+        <option value="" [selected]="!editCountry()">
+          {{ 'SETTINGS.CLINIC.COUNTRY_NONE' | translate }}
+        </option>
+        @for (country of countryOptions; track country.value) {
+        <option
+          [value]="country.value"
+          [selected]="country.value === editCountry()"
+        >
+          {{ country.label | translate }}
+        </option>
+        }
+      </select>
     </div>
 
     <!-- Save error -->

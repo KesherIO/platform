@@ -1,4 +1,12 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { take, switchMap } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -8,6 +16,7 @@ import { SettingsService } from '../../../core/services/settings.service';
 import { resolveLogoUrl } from '../../../core/services/onboarding.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { OutlineButtonComponent } from '../../../shared/components/outline-button/outline-button.component';
+import { COUNTRIES } from '../../../core/data/countries';
 
 @Component({
   selector: 'app-clinic-settings',
@@ -16,7 +25,8 @@ import { OutlineButtonComponent } from '../../../shared/components/outline-butto
   templateUrl: './clinic-settings.component.html',
   styleUrl: './clinic-settings.component.scss',
 })
-export class ClinicSettingsComponent {
+export class ClinicSettingsComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly auth = inject(AuthService);
   private readonly tenant = inject(TenantService);
   private readonly settingsService = inject(SettingsService);
@@ -39,6 +49,20 @@ export class ClinicSettingsComponent {
   readonly clinicAddress = computed(
     () => this.tenant.activeMembership()?.tenant.address ?? ''
   );
+  readonly clinicContactName = computed(
+    () => this.tenant.activeMembership()?.tenant.primaryContactName ?? ''
+  );
+  readonly clinicCity = computed(
+    () => this.tenant.activeMembership()?.tenant.city ?? ''
+  );
+  readonly clinicCountry = computed(
+    () => this.tenant.activeMembership()?.tenant.country ?? ''
+  );
+  /** i18n key for the clinic's country, or null when unknown/not set */
+  readonly clinicCountryLabel = computed(
+    () => COUNTRIES.find((c) => c.value === this.clinicCountry())?.label ?? null
+  );
+  readonly countryOptions = COUNTRIES;
   readonly clinicLogoUrl = computed(() =>
     resolveLogoUrl(this.tenant.activeMembership()?.tenant.logoUrl)
   );
@@ -49,13 +73,33 @@ export class ClinicSettingsComponent {
   readonly editName = signal('');
   readonly editPhone = signal('');
   readonly editAddress = signal('');
+  readonly editContactName = signal('');
+  readonly editCity = signal('');
+  readonly editCountry = signal('');
   private readonly logoFile = signal<File | null>(null);
   readonly logoPreview = signal<string | null>(null);
+
+  /**
+   * The clinic profile is shared with the lab portal, which can edit it too —
+   * reload it whenever this screen opens instead of relying on login-time data.
+   */
+  ngOnInit(): void {
+    this.auth
+      .loadMe()
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        error: (err: HttpErrorResponse) =>
+          console.error('[ClinicSettings] refresh failed', err.status),
+      });
+  }
 
   startEditing(): void {
     this.editName.set(this.clinicName());
     this.editPhone.set(this.clinicPhone());
     this.editAddress.set(this.clinicAddress());
+    this.editContactName.set(this.clinicContactName());
+    this.editCity.set(this.clinicCity());
+    this.editCountry.set(this.clinicCountry());
     this.logoFile.set(null);
     this.logoPreview.set(null);
     this.saveError.set(null);
@@ -84,6 +128,9 @@ export class ClinicSettingsComponent {
           name: this.editName(),
           phone: this.editPhone(),
           address: this.editAddress(),
+          primaryContactName: this.editContactName(),
+          city: this.editCity(),
+          country: this.editCountry(),
         },
         this.logoFile() ?? undefined
       )

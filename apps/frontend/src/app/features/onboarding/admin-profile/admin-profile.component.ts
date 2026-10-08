@@ -26,6 +26,32 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
     : null;
 }
 
+type ClinicDetailField =
+  | 'clinicName'
+  | 'clinicEmail'
+  | 'clinicAddress'
+  | 'clinicCity'
+  | 'clinicPhone'
+  | 'country'
+  | 'primaryContactName';
+
+/**
+ * A clinic field is sent only when it differs from the value already on
+ * record, so every detail the lab entered (name, email, phone, address, city,
+ * country, contact) is kept unless the admin changes it. Sending '' tells the
+ * API to clear an optional field. With nothing on record (platform
+ * invitations) every non-empty field is sent, as before.
+ */
+function changed<K extends ClinicDetailField>(
+  key: K,
+  value: string | undefined,
+  onRecord: string | null | undefined
+): Partial<Record<K, string>> {
+  const current = (value ?? '').trim();
+  if (current === (onRecord ?? '').trim()) return {};
+  return { [key]: current } as Partial<Record<K, string>>;
+}
+
 @Component({
   selector: 'app-admin-profile',
   standalone: true,
@@ -153,6 +179,7 @@ export class AdminProfileComponent implements OnInit {
       isVet,
     } = this.profileForm.value;
 
+    const onRecord = state.prefillClinic;
     const payload = {
       token,
       adminFirstName: firstName,
@@ -160,13 +187,18 @@ export class AdminProfileComponent implements OnInit {
       adminEmail,
       password,
       ...(telephone ? { adminPhone: telephone } : {}),
-      clinicName: clinic.name,
-      clinicAddress: clinic.address,
-      clinicCity: clinic.city,
-      clinicEmail: clinic.email,
-      clinicPhone: clinic.telephone,
+      ...changed('clinicName', clinic.name, onRecord?.name),
+      ...changed('clinicEmail', clinic.email, onRecord?.email),
+      ...changed('clinicAddress', clinic.address, onRecord?.address),
+      ...changed('clinicCity', clinic.city, onRecord?.city),
+      ...changed('clinicPhone', clinic.telephone, onRecord?.phone),
       notificationMethod: clinic.notificationMethod,
-      ...(clinic.country ? { country: clinic.country } : {}),
+      ...changed('country', clinic.country, onRecord?.country),
+      ...changed(
+        'primaryContactName',
+        clinic.primaryContactName,
+        onRecord?.primaryContactName
+      ),
       ...(isVet ? { isVet: true } : {}),
     };
 

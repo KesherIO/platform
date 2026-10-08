@@ -246,8 +246,11 @@ export class AuthService {
                 slug: true,
                 type: true,
                 email: true,
+                primaryContactName: true,
                 phone: true,
                 address: true,
+                city: true,
+                country: true,
                 logoUrl: true,
                 primaryColor: true,
                 clinicConnections: {

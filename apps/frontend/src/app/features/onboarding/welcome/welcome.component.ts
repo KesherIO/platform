@@ -11,6 +11,7 @@ import { AuthBrandingComponent } from '../../../shared/components/auth-branding/
 type TokenErrorReason =
   | 'expired'
   | 'used'
+  | 'revoked'
   | 'not_found'
   | 'no_token'
   | 'network';
@@ -97,6 +98,8 @@ export class WelcomeComponent implements OnInit {
         return 'WELCOME.EXPIRED_TITLE';
       case 'used':
         return 'WELCOME.USED_TITLE';
+      case 'revoked':
+        return 'WELCOME.REVOKED_TITLE';
       case 'not_found':
         return 'WELCOME.NOT_FOUND_TITLE';
       case 'no_token':
@@ -113,6 +116,8 @@ export class WelcomeComponent implements OnInit {
         return 'WELCOME.EXPIRED_BODY';
       case 'used':
         return 'WELCOME.USED_BODY';
+      case 'revoked':
+        return 'WELCOME.REVOKED_BODY';
       case 'not_found':
         return 'WELCOME.NOT_FOUND_BODY';
       case 'no_token':

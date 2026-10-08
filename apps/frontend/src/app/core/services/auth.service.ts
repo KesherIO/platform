@@ -46,8 +46,11 @@ export interface MeResponse {
       name: string;
       slug: string;
       email?: string | null;
+      primaryContactName?: string | null;
       phone?: string | null;
       address?: string | null;
+      city?: string | null;
+      country?: string | null;
       logoUrl: string | null;
       primaryColor: string | null;
     };
@@ -57,8 +60,11 @@ export interface MeResponse {
     name: string;
     slug: string;
     email?: string | null;
+    primaryContactName?: string | null;
     phone?: string | null;
     address?: string | null;
+    city?: string | null;
+    country?: string | null;
     logoUrl: string | null;
     primaryColor: string | null;
   }>;

@@ -218,7 +218,8 @@ export function ClientDetailPage() {
                 {t('clients.detail.suspend')}
               </button>
             )}
-            {client.orderCount === 0 && (
+            {/* Only a never-onboarded client can be deleted (server enforces this too) */}
+            {client.orderCount === 0 && client.users.length === 0 && (
               <button
                 onClick={handleDelete}
                 className="rounded-lg border border-red-900/50 px-4 py-2 text-sm text-red-400 hover:bg-red-900/20"

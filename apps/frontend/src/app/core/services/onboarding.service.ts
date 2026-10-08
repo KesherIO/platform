@@ -213,6 +213,7 @@ export class OnboardingService {
               onboardingToken: token,
               prefillClinicName: response.clinicName,
               prefillClinicEmail: response.clinicEmail,
+              prefillClinic: response.clinic,
               step: 'clinic-setup',
             }));
           }
