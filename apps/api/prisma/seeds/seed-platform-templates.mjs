@@ -65,69 +65,73 @@ async function main() {
       continue;
     }
 
-    await prisma.$transaction(async (tx) => {
-      const definition = await tx.resultTemplateDefinition.create({
-        data: {
-          catalogItemCode,
-          species,
-          ageMinWeeks: ageMin,
-          ageMaxWeeks: ageMax,
-          scope: 'PLATFORM',
-          ownerKey: 'platform',
-        },
-      });
-
-      const version = await tx.resultTemplateVersion.create({
-        data: {
-          definitionId: definition.id,
-          version: 1,
-          title,
-          status: 'PUBLISHED',
-          defaultObservations: defaultObservations ?? null,
-          observationPhrases: observationPhrases ?? undefined,
-          publishedAt: new Date(),
-        },
-      });
-
-      let globalSortOrder = 0;
-
-      for (const section of sections) {
-        const newSection = await tx.resultTemplateSection.create({
+    await prisma.$transaction(
+      async (tx) => {
+        const definition = await tx.resultTemplateDefinition.create({
           data: {
-            versionId: version.id,
-            name: section.name,
-            code: section.code ?? null,
-            sortOrder: section.sortOrder,
+            catalogItemCode,
+            species,
+            ageMinWeeks: ageMin,
+            ageMaxWeeks: ageMax,
+            scope: 'PLATFORM',
+            ownerKey: 'platform',
           },
         });
 
-        for (const analyte of section.analytes ?? []) {
-          await tx.resultTemplateAnalyte.create({
+        const version = await tx.resultTemplateVersion.create({
+          data: {
+            definitionId: definition.id,
+            version: 1,
+            title,
+            status: 'PUBLISHED',
+            defaultObservations: defaultObservations ?? null,
+            observationPhrases: observationPhrases ?? undefined,
+            publishedAt: new Date(),
+          },
+        });
+
+        let globalSortOrder = 0;
+
+        for (const section of sections) {
+          const newSection = await tx.resultTemplateSection.create({
             data: {
               versionId: version.id,
-              sectionId: newSection.id,
-              code: analyte.code,
-              name: analyte.name,
-              technique: analyte.technique ?? null,
-              valueType: analyte.valueType,
-              unit: analyte.unit ?? null,
-              options: analyte.options ?? [],
-              sortOrder: globalSortOrder++,
-              isHeader: analyte.isHeader ?? false,
-              isRequired: analyte.isRequired ?? true,
-              formula: analyte.formula ?? null,
-              referenceRange: analyte.referenceRange ?? undefined,
+              name: section.name,
+              code: section.code ?? null,
+              sortOrder: section.sortOrder,
             },
           });
-        }
-      }
 
-      // Point the definition at its active (published) version
-      await tx.resultTemplateDefinition.update({
-        where: { id: definition.id },
-        data: { activeVersionId: version.id },
-      });
-    });
+          for (const analyte of section.analytes ?? []) {
+            await tx.resultTemplateAnalyte.create({
+              data: {
+                versionId: version.id,
+                sectionId: newSection.id,
+                code: analyte.code,
+                name: analyte.name,
+                technique: analyte.technique ?? null,
+                valueType: analyte.valueType,
+                unit: analyte.unit ?? null,
+                options: analyte.options ?? [],
+                sortOrder: globalSortOrder++,
+                isHeader: analyte.isHeader ?? false,
+                isRequired: analyte.isRequired ?? true,
+                formula: analyte.formula ?? null,
+                referenceRange: analyte.referenceRange ?? undefined,
+              },
+            });
+          }
+        }
+
+        // Point the definition at its active (published) version
+        await tx.resultTemplateDefinition.update({
+          where: { id: definition.id },
+          data: { activeVersionId: version.id },
+        });
+        // Default 5s is too short for a template's many inserts on a distant DB.
+      },
+      { timeout: 120_000, maxWait: 30_000 }
+    );
 
     created++;
     process.stdout.write(

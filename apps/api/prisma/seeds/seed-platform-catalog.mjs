@@ -126,7 +126,9 @@ async function main() {
         });
       }
     },
-    { timeout: 60_000 }
+    // Generous limits: hundreds of sequential upserts are slow against a
+    // database in a distant region.
+    { timeout: 600_000, maxWait: 30_000 }
   );
 
   console.log(
