@@ -10,3 +10,10 @@ apps/frontend-e2e
 apps/api-e2e
 apps/lab
 apps/lab-e2e
+
+# Local secrets — never part of a build context
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
