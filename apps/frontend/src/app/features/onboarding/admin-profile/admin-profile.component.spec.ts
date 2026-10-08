@@ -9,7 +9,12 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { OnboardingState } from '../../../core/models';
 
 function makeState(overrides: Partial<OnboardingState> = {}): OnboardingState {
-  return { tenantId: 'tenant-abc', step: 'admin-profile', isFirstUser: true, ...overrides };
+  return {
+    tenantId: 'tenant-abc',
+    step: 'admin-profile',
+    isFirstUser: true,
+    ...overrides,
+  };
 }
 
 const CLINIC_STUB = {
@@ -39,7 +44,9 @@ describe('AdminProfileComponent', () => {
   async function setup(stateOverrides: Partial<OnboardingState> = {}) {
     onboardingStateSignal = signal(makeState(stateOverrides));
     mockOnboardingService = {
-      getOnboardingState: vi.fn().mockReturnValue(onboardingStateSignal.asReadonly()),
+      getOnboardingState: vi
+        .fn()
+        .mockReturnValue(onboardingStateSignal.asReadonly()),
       completeAdminOnboarding: vi.fn(),
       storeAdminProfileDraft: vi.fn(),
     };
@@ -54,8 +61,8 @@ describe('AdminProfileComponent', () => {
       providers: [
         provideTranslateService({ defaultLanguage: 'en' }),
         { provide: OnboardingService, useValue: mockOnboardingService },
-        { provide: AuthService,       useValue: mockAuthService       },
-        { provide: Router,            useValue: mockRouter            },
+        { provide: AuthService, useValue: mockAuthService },
+        { provide: Router, useValue: mockRouter },
       ],
     }).compileComponents();
 
@@ -97,8 +104,11 @@ describe('AdminProfileComponent', () => {
 
     it('detects password mismatch', () => {
       component.profileForm.patchValue({
-        firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com',
-        password: 'password123', confirmPassword: 'different',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'different',
       });
       component.profileForm.get('confirmPassword')!.markAsDirty();
       expect(component.passwordMismatch).toBe(true);
@@ -110,20 +120,27 @@ describe('AdminProfileComponent', () => {
 
     it('does nothing when form is invalid', () => {
       component.onSave();
-      expect(mockOnboardingService.completeAdminOnboarding).not.toHaveBeenCalled();
+      expect(
+        mockOnboardingService.completeAdminOnboarding
+      ).not.toHaveBeenCalled();
     });
 
     it('sets error when no onboarding token in state', () => {
       // default state has no onboardingToken
       component.profileForm.patchValue({
-        firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com',
-        password: 'password123', confirmPassword: 'password123',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
       });
 
       component.onSave();
 
       expect(component.error()).toContain('token');
-      expect(mockOnboardingService.completeAdminOnboarding).not.toHaveBeenCalled();
+      expect(
+        mockOnboardingService.completeAdminOnboarding
+      ).not.toHaveBeenCalled();
     });
 
     it('sets error when clinic data is missing from state', () => {
@@ -144,7 +161,9 @@ describe('AdminProfileComponent', () => {
       component.onSave();
 
       expect(component.error()).toContain('Clinic setup');
-      expect(mockOnboardingService.completeAdminOnboarding).not.toHaveBeenCalled();
+      expect(
+        mockOnboardingService.completeAdminOnboarding
+      ).not.toHaveBeenCalled();
     });
 
     it('calls completeAdminOnboarding and sets completed on success', () => {
@@ -179,7 +198,12 @@ describe('AdminProfileComponent', () => {
         clinic: CLINIC_STUB,
       }));
       mockOnboardingService.completeAdminOnboarding.mockReturnValue(
-        of({ tenantId: 't1', userId: 'u1', logoUploadFailed: true, message: 'Logo failed' })
+        of({
+          tenantId: 't1',
+          userId: 'u1',
+          logoUploadFailed: true,
+          message: 'Logo failed',
+        })
       );
 
       component.profileForm.patchValue({
@@ -252,7 +276,12 @@ describe('AdminProfileComponent', () => {
         clinic: CLINIC_STUB,
       }));
       mockOnboardingService.completeAdminOnboarding.mockReturnValue(
-        of({ tenantId: 't1', userId: 'u1', logoUploadFailed: true, message: 'Logo failed' })
+        of({
+          tenantId: 't1',
+          userId: 'u1',
+          logoUploadFailed: true,
+          message: 'Logo failed',
+        })
       );
 
       component.profileForm.patchValue({
@@ -294,12 +323,131 @@ describe('AdminProfileComponent', () => {
     });
   });
 
+  describe('onSave() — preserving lab-entered details', () => {
+    const ON_RECORD = {
+      name: 'City Vet',
+      email: 'info@cityvet.com',
+      primaryContactName: 'Dr. Ana Gómez',
+      phone: '555-0100',
+      address: '123 Main St',
+      city: 'Austin',
+      country: 'CO',
+    };
+
+    async function saveWith(
+      clinic: Partial<typeof CLINIC_STUB> & Record<string, unknown>
+    ) {
+      await setup({
+        onboardingToken: 'hex-token',
+        prefillClinic: ON_RECORD,
+        clinic: { ...CLINIC_STUB, ...clinic },
+      });
+      mockOnboardingService.completeAdminOnboarding.mockReturnValue(
+        of({ tenantId: 't1', userId: 'u1' })
+      );
+      component.profileForm.patchValue({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+      component.onSave();
+      return mockOnboardingService.completeAdminOnboarding.mock.calls[0][0];
+    }
+
+    it('omits every clinic field the admin left as the lab entered it', async () => {
+      const payload = await saveWith({
+        primaryContactName: 'Dr. Ana Gómez',
+        country: 'CO',
+      });
+
+      for (const field of [
+        'clinicName',
+        'clinicEmail',
+        'clinicAddress',
+        'clinicCity',
+        'clinicPhone',
+        'country',
+        'primaryContactName',
+      ]) {
+        expect(payload).not.toHaveProperty(field);
+      }
+      expect(payload).toMatchObject({
+        token: 'hex-token',
+        notificationMethod: 'email',
+      });
+    });
+
+    it('sends only the required fields the admin changed', async () => {
+      const payload = await saveWith({
+        primaryContactName: 'Dr. Ana Gómez',
+        country: 'CO',
+        telephone: '+57 310 999 8888',
+        city: 'Cali',
+      });
+
+      expect(payload).toMatchObject({
+        clinicPhone: '+57 310 999 8888',
+        clinicCity: 'Cali',
+      });
+      expect(payload).not.toHaveProperty('clinicAddress');
+      expect(payload).not.toHaveProperty('clinicName');
+    });
+
+    it('sends every clinic field when nothing is on record (platform invitation)', async () => {
+      await setup({ onboardingToken: 'hex-token', clinic: CLINIC_STUB });
+      mockOnboardingService.completeAdminOnboarding.mockReturnValue(
+        of({ tenantId: 't1', userId: 'u1' })
+      );
+      component.profileForm.patchValue({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+      component.onSave();
+
+      expect(
+        mockOnboardingService.completeAdminOnboarding.mock.calls[0][0]
+      ).toMatchObject({
+        clinicName: 'City Vet',
+        clinicEmail: 'info@cityvet.com',
+        clinicAddress: '123 Main St',
+        clinicCity: 'Austin',
+        clinicPhone: '555-0100',
+      });
+    });
+
+    it('sends optional fields the admin changed', async () => {
+      const payload = await saveWith({
+        primaryContactName: 'Dr. Luis Pérez',
+        country: 'MX',
+      });
+
+      expect(payload).toMatchObject({
+        primaryContactName: 'Dr. Luis Pérez',
+        country: 'MX',
+      });
+    });
+
+    it("sends '' when the admin intentionally cleared an optional field", async () => {
+      const payload = await saveWith({ primaryContactName: '', country: 'CO' });
+
+      expect(payload.primaryContactName).toBe('');
+      expect(payload).not.toHaveProperty('country');
+    });
+  });
+
   describe('onBack()', () => {
     it('saves a draft and navigates to clinic-setup', async () => {
       await setup();
       component.onBack();
       expect(mockOnboardingService.storeAdminProfileDraft).toHaveBeenCalled();
-      expect(mockRouter.navigate).toHaveBeenCalledWith(['/onboarding/clinic-setup']);
+      expect(mockRouter.navigate).toHaveBeenCalledWith([
+        '/onboarding/clinic-setup',
+      ]);
     });
   });
 

@@ -1,3 +1,5 @@
+import type { ClinicProfileModel } from './clinic-profile.model.js';
+
 export interface OnboardingState {
   tenantId: string;
   step: OnboardingStep;
@@ -13,6 +15,12 @@ export interface OnboardingState {
   prefillClinicName?: string;
   /** Clinic contact email prefilled from server verify response — read-only */
   prefillClinicEmail?: string;
+  /**
+   * Full clinic profile already on record (lab-created clients only) —
+   * used to prefill clinic-setup and to detect which optional fields the
+   * admin actually changed, so untouched lab data is never overwritten.
+   */
+  prefillClinic?: ClinicProfileModel;
 }
 
 /** Non-sensitive admin profile fields saved when navigating back — passwords are never persisted */
@@ -41,6 +49,8 @@ export interface ClinicSetupData {
   telephone: string;
   notificationMethod: 'email' | 'sms';
   country?: string;
+  /** Clinic's primary contact person — may differ from the onboarding admin */
+  primaryContactName?: string;
   /** Logo file held in memory until POST /onboarding/complete — never uploaded early */
   pendingLogoFile?: File;
 }
@@ -81,10 +91,12 @@ export type VerifyOnboardingTokenResponse =
       clinicName: string;
       /** Clinic contact email — stored on Tenant */
       clinicEmail: string;
+      /** Current clinic profile — present when the lab pre-created the clinic */
+      clinic?: ClinicProfileModel;
     }
   | {
       valid: false;
-      reason: 'expired' | 'used' | 'not_found';
+      reason: 'expired' | 'used' | 'revoked' | 'not_found';
     };
 
 /** Body for POST /onboarding/complete */
@@ -98,13 +110,18 @@ export interface CompleteAdminOnboardingRequest {
   /** Admin's personal phone (optional) */
   adminPhone?: string;
   // ── Clinic details (collected on clinic-setup screen) ──────────────────
-  clinicName: string;
-  clinicAddress: string;
-  clinicCity: string;
-  clinicEmail: string;
-  clinicPhone: string;
+  // Lab-created clients: omit a field to keep the value already on record.
+  // Platform invitations must send name, address, city, email and phone.
+  clinicName?: string;
+  clinicAddress?: string;
+  clinicCity?: string;
+  clinicEmail?: string;
+  clinicPhone?: string;
   notificationMethod: 'email' | 'sms';
+  /** Omit to keep the value on record; '' clears it */
   country?: string;
+  /** Omit to keep the value on record; '' clears it */
+  primaryContactName?: string;
   /** When true, the admin is also a veterinarian — sets isOrderingVet on their membership */
   isVet?: boolean;
 }

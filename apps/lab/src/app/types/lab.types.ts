@@ -376,6 +376,9 @@ export interface ClientOrganization {
   primaryContactEmail: string | null;
   phone: string | null;
   address: string | null;
+  city: string | null;
+  /** ISO 3166-1 alpha-2, e.g. "CO" */
+  country: string | null;
   userCount: number;
   orderCount: number;
   createdAt: string;
@@ -425,6 +428,8 @@ export interface CreateClientForm {
   primaryContactEmail: string;
   phone: string;
   address: string;
+  city: string;
+  country: string;
 }
 
 export interface CreateClientResponse {

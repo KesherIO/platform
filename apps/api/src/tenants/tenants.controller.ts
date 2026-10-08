@@ -19,7 +19,14 @@ import {
   ApiConsumes,
   ApiSecurity,
 } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
 import { TenantsService } from './tenants.service';
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
@@ -27,18 +34,42 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { TenantRole } from '@vet-ai/shared-types';
 import type { TenantContext } from '@vet-ai/shared-types';
 
+/**
+ * Clinic profile edit from clinic settings. Omitted fields are preserved;
+ * '' or null clears an optional field (see clinic-profile.util.ts). The clinic
+ * contact email is locked in this screen and is not accepted here.
+ */
 class UpdateClinicDto {
-  @IsOptional()
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString()
+  @MaxLength(200)
   name?: string;
 
   @IsOptional()
   @IsString()
-  phone?: string;
+  @MaxLength(200)
+  primaryContactName?: string | null;
 
   @IsOptional()
   @IsString()
-  address?: string;
+  @MaxLength(50)
+  phone?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string | null;
+
+  /** ISO 3166-1 alpha-2, e.g. "CO" */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z]{2})?$/)
+  country?: string | null;
 }
 
 class UpdateStaffRoleDto {

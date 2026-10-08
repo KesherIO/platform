@@ -7,6 +7,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { TenantRole } from '@prisma/client';
 import { EligibleVetModel, StaffMember, StaffRole } from '@vet-ai/shared-types';
+import {
+  CLINIC_PROFILE_SELECT,
+  buildClinicProfileUpdate,
+  type ClinicProfileInput,
+} from './clinic-profile.util';
 
 const ROLE_MAP: Record<string, StaffRole> = {
   OWNER: 'Admin',
@@ -31,38 +36,36 @@ export class TenantsService {
 
   async updateClinic(
     tenantId: string,
-    data: { name?: string; phone?: string; address?: string },
+    data: ClinicProfileInput,
     logoFile?: Express.Multer.File
-  ): Promise<{
-    id: string;
-    name: string;
-    phone: string | null;
-    address: string | null;
-    logoUrl: string | null;
-  }> {
+  ) {
+    // Build (and validate) the update before uploading anything.
+    const profile = buildClinicProfileUpdate({
+      name: data.name,
+      primaryContactName: data.primaryContactName,
+      phone: data.phone,
+      address: data.address,
+      city: data.city,
+      country: data.country,
+    });
+
     let logoUrl: string | undefined;
     if (logoFile) {
       logoUrl = await this.storage.uploadClinicLogo(tenantId, logoFile);
     }
 
-    const updated = await this.prisma.tenant.update({
+    return this.prisma.tenant.update({
       where: { id: tenantId },
       data: {
-        ...(data.name !== undefined && { name: data.name }),
-        ...(data.phone !== undefined && { phone: data.phone }),
-        ...(data.address !== undefined && { address: data.address }),
+        ...profile,
         ...(logoUrl !== undefined && { logoUrl }),
       },
       select: {
         id: true,
-        name: true,
-        phone: true,
-        address: true,
+        ...CLINIC_PROFILE_SELECT,
         logoUrl: true,
       },
     });
-
-    return updated;
   }
 
   async getStaff(tenantId: string): Promise<StaffMember[]> {

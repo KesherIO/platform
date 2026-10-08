@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { StaffMember } from '@vet-ai/shared-types';
+import { ClinicProfileModel, StaffMember } from '@vet-ai/shared-types';
 import { TenantService } from './tenant.service';
 
 export type InviteErrorType =
@@ -10,6 +10,11 @@ export type InviteErrorType =
   | 'already_member'
   | 'unknown';
 export type StaffErrorType = 'last_admin' | 'unknown';
+
+/** Body for PATCH /api/tenants/:id — the clinic email is locked and not sent. */
+export type ClinicProfileUpdate = Partial<
+  Record<keyof Omit<ClinicProfileModel, 'email'>, string>
+>;
 
 export interface MagicLinkResult {
   url: string;
@@ -113,18 +118,19 @@ export class SettingsService {
   // Clinic
   // ---------------------------------------------------------------------------
 
-  updateClinic(
-    data: { name?: string; phone?: string; address?: string },
-    logoFile?: File
-  ): Observable<void> {
+  /**
+   * Update the shared clinic profile. Omitted fields are kept as they are;
+   * '' clears an optional field.
+   */
+  updateClinic(data: ClinicProfileUpdate, logoFile?: File): Observable<void> {
     const tenantId = this.tenantId;
-    let body: FormData | { name?: string; phone?: string };
+    let body: FormData | ClinicProfileUpdate;
 
     if (logoFile) {
       const fd = new FormData();
-      if (data.name !== undefined) fd.append('name', data.name);
-      if (data.phone !== undefined) fd.append('phone', data.phone);
-      if (data.address !== undefined) fd.append('address', data.address);
+      for (const [key, value] of Object.entries(data)) {
+        if (value !== undefined) fd.append(key, value);
+      }
       fd.append('logo', logoFile);
       body = fd;
     } else {

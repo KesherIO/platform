@@ -22,6 +22,7 @@ export interface Tenant {
   primaryContactName?: string | null;
   // Contact details — collected during clinic-setup onboarding step
   address?: string;
+  city?: string;
   email?: string;
   phone?: string;
   country?: string;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { labApi } from '../../shared/api/labApi';
+import { COUNTRY_CODES, countryName } from '../../shared/countries';
 import type { ClientDetail } from '../../types/lab.types';
 
 interface Props {
@@ -18,7 +19,7 @@ const formatDate = (iso: string) =>
   });
 
 export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -27,6 +28,8 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
     primaryContactEmail: '',
     phone: '',
     address: '',
+    city: '',
+    country: '',
   });
 
   const startEditing = () => {
@@ -36,6 +39,8 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
       primaryContactEmail: client.primaryContactEmail ?? '',
       phone: client.phone ?? '',
       address: client.address ?? '',
+      city: client.city ?? '',
+      country: client.country ?? '',
     });
     setEditing(true);
   };
@@ -43,6 +48,8 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
   const handleSave = async () => {
     try {
       setSaving(true);
+      // Every field is sent: an emptied field clears the value on the clinic
+      // profile (shared with the clinic's own app).
       await labApi.clients.update(client.id, editForm);
       setEditing(false);
       onUpdated();
@@ -138,6 +145,37 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
               className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-cyan focus:outline-none"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">
+              {t('clients.form.city')}
+            </label>
+            <input
+              value={editForm.city}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, city: e.target.value }))
+              }
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-cyan focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">
+              {t('clients.form.country')}
+            </label>
+            <select
+              value={editForm.country}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, country: e.target.value }))
+              }
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+            >
+              <option value="">{t('clients.form.country_placeholder')}</option>
+              {COUNTRY_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {countryName(code, i18n.language)}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleSave}
@@ -201,6 +239,24 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
                 {t('clients.form.address')}
               </dt>
               <dd className="text-white">{client.address}</dd>
+            </div>
+          )}
+          {client.city && (
+            <div>
+              <dt className="text-xs text-gray-500">
+                {t('clients.form.city')}
+              </dt>
+              <dd className="text-white">{client.city}</dd>
+            </div>
+          )}
+          {client.country && (
+            <div>
+              <dt className="text-xs text-gray-500">
+                {t('clients.form.country')}
+              </dt>
+              <dd className="text-white">
+                {countryName(client.country, i18n.language)}
+              </dd>
             </div>
           )}
           <div>

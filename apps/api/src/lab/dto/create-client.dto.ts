@@ -3,6 +3,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
 } from 'class-validator';
 
@@ -42,4 +43,15 @@ export class CreateClientDto {
   @IsOptional()
   @MaxLength(500)
   address?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  city?: string;
+
+  /** ISO 3166-1 alpha-2, e.g. "CO" */
+  @IsString()
+  @IsOptional()
+  @Matches(/^([A-Z]{2})?$/)
+  country?: string;
 }

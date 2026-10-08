@@ -1,6 +1,6 @@
-import { ComponentFixture, TestBed} from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { of} from 'rxjs';
+import { of } from 'rxjs';
 import { ClinicSetupComponent } from './clinic-setup.component';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -16,7 +16,11 @@ describe('ClinicSetupComponent', () => {
   };
   let mockRouter: { navigate: ReturnType<typeof vi.fn> };
 
-  const mockState = signal<OnboardingState>({ tenantId: 'tenant-abc', step: 'welcome', isFirstUser: true });
+  const mockState = signal<OnboardingState>({
+    tenantId: 'tenant-abc',
+    step: 'welcome',
+    isFirstUser: true,
+  });
 
   beforeEach(async () => {
     mockOnboardingService = {
@@ -99,7 +103,9 @@ describe('ClinicSetupComponent', () => {
     });
 
     it('should call saveClinicSetup and navigate on success', () => {
-      mockOnboardingService.storeClinicSetup.mockReturnValue(of({ clinicId: 'clinic-123' }));
+      mockOnboardingService.storeClinicSetup.mockReturnValue(
+        of({ clinicId: 'clinic-123' })
+      );
       component.clinicForm.patchValue({
         name: 'My Clinic',
         address: '123 Main St',
@@ -112,8 +118,82 @@ describe('ClinicSetupComponent', () => {
       component.onSubmit();
 
       expect(mockOnboardingService.storeClinicSetup).toHaveBeenCalled();
-      expect(mockRouter.navigate).toHaveBeenCalledWith(['/onboarding/admin-profile']);
+      expect(mockRouter.navigate).toHaveBeenCalledWith([
+        '/onboarding/admin-profile',
+      ]);
       expect(component.uploading()).toBe(false);
+    });
+  });
+
+  describe('prefill from the clinic record (lab-created client)', () => {
+    const LAB_ENTERED = {
+      name: 'City Vet Clinic',
+      email: 'info@cityvet.com',
+      primaryContactName: 'Dr. Ana Gómez',
+      phone: '+57 300 111 2222',
+      address: 'Calle 10 #20-30',
+      city: 'Bogotá',
+      country: 'CO',
+    };
+
+    function createWithState(state: Partial<OnboardingState>) {
+      mockState.set({
+        tenantId: '',
+        step: 'clinic-setup',
+        isFirstUser: true,
+        ...state,
+      });
+      const f = TestBed.createComponent(ClinicSetupComponent);
+      f.detectChanges();
+      return f.componentInstance;
+    }
+
+    afterEach(() => {
+      mockState.set({
+        tenantId: 'tenant-abc',
+        step: 'welcome',
+        isFirstUser: true,
+      });
+    });
+
+    it('prefills every field the lab entered', () => {
+      const c = createWithState({
+        prefillClinicName: LAB_ENTERED.name,
+        prefillClinicEmail: LAB_ENTERED.email,
+        prefillClinic: LAB_ENTERED,
+      });
+
+      expect(c.clinicForm.value).toMatchObject({
+        name: 'City Vet Clinic',
+        primaryContactName: 'Dr. Ana Gómez',
+        telephone: '+57 300 111 2222',
+        address: 'Calle 10 #20-30',
+        city: 'Bogotá',
+        country: 'CO',
+      });
+      expect(c.prefillClinicEmail()).toBe('info@cityvet.com');
+      expect(c.clinicForm.valid).toBe(true);
+    });
+
+    it('keeps values the admin already typed when navigating back', () => {
+      const c = createWithState({
+        prefillClinic: LAB_ENTERED,
+        clinic: {
+          name: 'City Vet',
+          address: 'Edited address',
+          city: 'Cali',
+          email: LAB_ENTERED.email,
+          telephone: '555',
+          notificationMethod: 'sms',
+          primaryContactName: '',
+        },
+      });
+
+      expect(c.clinicForm.value).toMatchObject({
+        address: 'Edited address',
+        city: 'Cali',
+        primaryContactName: '',
+      });
     });
   });
 });

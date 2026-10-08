@@ -52,6 +52,17 @@ function makeOnboardingToken(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Profile the lab entered when it created the client (Add client). */
+const LAB_ENTERED_PROFILE = {
+  name: 'City Vet Clinic',
+  email: 'info@cityvet.com',
+  primaryContactName: 'Dr. Ana Gómez',
+  phone: '+57 300 111 2222',
+  address: 'Calle 10 #20-30',
+  city: 'Bogotá',
+  country: 'CO',
+};
+
 function makeLabOnboardingToken(overrides: Record<string, unknown> = {}) {
   return {
     id: 'lab-token-id',
@@ -760,6 +771,53 @@ describe('OnboardingService', () => {
         service.verifyOnboardingToken('garbage')
       ).resolves.toBeDefined();
     });
+
+    it('returns the lab-entered clinic profile for a lab-created client', async () => {
+      prisma.onboardingToken.findUnique.mockResolvedValue(
+        makeOnboardingToken({
+          laboratoryId: 'lab-1',
+          clinicTenantId: 'clinic-1',
+          // snapshot taken at invite time — the lab has since renamed the clinic
+          clinicName: 'Old Name',
+          clinicEmail: 'old@cityvet.com',
+        })
+      );
+      prisma.tenant.findUnique.mockResolvedValue(LAB_ENTERED_PROFILE);
+
+      const result = await service.verifyOnboardingToken('hex-token');
+
+      expect(prisma.tenant.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'clinic-1' } })
+      );
+      expect(result).toEqual({
+        valid: true,
+        type: 'ADMIN',
+        clinicName: 'City Vet Clinic',
+        clinicEmail: 'info@cityvet.com',
+        clinic: LAB_ENTERED_PROFILE,
+      });
+    });
+
+    it('does not return a profile for platform invitations', async () => {
+      prisma.onboardingToken.findUnique.mockResolvedValue(
+        makeOnboardingToken({ laboratoryId: null, clinicTenantId: null })
+      );
+
+      const result = await service.verifyOnboardingToken('hex-token');
+
+      expect(result).not.toHaveProperty('clinic');
+      expect(prisma.tenant.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('treats a lab invitation without clinicTenantId as revoked', async () => {
+      prisma.onboardingToken.findUnique.mockResolvedValue(
+        makeOnboardingToken({ laboratoryId: 'lab-1', clinicTenantId: null })
+      );
+
+      const result = await service.verifyOnboardingToken('hex-token');
+
+      expect(result).toEqual({ valid: false, reason: 'revoked' });
+    });
   });
 
   // ── completeAdminOnboarding ───────────────────────────────────────────────
@@ -972,50 +1030,28 @@ describe('OnboardingService', () => {
       expect(membershipData.status).toBeUndefined();
     });
 
-    it('creates lab connection before checking vet membership status', async () => {
-      const tokenWithLab = makeOnboardingToken({ laboratoryId: 'lab-1' });
-      prisma.onboardingToken.findUnique.mockResolvedValue(tokenWithLab);
-      auth.createSupabaseUser.mockResolvedValue('supabase-uid');
-      prisma.tenant.findFirst.mockResolvedValue(null);
-
-      const mockTx = {
-        tenant: { create: jest.fn().mockResolvedValue({ id: 'tenant-id' }) },
-        user: { create: jest.fn().mockResolvedValue({}) },
-        userTenantMembership: { create: jest.fn().mockResolvedValue({}) },
-        onboardingToken: { update: jest.fn().mockResolvedValue({}) },
-        clinicLabConnection: {
-          create: jest.fn().mockResolvedValue({}),
-          findFirst: jest.fn().mockResolvedValue({
-            labId: 'lab-1',
-            lab: { laboratoryProfile: { vetVerificationRequired: true } },
-          }),
-        },
-        veterinarianProfile: {
-          findUnique: jest.fn().mockResolvedValue(null),
-        },
-        vetLabVerification: {
-          findUnique: jest.fn().mockResolvedValue(null),
-        },
-        veterinarianCredential: {
-          findFirst: jest.fn().mockResolvedValue(null),
-        },
-      };
-      prisma.$transaction.mockImplementation(
-        (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
+    it('requires every clinic detail for a platform invitation (no clinic on record)', async () => {
+      prisma.onboardingToken.findUnique.mockResolvedValue(
+        makeOnboardingToken()
       );
+      const { clinicPhone: _omitted, ...withoutPhone } = dto;
 
-      await service.completeAdminOnboarding({ ...dto, isVet: true });
-
-      const labConnCallOrder =
-        mockTx.clinicLabConnection.create.mock.invocationCallOrder[0];
-      const membershipCallOrder =
-        mockTx.userTenantMembership.create.mock.invocationCallOrder[0];
-      expect(labConnCallOrder).toBeLessThan(membershipCallOrder);
+      await expect(
+        service.completeAdminOnboarding(withoutPhone)
+      ).rejects.toThrow('Missing clinic details: clinicPhone');
+      expect(prisma.tenant.findUnique).not.toHaveBeenCalled();
+      expect(auth.createSupabaseUser).not.toHaveBeenCalled();
     });
 
     describe('re-onboarding path (lab-created client)', () => {
       const labToken = makeOnboardingToken({
+        laboratoryId: 'lab-1',
         clinicTenantId: 'existing-tenant-id',
+      });
+
+      beforeEach(() => {
+        // Clinic record the lab created — loaded before completing onboarding
+        prisma.tenant.findUnique.mockResolvedValue(LAB_ENTERED_PROFILE);
       });
 
       function makeReOnboardingTx() {
@@ -1104,6 +1140,143 @@ describe('OnboardingService', () => {
         );
 
         expect(auth.deleteSupabaseUser).not.toHaveBeenCalled();
+      });
+
+      /** What the wizard submits when the admin changes nothing on the clinic step. */
+      const untouchedDto = {
+        token: 'hex-token',
+        adminFirstName: 'Jane',
+        adminLastName: 'Doe',
+        adminEmail: 'jane@cityvet.com',
+        password: 'password123',
+        notificationMethod: 'email' as const,
+      };
+
+      it('keeps every profile field the form did not send', async () => {
+        prisma.onboardingToken.findUnique.mockResolvedValue(labToken);
+        prisma.user.findUnique.mockResolvedValue(null);
+        auth.createSupabaseUser.mockResolvedValue('new-supabase-uid');
+        const mockTx = makeReOnboardingTx();
+        prisma.$transaction.mockImplementation(
+          (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
+        );
+
+        await service.completeAdminOnboarding(untouchedDto);
+
+        expect(prisma.tenant.findUnique).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { id: 'existing-tenant-id' } })
+        );
+        // Only non-profile fields are written; name, email, phone, address,
+        // city, country and primaryContactName all keep the lab's values.
+        expect(mockTx.tenant.update.mock.calls[0][0].data).toEqual({
+          notificationMethod: 'email',
+          clientStatus: 'ACTIVE',
+        });
+      });
+
+      it('writes only the profile fields the admin changed', async () => {
+        prisma.onboardingToken.findUnique.mockResolvedValue(labToken);
+        prisma.user.findUnique.mockResolvedValue(null);
+        auth.createSupabaseUser.mockResolvedValue('new-supabase-uid');
+        const mockTx = makeReOnboardingTx();
+        prisma.$transaction.mockImplementation(
+          (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
+        );
+
+        await service.completeAdminOnboarding({
+          ...untouchedDto,
+          clinicPhone: '+57 310 999 8888',
+        });
+
+        expect(mockTx.tenant.update.mock.calls[0][0].data).toEqual({
+          phone: '+57 310 999 8888',
+          notificationMethod: 'email',
+          clientStatus: 'ACTIVE',
+        });
+      });
+
+      it('rejects completion when a required detail is neither sent nor on record', async () => {
+        prisma.onboardingToken.findUnique.mockResolvedValue(labToken);
+        prisma.tenant.findUnique.mockResolvedValue({
+          ...LAB_ENTERED_PROFILE,
+          address: null,
+          city: null,
+        });
+
+        await expect(
+          service.completeAdminOnboarding(untouchedDto)
+        ).rejects.toThrow('Missing clinic details: clinicAddress, clinicCity');
+        expect(auth.createSupabaseUser).not.toHaveBeenCalled();
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      });
+
+      it('rejects completion when the clinic was deleted after the link was sent', async () => {
+        prisma.onboardingToken.findUnique.mockResolvedValue(labToken);
+        prisma.tenant.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.completeAdminOnboarding(untouchedDto)
+        ).rejects.toThrow('This onboarding link has been revoked');
+        expect(auth.createSupabaseUser).not.toHaveBeenCalled();
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      });
+
+      it('applies edits and explicit clears made during onboarding', async () => {
+        prisma.onboardingToken.findUnique.mockResolvedValue(labToken);
+        prisma.user.findUnique.mockResolvedValue(null);
+        auth.createSupabaseUser.mockResolvedValue('new-supabase-uid');
+        const mockTx = makeReOnboardingTx();
+        prisma.$transaction.mockImplementation(
+          (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
+        );
+
+        await service.completeAdminOnboarding({
+          ...dto,
+          primaryContactName: 'Dr. Luis Pérez',
+          country: '',
+        });
+
+        expect(mockTx.tenant.update.mock.calls[0][0].data).toEqual(
+          expect.objectContaining({
+            primaryContactName: 'Dr. Luis Pérez',
+            country: null,
+          })
+        );
+      });
+
+      it('rejects a lab invitation without clinicTenantId instead of creating a duplicate clinic', async () => {
+        prisma.onboardingToken.findUnique.mockResolvedValue(
+          makeOnboardingToken({ laboratoryId: 'lab-1', clinicTenantId: null })
+        );
+
+        await expect(service.completeAdminOnboarding(dto)).rejects.toThrow(
+          'This onboarding link has been revoked'
+        );
+        expect(prisma.tenant.findUnique).not.toHaveBeenCalled();
+        expect(prisma.user.findUnique).not.toHaveBeenCalled();
+        expect(auth.createSupabaseUser).not.toHaveBeenCalled();
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      });
+
+      it('still blocks a legacy lab invitation that is otherwise unused and unexpired', async () => {
+        // Same token passes every other check — only the missing clinicTenantId blocks it
+        prisma.onboardingToken.findUnique.mockResolvedValue(
+          makeOnboardingToken({
+            laboratoryId: 'lab-1',
+            clinicTenantId: null,
+            used: false,
+            revokedAt: null,
+            expiresAt: FUTURE,
+          })
+        );
+
+        await expect(
+          service.verifyOnboardingToken('hex-token')
+        ).resolves.toEqual({ valid: false, reason: 'revoked' });
+        await expect(service.completeAdminOnboarding(dto)).rejects.toThrow(
+          'This onboarding link has been revoked'
+        );
+        expect(prisma.tenant.create).not.toHaveBeenCalled();
       });
 
       it('creates new Supabase user when no existing app DB user found', async () => {

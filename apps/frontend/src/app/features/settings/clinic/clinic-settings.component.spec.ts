@@ -15,6 +15,9 @@ const MOCK_MEMBERSHIP_ADMIN = {
     email: 'clinic@test.com',
     phone: '555-0001',
     address: '123 Main St',
+    primaryContactName: 'Dr. Ana',
+    city: 'Bogotá',
+    country: 'CO',
     logoUrl: null,
     primaryColor: null,
   },
@@ -105,6 +108,7 @@ describe('ClinicSettingsComponent', () => {
 
   it('save calls settingsService.updateClinic and auth.loadMe', () => {
     component.startEditing();
+    authService.loadMe.mockClear(); // ignore the refresh done on open
     component.save();
     expect(settingsService.updateClinic).toHaveBeenCalledOnce();
     expect(authService.loadMe).toHaveBeenCalledOnce();
@@ -114,6 +118,62 @@ describe('ClinicSettingsComponent', () => {
     component.startEditing();
     component.save();
     expect(component.editing()).toBe(false);
+  });
+
+  it('startEditing populates contact, city and country', () => {
+    component.startEditing();
+    expect(component.editContactName()).toBe('Dr. Ana');
+    expect(component.editCity()).toBe('Bogotá');
+    expect(component.editCountry()).toBe('CO');
+  });
+
+  it('save sends the full editable profile, with cleared fields as empty strings', () => {
+    component.startEditing();
+    component.editContactName.set('');
+    component.editCity.set('Medellín');
+    component.save();
+
+    expect(settingsService.updateClinic).toHaveBeenCalledWith(
+      {
+        name: 'Vet Clinic',
+        phone: '555-0001',
+        address: '123 Main St',
+        primaryContactName: '',
+        city: 'Medellín',
+        country: 'CO',
+      },
+      undefined
+    );
+  });
+
+  it('reloads the clinic profile every time the screen opens', () => {
+    expect(authService.loadMe).toHaveBeenCalledOnce();
+  });
+
+  it('shows changes made in the lab portal after reopening', () => {
+    // Lab portal edited the shared profile; reopening reloads /auth/me.
+    const labEdited = {
+      ...MOCK_MEMBERSHIP_ADMIN,
+      tenant: {
+        ...MOCK_MEMBERSHIP_ADMIN.tenant,
+        phone: '+57 310 999 8888',
+        city: 'Cali',
+        primaryContactName: 'Dr. Luis',
+      },
+    };
+    authService.loadMe.mockImplementation(() => {
+      tenantService.activeMembership.set(labEdited);
+      return of(MOCK_ME_ADMIN);
+    });
+
+    fixture.destroy();
+    fixture = TestBed.createComponent(ClinicSettingsComponent);
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('+57 310 999 8888');
+    expect(text).toContain('Cali');
+    expect(text).toContain('Dr. Luis');
   });
 
   it('clinicEmail reads from me()', () => {

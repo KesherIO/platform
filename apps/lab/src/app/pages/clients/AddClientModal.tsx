@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
+import { COUNTRY_CODES, countryName } from '../../shared/countries';
 import type { ClientType, CreateClientResponse } from '../../types/lab.types';
 
 const CLIENT_TYPES: ClientType[] = [
@@ -21,7 +22,7 @@ interface AddClientModalProps {
 }
 
 export function AddClientModal({ onClose, onCreated }: AddClientModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { tenantName } = useAuth();
 
   const [name, setName] = useState('');
@@ -30,6 +31,8 @@ export function AddClientModal({ onClose, onCreated }: AddClientModalProps) {
   const [contactEmail, setContactEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -48,6 +51,8 @@ export function AddClientModal({ onClose, onCreated }: AddClientModalProps) {
         primaryContactEmail: contactEmail,
         phone: phone || undefined,
         address: address || undefined,
+        city: city || undefined,
+        country: country || undefined,
       });
       setResult(res);
       onCreated();
@@ -165,6 +170,39 @@ export function AddClientModal({ onClose, onCreated }: AddClientModalProps) {
                   placeholder={t('clients.form.address_placeholder')}
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-cyan focus:outline-none"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-400">
+                  {t('clients.form.city')}
+                </label>
+                <input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder={t('clients.form.city_placeholder')}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-cyan focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-400">
+                  {t('clients.form.country')}
+                </label>
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+                >
+                  <option value="">
+                    {t('clients.form.country_placeholder')}
+                  </option>
+                  {COUNTRY_CODES.map((code) => (
+                    <option key={code} value={code}>
+                      {countryName(code, i18n.language)}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

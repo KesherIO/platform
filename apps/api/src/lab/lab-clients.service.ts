@@ -10,6 +10,10 @@ import { randomBytes, createHash } from 'crypto';
 import type { CreateClientDto } from './dto/create-client.dto';
 import type { UpdateClientDto } from './dto/update-client.dto';
 import type { ListClientsDto } from './dto/list-clients.dto';
+import {
+  CLINIC_PROFILE_SELECT,
+  buildClinicProfileUpdate,
+} from '../tenants/clinic-profile.util';
 
 function slugify(name: string): string {
   return name
@@ -58,13 +62,9 @@ export class LabClientsService {
         take: pageSize,
         select: {
           id: true,
-          name: true,
+          ...CLINIC_PROFILE_SELECT,
           clientType: true,
           clientStatus: true,
-          primaryContactName: true,
-          email: true,
-          phone: true,
-          address: true,
           createdAt: true,
           _count: {
             select: {
@@ -87,6 +87,8 @@ export class LabClientsService {
         primaryContactEmail: c.email,
         phone: c.phone,
         address: c.address,
+        city: c.city,
+        country: c.country,
         userCount: c._count.memberships,
         orderCount: c._count.orders,
         createdAt: c.createdAt,
@@ -116,13 +118,9 @@ export class LabClientsService {
       where: { id: clientTenantId },
       select: {
         id: true,
-        name: true,
+        ...CLINIC_PROFILE_SELECT,
         clientType: true,
         clientStatus: true,
-        primaryContactName: true,
-        email: true,
-        phone: true,
-        address: true,
         createdAt: true,
         updatedAt: true,
         pickupEnabled: true,
@@ -169,7 +167,7 @@ export class LabClientsService {
     });
 
     const invitation = await this.prisma.onboardingToken.findFirst({
-      where: { laboratoryId: labTenantId, clinicEmail: client.email ?? '' },
+      where: { laboratoryId: labTenantId, clinicTenantId: clientTenantId },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -191,6 +189,8 @@ export class LabClientsService {
       primaryContactEmail: client.email,
       phone: client.phone,
       address: client.address,
+      city: client.city,
+      country: client.country,
       createdAt: client.createdAt,
       updatedAt: client.updatedAt,
       orderCount: client._count.orders,
@@ -267,15 +267,20 @@ export class LabClientsService {
     const result = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
-          name: dto.name,
+          ...buildClinicProfileUpdate({
+            name: dto.name,
+            email: dto.primaryContactEmail,
+            primaryContactName: dto.primaryContactName,
+            phone: dto.phone,
+            address: dto.address,
+            city: dto.city,
+            country: dto.country,
+          }),
+          name: dto.name.trim(),
           slug,
           type: 'CLINIC',
           clientType: dto.clientType as ClientType,
           clientStatus: 'PENDING',
-          primaryContactName: dto.primaryContactName ?? null,
-          email: dto.primaryContactEmail,
-          phone: dto.phone ?? null,
-          address: dto.address ?? null,
         },
       });
 
@@ -320,30 +325,43 @@ export class LabClientsService {
   ) {
     await this.verifyLabClientConnection(labTenantId, clientTenantId);
 
-    const updateData: Record<string, unknown> = {};
-    if (dto.name !== undefined) updateData.name = dto.name;
-    if (dto.clientType !== undefined)
-      updateData.clientType = dto.clientType as ClientType;
-    if (dto.primaryContactName !== undefined)
-      updateData.primaryContactName = dto.primaryContactName;
-    if (dto.primaryContactEmail !== undefined)
-      updateData.email = dto.primaryContactEmail;
-    if (dto.phone !== undefined) updateData.phone = dto.phone;
-    if (dto.address !== undefined) updateData.address = dto.address;
+    const profile = buildClinicProfileUpdate({
+      name: dto.name,
+      email: dto.primaryContactEmail,
+      primaryContactName: dto.primaryContactName,
+      phone: dto.phone,
+      address: dto.address,
+      city: dto.city,
+      country: dto.country,
+    });
 
-    return this.prisma.tenant.update({
-      where: { id: clientTenantId },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        clientType: true,
-        clientStatus: true,
-        primaryContactName: true,
-        email: true,
-        phone: true,
-        address: true,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.tenant.update({
+        where: { id: clientTenantId },
+        data: {
+          ...profile,
+          ...(dto.clientType !== undefined && {
+            clientType: dto.clientType as ClientType,
+          }),
+        },
+        select: {
+          id: true,
+          ...CLINIC_PROFILE_SELECT,
+          clientType: true,
+          clientStatus: true,
+        },
+      });
+
+      // Keep this lab's pending invitations showing the clinic's current
+      // contact email. Lookups use clinicTenantId, so this is display-only.
+      if (profile.email) {
+        await tx.onboardingToken.updateMany({
+          where: this.pendingInvitationsWhere(labTenantId, clientTenantId),
+          data: { clinicEmail: profile.email },
+        });
+      }
+
+      return updated;
     });
   }
 
@@ -401,12 +419,7 @@ export class LabClientsService {
 
     await this.prisma.$transaction(async (tx) => {
       await tx.onboardingToken.updateMany({
-        where: {
-          laboratoryId: labTenantId,
-          clinicEmail: client.email ?? '',
-          used: false,
-          revokedAt: null,
-        },
+        where: this.pendingInvitationsWhere(labTenantId, clientTenantId),
         data: { revokedAt: new Date() },
       });
 
@@ -435,18 +448,8 @@ export class LabClientsService {
   async revokeInvitation(labTenantId: string, clientTenantId: string) {
     await this.verifyLabClientConnection(labTenantId, clientTenantId);
 
-    const client = await this.prisma.tenant.findUniqueOrThrow({
-      where: { id: clientTenantId },
-      select: { email: true },
-    });
-
     const result = await this.prisma.onboardingToken.updateMany({
-      where: {
-        laboratoryId: labTenantId,
-        clinicEmail: client.email ?? '',
-        used: false,
-        revokedAt: null,
-      },
+      where: this.pendingInvitationsWhere(labTenantId, clientTenantId),
       data: { revokedAt: new Date() },
     });
 
@@ -460,25 +463,46 @@ export class LabClientsService {
   async deleteClient(labTenantId: string, clientTenantId: string) {
     await this.verifyLabClientConnection(labTenantId, clientTenantId);
 
-    const orderCount = await this.prisma.order.count({
-      where: { tenantId: clientTenantId },
-    });
-    if (orderCount > 0) {
-      throw new BadRequestException(
-        'Cannot delete a client with existing orders. Suspend the client instead.'
-      );
-    }
-
+    // Deleting removes the clinic Tenant itself, which cascades to its
+    // memberships, staff invitations, cases and orders (never to User rows).
+    // So it is only allowed for a clinic that exists solely as this lab's
+    // pending invitation. Guards and deletion share one transaction, and the
+    // clinic row is locked first so a concurrent onboarding completion (which
+    // updates this row before adding its membership) cannot slip in between.
     await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${clientTenantId} FOR UPDATE`;
+
+      const [otherLabConnections, memberCount, orderCount] = await Promise.all([
+        tx.clinicLabConnection.count({
+          where: { clinicId: clientTenantId, labId: { not: labTenantId } },
+        }),
+        tx.userTenantMembership.count({
+          where: { tenantId: clientTenantId },
+        }),
+        tx.order.count({ where: { tenantId: clientTenantId } }),
+      ]);
+      if (otherLabConnections > 0) {
+        throw new BadRequestException(
+          'Cannot delete a client that is also connected to another laboratory. Suspend the client instead.'
+        );
+      }
+      if (memberCount > 0) {
+        throw new BadRequestException(
+          'Cannot delete a client that has completed onboarding. Suspend the client instead.'
+        );
+      }
+      if (orderCount > 0) {
+        throw new BadRequestException(
+          'Cannot delete a client with existing orders. Suspend the client instead.'
+        );
+      }
+
       await tx.onboardingToken.updateMany({
-        where: { laboratoryId: labTenantId, clinicEmail: { not: '' } },
+        where: this.pendingInvitationsWhere(labTenantId, clientTenantId),
         data: { revokedAt: new Date() },
       });
       await tx.clinicLabConnection.deleteMany({
         where: { clinicId: clientTenantId, labId: labTenantId },
-      });
-      await tx.userTenantMembership.deleteMany({
-        where: { tenantId: clientTenantId },
       });
       await tx.tenant.delete({ where: { id: clientTenantId } });
     });
@@ -534,6 +558,16 @@ export class LabClientsService {
         pickupInstructions: true,
       },
     });
+  }
+
+  /** This lab's still-usable invitations for one clinic. */
+  private pendingInvitationsWhere(labTenantId: string, clientTenantId: string) {
+    return {
+      laboratoryId: labTenantId,
+      clinicTenantId: clientTenantId,
+      used: false,
+      revokedAt: null,
+    };
   }
 
   private async verifyLabClientConnection(
