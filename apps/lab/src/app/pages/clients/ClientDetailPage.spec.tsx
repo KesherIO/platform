@@ -157,7 +157,7 @@ describe('ClientDetailPage — shared clinic profile', () => {
     fireEvent.click(editInfo);
     const countrySelect = screen
       .getAllByRole('combobox')
-      .find((el) => (el as HTMLSelectElement).value === 'CO');
+      .find((el) => (el as unknown as { value: string }).value === 'CO');
     fireEvent.change(countrySelect!, { target: { value: 'CL' } });
     fireEvent.click(screen.getByText('clients.detail.save'));
 

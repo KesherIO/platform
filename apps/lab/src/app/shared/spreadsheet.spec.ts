@@ -57,7 +57,7 @@ describe('parseCsvText', () => {
 
 describe('decodeCsv', () => {
   it('reads UTF-8 and falls back to Windows-1252 for Excel "CSV" files', () => {
-    const utf8 = new TextEncoder().encode('﻿Cédula').buffer;
+    const utf8 = new TextEncoder().encode('﻿Cédula').buffer as ArrayBuffer;
     const latin1 = new Uint8Array([0x43, 0xe9, 0x64, 0x75, 0x6c, 0x61]).buffer;
 
     expect(decodeCsv(utf8)).toBe('Cédula');
@@ -140,7 +140,9 @@ describe('parseXlsxBuffer', () => {
 
   it('rejects a file that is not an xlsx', async () => {
     await expect(
-      parseXlsxBuffer(new TextEncoder().encode('not a zip').buffer)
+      parseXlsxBuffer(
+        new TextEncoder().encode('not a zip').buffer as ArrayBuffer
+      )
     ).rejects.toThrow(SpreadsheetParseError);
   });
 });
