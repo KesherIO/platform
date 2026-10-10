@@ -85,6 +85,12 @@ export function ClientDetailPage() {
     try {
       setActionError(null);
       let response: CreateClientResponse | undefined;
+      // Nothing to revoke (e.g. an imported client): no confirmation needed.
+      if (!client?.invitation) {
+        setNewLink(await labApi.clients.regenerateInvitation(id));
+        invalidateClient();
+        return;
+      }
       const confirmed = await confirm({
         title: t('clients.invitation.confirm_regenerate_title'),
         message: t('clients.invitation.confirm_regenerate'),

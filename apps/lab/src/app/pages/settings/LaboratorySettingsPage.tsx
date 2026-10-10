@@ -8,6 +8,7 @@ import { labApi } from '../../shared/api/labApi';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import { COMMON_TIMEZONES } from '../../shared/timezones';
+import { COUNTRY_CODES, countryName } from '../../shared/countries';
 import type {
   LaboratoryProfile,
   LabContactInfo,
@@ -31,6 +32,7 @@ const EMPTY_CONTACT: LabContactInfo = {
   logoUrl: null,
   address: '',
   city: '',
+  country: null,
   phoneNumbers: [],
   mapLat: null,
   mapLng: null,
@@ -670,6 +672,32 @@ export function LaboratorySettingsPage() {
                 placeholder={t('settings.city_placeholder')}
                 className={inputClass}
               />
+            </div>
+
+            {/* Country */}
+            <div>
+              <label className={labelClass}>{t('settings.country')}</label>
+              <select
+                value={contactInfo.country ?? ''}
+                disabled={!isAdmin}
+                onChange={(e) =>
+                  setContactInfo({
+                    ...contactInfo,
+                    country: e.target.value || null,
+                  })
+                }
+                className={inputClass}
+              >
+                <option value="">{t('settings.country_placeholder')}</option>
+                {COUNTRY_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {countryName(code, i18n.language)}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                {t('settings.country_hint')}
+              </p>
             </div>
 
             {/* Timezone */}

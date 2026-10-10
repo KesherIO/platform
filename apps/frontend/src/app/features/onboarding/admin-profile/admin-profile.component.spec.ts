@@ -337,6 +337,9 @@ describe('AdminProfileComponent', () => {
       address: '123 Main St',
       city: 'Austin',
       country: 'CO',
+      legalName: null,
+      taxIdType: null,
+      taxId: null,
     };
 
     async function saveWith(

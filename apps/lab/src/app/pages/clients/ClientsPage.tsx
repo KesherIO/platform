@@ -7,6 +7,7 @@ import { labApi } from '../../shared/api/labApi';
 import { SearchInput } from '../../shared/components/SearchInput';
 import { Pagination } from '../../shared/components/Pagination';
 import { AddClientModal } from './AddClientModal';
+import { ImportClientsModal } from './ImportClientsModal';
 import { ClientsListSkeleton } from './ClientSkeletons';
 import type { ClientStatus } from '../../types/lab.types';
 
@@ -33,6 +34,7 @@ export function ClientsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const pageSize = 20;
 
@@ -75,12 +77,20 @@ export function ClientsPage() {
           )}
         </div>
         {isAdmin && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
-          >
-            + {t('clients.add_client')}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
+            >
+              {t('clients.import_clients')}
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
+            >
+              + {t('clients.add_client')}
+            </button>
+          </div>
         )}
       </div>
 
@@ -191,6 +201,15 @@ export function ClientsPage() {
             onPageChange={setPage}
           />
         </div>
+      )}
+
+      {showImportModal && (
+        <ImportClientsModal
+          onClose={() => setShowImportModal(false)}
+          onImported={() =>
+            queryClient.invalidateQueries({ queryKey: ['clients'] })
+          }
+        />
       )}
 
       {/* Add client modal */}

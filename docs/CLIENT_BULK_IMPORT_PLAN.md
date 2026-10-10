@@ -738,8 +738,50 @@ test setup, run by hand (or in CI later), not on every `nx test`.
    - unit tests + opt-in integration test.
 2. **Lab UI**: upload, mapping, preview with re-checks, groups with progress and resume,
    result + retry file, invitation label, Add client / edit fields, i18n.
-3. **Clinic app**: onboarding clinic setup + settings fields.
+3. **Clinic app**: onboarding clinic setup + settings fields, plus the API side of B4
+   (`SaveClinicSetupDto` / `CompleteAdminOnboardingDto` / `updateClinic` accepting the
+   tax fields, moved here from phase 1). When the clinic changes its country there,
+   check the stored ID type still fits (`checkTaxIdentity`), as `updateClient` does.
 4. **Staging check** with the real file; tune `IMPORT_CHUNK_SIZE`.
+
+**Phase 1 status (2026-10-10)**: implemented on `feat/SCRUM-29-client-import-api`, not
+committed yet. Migration `20261010000001_client_tax_identity_and_import` is hand-written
+and not applied yet. Differences from the text above:
+
+- Extra error codes: `INVALID_TAX_ID` (a number with nothing left after normalizing, e.g.
+  `---`), `UNKNOWN_FIELD` (a row field that isn't in the DTO) and `INVALID` (wrong type,
+  e.g. a number where text is expected).
+- The concurrency test is `lab-clients.import.int.spec.ts`: it is skipped unless
+  `INTEGRATION_DATABASE_URL` is set. It's named `.int.spec.ts`, not `.int-spec.ts`, so the
+  app build's tsconfig leaves it out like the other specs.
+- `ClientFieldsDto` trims every string, so Add client now accepts `" a@b.com "`.
+- `updateClient` returns `notes` with the updated profile.
+- Pure helpers (row validation, tax checks, keys, row hash) are in
+  `apps/api/src/lab/client-import.util.ts`.
+
+**Phase 2 status (2026-10-10)**: implemented on the same branch, not committed. papaparse
+5.7 + exceljs 4.4 installed (exceljs adds one moderate audit finding via its `uuid`
+dependency, buffer bounds check in v3/v5/v6 — exceljs doesn't call it with a buffer;
+`npm audit`'s "fix" is a downgrade to exceljs 3.4, not taken). Differences from the text
+above:
+
+- **Lab country** (decided): the lab's country is stored on its own `Tenant.country`, edited
+  in Settings → Laboratory (`GET/PATCH /lab/settings/contact` now include `country`). The
+  import's default country comes from it; the user can change it per import. No migration.
+- **Ecuador** added to both apps' country lists (`EC`), so its tax ID types are usable.
+- Our own template headers (EN or ES) are recognized exactly, including Notes and Client
+  type — so the retry file maps back automatically. Fuzzy guessing still never picks Notes
+  or Client type.
+- "Already in your lab" rows from the preview are sent with the final import too, so the
+  summary comes only from the import response (A4).
+- New bucket **Needs review**: rows with unconfirmed warnings (A6/A7) block the Import
+  button until confirmed or excluded; a "Confirm all warnings" button is offered.
+- CSV: the separator is detected from the header line (papaparse's own guess picked `,`
+  for a `;` file with quoted multi-line fields); files that aren't valid UTF-8 are read as
+  Windows-1252 (Excel "CSV" on Windows in Spanish).
+- Generating the first invitation for a client that never had one skips the "this revokes
+  the current one" confirmation.
+- `AuthContext` exposes `tenantId` (for the per-lab saved mapping).
 
 ### B8. Not in this work / follow-ups
 

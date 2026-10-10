@@ -419,7 +419,10 @@
       "subtitle": "Importa el catálogo estándar de la plataforma como punto de partida. Esto agrega todas las pruebas y paquetes estándar con códigos de plataforma. Luego puedes personalizarlos en la página de Catálogo.",
       "button": "Importar Catálogo de Plataforma",
       "importing": "Importando..."
-    }
+    },
+    "country": "País",
+    "country_placeholder": "Seleccionar país",
+    "country_hint": "País predeterminado para los clientes que importes."
   },
   "catalog": {
     "title": "Catálogo",
@@ -606,7 +609,17 @@
       "cancel": "Cancelar",
       "close": "Cerrar",
       "submit": "Crear cliente",
-      "submitting": "Creando..."
+      "submitting": "Creando...",
+      "legal_name": "Razón social",
+      "legal_name_placeholder": "p. ej. Happy Paws SAS",
+      "tax_id_type": "Tipo de identificación",
+      "tax_id_type_placeholder": "Seleccionar tipo",
+      "tax_id": "Número de identificación",
+      "tax_id_placeholder": "p. ej. 900.123.456-7",
+      "tax_id_hint": "Elige un país y un tipo de identificación para agregar el número.",
+      "notes": "Notas internas",
+      "notes_placeholder": "Solo tu laboratorio ve estas notas",
+      "notes_hint": "Nunca se muestran al cliente ni a otros laboratorios."
     },
     "invitation": {
       "title": "Enlace de invitación",
@@ -628,7 +641,8 @@
       "confirm_revoke": "El cliente ya no podrá usarlo para registrarse.",
       "confirm_regenerate_title": "¿Generar un nuevo enlace de invitación?",
       "confirm_regenerate": "El enlace actual será revocado.",
-      "message_template": "¡Hola! Has sido invitado a unirte a {{labName}} en Kesher IO. Usa este enlace para configurar tu cuenta: {{link}}"
+      "message_template": "¡Hola! Has sido invitado a unirte a {{labName}} en Kesher IO. Usa este enlace para configurar tu cuenta: {{link}}",
+      "generate": "Generar invitación"
     },
     "detail": {
       "title": "Detalles del cliente",
@@ -672,6 +686,169 @@
       "saved": "Configuración de recolección guardada",
       "errors": {
         "save": "Error al guardar la configuración de recolección:"
+      }
+    },
+    "import_clients": "Importar clientes",
+    "tax_id_types": {
+      "NIT": "NIT",
+      "CC": "CC (cédula de ciudadanía)",
+      "CE": "CE (cédula de extranjería)",
+      "PP": "PP (pasaporte)",
+      "RUT": "RUT",
+      "CUIT": "CUIT",
+      "CUIL": "CUIL",
+      "DNI": "DNI",
+      "RUC": "RUC",
+      "CI": "CI (cédula de identidad)",
+      "CNPJ": "CNPJ",
+      "CPF": "CPF",
+      "RFC": "RFC",
+      "OTHER": "Otro"
+    },
+    "import": {
+      "title": "Importar clientes",
+      "steps": {
+        "upload": "Archivo",
+        "mapping": "Columnas",
+        "preview": "Revisión",
+        "result": "Importación"
+      },
+      "next": "Siguiente",
+      "back": "Atrás",
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "fields": {
+        "name": "Nombre",
+        "legalName": "Razón social",
+        "primaryContactName": "Nombre de contacto",
+        "primaryContactEmail": "Correo electrónico",
+        "phone": "Teléfono",
+        "address": "Dirección",
+        "city": "Ciudad",
+        "country": "País",
+        "clientType": "Tipo de cliente",
+        "taxIdType": "Tipo de identificación",
+        "taxId": "Número de identificación",
+        "notes": "Notas"
+      },
+      "template": {
+        "name": "Nombre",
+        "legalName": "Razón social",
+        "primaryContactName": "Nombre de contacto",
+        "primaryContactEmail": "Correo electrónico",
+        "phone": "Teléfono",
+        "address": "Dirección",
+        "city": "Ciudad",
+        "country": "País",
+        "clientType": "Tipo de cliente",
+        "taxIdType": "Tipo de identificación",
+        "taxId": "Número de identificación",
+        "notes": "Notas",
+        "status": "Estado",
+        "reason": "Motivo"
+      },
+      "upload": {
+        "description": "Sube un archivo CSV o Excel (.xlsx) con un cliente por fila. Los clientes se crean sin usuarios ni invitaciones: puedes invitar a cada uno después desde su página.",
+        "choose_file": "Elegir archivo",
+        "file_types": "CSV o .xlsx (primera hoja), hasta {{max}} clientes",
+        "template": "Descargar plantilla",
+        "template_filename": "plantilla-clientes.csv",
+        "reading": "Leyendo archivo…",
+        "default_client_type": "Tipo de cliente",
+        "default_client_type_hint": "Se usa en las filas sin tipo de cliente.",
+        "default_country": "País",
+        "default_country_hint": "Se usa en las filas sin país.",
+        "no_lab_country": "Consejo: configura el país de tu laboratorio en Configuración para preseleccionarlo aquí.",
+        "rows_found": "{{count}} filas encontradas en {{file}}"
+      },
+      "errors": {
+        "UNSUPPORTED_FILE": "Usa un archivo .csv o .xlsx.",
+        "EMPTY_FILE": "El archivo está vacío.",
+        "NO_DATA_ROWS": "El archivo tiene encabezados pero ningún cliente.",
+        "TOO_MANY_ROWS": "El archivo tiene más de {{max}} clientes. Divídelo en archivos más pequeños.",
+        "UNREADABLE_FILE": "No se pudo leer el archivo. Guárdalo de nuevo como .xlsx o .csv e inténtalo otra vez.",
+        "check": "No se pudieron verificar las filas con el servidor.",
+        "import": "La importación se detuvo:"
+      },
+      "mapping": {
+        "description": "Elige el campo de cliente para cada columna. Las columnas empiezan en Ignorar; sugerimos un campo cuando el encabezado es claro. Varias columnas pueden ir a Notas.",
+        "column": "Columna en tu archivo",
+        "samples": "Valores de ejemplo",
+        "field": "Campo del cliente",
+        "ignore": "Ignorar",
+        "suggested": "Sugerido",
+        "EMAIL_REQUIRED": "Asigna una columna a Correo electrónico.",
+        "NAME_REQUIRED": "Asigna una columna a Nombre o Razón social.",
+        "notes_hint": "Las columnas asignadas a Notas se guardan como líneas \"Encabezado: valor\" en las notas internas del laboratorio."
+      },
+      "buckets": {
+        "will_create": "Se creará",
+        "created": "Creado",
+        "checking": "Verificando…",
+        "needs_review": "Requiere revisión",
+        "already_in_lab": "Ya está en tu laboratorio",
+        "duplicate_in_file": "Duplicado en el archivo",
+        "invalid": "No válido",
+        "excluded": "Excluido",
+        "failed": "Falló",
+        "not_confirmed": "Sin confirmar"
+      },
+      "filter_all": "Todos",
+      "issues": {
+        "REQUIRED": "Obligatorio",
+        "INVALID": "Valor no válido",
+        "INVALID_EMAIL": "Correo no válido",
+        "TOO_LONG": "Demasiado largo",
+        "INVALID_COUNTRY": "País desconocido",
+        "INVALID_CLIENT_TYPE": "Tipo de cliente desconocido",
+        "INVALID_TAX_ID_TYPE": "Tipo de identificación no válido para este país",
+        "INVALID_TAX_ID": "Número de identificación no válido",
+        "TAX_ID_INCOMPLETE": "El número de identificación necesita un tipo y un país",
+        "UNKNOWN_FIELD": "Campo desconocido",
+        "NUMBER_ROUNDED": "Excel puede haber redondeado este número. Escribe el valor.",
+        "SCIENTIFIC_NOTATION": "Se perdieron dígitos al guardar desde Excel. Escribe el valor.",
+        "NUMBER_STORED": "Guardado como número en Excel: es posible que se hayan eliminado ceros a la izquierda. Compáralo con el original.",
+        "APOSTROPHE_PREFIX": "Empieza con un apóstrofo, probablemente agregado al exportar desde una hoja de cálculo."
+      },
+      "reasons": {
+        "EMAIL_EXISTS": "Ya hay un cliente con este correo en tu laboratorio",
+        "TAX_ID_EXISTS": "Ya hay un cliente con este número de identificación en tu laboratorio",
+        "DUPLICATE_IN_FILE": "Mismo correo o número de identificación que una fila anterior",
+        "BATCH_ROW_MISMATCH": "Esta fila cambió después de importarse. Haz una nueva importación para ella.",
+        "UNEXPECTED": "Error del servidor. Puedes reintentar.",
+        "NOT_CONFIRMED": "La importación se detuvo antes de confirmar esta fila."
+      },
+      "preview": {
+        "description": "Los resultados son de la última verificación. Todo se verifica de nuevo al importar.",
+        "row": "Fila",
+        "status": "Estado",
+        "edit": "Editar",
+        "exclude": "Excluir",
+        "include": "Incluir",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "confirm_warning": "Confirmar",
+        "confirm_all_warnings": "Confirmar todas las advertencias ({{count}})",
+        "remove_apostrophe": "Quitar apóstrofo",
+        "remove_apostrophe_column": "Quitar en toda la columna",
+        "import_button": "Importar {{count}} clientes",
+        "nothing_to_import": "No hay filas para importar.",
+        "waiting_checks": "Verificando {{count}} filas…",
+        "waiting_review": "{{count}} filas requieren revisión primero.",
+        "retry_check": "Verificar de nuevo",
+        "empty_filter": "No hay filas en este grupo."
+      },
+      "result": {
+        "importing": "Importando {{done}} / {{total}}",
+        "do_not_close": "Mantén esta ventana abierta hasta que termine la importación.",
+        "summary": "Resumen de la importación",
+        "download_retry": "Descargar filas por corregir",
+        "retry_filename": "clientes-por-corregir.csv",
+        "resume": "Reanudar importación",
+        "stopped": "La importación se detuvo. Las filas Sin confirmar pueden haberse creado o no; Reanudar las termina sin crear duplicados.",
+        "all_existing": "Todas las filas ya estaban en tu laboratorio. Este archivo parece una copia de clientes existentes: importarlo de nuevo no los actualiza.",
+        "rows_not_created": "Filas no creadas",
+        "leave_warning": "La importación sigue en curso."
       }
     }
   },

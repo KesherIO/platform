@@ -7,6 +7,8 @@ import type {
   ClientDetail,
   ClientsQuery,
   CreateClientResponse,
+  ImportClientsRequest,
+  ImportClientsResponse,
   CatalogItem,
   CatalogQuery,
   CatalogListResponse,
@@ -38,6 +40,14 @@ import type {
   VetVerificationsQuery,
 } from '../../types/lab.types';
 
+/** Non-2xx response. `message` is the response body, as before. */
+export class ApiError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 let _tenantId: string | null = null;
 
 export function setActiveTenantId(id: string | null) {
@@ -57,7 +67,7 @@ async function authHeaders(): Promise<HeadersInit> {
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`/api/${path}`, { headers: await authHeaders() });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<T>;
 }
 
@@ -67,7 +77,7 @@ async function patch<T>(path: string, body: unknown): Promise<T> {
     headers: await authHeaders(),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<T>;
 }
 
@@ -77,7 +87,7 @@ async function put<T>(path: string, body: unknown): Promise<T> {
     headers: await authHeaders(),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<T>;
 }
 
@@ -87,7 +97,7 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
     headers: await authHeaders(),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new ApiError(res.status, await res.text());
   return res.json() as Promise<T>;
 }
 
@@ -97,7 +107,8 @@ async function del(path: string, body?: unknown): Promise<void> {
     headers: await authHeaders(),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok && res.status !== 204) throw new Error(await res.text());
+  if (!res.ok && res.status !== 204)
+    throw new ApiError(res.status, await res.text());
 }
 
 export const labApi = {
@@ -171,6 +182,8 @@ export const labApi = {
     revokeInvitation: (id: string) =>
       post<unknown>(`lab/clients/${id}/invitation/revoke`),
     remove: (id: string) => del(`lab/clients/${id}`),
+    import: (body: ImportClientsRequest) =>
+      post<ImportClientsResponse>('lab/clients/import', body),
   },
   catalog: {
     list: (params?: CatalogQuery) => {

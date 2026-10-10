@@ -19,6 +19,8 @@ interface AuthContextValue {
   isAdmin: boolean;
   canPerformPickups: boolean;
   vetVerificationRequired: boolean;
+  /** The lab tenant's id, from /lab/me */
+  tenantId: string | null;
   tenantName: string | null;
   logoUrl: string | null;
   accessDenied: boolean;
@@ -34,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [labRole, setLabRole] = useState<LabRole | null>(null);
   const [canPerformPickupsFlag, setCanPerformPickupsFlag] = useState(false);
   const [vetVerificationRequired, setVetVerificationRequired] = useState(false);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [tenantName, setTenantName] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -49,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLabRole(null);
     setCanPerformPickupsFlag(false);
     setVetVerificationRequired(false);
+    setTenantId(null);
     setTenantName(null);
     setLogoUrl(null);
     setActiveTenantId(null);
@@ -72,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setVetVerificationRequired(data.vetVerificationRequired ?? false);
       setTenantName(data.tenantName ?? null);
       setLogoUrl(data.logoUrl ?? null);
+      setTenantId(data.tenantId ?? null);
       setActiveTenantId(data.tenantId ?? null);
     } catch {
       // network error — role stays null, UI defaults to non-admin
@@ -108,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLabRole(null);
           setCanPerformPickupsFlag(false);
           setVetVerificationRequired(false);
+          setTenantId(null);
           setTenantName(null);
           setLogoUrl(null);
           setActiveTenantId(null);
@@ -139,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: labRole === 'ADMIN' || labRole === 'OWNER',
         canPerformPickups: labRole === 'MESSENGER' || canPerformPickupsFlag,
         vetVerificationRequired,
+        tenantId,
         tenantName,
         logoUrl,
         accessDenied,

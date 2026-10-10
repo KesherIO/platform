@@ -771,6 +771,7 @@ export class LabService {
         phone: true,
         address: true,
         city: true,
+        country: true,
         logoUrl: true,
         phoneNumbers: true,
         mapLat: true,
@@ -788,6 +789,7 @@ export class LabService {
       phone?: string;
       address?: string;
       city?: string;
+      country?: string;
       logoUrl?: string;
       phoneNumbers?: { label: string; number: string }[];
       mapLat?: number;
@@ -807,13 +809,18 @@ export class LabService {
 
     return this.prisma.tenant.update({
       where: { id: labTenantId },
-      data,
+      data: {
+        ...data,
+        // '' clears the country (stored as null, like the clinic profile)
+        ...(data.country !== undefined && { country: data.country || null }),
+      },
       select: {
         name: true,
         email: true,
         phone: true,
         address: true,
         city: true,
+        country: true,
         logoUrl: true,
         phoneNumbers: true,
         mapLat: true,

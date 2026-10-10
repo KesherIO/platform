@@ -348,6 +348,11 @@ model Tenant {
   phone                 String?
   phoneNumbers          Json? // [{label: "WhatsApp", number: "+1 555…"}, …]
   country               String?
+  // Tax identity — part of the shared clinic profile, all optional
+  legalName             String?
+  taxIdType             String? // "NIT", "CC", "RUT", "CUIT", "RUC", "CNPJ", "CPF", "RFC", "OTHER", … (shared-types tax-id-type.model.ts)
+  taxId                 String? // as entered (trimmed), for display
+  taxIdNormalized       String? // comparison only: uppercase, no spaces . - / — set by buildClinicProfileUpdate, never from a client
   notificationMethod    String? // 'email' | 'sms'
   timezone              String          @default("UTC") // IANA name, e.g. "America/Bogota" — used to evaluate messenger schedules
   // Branding — optional, populated via future branding/settings step
@@ -384,6 +389,7 @@ model Tenant {
   clinicVerifications    VetLabVerification[]       @relation("ClinicVerifications")
   onboardingTokens       OnboardingToken[]          @relation("ClinicOnboardingTokens")
 
+  @@index([country, taxIdType, taxIdNormalized])
   @@map("tenants")
 }
 
@@ -1036,18 +1042,24 @@ model LabSigner {
 /// isDefault = true means this is the primary lab for the clinic (MVP: only one).
 /// isActive = false allows soft-disabling without deleting the connection history.
 model ClinicLabConnection {
-  id        String   @id @default(cuid())
-  clinicId  String
-  labId     String
-  isDefault Boolean  @default(true)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  clinicId        String
+  labId           String
+  isDefault       Boolean  @default(true)
+  isActive        Boolean  @default(true)
+  notes           String? // lab-internal, never shown to the clinic or other labs
+  // Set by bulk client import, for safe retries (docs/CLIENT_BULK_IMPORT_PLAN.md A2)
+  importBatchId   String?
+  importRowNumber Int?
+  importRowHash   String? // SHA-256 of the normalized submitted row — detects reuse with different data
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   clinic Tenant @relation("ClinicConnections", fields: [clinicId], references: [id], onDelete: Cascade)
   lab    Tenant @relation("LabConnections", fields: [labId], references: [id], onDelete: Cascade)
 
   @@unique([clinicId, labId])
+  @@unique([labId, importBatchId, importRowNumber]) // nulls (Add client) don't collide
   @@index([clinicId])
   @@index([labId])
   @@map("clinic_lab_connections")

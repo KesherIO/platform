@@ -328,6 +328,8 @@ export interface LabContactInfo {
   logoUrl: string | null;
   address: string;
   city: string;
+  /** ISO 3166-1 alpha-2 — default country for imported clients */
+  country: string | null;
   phoneNumbers: LabPhoneNumber[];
   mapLat: number | null;
   mapLng: number | null;
@@ -379,6 +381,14 @@ export interface ClientOrganization {
   city: string | null;
   /** ISO 3166-1 alpha-2, e.g. "CO" */
   country: string | null;
+  /** Registered legal name ("razón social") */
+  legalName: string | null;
+  /** e.g. "NIT", "RUT" — see shared/taxIdTypes.ts */
+  taxIdType: string | null;
+  /** ID number as entered, e.g. "900.123.456-7" */
+  taxId: string | null;
+  /** This lab's internal notes — never shown to the clinic */
+  notes: string | null;
   userCount: number;
   orderCount: number;
   createdAt: string;
@@ -445,6 +455,163 @@ export interface ClientsQuery {
   page?: number;
   pageSize?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Client bulk import (docs/CLIENT_BULK_IMPORT_PLAN.md)
+// ---------------------------------------------------------------------------
+
+/** A client field a file column can be mapped to. */
+export type ImportField =
+  | 'name'
+  | 'legalName'
+  | 'primaryContactName'
+  | 'primaryContactEmail'
+  | 'phone'
+  | 'address'
+  | 'city'
+  | 'country'
+  | 'clientType'
+  | 'taxIdType'
+  | 'taxId'
+  | 'notes';
+
+/** One column's mapping: a field, or ignored. */
+export type ColumnMapping = ImportField | 'ignore';
+
+/** How a spreadsheet cell held its value (A6) — CSV cells are always 'text'. */
+export type CellSource =
+  | 'text'
+  /** number with a zero-padding format, padded to the format's width */
+  | 'padded_number'
+  /** number, safe integer ≤ 15 digits — leading zeros may be lost */
+  | 'number'
+  /** number Excel may have rounded (> 15 significant digits / unsafe) */
+  | 'unsafe_number';
+
+export interface SheetCell {
+  text: string;
+  source: CellSource;
+}
+
+export interface ParsedSheet {
+  headers: string[];
+  /** Data rows (no header, no fully empty rows), one cell per header */
+  rows: SheetCell[][];
+  /** 1-based row number in the file for each entry of `rows` */
+  rowNumbers: number[];
+}
+
+/** Values of one preview row, after mapping and normalization. */
+export type ImportRowValues = Record<Exclude<ImportField, 'notes'>, string> & {
+  notes: string;
+};
+
+/** Field-level problem found in the browser or by the server. */
+export type ImportIssueCode =
+  // server codes (POST /lab/clients/import)
+  | 'REQUIRED'
+  | 'INVALID'
+  | 'INVALID_EMAIL'
+  | 'TOO_LONG'
+  | 'INVALID_COUNTRY'
+  | 'INVALID_CLIENT_TYPE'
+  | 'INVALID_TAX_ID_TYPE'
+  | 'INVALID_TAX_ID'
+  | 'TAX_ID_INCOMPLETE'
+  | 'UNKNOWN_FIELD'
+  // browser-only codes (A6, A7)
+  | 'NUMBER_ROUNDED'
+  | 'SCIENTIFIC_NOTATION'
+  | 'NUMBER_STORED'
+  | 'APOSTROPHE_PREFIX';
+
+export interface ImportIssue {
+  field: ImportField | string;
+  code: ImportIssueCode;
+  /** Warnings can be confirmed; errors must be fixed */
+  severity: 'error' | 'warning';
+}
+
+export type ImportSkipReason =
+  | 'EMAIL_EXISTS'
+  | 'TAX_ID_EXISTS'
+  | 'DUPLICATE_IN_FILE';
+
+/** Per-row result from POST /lab/clients/import. */
+export type ImportRowResult =
+  | { rowNumber: number; status: 'created'; clientId: string }
+  | { rowNumber: number; status: 'would_create' }
+  | { rowNumber: number; status: 'skipped'; reason: ImportSkipReason }
+  | {
+      rowNumber: number;
+      status: 'invalid';
+      errors: { field: string; code: ImportIssueCode }[];
+    }
+  | { rowNumber: number; status: 'conflict'; reason: 'BATCH_ROW_MISMATCH' }
+  | { rowNumber: number; status: 'failed'; reason: 'UNEXPECTED' };
+
+export interface ImportClientsResponse {
+  results: ImportRowResult[];
+  summary: {
+    created: number;
+    wouldCreate: number;
+    skipped: number;
+    invalid: number;
+    conflict: number;
+    failed: number;
+  };
+}
+
+/** One row as sent to the API. */
+export interface ImportRequestRow {
+  rowNumber: number;
+  name: string;
+  clientType: string;
+  primaryContactEmail: string;
+  primaryContactName?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  legalName?: string;
+  taxIdType?: string;
+  taxId?: string;
+  notes?: string;
+}
+
+export interface ImportClientsRequest {
+  importBatchId: string;
+  dryRun?: boolean;
+  rows: ImportRequestRow[];
+}
+
+/** One row of the import preview. */
+export interface ImportPreviewRow {
+  rowNumber: number;
+  values: ImportRowValues;
+  /** Where each value came from in the file — drives the A6 number checks */
+  sources: Partial<Record<ImportField, CellSource>>;
+  excluded: boolean;
+  /** `${field}:${code}` of warnings the user confirmed */
+  confirmedWarnings: string[];
+  /** Last dry-run result and the values it was checked with (A4) */
+  check: { key: string; result: ImportRowResult } | null;
+  /** Final import result, or 'not_confirmed' if its group never came back */
+  imported: ImportRowResult | 'not_confirmed' | null;
+}
+
+/** Preview / summary buckets (A4) — same words before and after import. */
+export type ImportBucket =
+  | 'will_create'
+  | 'created'
+  | 'checking'
+  | 'needs_review'
+  | 'already_in_lab'
+  | 'duplicate_in_file'
+  | 'invalid'
+  | 'excluded'
+  | 'failed'
+  | 'not_confirmed';
 
 export type CatalogItemKind = 'TEST' | 'PACKAGE';
 export type ResultType = 'NUMERIC' | 'TEXT' | 'POSITIVE_NEGATIVE';

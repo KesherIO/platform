@@ -164,7 +164,7 @@ export function ClientInvitationCard({
               onClick={onRegenerate}
               className="rounded-lg bg-cyan px-3 py-1.5 text-xs font-semibold text-gray-950 hover:opacity-90"
             >
-              {t('clients.invitation.regenerate')}
+              {t('clients.invitation.generate')}
             </button>
           )}
         </div>

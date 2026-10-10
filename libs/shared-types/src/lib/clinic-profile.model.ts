@@ -20,4 +20,10 @@ export interface ClinicProfileModel {
   city: string | null;
   /** ISO 3166-1 alpha-2 code, e.g. "CO" */
   country: string | null;
+  /** Registered legal name ("razón social"), when different from `name` */
+  legalName: string | null;
+  /** One of TAX_ID_TYPES_BY_COUNTRY[country], or 'OTHER' — see tax-id-type.model.ts */
+  taxIdType: string | null;
+  /** ID number as entered (trimmed), e.g. "900.123.456-7" — for display */
+  taxId: string | null;
 }

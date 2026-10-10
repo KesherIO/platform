@@ -419,7 +419,10 @@
       "subtitle": "Import the standard platform catalog as a starting point. This adds all standard tests and packages with platform codes. You can customize them afterwards in the Catalog page.",
       "button": "Import Platform Catalog",
       "importing": "Importing..."
-    }
+    },
+    "country": "Country",
+    "country_placeholder": "Select country",
+    "country_hint": "Default country for the clients you import."
   },
   "catalog": {
     "title": "Catalog",
@@ -606,7 +609,17 @@
       "cancel": "Cancel",
       "close": "Close",
       "submit": "Create client",
-      "submitting": "Creating..."
+      "submitting": "Creating...",
+      "legal_name": "Legal name",
+      "legal_name_placeholder": "e.g. Happy Paws SAS",
+      "tax_id_type": "ID type",
+      "tax_id_type_placeholder": "Select type",
+      "tax_id": "ID number",
+      "tax_id_placeholder": "e.g. 900.123.456-7",
+      "tax_id_hint": "Choose a country and an ID type to add an ID number.",
+      "notes": "Internal notes",
+      "notes_placeholder": "Only your lab sees these notes",
+      "notes_hint": "Never shown to the client or to other labs."
     },
     "invitation": {
       "title": "Invitation link",
@@ -628,7 +641,8 @@
       "confirm_revoke": "The client will no longer be able to use it to onboard.",
       "confirm_regenerate_title": "Generate a new invitation link?",
       "confirm_regenerate": "This will revoke the current one.",
-      "message_template": "Hello! You've been invited to join {{labName}} on Kesher IO. Use this link to set up your account: {{link}}"
+      "message_template": "Hello! You've been invited to join {{labName}} on Kesher IO. Use this link to set up your account: {{link}}",
+      "generate": "Generate invitation"
     },
     "detail": {
       "title": "Client details",
@@ -672,6 +686,169 @@
       "saved": "Collection settings saved",
       "errors": {
         "save": "Error saving collection settings:"
+      }
+    },
+    "import_clients": "Import clients",
+    "tax_id_types": {
+      "NIT": "NIT (tax ID)",
+      "CC": "CC (citizenship ID)",
+      "CE": "CE (foreigner ID)",
+      "PP": "PP (passport)",
+      "RUT": "RUT (tax ID)",
+      "CUIT": "CUIT (tax ID)",
+      "CUIL": "CUIL (labor ID)",
+      "DNI": "DNI (national ID)",
+      "RUC": "RUC (tax ID)",
+      "CI": "CI (identity card)",
+      "CNPJ": "CNPJ (company tax ID)",
+      "CPF": "CPF (individual tax ID)",
+      "RFC": "RFC (tax ID)",
+      "OTHER": "Other"
+    },
+    "import": {
+      "title": "Import clients",
+      "steps": {
+        "upload": "File",
+        "mapping": "Columns",
+        "preview": "Review",
+        "result": "Import"
+      },
+      "next": "Next",
+      "back": "Back",
+      "cancel": "Cancel",
+      "close": "Close",
+      "fields": {
+        "name": "Name",
+        "legalName": "Legal name",
+        "primaryContactName": "Contact name",
+        "primaryContactEmail": "Email",
+        "phone": "Phone",
+        "address": "Address",
+        "city": "City",
+        "country": "Country",
+        "clientType": "Client type",
+        "taxIdType": "ID type",
+        "taxId": "ID number",
+        "notes": "Notes"
+      },
+      "template": {
+        "name": "Name",
+        "legalName": "Legal name",
+        "primaryContactName": "Contact name",
+        "primaryContactEmail": "Email",
+        "phone": "Phone",
+        "address": "Address",
+        "city": "City",
+        "country": "Country",
+        "clientType": "Client type",
+        "taxIdType": "ID type",
+        "taxId": "ID number",
+        "notes": "Notes",
+        "status": "Status",
+        "reason": "Reason"
+      },
+      "upload": {
+        "description": "Upload a CSV or Excel (.xlsx) file with one client per row. Clients are created without users or invitations: you can invite each one later from its page.",
+        "choose_file": "Choose file",
+        "file_types": "CSV or .xlsx (first sheet), up to {{max}} clients",
+        "template": "Download template",
+        "template_filename": "clients-template.csv",
+        "reading": "Reading file…",
+        "default_client_type": "Client type",
+        "default_client_type_hint": "Used for rows without a client type.",
+        "default_country": "Country",
+        "default_country_hint": "Used for rows without a country.",
+        "no_lab_country": "Tip: set your lab's country in Settings to preselect it here.",
+        "rows_found": "{{count}} rows found in {{file}}"
+      },
+      "errors": {
+        "UNSUPPORTED_FILE": "Use a .csv or .xlsx file.",
+        "EMPTY_FILE": "The file is empty.",
+        "NO_DATA_ROWS": "The file has a header row but no clients.",
+        "TOO_MANY_ROWS": "The file has more than {{max}} clients. Split it into smaller files.",
+        "UNREADABLE_FILE": "The file couldn't be read. Save it again as .xlsx or .csv and retry.",
+        "check": "Couldn't check the rows with the server.",
+        "import": "The import stopped:"
+      },
+      "mapping": {
+        "description": "Choose the client field for each column. Columns start on Ignore; we suggest a field when the header is clear. Several columns can go to Notes.",
+        "column": "Column in your file",
+        "samples": "Sample values",
+        "field": "Client field",
+        "ignore": "Ignore",
+        "suggested": "Suggested",
+        "EMAIL_REQUIRED": "Map a column to Email.",
+        "NAME_REQUIRED": "Map a column to Name or Legal name.",
+        "notes_hint": "Columns mapped to Notes are saved as \"Header: value\" lines in the lab's internal notes."
+      },
+      "buckets": {
+        "will_create": "Will be created",
+        "created": "Created",
+        "checking": "Checking…",
+        "needs_review": "Needs review",
+        "already_in_lab": "Already in your lab",
+        "duplicate_in_file": "Duplicate in file",
+        "invalid": "Invalid",
+        "excluded": "Excluded",
+        "failed": "Failed",
+        "not_confirmed": "Not confirmed"
+      },
+      "filter_all": "All",
+      "issues": {
+        "REQUIRED": "Required",
+        "INVALID": "Invalid value",
+        "INVALID_EMAIL": "Not a valid email",
+        "TOO_LONG": "Too long",
+        "INVALID_COUNTRY": "Unknown country",
+        "INVALID_CLIENT_TYPE": "Unknown client type",
+        "INVALID_TAX_ID_TYPE": "ID type not valid for this country",
+        "INVALID_TAX_ID": "Not a valid ID number",
+        "TAX_ID_INCOMPLETE": "An ID number needs an ID type and a country",
+        "UNKNOWN_FIELD": "Unknown field",
+        "NUMBER_ROUNDED": "Excel may have rounded this number. Type the value.",
+        "SCIENTIFIC_NOTATION": "Digits were lost when this was saved from Excel. Type the value.",
+        "NUMBER_STORED": "Stored as a number in Excel — leading zeros may have been removed. Check against the original.",
+        "APOSTROPHE_PREFIX": "Starts with an apostrophe — probably added by a spreadsheet export."
+      },
+      "reasons": {
+        "EMAIL_EXISTS": "A client with this email is already in your lab",
+        "TAX_ID_EXISTS": "A client with this ID number is already in your lab",
+        "DUPLICATE_IN_FILE": "Same email or ID number as an earlier row",
+        "BATCH_ROW_MISMATCH": "This row changed after it was imported. Start a new import for it.",
+        "UNEXPECTED": "Server error. You can retry.",
+        "NOT_CONFIRMED": "The import stopped before this row was confirmed."
+      },
+      "preview": {
+        "description": "Results are as of the last check. Everything is checked again when you import.",
+        "row": "Row",
+        "status": "Status",
+        "edit": "Edit",
+        "exclude": "Exclude",
+        "include": "Include",
+        "save": "Save",
+        "cancel": "Cancel",
+        "confirm_warning": "Confirm",
+        "confirm_all_warnings": "Confirm all warnings ({{count}})",
+        "remove_apostrophe": "Remove apostrophe",
+        "remove_apostrophe_column": "Remove in the whole column",
+        "import_button": "Import {{count}} clients",
+        "nothing_to_import": "No rows to import.",
+        "waiting_checks": "Checking {{count}} rows…",
+        "waiting_review": "{{count}} rows need review first.",
+        "retry_check": "Check again",
+        "empty_filter": "No rows in this group."
+      },
+      "result": {
+        "importing": "Importing {{done}} / {{total}}",
+        "do_not_close": "Keep this window open until the import finishes.",
+        "summary": "Import summary",
+        "download_retry": "Download rows to fix",
+        "retry_filename": "clients-to-fix.csv",
+        "resume": "Resume import",
+        "stopped": "The import stopped. The rows marked Not confirmed may or may not have been created — Resume finishes them without creating duplicates.",
+        "all_existing": "Every row was already in your lab. This file looks like a copy of existing clients: importing it again doesn't update them.",
+        "rows_not_created": "Rows not created",
+        "leave_warning": "The import is still running."
       }
     }
   },

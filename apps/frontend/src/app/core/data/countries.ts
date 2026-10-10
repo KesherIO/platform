@@ -22,6 +22,7 @@ export const COUNTRIES: Country[] = [
   { value: 'CL', label: 'COUNTRIES.CL' },
   { value: 'CO', label: 'COUNTRIES.CO' },
   { value: 'DE', label: 'COUNTRIES.DE' },
+  { value: 'EC', label: 'COUNTRIES.EC' },
   { value: 'ES', label: 'COUNTRIES.ES' },
   { value: 'FR', label: 'COUNTRIES.FR' },
   { value: 'GB', label: 'COUNTRIES.GB' },

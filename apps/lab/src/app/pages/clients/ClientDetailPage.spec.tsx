@@ -36,6 +36,10 @@ function makeClient(overrides: Partial<ClientDetail> = {}): ClientDetail {
     address: 'Calle 10 #20-30',
     city: 'Bogotá',
     country: 'CO',
+    legalName: null,
+    taxIdType: null,
+    taxId: null,
+    notes: null,
     userCount: 1,
     orderCount: 0,
     createdAt: '2026-10-01T00:00:00.000Z',
@@ -126,7 +130,48 @@ describe('ClientDetailPage — shared clinic profile', () => {
         address: 'Calle 10 #20-30',
         city: 'Cali',
         country: 'CO',
+        legalName: '',
+        taxIdType: '',
+        taxId: '',
+        notes: '',
       })
+    );
+  });
+
+  it('shows the tax ID and notes, and clears an ID type that the new country does not use', async () => {
+    getById.mockResolvedValue(
+      makeClient({
+        legalName: 'City Vet SAS',
+        taxIdType: 'NIT',
+        taxId: '900.123.456-7',
+        notes: 'Pays monthly',
+      })
+    );
+    update.mockResolvedValue({});
+
+    renderDetail(queryClient);
+    expect(await screen.findByText('900.123.456-7')).toBeTruthy();
+    expect(screen.getByText('Pays monthly')).toBeTruthy();
+
+    const [editInfo] = screen.getAllByText('clients.detail.edit');
+    fireEvent.click(editInfo);
+    const countrySelect = screen
+      .getAllByRole('combobox')
+      .find((el) => (el as unknown as { value: string }).value === 'CO');
+    fireEvent.change(countrySelect!, { target: { value: 'CL' } });
+    fireEvent.click(screen.getByText('clients.detail.save'));
+
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith(
+        'clinic-1',
+        expect.objectContaining({
+          country: 'CL',
+          taxIdType: '',
+          taxId: '900.123.456-7',
+          legalName: 'City Vet SAS',
+          notes: 'Pays monthly',
+        })
+      )
     );
   });
 });

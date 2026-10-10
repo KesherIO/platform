@@ -134,6 +134,9 @@ describe('ClinicSetupComponent', () => {
       address: 'Calle 10 #20-30',
       city: 'Bogotá',
       country: 'CO',
+      legalName: null,
+      taxIdType: null,
+      taxId: null,
     };
 
     function createWithState(state: Partial<OnboardingState>) {
