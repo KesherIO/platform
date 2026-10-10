@@ -3,18 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import { COUNTRY_CODES, countryName } from '../../shared/countries';
+import { CLIENT_TYPES } from '../../shared/clientImport';
+import { clearInvalidTaxIdType } from '../../shared/taxIdTypes';
+import { ClientTaxIdFields } from './ClientTaxIdFields';
 import type { ClientType, CreateClientResponse } from '../../types/lab.types';
 
-const CLIENT_TYPES: ClientType[] = [
-  'VETERINARY_CLINIC',
-  'INDEPENDENT_VET',
-  'BREEDER',
-  'FARM',
-  'SHELTER',
-  'RESEARCH_ORGANIZATION',
-  'INDIVIDUAL',
-  'OTHER',
-];
+const LABEL_CLASS = 'mb-1 block text-xs font-medium text-gray-400';
+const INPUT_CLASS =
+  'w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-cyan focus:outline-none';
 
 interface AddClientModalProps {
   onClose: () => void;
@@ -33,6 +29,10 @@ export function AddClientModal({ onClose, onCreated }: AddClientModalProps) {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
+  const [legalName, setLegalName] = useState('');
+  const [taxIdType, setTaxIdType] = useState('');
+  const [taxId, setTaxId] = useState('');
+  const [notes, setNotes] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -53,6 +53,10 @@ export function AddClientModal({ onClose, onCreated }: AddClientModalProps) {
         address: address || undefined,
         city: city || undefined,
         country: country || undefined,
+        legalName: legalName || undefined,
+        taxIdType: taxIdType || undefined,
+        taxId: taxId || undefined,
+        notes: notes || undefined,
       });
       setResult(res);
       onCreated();
@@ -78,7 +82,7 @@ export function AddClientModal({ onClose, onCreated }: AddClientModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl">
         <div className="border-b border-gray-800 px-6 py-4">
           <h2 className="text-base font-semibold text-white">
             {result ? t('clients.invitation.title') : t('clients.form.title')}
@@ -191,7 +195,12 @@ export function AddClientModal({ onClose, onCreated }: AddClientModalProps) {
                 </label>
                 <select
                   value={country}
-                  onChange={(e) => setCountry(e.target.value)}
+                  onChange={(e) => {
+                    setCountry(e.target.value);
+                    setTaxIdType((type) =>
+                      clearInvalidTaxIdType(e.target.value, type)
+                    );
+                  }}
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
                 >
                   <option value="">
@@ -204,6 +213,44 @@ export function AddClientModal({ onClose, onCreated }: AddClientModalProps) {
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className={LABEL_CLASS}>
+                {t('clients.form.legal_name')}
+              </label>
+              <input
+                value={legalName}
+                onChange={(e) => setLegalName(e.target.value)}
+                placeholder={t('clients.form.legal_name_placeholder')}
+                className={INPUT_CLASS}
+              />
+            </div>
+
+            <ClientTaxIdFields
+              country={country}
+              taxIdType={taxIdType}
+              taxId={taxId}
+              onChange={(c) => {
+                if (c.taxIdType !== undefined) setTaxIdType(c.taxIdType);
+                if (c.taxId !== undefined) setTaxId(c.taxId);
+              }}
+              labelClassName={LABEL_CLASS}
+              inputClassName={INPUT_CLASS}
+            />
+
+            <div>
+              <label className={LABEL_CLASS}>{t('clients.form.notes')}</label>
+              <textarea
+                value={notes}
+                rows={2}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={t('clients.form.notes_placeholder')}
+                className={INPUT_CLASS}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {t('clients.form.notes_hint')}
+              </p>
             </div>
 
             {formError && (

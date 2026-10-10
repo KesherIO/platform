@@ -9,6 +9,7 @@ export const COUNTRY_CODES = [
   'CL',
   'CO',
   'DE',
+  'EC',
   'ES',
   'FR',
   'GB',

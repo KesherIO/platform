@@ -8,16 +8,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 
-const CLIENT_TYPES = [
-  'VETERINARY_CLINIC',
-  'INDEPENDENT_VET',
-  'BREEDER',
-  'FARM',
-  'SHELTER',
-  'RESEARCH_ORGANIZATION',
-  'INDIVIDUAL',
-  'OTHER',
-] as const;
+import { CLIENT_TYPES } from './create-client.dto';
 
 /**
  * Shared clinic profile fields follow the same rule as every profile writer
@@ -64,4 +55,25 @@ export class UpdateClientDto {
   @IsOptional()
   @Matches(/^([A-Z]{2})?$/)
   country?: string | null;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  legalName?: string | null;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(20)
+  taxIdType?: string | null;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  taxId?: string | null;
+
+  /** Lab-internal, stored on this lab's connection only — '' or null clears it */
+  @IsString()
+  @IsOptional()
+  @MaxLength(5000)
+  notes?: string | null;
 }

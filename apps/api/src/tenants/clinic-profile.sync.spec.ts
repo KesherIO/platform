@@ -178,6 +178,7 @@ function makeStore() {
       ),
     },
     $queryRaw: jest.fn(async () => []), // row lock — no-op in memory
+    $executeRaw: jest.fn(async () => 0), // advisory lock — no-op in memory
     $transaction: jest.fn(async (fn: (tx: Row) => Promise<unknown>) =>
       fn(prisma)
     ),

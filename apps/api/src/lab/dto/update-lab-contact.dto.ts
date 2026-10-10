@@ -3,6 +3,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -35,6 +36,12 @@ export class UpdateLabContactDto {
   @IsString()
   @IsOptional()
   city?: string;
+
+  /** ISO 3166-1 alpha-2, e.g. "CO" — default country for imported clients */
+  @IsString()
+  @IsOptional()
+  @Matches(/^([A-Z]{2})?$/)
+  country?: string;
 
   @IsString()
   @IsOptional()

@@ -8,6 +8,7 @@ export * from './result.model.js';
 export * from './user.model.js';
 export * from './clinic.model.js';
 export * from './clinic-profile.model.js';
+export * from './tax-id-type.model.js';
 export * from './tenant.model.js';
 export * from './onboarding.model.js';
 export * from './auth.model.js';

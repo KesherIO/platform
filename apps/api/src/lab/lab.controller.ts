@@ -12,9 +12,10 @@ import {
   HttpCode,
   HttpStatus,
   Res,
+  Req,
   NotFoundException,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
 import { LabTenantGuard } from './lab-tenant.guard';
@@ -42,6 +43,7 @@ import { ListLabOrdersDto } from './dto/list-lab-orders.dto';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ListClientsDto } from './dto/list-clients.dto';
+import { ImportClientsDto } from './dto/import-clients.dto';
 import { ListPickupsDto } from './dto/list-pickups.dto';
 import { ListVetVerificationsDto } from './dto/list-vet-verifications.dto';
 import {
@@ -1289,6 +1291,27 @@ export class LabController {
     @Body() dto: CreateClientDto
   ) {
     return this.labClientsService.createClient(tenant.tenantId, dto, user.id);
+  }
+
+  // POST /api/lab/clients/import — bulk create, per-row results (200 even when
+  // some rows are invalid or skipped). `dryRun: true` previews without writing.
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('clients/import')
+  @HttpCode(HttpStatus.OK)
+  importClients(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ImportClientsDto,
+    @Req() req: Request
+  ) {
+    const requestId = (req as unknown as Record<string, unknown>)['requestId'];
+    return this.labClientsService.importClients(
+      tenant.tenantId,
+      dto,
+      user.id,
+      typeof requestId === 'string' ? requestId : undefined
+    );
   }
 
   // PATCH /api/lab/clients/:id

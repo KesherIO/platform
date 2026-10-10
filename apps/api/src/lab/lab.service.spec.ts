@@ -64,6 +64,7 @@ describe('LabService', () => {
       },
       tenant: {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
+        update: jest.fn().mockResolvedValue({}),
       },
       $transaction: jest.fn(),
     };
@@ -755,6 +756,27 @@ describe('LabService', () => {
           }),
         })
       );
+    });
+  });
+
+  describe('lab contact country', () => {
+    it("returns the lab's country", async () => {
+      await service.getLabContact(LAB_TENANT_ID);
+
+      expect(
+        (prisma.tenant.findUniqueOrThrow as jest.Mock).mock.calls[0][0].select
+      ).toMatchObject({ country: true });
+    });
+
+    it('stores the country, and clears it when sent empty', async () => {
+      await service.updateLabContact(LAB_TENANT_ID, { country: 'CO' });
+      await service.updateLabContact(LAB_TENANT_ID, { country: '' });
+      await service.updateLabContact(LAB_TENANT_ID, { city: 'Cali' });
+
+      const calls = (prisma.tenant.update as jest.Mock).mock.calls;
+      expect(calls[0][0].data).toEqual({ country: 'CO' });
+      expect(calls[1][0].data).toEqual({ country: null });
+      expect(calls[2][0].data).toEqual({ city: 'Cali' });
     });
   });
 });

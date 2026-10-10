@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { labApi } from '../../shared/api/labApi';
 import { COUNTRY_CODES, countryName } from '../../shared/countries';
+import { clearInvalidTaxIdType } from '../../shared/taxIdTypes';
+import { ClientTaxIdFields } from './ClientTaxIdFields';
 import type { ClientDetail } from '../../types/lab.types';
 
 interface Props {
@@ -10,6 +12,9 @@ interface Props {
   onUpdated: () => void;
   onError: (msg: string) => void;
 }
+
+const INPUT_CLASS =
+  'w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-cyan focus:outline-none';
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, {
@@ -30,6 +35,10 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
     address: '',
     city: '',
     country: '',
+    legalName: '',
+    taxIdType: '',
+    taxId: '',
+    notes: '',
   });
 
   const startEditing = () => {
@@ -41,6 +50,10 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
       address: client.address ?? '',
       city: client.city ?? '',
       country: client.country ?? '',
+      legalName: client.legalName ?? '',
+      taxIdType: client.taxIdType ?? '',
+      taxId: client.taxId ?? '',
+      notes: client.notes ?? '',
     });
     setEditing(true);
   };
@@ -164,7 +177,11 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
             <select
               value={editForm.country}
               onChange={(e) =>
-                setEditForm((f) => ({ ...f, country: e.target.value }))
+                setEditForm((f) => ({
+                  ...f,
+                  country: e.target.value,
+                  taxIdType: clearInvalidTaxIdType(e.target.value, f.taxIdType),
+                }))
               }
               className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
             >
@@ -175,6 +192,43 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">
+              {t('clients.form.legal_name')}
+            </label>
+            <input
+              value={editForm.legalName}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, legalName: e.target.value }))
+              }
+              className={INPUT_CLASS}
+            />
+          </div>
+          <ClientTaxIdFields
+            country={editForm.country}
+            taxIdType={editForm.taxIdType}
+            taxId={editForm.taxId}
+            onChange={(c) => setEditForm((f) => ({ ...f, ...c }))}
+            labelClassName="mb-1 block text-xs text-gray-500"
+            inputClassName={INPUT_CLASS}
+          />
+          <div>
+            <label className="mb-1 block text-xs text-gray-500">
+              {t('clients.form.notes')}
+            </label>
+            <textarea
+              value={editForm.notes}
+              rows={3}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, notes: e.target.value }))
+              }
+              placeholder={t('clients.form.notes_placeholder')}
+              className={INPUT_CLASS}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {t('clients.form.notes_hint')}
+            </p>
           </div>
           <div className="flex gap-2 pt-2">
             <button
@@ -257,6 +311,37 @@ export function ClientInfoCard({ client, isAdmin, onUpdated, onError }: Props) {
               <dd className="text-white">
                 {countryName(client.country, i18n.language)}
               </dd>
+            </div>
+          )}
+          {client.legalName && (
+            <div>
+              <dt className="text-xs text-gray-500">
+                {t('clients.form.legal_name')}
+              </dt>
+              <dd className="text-white">{client.legalName}</dd>
+            </div>
+          )}
+          {(client.taxIdType || client.taxId) && (
+            <div>
+              <dt className="text-xs text-gray-500">
+                {t('clients.form.tax_id')}
+              </dt>
+              <dd className="text-white">
+                {client.taxIdType && (
+                  <span className="mr-2 text-gray-400">
+                    {t(`clients.tax_id_types.${client.taxIdType}`)}
+                  </span>
+                )}
+                {client.taxId}
+              </dd>
+            </div>
+          )}
+          {client.notes && (
+            <div>
+              <dt className="text-xs text-gray-500">
+                {t('clients.form.notes')}
+              </dt>
+              <dd className="whitespace-pre-line text-white">{client.notes}</dd>
             </div>
           )}
           <div>

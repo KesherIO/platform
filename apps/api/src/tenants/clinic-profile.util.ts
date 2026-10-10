@@ -9,6 +9,8 @@ import type { ClinicProfileModel } from '@vet-ai/shared-types';
  *   - undefined → field omitted, existing value preserved
  *   - null / '' / whitespace → field cleared (stored as null)
  *   - name and email can never be cleared
+ *   - taxIdNormalized follows taxId (set or cleared with it) and is never
+ *     accepted from a client
  */
 export const CLINIC_PROFILE_FIELDS = [
   'name',
@@ -18,6 +20,9 @@ export const CLINIC_PROFILE_FIELDS = [
   'address',
   'city',
   'country',
+  'legalName',
+  'taxIdType',
+  'taxId',
 ] as const satisfies readonly (keyof ClinicProfileModel)[];
 
 export type ClinicProfileField = (typeof CLINIC_PROFILE_FIELDS)[number];
@@ -40,12 +45,25 @@ export const CLINIC_PROFILE_SELECT = {
   address: true,
   city: true,
   country: true,
+  legalName: true,
+  taxIdType: true,
+  taxId: true,
 } as const satisfies Record<ClinicProfileField, true>;
 
 /** Prisma-ready update: `name` is never null (the column is required). */
 export type ClinicProfileUpdate = { name?: string } & {
   [K in Exclude<ClinicProfileField, 'name'>]?: string | null;
-};
+} & { taxIdNormalized?: string | null };
+
+/**
+ * Comparison key for a tax ID: uppercase, without spaces, `.`, `-` and `/`.
+ * Leading zeros, letters and check digits are kept ("12.345.678-k" →
+ * "12345678K", "0012345" stays "0012345"). Returns null when nothing is left.
+ */
+export function normalizeTaxId(taxId: string): string | null {
+  const normalized = taxId.toUpperCase().replace(/[\s.\-/]/g, '');
+  return normalized === '' ? null : normalized;
+}
 
 export function buildClinicProfileUpdate(
   input: ClinicProfileInput
@@ -67,6 +85,12 @@ export function buildClinicProfileUpdate(
     }
   }
 
+  const update = data as ClinicProfileUpdate;
+  if (update.taxId !== undefined) {
+    update.taxIdNormalized =
+      update.taxId === null ? null : normalizeTaxId(update.taxId);
+  }
+
   // REQUIRED_FIELDS above guarantees name/email are never null here.
-  return data as ClinicProfileUpdate;
+  return update;
 }

@@ -1,9 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
+import type { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { LabController } from './lab.controller';
 import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
+import { ImportClientsDto } from './dto/import-clients.dto';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
 import { CatalogService } from '../catalog/catalog.service';
@@ -61,6 +64,7 @@ describe('LabController', () => {
       }),
       getClientDetail: jest.fn().mockResolvedValue({}),
       createClient: jest.fn().mockResolvedValue({}),
+      importClients: jest.fn().mockResolvedValue({ results: [], summary: {} }),
       updateClient: jest.fn().mockResolvedValue({}),
       suspendClient: jest.fn().mockResolvedValue(undefined),
       reactivateClient: jest.fn().mockResolvedValue(undefined),
@@ -436,6 +440,68 @@ describe('LabController', () => {
           amendmentId: 'amend-1',
         })
       );
+    });
+  });
+
+  describe('importClients', () => {
+    const BATCH_ID = '6f1c2a9e-8f0b-4d3a-9c55-2b7e1d4a0c11';
+    const user = { id: 'user-1', email: 'admin@lab.com' };
+
+    it('delegates to the clients service with lab, user and request id', async () => {
+      const clients = module.get(LabClientsService);
+      const dto = { importBatchId: BATCH_ID, rows: [{ rowNumber: 2 }] };
+
+      await controller.importClients(tenant, user as never, dto, {
+        requestId: 'req-1',
+      } as unknown as Request);
+
+      expect(clients.importClients).toHaveBeenCalledWith(
+        'lab-1',
+        dto,
+        'user-1',
+        'req-1'
+      );
+    });
+
+    // Same options as the global pipe in main.ts.
+    const pipe = new ValidationPipe({ whitelist: true, transform: true });
+    const validateBody = (body: unknown) =>
+      pipe.transform(body, { type: 'body', metatype: ImportClientsDto });
+    const rows = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ rowNumber: i + 2 }));
+
+    it('accepts a valid structure and leaves row fields to the service', async () => {
+      const dto = await validateBody({
+        importBatchId: BATCH_ID,
+        dryRun: true,
+        rows: [{ rowNumber: 2, primaryContactEmail: 'not-validated-here' }],
+      });
+
+      expect(dto.rows[0]).toEqual({
+        rowNumber: 2,
+        primaryContactEmail: 'not-validated-here',
+      });
+    });
+
+    it.each([
+      ['a missing batch id', { rows: rows(1) }],
+      [
+        'a batch id that is not a UUID',
+        { importBatchId: 'abc', rows: rows(1) },
+      ],
+      ['no rows', { importBatchId: BATCH_ID, rows: [] }],
+      ['more than 50 rows', { importBatchId: BATCH_ID, rows: rows(51) }],
+      [
+        'a duplicate rowNumber',
+        { importBatchId: BATCH_ID, rows: [{ rowNumber: 2 }, { rowNumber: 2 }] },
+      ],
+      [
+        'a missing rowNumber',
+        { importBatchId: BATCH_ID, rows: [{ name: 'City Vet' }] },
+      ],
+      ['a non-object row', { importBatchId: BATCH_ID, rows: ['x'] }],
+    ])('rejects %s with 400', async (_label, body) => {
+      await expect(validateBody(body)).rejects.toThrow(BadRequestException);
     });
   });
 });
