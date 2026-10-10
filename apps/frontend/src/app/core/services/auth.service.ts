@@ -159,6 +159,22 @@ export class AuthService {
   }
 
   /**
+   * Sign in without loading /auth/me or navigating — used mid-onboarding,
+   * where an existing user must prove they own the account before joining
+   * a new clinic. The interceptor then attaches the new session's JWT.
+   */
+  signInForOnboarding(email: string, password: string): Observable<void> {
+    return from(
+      this.supabase.auth.signInWithPassword({ email, password })
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        this.session.set(data.session);
+      })
+    );
+  }
+
+  /**
    * Sign up with email + password.
    * Supabase may require email confirmation depending on project settings.
    */

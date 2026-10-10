@@ -142,7 +142,13 @@
     "LOGO_UPLOAD_FAILED": "Account created successfully, but logo upload failed. You can upload your logo later from Settings.",
     "IS_VET_LABEL": "I'm also a veterinarian",
     "IS_VET_HINT": "Enable this if you will also be ordering tests",
-    "SUCCESS_BODY_VET": "Your account has been created successfully. Please sign in to complete your veterinary profile and submit your credentials for verification."
+    "SUCCESS_BODY_VET": "Your account has been created successfully. Please sign in to complete your veterinary profile and submit your credentials for verification.",
+    "SIGN_IN_REQUIRED_TITLE": "You already have a KesherIO account",
+    "SIGN_IN_REQUIRED_BODY": "{{email}} is already registered. Sign in with your current password to add this clinic to your account. Your password will not change.",
+    "SIGN_IN_PASSWORD_LABEL": "Current password",
+    "SIGN_IN_BUTTON": "Sign in and continue",
+    "SIGN_IN_FAILED": "Incorrect email or password. Please try again.",
+    "USE_DIFFERENT_EMAIL": "Use a different email"
   },
   "STAFF_PROFILE": {
     "TITLE": "Create your account",
