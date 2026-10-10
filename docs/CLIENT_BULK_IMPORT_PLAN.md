@@ -65,6 +65,7 @@ the JWT `sub` equals that user's id, then adds the membership. New users keep th
 ### A1. Clinics already in KesherIO through another lab
 
 **How it works today**
+
 - `createClient` (`apps/api/src/lab/lab-clients.service.ts:236`) only checks for a
   duplicate **email among clinics connected to this lab** (lines 241-253). A clinic
   that already exists through lab A gets a **second, separate tenant** when lab B adds it.
@@ -78,6 +79,7 @@ the JWT `sub` equals that user's id, then adds the membership. New users keep th
 **Why import must not match clinics outside the lab**
 
 If the import looked up clinics across all of KesherIO, it would:
+
 - **reveal another lab's clients**: "skipped, this clinic already exists" tells lab B that
   the email or tax ID is a client of some other lab;
 - **give lab B power over a clinic it doesn't own**:
@@ -88,6 +90,7 @@ If the import looked up clinics across all of KesherIO, it would:
     (lines 147-160), so lab B would see orders sent to lab A.
 
 **Decision**
+
 - Import works exactly like Add client: every new row becomes a **new tenant owned by this
   lab**, and duplicates are checked **only among this lab's clients**. Import never reads,
   links or edits a tenant connected only to other labs, and responses never mention them.
@@ -109,11 +112,11 @@ can be a separate tenant per lab, see A1), and `ClinicLabConnection` is only uni
 
 **Options considered**
 
-| Option | Pros | Cons |
-|---|---|---|
-| Unique "identity keys" table `(labId, kind, value)` | Enforced by the database | Copies email/tax ID that change from 4 places (lab edit, onboarding, clinic settings, import). Keeping it in sync is new code and a new source of bugs. |
-| Unique columns on `ClinicLabConnection` (email key, tax key) | Enforced by the database | Same sync problem: the values live on the shared `Tenant`. |
-| **Per-lab transaction lock + check inside the transaction** | No copied data; checks the live values; small change | Every create path must use it. Solved by having **one** create helper. |
+| Option                                                       | Pros                                                 | Cons                                                                                                                                                    |
+| ------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unique "identity keys" table `(labId, kind, value)`          | Enforced by the database                             | Copies email/tax ID that change from 4 places (lab edit, onboarding, clinic settings, import). Keeping it in sync is new code and a new source of bugs. |
+| Unique columns on `ClinicLabConnection` (email key, tax key) | Enforced by the database                             | Same sync problem: the values live on the shared `Tenant`.                                                                                              |
+| **Per-lab transaction lock + check inside the transaction**  | No copied data; checks the live values; small change | Every create path must use it. Solved by having **one** create helper.                                                                                  |
 
 **Decision: per-lab advisory lock.** Every client creation for a lab (import rows and Add
 client) goes through one helper, `createClinicForLab(tx, …)`, which:
@@ -192,7 +195,9 @@ whole row transaction again (lock, replay lookup, duplicate check, insert), once
 rejects the whole request when one nested field is invalid.
 
 **Change:**
+
 - The request DTO only validates the **structure**:
+
   - `importBatchId` is a UUID;
   - `dryRun` is a boolean;
   - `rows` is an array of 1 to `IMPORT_MAX_ROWS_PER_REQUEST` (50) plain objects
@@ -200,6 +205,7 @@ rejects the whole request when one nested field is invalid.
   - `rowNumber` values are integers and unique within the request.
 
   A broken structure or too many rows → `400` for the whole request.
+
 - The **service** validates each row on its own, with `plainToInstance(ImportClientRowDto)` +
   `validate(row, { whitelist: true, forbidNonWhitelisted: true })`. Field errors become
   codes: `{ field, code }`, with codes `REQUIRED`, `INVALID_EMAIL`, `TOO_LONG`,
@@ -225,15 +231,15 @@ rejects the whole request when one nested field is invalid.
   never from the preview: another admin may have added clients in between.
 - The same words are used in the preview and the final summary:
 
-| Bucket | Meaning |
-|---|---|
-| Will be created / **Created** | New client in this lab |
-| **Already in your lab** | `EMAIL_EXISTS` / `TAX_ID_EXISTS` — skipped |
-| **Duplicate in file** | Same email or tax ID as an earlier row — skipped |
-| **Invalid** | Field errors (from browser or server) — not imported |
-| **Excluded** | User unticked the row — not sent |
-| **Failed** | Unexpected server error (can be retried), or `BATCH_ROW_MISMATCH` (needs a new import) |
-| **Not confirmed** | Import stopped before this row's group was confirmed (A5) |
+| Bucket                        | Meaning                                                                                |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| Will be created / **Created** | New client in this lab                                                                 |
+| **Already in your lab**       | `EMAIL_EXISTS` / `TAX_ID_EXISTS` — skipped                                             |
+| **Duplicate in file**         | Same email or tax ID as an earlier row — skipped                                       |
+| **Invalid**                   | Field errors (from browser or server) — not imported                                   |
+| **Excluded**                  | User unticked the row — not sent                                                       |
+| **Failed**                    | Unexpected server error (can be retried), or `BATCH_ROW_MISMATCH` (needs a new import) |
+| **Not confirmed**             | Import stopped before this row's group was confirmed (A5)                              |
 
 ### A5. Request duration and the 500-row limit
 
@@ -249,7 +255,7 @@ Real limits on the production path (browser → Vercel → Railway API → Supab
   Not the binding limit.
 - **Interactive transactions** in Prisma default to a 5 s timeout and 2 s max wait. The
   lock wait counts toward them, so the helper sets them explicitly (e.g. `maxWait: 5000,
-  timeout: 10000`), like the other services do (`review.service.ts:105`,
+timeout: 10000`), like the other services do (`review.service.ts:105`,
   `release.service.ts:523`).
 - **Connections**: `PrismaPg` uses the default `pg` pool (10). Rows run one after another,
   so one import uses **one** connection at a time. No pool pressure, and no parallel rows.
@@ -259,16 +265,17 @@ insert tenant, insert connection, commit. The time depends on the latency betwee
 and Supabase, which isn't in the repo (`railway.toml` sets no region; the env files point to
 poolers in `ap-northeast-1` and `eu-west-1`):
 
-| API ↔ DB latency | Per row | 500 rows in one request |
-|---|---|---|
-| ~2 ms (same region) | ~15 ms | ~8 s |
-| ~40 ms | ~0.3 s | ~2.5 min ❌ |
-| ~150 ms (other continent) | ~1 s | ~8 min ❌ |
+| API ↔ DB latency          | Per row | 500 rows in one request |
+| ------------------------- | ------- | ----------------------- |
+| ~2 ms (same region)       | ~15 ms  | ~8 s                    |
+| ~40 ms                    | ~0.3 s  | ~2.5 min ❌             |
+| ~150 ms (other continent) | ~1 s    | ~8 min ❌               |
 
 One request of 500 rows **does not fit** unless both are in the same region. Even then it
 leaves little room.
 
 **Decision: groups of 25 rows, sent one after another, with progress.**
+
 - The browser sends groups of `IMPORT_CHUNK_SIZE = 25`; the server accepts up to 50. Even
   at 1 s per row a group takes about 25 s, well under 120 s.
 - Progress: "Importing 75 / 154". The modal can't be closed while importing; leaving the
@@ -288,6 +295,7 @@ leaves little room.
 ### A6. ID number storage and Excel parsing
 
 **Storage**
+
 - `taxId` keeps the value as entered (trimmed), for display: leading zeros, letters and
   check digits included (e.g. Chile `12.345.678-K`, Colombia `900.123.456-7`).
 - `taxIdNormalized` is a separate column used **only for comparisons**: uppercase, with
@@ -302,15 +310,15 @@ the file, nothing becomes a number. Handle a UTF-8 BOM and detect the `,` or `;`
 **XLSX parsing** (exceljs, loaded with dynamic `import()`). Cell types in the ID and phone
 columns:
 
-| Cell | Handling |
-|---|---|
-| Text | Use the text exactly. |
-| Number with a zero-padding format (e.g. `0000000000`) | Pad to the format's width. Excel shows that padding to the user and it is stored in the file, so this reproduces what they saw rather than guessing. |
-| Number, other formats, ≤ 15 digits | `String(value)`, plus a **warning** on the row: "Stored as a number in Excel — leading zeros may have been removed. Check against the original." |
-| Number with more than 15 significant digits, or not a safe integer | **Error**: "Excel may have rounded this number." The user must type the value. |
-| Text that looks like scientific notation (`1.09874E+09`, also in CSV) | **Error**: "Digits were lost when this was saved from Excel." |
-| Formula | Use the cached result; same rules as above. |
-| Rich text / hyperlink | Use the plain text. |
+| Cell                                                                  | Handling                                                                                                                                             |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text                                                                  | Use the text exactly.                                                                                                                                |
+| Number with a zero-padding format (e.g. `0000000000`)                 | Pad to the format's width. Excel shows that padding to the user and it is stored in the file, so this reproduces what they saw rather than guessing. |
+| Number, other formats, ≤ 15 digits                                    | `String(value)`, plus a **warning** on the row: "Stored as a number in Excel — leading zeros may have been removed. Check against the original."     |
+| Number with more than 15 significant digits, or not a safe integer    | **Error**: "Excel may have rounded this number." The user must type the value.                                                                       |
+| Text that looks like scientific notation (`1.09874E+09`, also in CSV) | **Error**: "Digits were lost when this was saved from Excel."                                                                                        |
+| Formula                                                               | Use the cached result; same rules as above.                                                                                                          |
+| Rich text / hyperlink                                                 | Use the plain text.                                                                                                                                  |
 
 Digits are **never** added or guessed. Warnings can be confirmed per row; errors must be
 fixed. The exceljs behaviour for `numFmt` and formula results gets checked with real `.xlsx`
@@ -339,6 +347,7 @@ before relying on it.
   apostrophe — probably added by a spreadsheet export"). It offers an **explicit** action
   to remove it, for one cell or for a whole column. Nothing changes until the user clicks.
 - **Manual check before release**, written down in the PR:
+
   - open the retry file in Excel (Windows and Mac) and Google Sheets: does the `'` show,
     and do phones and IDs look right?
   - import the file back unchanged: the warning appears, removal works, and the values
@@ -348,6 +357,7 @@ before relying on it.
 
   If Excel removes the `'` when it saves (it treats it as "this cell is text"), that is
   the user's own edit and the import takes the file as it is.
+
 - The download is a `Blob` + object URL in the lab app.
 
 ### A8. Explicit mapping
@@ -363,16 +373,16 @@ before relying on it.
 
 ### A9. End-to-end checks
 
-| Behaviour | Status today | Where |
-|---|---|---|
-| A pending imported client can receive orders before onboarding | **No.** Only clinic users create orders, from a case. Same for Add client. | `orders.service.ts:29`, `orders.controller.ts:15`. See A0. |
-| Import creates the organization + connection without users or invitation tokens | **New code**, written for it: `createClinicForLab(…, { withInvitation: false })`. | Refactor of `lab-clients.service.ts:236-319` |
-| A client that never had a token can get an invitation later | **Works already.** `regenerateInvitation` revokes with `updateMany` (no match → nothing to do) and creates a token with `clinicTenantId`. The card shows "No invitation sent yet" with a button when `invitation` is `null`. | `lab-clients.service.ts:404-445`; `ClientInvitationCard.tsx` (`inv ? … : …` branch); detail page shows the card while not ACTIVE (`ClientDetailPage.tsx:248`) |
-| Small fix | That button says **"Regenerate link"** even when there was never a link. Use a "Generate invitation" label in the `null` branch. | `apps/lab/src/assets/i18n/*.json:625` |
-| That client can complete onboarding with the imported data | **Works already**, for the current fields. `verifyOnboardingToken` returns the tenant profile (`CLINIC_PROFILE_SELECT`) as `clinic`; the clinic setup form fills in from `prefillClinic`; `completeAdminOnboarding` updates the existing tenant (fields left out keep the stored value), sets `ACTIVE` and keeps the existing connection. | `onboarding.service.ts:704-720`, `:888-906`; `clinic-setup.component.ts:74-110` |
-| Same for the new fields | **Needs change**: add them to `CLINIC_PROFILE_SELECT`/`FIELDS` so the prefill and the "keep the stored value" rule apply. | `clinic-profile.util.ts:13-48` |
-| Note | Onboarding requires address, city and phone (`REQUIRED_CLINIC_DETAILS`, `onboarding.service.ts:34`). An imported client missing them is asked for them in onboarding. Import doesn't need to require them. | |
-| Blocker | Before sending links to imported clients, fix the password issue (A0). | Phase 0 |
+| Behaviour                                                                       | Status today                                                                                                                                                                                                                                                                                                                              | Where                                                                                                                                                         |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A pending imported client can receive orders before onboarding                  | **No.** Only clinic users create orders, from a case. Same for Add client.                                                                                                                                                                                                                                                                | `orders.service.ts:29`, `orders.controller.ts:15`. See A0.                                                                                                    |
+| Import creates the organization + connection without users or invitation tokens | **New code**, written for it: `createClinicForLab(…, { withInvitation: false })`.                                                                                                                                                                                                                                                         | Refactor of `lab-clients.service.ts:236-319`                                                                                                                  |
+| A client that never had a token can get an invitation later                     | **Works already.** `regenerateInvitation` revokes with `updateMany` (no match → nothing to do) and creates a token with `clinicTenantId`. The card shows "No invitation sent yet" with a button when `invitation` is `null`.                                                                                                              | `lab-clients.service.ts:404-445`; `ClientInvitationCard.tsx` (`inv ? … : …` branch); detail page shows the card while not ACTIVE (`ClientDetailPage.tsx:248`) |
+| Small fix                                                                       | That button says **"Regenerate link"** even when there was never a link. Use a "Generate invitation" label in the `null` branch.                                                                                                                                                                                                          | `apps/lab/src/assets/i18n/*.json:625`                                                                                                                         |
+| That client can complete onboarding with the imported data                      | **Works already**, for the current fields. `verifyOnboardingToken` returns the tenant profile (`CLINIC_PROFILE_SELECT`) as `clinic`; the clinic setup form fills in from `prefillClinic`; `completeAdminOnboarding` updates the existing tenant (fields left out keep the stored value), sets `ACTIVE` and keeps the existing connection. | `onboarding.service.ts:704-720`, `:888-906`; `clinic-setup.component.ts:74-110`                                                                               |
+| Same for the new fields                                                         | **Needs change**: add them to `CLINIC_PROFILE_SELECT`/`FIELDS` so the prefill and the "keep the stored value" rule apply.                                                                                                                                                                                                                 | `clinic-profile.util.ts:13-48`                                                                                                                                |
+| Note                                                                            | Onboarding requires address, city and phone (`REQUIRED_CLINIC_DETAILS`, `onboarding.service.ts:34`). An imported client missing them is asked for them in onboarding. Import doesn't need to require them.                                                                                                                                |                                                                                                                                                               |
+| Blocker                                                                         | Before sending links to imported clients, fix the password issue (A0).                                                                                                                                                                                                                                                                    | Phase 0                                                                                                                                                       |
 
 ---
 
@@ -432,6 +442,7 @@ private async createClinicForLab(
 ```
 
 Steps inside the transaction:
+
 1. advisory lock;
 2. replay lookup by `(labId, importBatchId, importRowNumber)` and hash comparison (import
    only);
@@ -453,17 +464,26 @@ transaction once, outside it (A2).
 ```ts
 // dto/import-clients.dto.ts — structure only (A3)
 class ImportClientsDto {
-  importBatchId: string;            // IsUUID
+  importBatchId: string; // IsUUID
   dryRun?: boolean;
-  rows: Record<string, unknown>[];  // IsArray, ArrayMinSize(1), ArrayMaxSize(50), IsObject({each})
+  rows: Record<string, unknown>[]; // IsArray, ArrayMinSize(1), ArrayMaxSize(50), IsObject({each})
 }
 
 // validated per row in the service; fields shared with CreateClientDto via a base class
 class ImportClientRowDto {
   rowNumber: number;
-  name: string; clientType: ClientType; primaryContactEmail: string;
-  primaryContactName?; phone?; address?; city?; country?;
-  legalName?; taxIdType?; taxId?; notes?;
+  name: string;
+  clientType: ClientType;
+  primaryContactEmail: string;
+  primaryContactName?;
+  phone?;
+  address?;
+  city?;
+  country?;
+  legalName?;
+  taxIdType?;
+  taxId?;
+  notes?;
 }
 ```
 
@@ -473,12 +493,27 @@ Response:
 {
   results: Array<
     | { rowNumber; status: 'created' | 'would_create'; clientId? }
-    | { rowNumber; status: 'skipped'; reason: 'EMAIL_EXISTS' | 'TAX_ID_EXISTS' | 'DUPLICATE_IN_FILE' }
-    | { rowNumber; status: 'invalid'; errors: { field: string; code: string }[] }
+    | {
+        rowNumber;
+        status: 'skipped';
+        reason: 'EMAIL_EXISTS' | 'TAX_ID_EXISTS' | 'DUPLICATE_IN_FILE';
+      }
+    | {
+        rowNumber;
+        status: 'invalid';
+        errors: { field: string; code: string }[];
+      }
     | { rowNumber; status: 'conflict'; reason: 'BATCH_ROW_MISMATCH' }
     | { rowNumber; status: 'failed'; reason: 'UNEXPECTED' }
   >;
-  summary: { created; wouldCreate; skipped; invalid; conflict; failed };
+  summary: {
+    created;
+    wouldCreate;
+    skipped;
+    invalid;
+    conflict;
+    failed;
+  }
 }
 ```
 
@@ -555,19 +590,19 @@ The npm `xlsx` package is not used.
 
 ### B5. Example: first lab's file
 
-| File column | Default | Suggested by the app | Notes |
-|---|---|---|---|
-| NOMBRE COMERCIAL | Ignore | Name | 5 empty → falls back to legal name |
-| NOMBRE COMPLETO / RAZON SOCIAL | Ignore | Legal name | |
-| Correo electrónico | Ignore | Email | |
-| Número de teléfono | Ignore | Phone | |
-| DIRECCION PRINCIPAL | Ignore | Address | |
-| CIUDAD | Ignore | City | Kept as written |
-| TIPO DE IDENTIFICACION | Ignore | ID type | `CEDULA` → `CC`, `NIT` → `NIT` |
-| NUMERO DE IDENTIFICACION | Ignore | ID number | `1 0 9 8 …` displayed as entered, compared normalized |
-| Comentarios, SOLCITUD | Ignore | — | User may map them to Notes |
-| TIPO DE PERSONA, FACTURACION, ADJUNTAR ×5 | Ignore | — | Stay ignored unless mapped to Notes |
-| Marca temporal, CREADO EN LA PLATAFORMA?, Dirección de correo electrónico | Ignore | — | The last one is the form submitter, not the client |
+| File column                                                               | Default | Suggested by the app | Notes                                                 |
+| ------------------------------------------------------------------------- | ------- | -------------------- | ----------------------------------------------------- |
+| NOMBRE COMERCIAL                                                          | Ignore  | Name                 | 5 empty → falls back to legal name                    |
+| NOMBRE COMPLETO / RAZON SOCIAL                                            | Ignore  | Legal name           |                                                       |
+| Correo electrónico                                                        | Ignore  | Email                |                                                       |
+| Número de teléfono                                                        | Ignore  | Phone                |                                                       |
+| DIRECCION PRINCIPAL                                                       | Ignore  | Address              |                                                       |
+| CIUDAD                                                                    | Ignore  | City                 | Kept as written                                       |
+| TIPO DE IDENTIFICACION                                                    | Ignore  | ID type              | `CEDULA` → `CC`, `NIT` → `NIT`                        |
+| NUMERO DE IDENTIFICACION                                                  | Ignore  | ID number            | `1 0 9 8 …` displayed as entered, compared normalized |
+| Comentarios, SOLCITUD                                                     | Ignore  | —                    | User may map them to Notes                            |
+| TIPO DE PERSONA, FACTURACION, ADJUNTAR ×5                                 | Ignore  | —                    | Stay ignored unless mapped to Notes                   |
+| Marca temporal, CREADO EN LA PLATAFORMA?, Dirección de correo electrónico | Ignore  | —                    | The last one is the form submitter, not the client    |
 
 Checked in the file: 154 rows, all with a valid email, no duplicate emails, no duplicate ID
 numbers → expected 154 created, minus any that are already clients of the lab.
@@ -577,6 +612,7 @@ numbers → expected 154 created, minus any that are already clients of the lab.
 **API (Jest)**
 
 `lab-clients.service.spec.ts`:
+
 - Import creates tenant + connection (`clientStatus: 'PENDING'`, notes and batch fields on
   the connection). It **doesn't** call `onboardingToken.create`, `user.create` or
   `userTenantMembership.create`.
@@ -614,11 +650,13 @@ numbers → expected 154 created, minus any that are already clients of the lab.
   `clinicTenantId` (protects the A9 behaviour).
 
 `clinic-profile.util.spec.ts`:
+
 - `taxIdNormalized` is derived from `taxId` (spaces, dots and dashes removed; leading zeros
   and `K` kept), and cleared with it.
 - `taxIdNormalized` can't be set directly.
 
 `onboarding.service.spec.ts`:
+
 - Lab invitation for an imported client: `verifyOnboardingToken` returns the imported
   profile, including the new fields.
 - `completeAdminOnboarding` with fields left out keeps the stored values (legal name, tax
@@ -634,6 +672,7 @@ numbers → expected 154 created, minus any that are already clients of the lab.
 **Concurrency (opt-in, real Postgres)**: `lab-clients.import.int-spec.ts`, runs only when
 `INTEGRATION_DATABASE_URL` is set (a local Postgres or a throwaway Supabase branch). The repo
 has no database-backed tests today, and `apps/api-e2e` is only the Nx scaffold.
+
 - Two imports of the same 25 rows **at the same time** for one lab → 25 tenants in total.
 - An import and an Add client with the same email at the same time → one client.
 - The same group sent twice with the same batch id → 25 tenants; both responses say
@@ -643,6 +682,7 @@ Mocked unit tests can't prove the locking works. This test can. Tradeoff: one sm
 test setup, run by hand (or in CI later), not on every `nx test`.
 
 **Lab (Vitest)**, pure functions:
+
 - `spreadsheet.ts`:
   - CSV with quoted multi-line fields, BOM and a `;` separator;
   - IDs that are text in the CSV are kept exactly (`00123`, `12.345.678-K`);
@@ -674,10 +714,12 @@ test setup, run by hand (or in CI later), not on every `nx test`.
 
 **Frontend (Vitest)**: `clinic-setup.component.spec.ts` and
 `clinic-settings.component.spec.ts`:
+
 - the new fields are filled in from the record and sent on submit;
 - the ID type clears when the country changes.
 
 **Manual, before release (staging)**:
+
 - import the first lab's 154 rows;
 - check the duration of each group in the logs (A5);
 - import the same file again → all skipped;
@@ -726,6 +768,7 @@ import (`apps/lab/src/app/shared/clientImport.ts`), so it's built only after the
 complete and tested.
 
 **Scope**
+
 - ADMIN only. Exports only clients **connected to the current lab**.
 - **All clients** or **the current filtered list**, with clear labels: "Export all
   clients (154)" / "Export filtered list (37): Pending, search 'vet'".
@@ -734,6 +777,7 @@ complete and tested.
 - CSV download. XLSX is a possible next step (see "Numbers in Excel" below).
 
 **API**: `GET /lab/clients/export?status=&search=&includeNotes=`
+
 - Same guards as the other client endpoints. Same `status` / `search` filters as
   `listClients` (`lab-clients.service.ts:35`), but **not paged**. The list is limited to
   100 per page (`list-clients.dto.ts:31`), so the lab app can't build the export from the
@@ -760,6 +804,7 @@ Client type · ID type · ID number · Status · (Notes, only if chosen)
   can use.
 
 **Never exported**:
+
 - invitation links, tokens, password data;
 - clinic users and memberships;
 - `orderCount`, which counts other labs' orders (B8);
@@ -770,6 +815,7 @@ Client type · ID type · ID number · Status · (Notes, only if chosen)
 leading `'` on every value starting with `= + - @`, tab or CR, phones included.
 
 **Numbers in Excel**
+
 - The CSV keeps IDs and phones exactly as stored.
 - A CSV can't force Excel to treat a column as text. Opened by double-click, Excel removes
   leading zeros (`0012345` → `12345`) and shows long numbers in scientific notation.
@@ -783,6 +829,7 @@ leading `'` on every value starting with `= + - @`, tab or CR, phones included.
 **Limitation, shown in the UI and docs**: this file is a **copy**. Import only creates
 clients, so editing the exported file and importing it again **doesn't update** existing
 clients: every row comes back as "Already in your lab". Messages:
+
 - export: "This file is a copy. Editing it and importing it again won't update existing
   clients."
 - import result: when every row is "Already in your lab", explain why, with the same text.
@@ -790,6 +837,7 @@ clients: every row comes back as "Already in your lab". Messages:
 Updating from a file is the separate update-import feature (B8).
 
 **Tests**
+
 - API (Jest):
   - returns only clients connected to this lab, never a clinic connected only to another
     lab;
