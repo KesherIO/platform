@@ -155,7 +155,6 @@ function makeAuthMock() {
     createSupabaseUser: jest.fn(),
     deleteSupabaseUser: jest.fn(),
     deleteSupabaseUserByEmail: jest.fn(),
-    updateSupabaseUserPassword: jest.fn(),
   };
 }
 
@@ -1073,32 +1072,79 @@ describe('OnboardingService', () => {
         };
       }
 
-      it('reuses existing user, updates Supabase password, skips user.create in transaction', async () => {
+      function mockExistingUserWithoutMembership() {
         prisma.onboardingToken.findUnique.mockResolvedValue(labToken);
         prisma.user.findUnique.mockResolvedValue({
           id: 'existing-user-id',
           email: dto.adminEmail,
         });
         prisma.userTenantMembership.findUnique.mockResolvedValue(null);
-        auth.updateSupabaseUserPassword.mockResolvedValue(undefined);
+      }
+
+      it('rejects an existing account when the caller is not signed in', async () => {
+        mockExistingUserWithoutMembership();
+
+        const err = await service
+          .completeAdminOnboarding(dto)
+          .catch((e: unknown) => e);
+
+        expect(err).toBeInstanceOf(ConflictException);
+        expect((err as ConflictException).getResponse()).toMatchObject({
+          code: 'SIGN_IN_REQUIRED',
+        });
+        expect(auth.createSupabaseUser).not.toHaveBeenCalled();
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      });
+
+      it('rejects an existing account when the caller is signed in as another user', async () => {
+        mockExistingUserWithoutMembership();
+
+        const err = await service
+          .completeAdminOnboarding(dto, undefined, 'someone-else-id')
+          .catch((e: unknown) => e);
+
+        expect(err).toBeInstanceOf(ConflictException);
+        expect((err as ConflictException).getResponse()).toMatchObject({
+          code: 'SIGN_IN_REQUIRED',
+        });
+        expect(auth.createSupabaseUser).not.toHaveBeenCalled();
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      });
+
+      it('joins the existing account when signed in as that user, without touching credentials', async () => {
+        mockExistingUserWithoutMembership();
 
         const mockTx = makeReOnboardingTx();
         prisma.$transaction.mockImplementation(
           (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
         );
 
-        const result = await service.completeAdminOnboarding(dto);
+        const result = await service.completeAdminOnboarding(
+          dto,
+          undefined,
+          'existing-user-id'
+        );
 
         expect(auth.createSupabaseUser).not.toHaveBeenCalled();
-        expect(auth.updateSupabaseUserPassword).toHaveBeenCalledWith(
-          'existing-user-id',
-          dto.password
-        );
+        expect(auth.deleteSupabaseUserByEmail).not.toHaveBeenCalled();
         expect(mockTx.user.create).not.toHaveBeenCalled();
         expect(mockTx.tenant.update).toHaveBeenCalledWith(
           expect.objectContaining({
             where: { id: 'existing-tenant-id' },
             data: expect.objectContaining({ clientStatus: 'ACTIVE' }),
+          })
+        );
+        expect(mockTx.userTenantMembership.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            userId: 'existing-user-id',
+            tenantId: 'existing-tenant-id',
+            role: 'ADMIN',
+          }),
+        });
+        expect(mockTx.onboardingToken.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: labToken.id },
+            data: expect.objectContaining({ used: true }),
           })
         );
         expect(result).toMatchObject({
@@ -1122,22 +1168,15 @@ describe('OnboardingService', () => {
           ConflictException
         );
         expect(auth.createSupabaseUser).not.toHaveBeenCalled();
-        expect(auth.updateSupabaseUserPassword).not.toHaveBeenCalled();
       });
 
       it('does not delete Supabase user on transaction failure when reusing existing account', async () => {
-        prisma.onboardingToken.findUnique.mockResolvedValue(labToken);
-        prisma.user.findUnique.mockResolvedValue({
-          id: 'existing-user-id',
-          email: dto.adminEmail,
-        });
-        prisma.userTenantMembership.findUnique.mockResolvedValue(null);
-        auth.updateSupabaseUserPassword.mockResolvedValue(undefined);
+        mockExistingUserWithoutMembership();
         prisma.$transaction.mockRejectedValue(new Error('DB connection lost'));
 
-        await expect(service.completeAdminOnboarding(dto)).rejects.toThrow(
-          'DB connection lost'
-        );
+        await expect(
+          service.completeAdminOnboarding(dto, undefined, 'existing-user-id')
+        ).rejects.toThrow('DB connection lost');
 
         expect(auth.deleteSupabaseUser).not.toHaveBeenCalled();
       });
@@ -1297,7 +1336,6 @@ describe('OnboardingService', () => {
           dto.adminFirstName,
           dto.adminLastName
         );
-        expect(auth.updateSupabaseUserPassword).not.toHaveBeenCalled();
         expect(mockTx.user.create).toHaveBeenCalled();
         expect(result).toMatchObject({
           tenantId: 'existing-tenant-id',

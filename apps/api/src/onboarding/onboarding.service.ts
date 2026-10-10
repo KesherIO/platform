@@ -722,14 +722,17 @@ export class OnboardingService {
   }
 
   // ---------------------------------------------------------------------------
-  // Complete admin onboarding — public endpoint, token is the only credential.
+  // Complete admin onboarding — public endpoint, token is the only credential
+  // for a new account. An existing account is only joined when the caller is
+  // signed in as that user (sessionUserId, from an optional Bearer JWT).
   // Creates: Supabase user → local User row → Tenant → ADMIN membership.
   // Marks the token as used atomically with the DB writes.
   // ---------------------------------------------------------------------------
 
   async completeAdminOnboarding(
     dto: CompleteAdminOnboardingDto,
-    logoFile?: Express.Multer.File
+    logoFile?: Express.Multer.File,
+    sessionUserId: string | null = null
   ) {
     // 1. Verify token (fail fast before any external calls)
     const tokenHash = createHash('sha256').update(dto.token).digest('hex');
@@ -780,9 +783,11 @@ export class OnboardingService {
 
     // 2. Resolve the Supabase user — three possible situations:
     //
-    //    a) Re-onboarding (lab-created client deleted + recreated): the User row
-    //       still exists in the app DB (deleteClient does not remove it) but the
-    //       membership was deleted. Reuse the existing account — no Supabase call.
+    //    a) Existing account (e.g. a lab-created client deleted + recreated, or
+    //       an admin who already uses KesherIO): the User row exists but has no
+    //       membership at this clinic. Reuse it — only if the caller is signed
+    //       in as that user. The token alone never grants access to an existing
+    //       account, and its password is never changed here.
     //
     //    b) Truly new user: create in Supabase + app DB.
     //
@@ -811,13 +816,15 @@ export class OnboardingService {
             'A user with this email address already exists'
           );
         }
-        // User exists but has no membership at this clinic — safe to re-onboard.
-        // Update their Supabase password to what they set in the onboarding form
-        // so they can sign in immediately after completing this flow.
-        await this.authService.updateSupabaseUserPassword(
-          existingUser.id,
-          dto.password
-        );
+        // The email typed in the form is not proof of owning the account:
+        // require a session for this exact user. dto.password is ignored.
+        if (sessionUserId !== existingUser.id) {
+          throw new ConflictException({
+            code: 'SIGN_IN_REQUIRED',
+            message:
+              'An account with this email already exists. Sign in to continue.',
+          });
+        }
         supabaseUserId = existingUser.id;
       } else {
         supabaseUserId = await this.authService.createSupabaseUser(

@@ -23,6 +23,7 @@ import {
 import { OnboardingService } from './onboarding.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { InternalApiKeyGuard } from '../auth/guards/internal-api-key.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '@vet-ai/shared-types';
 import {
@@ -174,7 +175,10 @@ export class OnboardingController {
   }
 
   /**
-   * Public — completes ADMIN onboarding. Token is the only credential.
+   * Public — completes ADMIN onboarding. Token is the only credential for a
+   * new account. When the admin email already has an account, the caller must
+   * also be signed in as that user (Bearer JWT) — otherwise 409
+   * { code: 'SIGN_IN_REQUIRED' } and the frontend asks them to sign in.
    * Creates: Supabase Auth user → local User row → Tenant → ADMIN membership.
    * Marks the token as used. After this the admin can log in with email + password.
    *
@@ -186,6 +190,7 @@ export class OnboardingController {
    */
   @Post('complete')
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   @UseInterceptors(FileInterceptor('logo'))
   @ApiOperation({
@@ -195,9 +200,14 @@ export class OnboardingController {
   @ApiConsumes('multipart/form-data', 'application/json')
   completeAdminOnboarding(
     @Body() body: CompleteAdminOnboardingDto,
+    @CurrentUser() user: AuthenticatedUser | null,
     @UploadedFile() logo?: Express.Multer.File
   ) {
-    return this.onboardingService.completeAdminOnboarding(body, logo);
+    return this.onboardingService.completeAdminOnboarding(
+      body,
+      logo,
+      user?.id ?? null
+    );
   }
 
   // ── Lab onboarding endpoints ──────────────────────────────────────────────

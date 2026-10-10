@@ -142,7 +142,13 @@
     "LOGO_UPLOAD_FAILED": "Cuenta creada correctamente, pero no se pudo subir el logo. Puedes subir tu logo más tarde desde Configuración.",
     "IS_VET_LABEL": "También soy veterinario",
     "IS_VET_HINT": "Activa esto si también ordenarás pruebas.",
-    "SUCCESS_BODY_VET": "Tu cuenta fue creada correctamente. Inicia sesión para completar tu perfil veterinario y enviar tus credenciales para verificación."
+    "SUCCESS_BODY_VET": "Tu cuenta fue creada correctamente. Inicia sesión para completar tu perfil veterinario y enviar tus credenciales para verificación.",
+    "SIGN_IN_REQUIRED_TITLE": "Ya tienes una cuenta en KesherIO",
+    "SIGN_IN_REQUIRED_BODY": "{{email}} ya está registrado. Inicia sesión con tu contraseña actual para agregar esta clínica a tu cuenta. Tu contraseña no cambiará.",
+    "SIGN_IN_PASSWORD_LABEL": "Contraseña actual",
+    "SIGN_IN_BUTTON": "Iniciar sesión y continuar",
+    "SIGN_IN_FAILED": "Correo o contraseña incorrectos. Inténtalo de nuevo.",
+    "USE_DIFFERENT_EMAIL": "Usar otro correo"
   },
   "STAFF_PROFILE": {
     "TITLE": "Crea tu cuenta",

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { signal } from '@angular/core';
 import { AdminProfileComponent } from './admin-profile.component';
@@ -38,6 +39,8 @@ describe('AdminProfileComponent', () => {
   let mockAuthService: {
     isLoggedIn: ReturnType<typeof vi.fn>;
     signOut: ReturnType<typeof vi.fn>;
+    signInForOnboarding: ReturnType<typeof vi.fn>;
+    resetPassword: ReturnType<typeof vi.fn>;
   };
   let mockRouter: { navigate: ReturnType<typeof vi.fn> };
 
@@ -53,6 +56,8 @@ describe('AdminProfileComponent', () => {
     mockAuthService = {
       isLoggedIn: vi.fn().mockReturnValue(false),
       signOut: vi.fn().mockReturnValue(of(undefined)),
+      signInForOnboarding: vi.fn().mockReturnValue(of(undefined)),
+      resetPassword: vi.fn().mockReturnValue(of(undefined)),
     };
     mockRouter = { navigate: vi.fn() };
 
@@ -437,6 +442,100 @@ describe('AdminProfileComponent', () => {
 
       expect(payload.primaryContactName).toBe('');
       expect(payload).not.toHaveProperty('country');
+    });
+  });
+
+  describe('existing account — sign in required', () => {
+    const signInRequiredError = new HttpErrorResponse({
+      status: 409,
+      error: { code: 'SIGN_IN_REQUIRED', message: 'Sign in to continue.' },
+    });
+
+    beforeEach(async () => {
+      await setup();
+      onboardingStateSignal.update((s) => ({
+        ...s,
+        onboardingToken: 'hex-token',
+        clinic: CLINIC_STUB,
+      }));
+      component.profileForm.patchValue({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+    });
+
+    it('asks the admin to sign in instead of showing an error', () => {
+      mockOnboardingService.completeAdminOnboarding.mockReturnValue(
+        throwError(() => signInRequiredError)
+      );
+
+      component.onSave();
+
+      expect(component.signInRequired()).toBe(true);
+      expect(component.error()).toBeNull();
+      expect(component.completed()).toBe(false);
+    });
+
+    it('signs in with the form email, then submits again', () => {
+      mockOnboardingService.completeAdminOnboarding
+        .mockReturnValueOnce(throwError(() => signInRequiredError))
+        .mockReturnValueOnce(of({ tenantId: 't1', userId: 'u1' }));
+      component.onSave();
+
+      component.signInPassword.setValue('current-password');
+      component.onSignInAndContinue();
+
+      expect(mockAuthService.signInForOnboarding).toHaveBeenCalledWith(
+        'jane@example.com',
+        'current-password'
+      );
+      expect(
+        mockOnboardingService.completeAdminOnboarding
+      ).toHaveBeenCalledTimes(2);
+      expect(component.signInRequired()).toBe(false);
+      expect(component.completed()).toBe(true);
+    });
+
+    it('shows an error and does not resubmit when sign-in fails', () => {
+      mockOnboardingService.completeAdminOnboarding.mockReturnValue(
+        throwError(() => signInRequiredError)
+      );
+      mockAuthService.signInForOnboarding.mockReturnValue(
+        throwError(() => new Error('Invalid login credentials'))
+      );
+      component.onSave();
+
+      component.signInPassword.setValue('wrong-password');
+      component.onSignInAndContinue();
+
+      expect(component.signInError()).toBe('ADMIN_PROFILE.SIGN_IN_FAILED');
+      expect(component.signInRequired()).toBe(true);
+      expect(
+        mockOnboardingService.completeAdminOnboarding
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends a password reset email for the form email', () => {
+      component.onForgotPassword();
+
+      expect(mockAuthService.resetPassword).toHaveBeenCalledWith(
+        'jane@example.com'
+      );
+      expect(component.resetSent()).toBe(true);
+    });
+
+    it('closes the sign-in step when the admin wants another email', () => {
+      mockOnboardingService.completeAdminOnboarding.mockReturnValue(
+        throwError(() => signInRequiredError)
+      );
+      component.onSave();
+
+      component.onUseDifferentEmail();
+
+      expect(component.signInRequired()).toBe(false);
     });
   });
 

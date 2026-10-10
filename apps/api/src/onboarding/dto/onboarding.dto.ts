@@ -233,6 +233,10 @@ export class CompleteAdminOnboardingDto {
   @IsEmail()
   adminEmail!: string;
 
+  /**
+   * Password for the new account. Ignored when adminEmail already has an
+   * account — the caller must then be signed in as that user instead.
+   */
   @ApiProperty({ example: 'supersecret123', minLength: 8 })
   @IsString()
   @MinLength(8)

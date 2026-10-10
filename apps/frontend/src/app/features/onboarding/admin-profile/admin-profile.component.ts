@@ -1,6 +1,8 @@
 import { Component, OnInit, signal, inject, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { take } from 'rxjs';
 import {
   FormBuilder,
   FormGroup,
@@ -81,6 +83,16 @@ export class AdminProfileComponent implements OnInit {
   logoUploadWarning = signal<string | null>(null);
   /** When the admin is also a vet and needs credential submission */
   vetProfileRequired = signal(false);
+
+  /**
+   * true when the admin email already has an account: the API only lets the
+   * owner join this clinic, so they must sign in with their current password.
+   */
+  signInRequired = signal(false);
+  signingIn = signal(false);
+  signInError = signal<string | null>(null);
+  resetSent = signal(false);
+  signInPassword = this.fb.nonNullable.control('', Validators.required);
 
   private clinicEmail = '';
   private clinicPhone = '';
@@ -224,11 +236,62 @@ export class AdminProfileComponent implements OnInit {
         },
         error: (err: unknown) => {
           this.loading.set(false);
+          if (
+            err instanceof HttpErrorResponse &&
+            err.status === 409 &&
+            err.error?.code === 'SIGN_IN_REQUIRED'
+          ) {
+            this.signInRequired.set(true);
+            return;
+          }
           this.error.set(
             (err as { message?: string })?.message ?? 'AUTH.ERROR_GENERIC'
           );
         },
       });
+  }
+
+  /** Signs in as the existing account, then submits the same form again. */
+  onSignInAndContinue(): void {
+    if (this.signInPassword.invalid) return;
+
+    this.signingIn.set(true);
+    this.signInError.set(null);
+    this.authService
+      .signInForOnboarding(
+        this.profileForm.value.email,
+        this.signInPassword.value
+      )
+      .pipe(take(1))
+      .subscribe({
+        next: () => {
+          this.signingIn.set(false);
+          this.signInRequired.set(false);
+          this.signInPassword.reset();
+          this.onSave();
+        },
+        error: () => {
+          this.signingIn.set(false);
+          this.signInError.set('ADMIN_PROFILE.SIGN_IN_FAILED');
+        },
+      });
+  }
+
+  onForgotPassword(): void {
+    this.authService
+      .resetPassword(this.profileForm.value.email)
+      .pipe(take(1))
+      .subscribe({
+        next: () => this.resetSent.set(true),
+        error: () => this.signInError.set('AUTH.ERROR_GENERIC'),
+      });
+  }
+
+  onUseDifferentEmail(): void {
+    this.signInRequired.set(false);
+    this.signInError.set(null);
+    this.resetSent.set(false);
+    this.signInPassword.reset();
   }
 
   onGoToSignIn(): void {
