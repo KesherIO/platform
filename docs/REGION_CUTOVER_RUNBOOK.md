@@ -103,7 +103,7 @@ that still has the Ireland value (e.g. `feat/region-move-us-east`).
 | T−30 min  | you        | Remind Biomet: stay off until told; afterwards close every tab / the installed app, reopen and sign in again                                                                                                                                                                                   |
 | **T−5**   | **Biomet** | **Last moment to enter data** (already confirmed off)                                                                                                                                                                                                                                          |
 | **T0**    | you        | **Freeze.** Ireland → Authentication → Sign In / Providers → **Email off** (no sign-in or sign-up in Ireland from here on) · Railway → `api` → **stop**                                                                                                                                        |
-| T0+1      | me         | Ireland write counters twice, 1 min apart → unchanged                                                                                                                                                                                                                                          |
+| T0+1      | me         | Ireland write counters twice, 1 min apart → no change in `public` / `storage` (see Freeze scope)                                                                                                                                                                                               |
 | T0+2      | me         | `run-dump.sh` Ireland → `~/region-move/dumps/cutover` (~45 s); dump row counts = live counts                                                                                                                                                                                                   |
 | T0+3      | me         | `reset-target.mjs` dry run (0) → `restore.sh` into US (~2 min)                                                                                                                                                                                                                                 |
 | T0+6      | me         | `copy-storage.mjs --confirm` (~40 s) → the 2 logo-URL `UPDATE`s                                                                                                                                                                                                                                |
@@ -112,10 +112,53 @@ that still has the Ireland value (e.g. `feat/region-move-us-east`).
 | T0+12     | you        | Vercel lab project → `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` → US (no manual redeploy: the next step triggers it)                                                                                                                                                                       |
 | T0+13     | you        | Check `production..main` is empty → merge `chore/switch-supabase-us-east` into `main` → check `production..main` = **only that commit** → merge `main` into `production` → Vercel builds the clinic app and the lab (new variables); Railway redeploys the same API code with the US variables |
 | T0+25     | both       | **Gate 2** (section 5)                                                                                                                                                                                                                                                                         |
-| **T0+40** | you        | **Biomet may resume**                                                                                                                                                                                                                                                                          |
+| **T0+40** | you        | **Biomet may resume — only after Gate 2 passes, whenever that is** (time limits below)                                                                                                                                                                                                         |
 | after     | you        | Ireland's Email provider stays **off**                                                                                                                                                                                                                                                         |
 
 **Stop point**: T−5. **Resume point**: only after Gate 2 passes, about T0+40.
+
+### Freeze scope: what can write to Ireland, and how each is stopped
+
+Checked 2026-10-12 (public Auth settings, Ireland connections and extensions):
+
+| Possible writer                                                       | Status in Ireland                                                               | Stopped by                                                                                                               |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Users through the apps                                                | every write goes through the NestJS API (frontends only call `supabase.auth.*`) | Railway `api` stopped                                                                                                    |
+| KesherIO / internal callers (`INTERNAL_API_KEY`)                      | call the same API                                                               | Railway `api` stopped                                                                                                    |
+| Email + password, magic link / OTP, sign-up, password recovery        | the only Auth method enabled                                                    | Email provider **off**                                                                                                   |
+| Phone, anonymous, social (Google, …), SAML/SSO, passkeys              | all **off**                                                                     | —                                                                                                                        |
+| Data API (PostgREST, GraphQL)                                         | off (503); `anon` / `authenticated` have no privileges                          | already done                                                                                                             |
+| Database webhooks, `pg_net`, `pg_cron` jobs, Realtime, Edge Functions | none installed / configured                                                     | —                                                                                                                        |
+| Refresh of an existing browser session                                | 5 sessions on record, last refreshed 2026-10-08                                 | not stopped — but it only touches `auth.sessions` / `auth.refresh_tokens`, which are useless after the switch (new keys) |
+| Scripts (`prisma/seeds`, region-move)                                 | run by hand only                                                                | not run during the freeze, except the migration                                                                          |
+
+The T0+1 check therefore requires **no change in `public` and `storage`**; a change only in
+`auth.sessions` / `auth.refresh_tokens` / `auth.audit_log_entries` is acceptable (a token
+refresh) and is not a data loss.
+
+### Time limits — Biomet stays offline until you say so
+
+Biomet resumes **only** when you tell them, after Gate 2 passes — even if that's later
+than T0+40. To keep the outage bounded:
+
+| Limit               | If not reached                                                                                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gate 1 by **T0+30** | abort: Railway `api` started again with the old variables, Ireland Email provider on → Biomet resumes on Ireland (no data loss); `reset-target.mjs` US; retry another day |
+| Gate 2 by **T0+75** | roll back the configuration (section 6, "between Gate 1 and reopening") → Biomet resumes on Ireland (no data loss; Gate 2 test writes discarded)                          |
+
+Adjust the limits before the day if Biomet needs a different maximum outage.
+
+### Rollback card (keep open during the cutover)
+
+Before changing anything at T0+10/T0+12, **copy the current values** so they can be put
+back exactly:
+
+- Railway `api` → Variables → Raw Editor → copy everything into a local file
+  (`~/region-move/railway-vars-before.txt`, `chmod 600`); note the region (`sfo`)
+- Vercel lab project → Environment Variables: note `VITE_SUPABASE_URL` /
+  `VITE_SUPABASE_ANON_KEY` (Production). They match `apps/lab/.env.prod.local` (checked)
+- Clinic app: revert the switch commit on `main` and `production` (one commit)
+- Ireland: Email provider back on
 
 ### Merge sequence without releasing unrelated code
 
@@ -174,6 +217,14 @@ release results for the test: releases and their PDFs are permanent records.
       stop and look before reopening**
 - [ ] Save that output as the cutover record (`~/region-move/cutover-record.txt`); note
       the time = **cutover time**
+
+**Test import cleanup** (checked in `lab-clients.service.ts`): an import row creates
+exactly one `tenants` row (CLINIC) and one `clinic_lab_connections` row — no users, no
+onboarding token (`withInvitation: false`), no counter or timeline rows. **Delete
+client** deletes both (connection, then tenant; it would also revoke tokens, of which
+there are none). `compare-data.mjs` after the deletion must show **no** `public`
+differences from the import; if it lists any `tenants` / `clinic_lab_connections` id,
+the cleanup didn't finish — delete that client before reopening.
 
 ## 6. Rollback — without losing data
 
