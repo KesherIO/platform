@@ -38,11 +38,19 @@ switched.
 
 ### Backup of Ireland
 
-There is **no Supabase backup** of Ireland (free plan). The rehearsal dump (2026-10-12
-19:54, proven restorable) is kept as the backup in
-`~/region-move/backups/ireland-2026-10-12T1954/` (`chmod 700`, `SHA256SUMS`, README).
-Delete it only when a Supabase backup exists (Pro daily backup of Ireland, or of US
-after the switch). The switch day takes its own fresh dump; no step uses this one.
+There is **no Supabase backup** of Ireland (Free plan; the Pro upgrade isn't possible yet,
+so the move goes ahead on Free — decided 2026-10-12). Backups:
+
+- **Fresh full dump** `~/region-move/backups/ireland-2026-10-12T2027/` (`chmod 700`,
+  `SHA256SUMS`, README): row counts equal live Ireland on all 76 tables; content-identical
+  to the rehearsal dump that restored into US with 0 errors (its log is kept there as
+  proof). The rehearsal dump itself was deleted as redundant.
+- **Ireland itself**: never written to after T0, kept ≥ 2 weeks.
+- The switch day's own dump (`~/region-move/dumps/cutover`).
+
+Free plan risks accepted: no automatic backups (only the dumps above), and a Free
+project can be paused after ~7 days without activity — upgrade to Pro as soon as
+Supabase allows; until then keep the production project in regular use.
 
 ## 2. Configuration changes (prepared, not applied)
 
@@ -64,74 +72,126 @@ URL from `SUPABASE_URL`; no code change.
 the day: keep Railway's current value (callers of `/onboarding/lab-link` etc. keep
 working) unless you intend to rotate it.
 
-**The Angular change goes on its own branch/PR (`chore/switch-supabase-us-east`),
-prepared before the day and merged only at T0+15.** Don't merge it earlier: the scripts'
+**The Angular change is ready on its own branch: `chore/switch-supabase-us-east`
+(commit `82e8f57`: only `environment.production.ts` and `ngsw-config.json`; the anon key
+is the public `anon` JWT, no secrets). Merge it only at step T0+13.** Don't merge it earlier: the scripts'
 guards read `environment.production.ts` to know which project is live, so with it merged
 `copy-storage.mjs` would refuse to write to US. Run the day's scripts from a checkout
 that still has the Ireland value (e.g. `feat/region-move-us-east`).
 
 ## 3. Before the day
 
-- [ ] Window agreed with Biomet (45 min); who tells them to stop and to resume
-- [ ] Supabase Pro on the organization (US is not paused for inactivity; daily backups)
-- [ ] US: Data API off; Auth settings match Ireland (Site URL, redirect URLs, email
-      templates, SMTP, rate limits, JWT expiry); ES256 key — verify on the day too
-- [ ] `kesherio-prod-us` empty: `reset-target.mjs … ` dry run shows 0 everywhere
-- [ ] PR `chore/switch-supabase-us-east` ready (not merged)
-- [ ] Tools on the migration Mac: PostgreSQL 17 client, Node 22, both env files; one
-      dry run of `run-dump.sh` the day before is **not** needed (rehearsed)
+- [x] Biomet off the application until told (confirmed 2026-10-12)
+- [ ] Window agreed with Biomet (45 min); who tells them to resume
+- [x] Pro upgrade: not possible yet — proceeding on Free (risks in "Backup of Ireland")
+- [x] US: Data API off; ES256 key; public Auth settings equal Ireland's
+- [ ] US: Auth settings not visible through the API match Ireland (Site URL, redirect
+      URLs, email templates, SMTP, rate limits, JWT expiry) — checked by you in the
+      dashboard
+- [x] `kesherio-prod-us` empty (reset dry run 0, emptiness check 0, fresh baseline)
+- [x] Switch PR `chore/switch-supabase-us-east` ready, **not merged**
+- [x] Tools: PostgreSQL 17.11 client, Node 22, Supabase CLI 2.120.0, both env files
+- [x] `INTERNAL_API_KEY`: unchanged in Railway (identical in both env files)
 - [ ] Access ready: Supabase (both projects), Railway, Vercel, GitHub
-- [ ] `INTERNAL_API_KEY` decision made
-- [ ] Optional: switch day early in Biomet's day, so there is time to roll back
+- [ ] Fresh backup of Ireland taken right before (done 20:27; repeat if the cutover is
+      on another day)
 
 ## 4. Timeline
 
-| Time      | Who        | Step                                                                                                                                                                             |
-| --------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T−30 min  | you        | Remind Biomet: stop at T0, sign out, expect to sign in again                                                                                                                     |
-| **T−5**   | **Biomet** | **Last moment to enter data.** Finish and save anything in progress                                                                                                              |
-| **T0**    | you        | **Freeze starts.** Ireland Auth: turn off sign-ups. Railway: stop the `api` service (no API = no writes)                                                                         |
-| T0+1      | me         | `ALLOW_IRELAND=yes run-dump.sh .env.prod.local ~/region-move/dumps/cutover` (~1 min)                                                                                             |
-| T0+2      | me         | `reset-target.mjs` dry run (must be empty) → `restore.sh` into US (~2 min)                                                                                                       |
-| T0+5      | me         | `copy-storage.mjs --confirm` (~1 min) → URL `UPDATE`s (step 4 of the plan)                                                                                                       |
-| T0+7      | me         | **Gate 1**: `compare-data.mjs` Ireland vs US → **0 differences**; `inspect.sh` diff = only `vector`; security tests on US 12/12 + HTTP 21/21; `prisma migrate status` up to date |
-| T0+10     | you        | Railway variables → US values; region → `iad`; start the service (redeploys)                                                                                                     |
-| T0+12     | you        | Vercel lab env vars → US; redeploy                                                                                                                                               |
-| T0+15     | you        | Merge `chore/switch-supabase-us-east` → `main` → `production`; Vercel deploys the clinic app                                                                                     |
-| T0+25     | both       | **Gate 2** (section 5): health checks, sign-in with a real password in both apps, read/write flows                                                                               |
-| **T0+40** | you        | **Freeze ends — Biomet may resume.** Tell them to reload the apps (or reopen the PWA) and sign in again                                                                          |
-| T0+40 →   | you        | Ireland Auth sign-ups stay off; nothing points at Ireland any more                                                                                                               |
+| Time      | Who        | Step                                                                                                                                                                                                                                                                                           |
+| --------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T−30 min  | you        | Remind Biomet: stay off until told; afterwards close every tab / the installed app, reopen and sign in again                                                                                                                                                                                   |
+| **T−5**   | **Biomet** | **Last moment to enter data** (already confirmed off)                                                                                                                                                                                                                                          |
+| **T0**    | you        | **Freeze.** Ireland → Authentication → Sign In / Providers → **Email off** (no sign-in or sign-up in Ireland from here on) · Railway → `api` → **stop**                                                                                                                                        |
+| T0+1      | me         | Ireland write counters twice, 1 min apart → unchanged                                                                                                                                                                                                                                          |
+| T0+2      | me         | `run-dump.sh` Ireland → `~/region-move/dumps/cutover` (~45 s); dump row counts = live counts                                                                                                                                                                                                   |
+| T0+3      | me         | `reset-target.mjs` dry run (0) → `restore.sh` into US (~2 min)                                                                                                                                                                                                                                 |
+| T0+6      | me         | `copy-storage.mjs --confirm` (~40 s) → the 2 logo-URL `UPDATE`s                                                                                                                                                                                                                                |
+| T0+8      | me         | **Gate 1**: `compare-data.mjs` Ireland vs US → **0 differences**; `inspect.sh` diff = only `vector`; security tests on US 12/12 + HTTP 21/21; `prisma migrate status` up to date                                                                                                               |
+| T0+10     | you        | Railway `api` variables → US (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`; `INTERNAL_API_KEY` unchanged); region → `iad`; start → `/api/health/ready` 200                                                                                                                      |
+| T0+12     | you        | Vercel lab project → `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` → US (no manual redeploy: the next step triggers it)                                                                                                                                                                       |
+| T0+13     | you        | Check `production..main` is empty → merge `chore/switch-supabase-us-east` into `main` → check `production..main` = **only that commit** → merge `main` into `production` → Vercel builds the clinic app and the lab (new variables); Railway redeploys the same API code with the US variables |
+| T0+25     | both       | **Gate 2** (section 5)                                                                                                                                                                                                                                                                         |
+| **T0+40** | you        | **Biomet may resume**                                                                                                                                                                                                                                                                          |
+| after     | you        | Ireland's Email provider stays **off**                                                                                                                                                                                                                                                         |
 
-**Stop point**: T−5, before the dump starts. Anything entered after T0 would exist only in
-Ireland and would not be copied.
-**Resume point**: T0+40, only after Gate 2 passes. Writes from then on go to US.
+**Stop point**: T−5. **Resume point**: only after Gate 2 passes, about T0+40.
 
-Clients that keep an old tab or PWA open after T0+40 still talk to Ireland's Auth until
-they reload: their sign-in gives an Ireland token that the API (now US) rejects (401). No
-data can be written that way — the API is the only writer — but tell users to reload.
+### Merge sequence without releasing unrelated code
+
+`main` and `production` are identical today (`22da7ef`). Until the cutover, merge nothing
+else into `main`. At T0+13 merge **only** `chore/switch-supabase-us-east` into `main`,
+confirm `git log origin/production..origin/main` lists exactly that one commit (`Point the
+clinic app at the US East Supabase project`), then merge `main` into `production`. The
+other open branches (`docs/security-lockdown-released`, `chore/delete-imported-clients-script`,
+`feat/region-move-us-east`) stay unmerged until after the cutover: they're docs and
+scripts only, but keeping them out makes the release exactly one known change.
+
+### No real user writes to US before Gate 2
+
+| Until         | Why nobody else can write to US                                                                                                                                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T0+10         | Nothing points at US: the API is stopped, both frontends use Ireland                                                                                                                                                                     |
+| T0+13         | The API trusts only US tokens. Every frontend still signs in at Ireland, where the Email provider is off, so nobody can get a token the API accepts; existing Ireland tokens are rejected (401)                                          |
+| end of Gate 2 | The new frontends sign in at US. Prevention is the freeze (Biomet confirmed off); **detection**: before reopening, `compare-data.mjs --ids` lists every row that differs from Ireland, and it must contain only Gate 2's own test writes |
+
+### Service worker: clients don't stay on Ireland
+
+- **Clinic app (Angular PWA)**: the Supabase URL is compiled into the bundle, and
+  `ngsw-worker.js` serves the cached version first (`registerWhenStable:30000`; the app
+  has no `SwUpdate` handling). A tab or installed app that stays open across the switch
+  keeps the old (Ireland) version until a load **after** the new version has downloaded —
+  usually the second load. On the old version it can't sign in (Ireland Email provider
+  off) and can't write (the API rejects Ireland tokens): it fails closed, and nothing can
+  reach Ireland's data through it. "Close every tab / the installed app, reopen, sign in"
+  is enough. Optional follow-up (separate PR, not needed for the cutover): reload on
+  `SwUpdate.versionUpdates` `VERSION_READY`.
+- **Lab portal**: no caching service worker (`/sw.js` only handles push notifications);
+  a reload loads the new build.
+- The `supabase-auth` data group (`freshness`, `maxSize: 0`) never serves Auth calls from
+  cache, before or after the switch.
 
 ## 5. Gate 2 — checks before reopening
 
+Reads, plus two small test writes that are undone or harmless. Don't create orders or
+release results for the test: releases and their PDFs are permanent records.
+
 - [ ] `/api/health/live` and `/api/health/ready` 200; Railway shows region `iad`
-- [ ] Lab: sign in with an existing Biomet account (existing password); orders queue;
-      open an order; enter and release a result on a **test** order; PDF downloads
-- [ ] Lab: clients list; a client's logo loads (from the US Storage URL)
-- [ ] Clinic app: sign in; open a case; view a released result
+- [ ] Lab (fresh tab): sign in with an existing account and its **existing password**
+      (Auth copy works); orders queue; open an order; open a released result and download
+      its PDF (Storage copy works)
+- [ ] Lab: clients list; a client logo loads from the US Storage URL
+- [ ] Clinic app (fresh tab, after the new version loaded): sign in; open a case; view a
+      released result
+- [ ] **Test write 1**: Lab → Clients → Import 2 test rows (emails
+      `zz-cutover-1@example.com`, `zz-cutover-2@example.com`) → read `durationMs` in the
+      Railway logs (closes Phase 4) → delete both clients (Delete client)
+- [ ] **Test write 2**: Lab → Settings → Laboratory → save without changes
 - [ ] Railway logs and Sentry: no new errors
-- [ ] Import one client in a test lab and read `durationMs` in the logs (closes Phase 4)
-- [ ] Note the time Gate 2 passed = **cutover time** (used by the rollback plan)
+- [ ] `compare-data.mjs .env.prod.local .env.prod-us.local --ids` → only expected rows:
+      Auth sessions / refresh tokens / audit entries / `last_sign_in_at` of the test
+      sign-ins, and `updatedAt` of the laboratory row. **Anything else is a real write:
+      stop and look before reopening**
+- [ ] Save that output as the cutover record (`~/region-move/cutover-record.txt`); note
+      the time = **cutover time**
 
 ## 6. Rollback — without losing data
 
 **Rule: Ireland is never written to after T0**, except by a rollback. It stays as it was
 at T0, so it is always a complete, consistent fallback for everything before T0.
 
-| When                                          | What to do                                                                                                                                   | Data loss                       |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| Before Gate 1 passes (copy problem)           | Start the `api` service on Railway again with the **old** variables; Ireland sign-ups back on. Fix, `reset-target.mjs` US, retry another day | none                            |
-| Between Gate 1 and reopening (switch problem) | Put back the old Railway variables and region `sfo`, the old Vercel lab variables, revert the Angular merge; start the service               | none — nobody has written to US |
-| After reopening, problem with a fix           | **Fix forward** (preferred)                                                                                                                  | none                            |
-| After reopening, must go back to Ireland      | Freeze again → copy US-only changes back to Ireland (below) → switch config back → reopen                                                    | none                            |
+| When                                          | What to do                                                                                                                                                             | Data loss                                                           |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Before Gate 1 passes (copy problem)           | Start the `api` service on Railway again with the **old** variables; Ireland Email provider back on. Fix, `reset-target.mjs` US, retry another day                     | none                                                                |
+| Between Gate 1 and reopening (switch problem) | Put back the old Railway variables and region `sfo`, the old Vercel lab variables, revert the Angular merge on `main` and `production`; Ireland Email provider back on | none — only Gate 2's test writes exist in US, and they're discarded |
+| After reopening, problem with a fix           | **Fix forward** (preferred)                                                                                                                                            | none                                                                |
+| After reopening, must go back to Ireland      | Freeze again → copy US-only changes back to Ireland (below) → switch config back → reopen                                                                              | none                                                                |
+
+**Gate 2's test writes in a rollback**: the 2 test clients are deleted before reopening,
+and the remaining differences are test sign-in sessions and one `updatedAt` — none of it
+is copied back. If a rollback happens before the test clients were deleted, they simply
+don't exist in Ireland: discard them with US. The saved `compare-data` record from Gate 2
+is the reference: in a later rollback, rows listed there are test writes and are skipped.
 
 Copying changes back after reopening (data is small, so this is a manual, verified step):
 
