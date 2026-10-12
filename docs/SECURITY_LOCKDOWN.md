@@ -15,6 +15,10 @@ Count-only checks confirmed it (no rows were read): e.g. `ordered_tests` 197 row
    - Ireland: done 2026-10-12. REST and GraphQL now answer **503**; Auth and Storage
      unaffected; live apps tested.
    - Any new project (e.g. the US move): turn it off before loading data.
+
+- The migration ships to Ireland in the same release as the client import (see
+  "Release steps").
+
 2. **Migration `20261008000000_lock_down_public_schema`** — so the data stays closed even
    if the Data API is ever turned back on:
    - RLS on for the 19 tables (no policies = deny-all);
@@ -132,78 +136,122 @@ every table and inserts / updates / deletes rows (rolled back); over HTTP no tab
 | Static guard; mutation checks (open table, open function, grant to anon, model without RLS) | 6 passed; each mutation fails the guard             |
 | Full API unit suite                                                                         | all passing                                         |
 
+| `migrate deploy` of both migrations on a copy of Ireland with its real history | applied in order; status up to date; 16 passed |
+
 ## Prisma migration history
 
-Ireland has every migration up to `20261007000001` applied and
-`20261010000001_client_tax_identity_and_import` pending (it ships with the client-import
-release, which isn't on the `production` branch yet). The lockdown is named
-`20261008000000`, between the two, so the history stays in name order everywhere.
+Ireland has every migration up to `20261007000001` applied. `main` adds two:
 
-Rehearsed on the local copy **with Ireland's real `_prisma_migrations` rows** (134 rows):
+| Migration                                       | What it does                                                                                                                   |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `20261008000000_lock_down_public_schema`        | This lockdown (grants and RLS only)                                                                                            |
+| `20261010000001_client_tax_identity_and_import` | Client import + clinic tax fields: nullable columns and two indexes on `tenants` and `clinic_lab_connections`; no data changes |
+
+**Decision (2026-10-12): one release.** Both migrations go to Ireland together with plain
+`prisma migrate deploy`, which applies them in name order, and then `main` is merged into
+`production` (client import #37–#38, Phase 3 tax fields #39, this lockdown #40). No
+`migrate resolve`, no cherry-pick.
+
+Rehearsed on a local copy of Ireland's schema **with Ireland's real `_prisma_migrations`
+rows** (134 rows) and the migration files from `main`:
 
 1. `prisma migrate status` → pending: `20261008000000…`, `20261010000001…`
-2. `psql` the lockdown file in one transaction, then
-   `prisma migrate resolve --applied 20261008000000_lock_down_public_schema`
-   (Prisma's [hotfix workflow](https://www.prisma.io/docs/orm/prisma-migrate/workflows/patching-and-hotfixing))
-3. `prisma migrate status` → pending: only `20261010000001…`
-4. later, `prisma migrate deploy` → applies only `20261010000001…`; status "up to date";
-   history in order; stored checksum equals the file's SHA-256.
+2. `prisma migrate deploy` → applies `20261008000000…`, then `20261010000001…`
+3. `prisma migrate status` → "Database schema is up to date!"
+4. Security tests: 16 passed; `tenants` has `legalName`, `taxIdType`, `taxId`,
+   `taxIdNormalized` for the new code.
 
-`migrate deploy` is **not** used for the hotfix: it would also apply `20261010000001`
-before its code is released.
+**Order matters: migrations first, then the code.** Nothing in the deploy runs migrations
+(`railway.toml` has no pre-deploy step), and the new code selects the tax columns, so it
+fails if it goes live before `20261010000001`. The other way round is safe: both
+migrations are harmless for the code running today (it never uses the Data API roles and
+ignores the new columns), so the minutes between the migration and the deploy are fine.
 
-| Environment                  | How it gets the lockdown                                                                                               |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Ireland                      | Hotfix workflow above, after this PR is approved                                                                       |
-| `production` branch          | Merge this PR into `main`, then bring it to `production` (only new files; no app code changes)                         |
-| New US project (region move) | Restored from Ireland after the fix: gets the locked-down objects **and** the history row. Turn its Data API off first |
-| Dev (`kesherio-dev`)         | `migrate deploy` when resumed; check `prisma migrate status`                                                           |
+| Environment                  | How it gets the lockdown                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Ireland                      | `migrate deploy` (below), then merge `main` → `production`                                                                     |
+| New US project (region move) | Restored from Ireland after the release: gets both migrations' objects **and** their history rows. Turn its Data API off first |
+| Dev (`kesherio-dev`)         | `migrate deploy` when resumed; check `prisma migrate status`                                                                   |
 
-Don't edit the migration file after it is applied: `migrate resolve` records its checksum.
+Don't edit an applied migration file: Prisma stores its checksum.
 
-## Applying it to Ireland (after approval)
+## Release steps (Ireland)
 
 ```bash
-cd apps/api
-U='…'   # Ireland DATABASE_URL (session pooler) from .env.prod.local
-# 1. Snapshot of the current state (read-only)
+cd apps/api          # on an up-to-date main
+U='…'                # Ireland DATABASE_URL (session pooler) from .env.prod.local
+mkdir -p ~/sec && chmod 700 ~/sec
+
+# 1. Before: snapshot (read-only)
 bash prisma/security/dump-schema.sh ../../.env.prod.local ~/sec/ireland-before.sql
 psql "$U" -X -A -t -f prisma/security/security-report.sql > ~/sec/report-before.txt
-# 2. Apply + record
-/opt/homebrew/opt/postgresql@17/bin/psql "$U" -X --single-transaction -v ON_ERROR_STOP=1 \
-  -f prisma/migrations/20261008000000_lock_down_public_schema/migration.sql
-DATABASE_URL="$U" npx prisma migrate resolve --applied 20261008000000_lock_down_public_schema
-DATABASE_URL="$U" npx prisma migrate status   # pending: only 20261010000001
+DATABASE_URL="$U" npx prisma migrate status   # pending: 20261008000000…, 20261010000001…
+
+# 2. Migrations (both, in order)
+DATABASE_URL="$U" npx prisma migrate deploy
+DATABASE_URL="$U" npx prisma migrate status   # "Database schema is up to date!"
 ```
 
-`prisma.config.ts` loads `apps/api/.env` (dev) — always pass Ireland's `DATABASE_URL`
-explicitly.
+3. **Merge `main` into `production`** → Railway (API) and Vercel (clinic app, lab portal)
+   deploy. The lab build needs the new `papaparse` / `exceljs` dependencies (already in
+   `package.json`).
+4. Run the post-deployment checklist.
+
+`prisma.config.ts` loads `apps/api/.env` (dev): always pass Ireland's `DATABASE_URL`
+explicitly. If step 2 fails, don't merge: fix it, or roll back (see Rollback) and keep
+`production` as it is.
 
 ## Post-deployment verification checklist
 
-Right after applying (Ireland):
+**Database (right after step 2)**
 
-- [ ] `prisma migrate status`: only `20261010000001_client_tax_identity_and_import` pending
+- [ ] `prisma migrate status`: "Database schema is up to date!"
 - [ ] `SECURITY_TEST_READ_ONLY=1 SECURITY_DATABASE_URL="$U" … public-schema-lockdown`: all
       database checks pass (write checks skipped)
 - [ ] `DATA_API_URL=… DATA_API_ANON_KEY=… … public-schema-lockdown`: all HTTP checks pass
 - [ ] `security-report.sql` again: every table `rls=true anon=- authenticated=-`; helpers
       `anon_x=false authenticated_x=false public_x=false`; no `anon`/`authenticated` in
       `postgres` default privileges
-- [ ] Railway API health check green; no new errors in Railway logs or Sentry
+- [ ] Supabase dashboard → Advisors → Security: no "RLS disabled" findings
+
+**Deploy (after step 3)**
+
+- [ ] Railway: new deploy live, health check green, no new errors in logs or Sentry
+- [ ] Vercel: clinic app and lab portal deployed from the new `production` commit
+
+**Existing flows**
+
 - [ ] Lab portal: sign in, orders queue, open an order, enter and release a result,
-      download the PDF, client list, settings
-- [ ] Clinic app: sign in, create a case and order, view a released result, clinic
+      download the PDF, client list and client detail, settings
+- [ ] Clinic app: sign in, create a case and an order, view a released result, clinic
       settings (logo upload)
 - [ ] Onboarding: open an invitation link and complete it (test clinic)
 - [ ] RAG / AI interpretation on a case (uses `knowledge_chunks` and pgvector)
-- [ ] Supabase dashboard → Advisors → Security: no "RLS disabled" findings
-- [ ] Note the date in this file
+
+**New features in this release**
+
+- [ ] Lab → Settings → Laboratory: country saves (default country for imports)
+- [ ] Lab → Clients → Add client and edit: legal name, ID type (depends on country,
+      includes Ecuador) and ID number save and show
+- [ ] Lab → Clients → Import: a small CSV (2–3 test rows) → preview → import → rows
+      created; importing the same file again → all "Already in your lab"
+- [ ] Clinic onboarding for an imported client: legal name / ID type / ID number
+      prefilled; changing the country clears an ID type that doesn't fit
+- [ ] Clinic app → Settings → Clinic: legal name and ID shown and editable
+- [ ] Delete the test clients and note the date in this file
 
 ## Rollback
 
-`apps/api/prisma/security/rollback-lock-down-public-schema.sql` restores exactly the
-pre-lockdown state (tested: the security report matches Ireland's current one). It
-reopens the exposure, so use it only if something breaks that can't be fixed forward
-quickly, keep the Data API off meanwhile, and fix forward with a new migration. Don't
-remove the history row by hand.
+- **A feature in the release breaks** (client import, tax fields): revert the merge on
+  `production` and redeploy. Keep both migrations: they are harmless for the previous
+  code.
+- **The lockdown breaks something** that can't be fixed forward quickly:
+  `apps/api/prisma/security/rollback-lock-down-public-schema.sql` (psql, one transaction)
+  restores exactly the pre-lockdown grants and RLS (tested: the security report matches
+  Ireland's before the release). It reopens the exposure, so keep the Data API off
+  meanwhile and fix forward with a new migration. Don't remove the history row by hand.
+- **`migrate deploy` fails**: Prisma marks that migration as failed and stops before the
+  next one. Run `security-report.sql` (and check the columns for `20261010000001`) to see
+  what was applied, finish or undo it by hand, then
+  `prisma migrate resolve --rolled-back <name>` (or `--applied` if it is fully applied)
+  and deploy again. Don't merge into `production` until status is "up to date".
