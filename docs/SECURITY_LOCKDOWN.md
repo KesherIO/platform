@@ -1,5 +1,26 @@
 # Data API lockdown — runbook
 
+## Status: released 2026-10-12 ✅
+
+| When (2026-10-12) | What                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| afternoon         | Data API turned off in Ireland; live apps tested                                                                                                              |
+| 16:17 UTC         | `prisma migrate deploy` on Ireland: `20261008000000_lock_down_public_schema`, then `20261010000001_client_tax_identity_and_import` (5 s); status "up to date" |
+| right after       | `main` merged into `production` (#37–#41): Railway and Vercel deployed                                                                                        |
+
+Post-deployment checks, all passed:
+
+- Database: read-only security tests 12/12; HTTP check 21/21 (anon key refused on every
+  table); security report: 45/45 tables with RLS on and no `anon` / `authenticated`
+  access; helpers not executable by `anon` / `authenticated` / `PUBLIC`; default
+  privileges grant only `postgres` and `service_role`; row counts unchanged (6 tenants,
+  27 users, 24 orders, 26 Auth users)
+- API: `/api/health/live` and `/api/health/ready` 200 before and after the deploy; the
+  new import route answers 401 without a token (new code live); API role still reads
+  every table and runs pgvector
+- Apps: existing flows and the new client-import / tax-field features tested in both
+  apps
+
 ## The problem (found 2026-10-12, Ireland production)
 
 19 of the 45 tables in `public` had **RLS off**, and Supabase's default grants gave `anon`
@@ -12,12 +33,10 @@ Count-only checks confirmed it (no rows were read): e.g. `ordered_tests` 197 row
 ## The fix: two layers
 
 1. **Data API off** (Supabase dashboard → Project Settings → Data API).
+
    - Ireland: done 2026-10-12. REST and GraphQL now answer **503**; Auth and Storage
      unaffected; live apps tested.
    - Any new project (e.g. the US move): turn it off before loading data.
-
-- The migration ships to Ireland in the same release as the client import (see
-  "Release steps").
 
 2. **Migration `20261008000000_lock_down_public_schema`** — so the data stays closed even
    if the Data API is ever turned back on:
@@ -202,6 +221,8 @@ explicitly. If step 2 fails, don't merge: fix it, or roll back (see Rollback) an
 `production` as it is.
 
 ## Post-deployment verification checklist
+
+Completed 2026-10-12 (see Status).
 
 **Database (right after step 2)**
 
