@@ -69,6 +69,15 @@
           formControlName="name"
         />
 
+        <!-- Legal name (optional — "razón social", when different from the clinic name) -->
+        <app-input
+          id="legalName"
+          label="CLINIC_SETUP.LEGAL_NAME_LABEL"
+          type="text"
+          placeholder="CLINIC_SETUP.LEGAL_NAME_PLACEHOLDER"
+          formControlName="legalName"
+        />
+
         <!-- Address -->
         <app-input
           id="address"
@@ -95,6 +104,28 @@
           [options]="countryOptions"
           formControlName="country"
         />
+
+        <!-- Tax ID (optional — the types offered depend on the country) -->
+        <app-select
+          id="taxIdType"
+          label="CLINIC_SETUP.TAX_ID_TYPE_LABEL"
+          placeholder="CLINIC_SETUP.TAX_ID_TYPE_PLACEHOLDER"
+          [options]="taxIdTypeOptions()"
+          formControlName="taxIdType"
+        />
+
+        <app-input
+          id="taxId"
+          label="CLINIC_SETUP.TAX_ID_LABEL"
+          type="text"
+          placeholder="CLINIC_SETUP.TAX_ID_PLACEHOLDER"
+          formControlName="taxId"
+        />
+        @if (clinicForm.hasError('taxIdIncomplete')) {
+        <p class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+          {{ 'CLINIC_SETUP.TAX_ID_INCOMPLETE' | translate }}
+        </p>
+        }
 
         <!-- Clinic Email (read-only — comes from Platform token) -->
         <div class="input-container">

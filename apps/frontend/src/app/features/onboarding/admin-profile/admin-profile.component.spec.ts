@@ -7,7 +7,7 @@ import { AdminProfileComponent } from './admin-profile.component';
 import { OnboardingService } from '../../../core/services/onboarding.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { provideTranslateService } from '@ngx-translate/core';
-import { OnboardingState } from '../../../core/models';
+import { ClinicProfileModel, OnboardingState } from '../../../core/models';
 
 function makeState(overrides: Partial<OnboardingState> = {}): OnboardingState {
   return {
@@ -342,12 +342,21 @@ describe('AdminProfileComponent', () => {
       taxId: null,
     };
 
+    const LAB_TAX_ID = {
+      legalName: 'City Vet S.A.S.',
+      taxIdType: 'NIT',
+      taxId: '900.123.456-7',
+    };
+    let onRecord: ClinicProfileModel = ON_RECORD;
+    const prefillTaxId = () => (onRecord = { ...ON_RECORD, ...LAB_TAX_ID });
+    afterEach(() => (onRecord = ON_RECORD));
+
     async function saveWith(
       clinic: Partial<typeof CLINIC_STUB> & Record<string, unknown>
     ) {
       await setup({
         onboardingToken: 'hex-token',
-        prefillClinic: ON_RECORD,
+        prefillClinic: onRecord,
         clinic: { ...CLINIC_STUB, ...clinic },
       });
       mockOnboardingService.completeAdminOnboarding.mockReturnValue(
@@ -445,6 +454,33 @@ describe('AdminProfileComponent', () => {
 
       expect(payload.primaryContactName).toBe('');
       expect(payload).not.toHaveProperty('country');
+    });
+
+    it('omits the tax ID the lab entered when the admin left it unchanged', async () => {
+      prefillTaxId();
+      const payload = await saveWith({
+        primaryContactName: 'Dr. Ana Gómez',
+        country: 'CO',
+        ...LAB_TAX_ID,
+      });
+
+      for (const field of ['legalName', 'taxIdType', 'taxId']) {
+        expect(payload).not.toHaveProperty(field);
+      }
+    });
+
+    it('sends the tax fields the admin changed or cleared', async () => {
+      prefillTaxId();
+      const payload = await saveWith({
+        primaryContactName: 'Dr. Ana Gómez',
+        country: 'CO',
+        legalName: '',
+        taxIdType: 'NIT',
+        taxId: '800.765.432-1',
+      });
+
+      expect(payload).toMatchObject({ legalName: '', taxId: '800.765.432-1' });
+      expect(payload).not.toHaveProperty('taxIdType');
     });
   });
 

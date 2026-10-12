@@ -51,6 +51,10 @@ export interface ClinicSetupData {
   country?: string;
   /** Clinic's primary contact person — may differ from the onboarding admin */
   primaryContactName?: string;
+  /** Tax identity, all optional — see ClinicProfileModel */
+  legalName?: string;
+  taxIdType?: string;
+  taxId?: string;
   /** Logo file held in memory until POST /onboarding/complete — never uploaded early */
   pendingLogoFile?: File;
 }
@@ -122,6 +126,12 @@ export interface CompleteAdminOnboardingRequest {
   country?: string;
   /** Omit to keep the value on record; '' clears it */
   primaryContactName?: string;
+  /** Omit to keep the value on record; '' clears it */
+  legalName?: string;
+  /** Omit to keep the value on record; '' clears it */
+  taxIdType?: string;
+  /** Omit to keep the value on record; '' clears it */
+  taxId?: string;
   /** When true, the admin is also a veterinarian — sets isOrderingVet on their membership */
   isVet?: boolean;
 }

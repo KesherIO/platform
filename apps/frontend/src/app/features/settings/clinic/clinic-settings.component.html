@@ -35,6 +35,18 @@
           {{ 'SETTINGS.CLINIC.CONTACT_NAME' | translate }}:
           {{ clinicContactName() }}
         </p>
+        } @if (clinicLegalName()) {
+        <p class="text-xs text-gray-400 mt-0.5 truncate">
+          {{ 'SETTINGS.CLINIC.LEGAL_NAME' | translate }}:
+          {{ clinicLegalName() }}
+        </p>
+        } @if (clinicTaxId()) {
+        <p class="text-xs text-gray-400 mt-0.5 truncate">
+          @if (clinicTaxIdTypeLabel(); as typeKey) {
+          <span>{{ typeKey | translate }}:</span>
+          }
+          <span>{{ clinicTaxId() }}</span>
+        </p>
         }
       </div>
       @if (isAdmin()) {
@@ -142,6 +154,23 @@
       />
     </div>
 
+    <!-- Legal name -->
+    <div class="mb-3">
+      <label
+        for="clinic-legal-name"
+        class="block text-xs font-medium text-gray-600 mb-1.5"
+      >
+        {{ 'SETTINGS.CLINIC.LEGAL_NAME' | translate }}
+      </label>
+      <input
+        id="clinic-legal-name"
+        type="text"
+        [value]="editLegalName()"
+        (input)="editLegalName.set($any($event.target).value)"
+        class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors"
+      />
+    </div>
+
     <!-- Phone -->
     <div class="mb-3">
       <label
@@ -211,7 +240,7 @@
     </div>
 
     <!-- Country -->
-    <div class="mb-5">
+    <div class="mb-3">
       <label
         for="clinic-country"
         class="block text-xs font-medium text-gray-600 mb-1.5"
@@ -221,7 +250,7 @@
       <select
         id="clinic-country"
         [value]="editCountry()"
-        (change)="editCountry.set($any($event.target).value)"
+        (change)="onCountryChange($any($event.target).value)"
         class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors bg-white"
       >
         <option value="" [selected]="!editCountry()">
@@ -236,6 +265,56 @@
         </option>
         }
       </select>
+    </div>
+
+    <!-- Tax ID (the types offered depend on the country) -->
+    <div class="grid grid-cols-2 gap-3 mb-5">
+      <div>
+        <label
+          for="clinic-tax-id-type"
+          class="block text-xs font-medium text-gray-600 mb-1.5"
+        >
+          {{ 'SETTINGS.CLINIC.TAX_ID_TYPE' | translate }}
+        </label>
+        <select
+          id="clinic-tax-id-type"
+          [value]="editTaxIdType()"
+          (change)="editTaxIdType.set($any($event.target).value)"
+          class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors bg-white"
+        >
+          <option value="" [selected]="!editTaxIdType()">
+            {{ 'SETTINGS.CLINIC.TAX_ID_TYPE_NONE' | translate }}
+          </option>
+          @for (type of editTaxIdTypeOptions(); track type.value) {
+          <option
+            [value]="type.value"
+            [selected]="type.value === editTaxIdType()"
+          >
+            {{ type.label | translate }}
+          </option>
+          }
+        </select>
+      </div>
+      <div>
+        <label
+          for="clinic-tax-id"
+          class="block text-xs font-medium text-gray-600 mb-1.5"
+        >
+          {{ 'SETTINGS.CLINIC.TAX_ID' | translate }}
+        </label>
+        <input
+          id="clinic-tax-id"
+          type="text"
+          [value]="editTaxId()"
+          (input)="editTaxId.set($any($event.target).value)"
+          class="block w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-cyan transition-colors"
+        />
+      </div>
+      @if (taxIdIncomplete()) {
+      <p class="col-span-2 text-xs text-red-500">
+        {{ 'SETTINGS.CLINIC.TAX_ID_INCOMPLETE' | translate }}
+      </p>
+      }
     </div>
 
     <!-- Save error -->
@@ -257,7 +336,7 @@
         class="flex-1"
         type="button"
         (click)="save()"
-        [disabled]="saving()"
+        [disabled]="saving() || taxIdIncomplete()"
       >
         {{
           saving()

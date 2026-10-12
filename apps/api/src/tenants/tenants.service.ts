@@ -9,7 +9,9 @@ import { TenantRole } from '@prisma/client';
 import { EligibleVetModel, StaffMember, StaffRole } from '@vet-ai/shared-types';
 import {
   CLINIC_PROFILE_SELECT,
+  assertValidTaxIdentity,
   buildClinicProfileUpdate,
+  touchesTaxIdentity,
   type ClinicProfileInput,
 } from './clinic-profile.util';
 
@@ -47,7 +49,19 @@ export class TenantsService {
       address: data.address,
       city: data.city,
       country: data.country,
+      legalName: data.legalName,
+      taxIdType: data.taxIdType,
+      taxId: data.taxId,
     });
+
+    // Tax ID rules apply to the values after this update.
+    if (touchesTaxIdentity(profile)) {
+      const stored = await this.prisma.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { country: true, taxIdType: true, taxId: true },
+      });
+      assertValidTaxIdentity(profile, stored);
+    }
 
     let logoUrl: string | undefined;
     if (logoFile) {

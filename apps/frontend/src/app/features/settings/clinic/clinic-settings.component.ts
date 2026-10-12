@@ -17,6 +17,11 @@ import { resolveLogoUrl } from '../../../core/services/onboarding.service';
 import { ButtonComponent } from '../../../shared/components/button/button.component';
 import { OutlineButtonComponent } from '../../../shared/components/outline-button/outline-button.component';
 import { COUNTRIES } from '../../../core/data/countries';
+import {
+  isTaxIdIncomplete,
+  taxIdTypeForCountry,
+  taxIdTypeOptions,
+} from '../../../core/data/tax-id-types';
 
 @Component({
   selector: 'app-clinic-settings',
@@ -63,6 +68,19 @@ export class ClinicSettingsComponent implements OnInit {
     () => COUNTRIES.find((c) => c.value === this.clinicCountry())?.label ?? null
   );
   readonly countryOptions = COUNTRIES;
+  readonly clinicLegalName = computed(
+    () => this.tenant.activeMembership()?.tenant.legalName ?? ''
+  );
+  readonly clinicTaxIdType = computed(
+    () => this.tenant.activeMembership()?.tenant.taxIdType ?? ''
+  );
+  readonly clinicTaxId = computed(
+    () => this.tenant.activeMembership()?.tenant.taxId ?? ''
+  );
+  /** i18n key for the clinic's ID type, or null when not set */
+  readonly clinicTaxIdTypeLabel = computed(() =>
+    this.clinicTaxIdType() ? `TAX_ID_TYPES.${this.clinicTaxIdType()}` : null
+  );
   readonly clinicLogoUrl = computed(() =>
     resolveLogoUrl(this.tenant.activeMembership()?.tenant.logoUrl)
   );
@@ -76,6 +94,21 @@ export class ClinicSettingsComponent implements OnInit {
   readonly editContactName = signal('');
   readonly editCity = signal('');
   readonly editCountry = signal('');
+  readonly editLegalName = signal('');
+  readonly editTaxIdType = signal('');
+  readonly editTaxId = signal('');
+  /** ID types of the country being edited, plus 'OTHER' */
+  readonly editTaxIdTypeOptions = computed(() =>
+    taxIdTypeOptions(this.editCountry())
+  );
+  /** An ID number without a country or ID type — the API would reject it */
+  readonly taxIdIncomplete = computed(() =>
+    isTaxIdIncomplete(
+      this.editCountry(),
+      this.editTaxIdType(),
+      this.editTaxId()
+    )
+  );
   private readonly logoFile = signal<File | null>(null);
   readonly logoPreview = signal<string | null>(null);
 
@@ -100,10 +133,19 @@ export class ClinicSettingsComponent implements OnInit {
     this.editContactName.set(this.clinicContactName());
     this.editCity.set(this.clinicCity());
     this.editCountry.set(this.clinicCountry());
+    this.editLegalName.set(this.clinicLegalName());
+    this.editTaxIdType.set(this.clinicTaxIdType());
+    this.editTaxId.set(this.clinicTaxId());
     this.logoFile.set(null);
     this.logoPreview.set(null);
     this.saveError.set(null);
     this.editing.set(true);
+  }
+
+  /** An ID type of the previous country doesn't apply to the new one. */
+  onCountryChange(country: string): void {
+    this.editCountry.set(country);
+    this.editTaxIdType.set(taxIdTypeForCountry(this.editTaxIdType(), country));
   }
 
   cancelEditing(): void {
@@ -120,6 +162,7 @@ export class ClinicSettingsComponent implements OnInit {
   }
 
   save(): void {
+    if (this.taxIdIncomplete()) return;
     this.saving.set(true);
     this.saveError.set(null);
     this.settingsService
@@ -131,6 +174,9 @@ export class ClinicSettingsComponent implements OnInit {
           primaryContactName: this.editContactName(),
           city: this.editCity(),
           country: this.editCountry(),
+          legalName: this.editLegalName(),
+          taxIdType: this.editTaxIdType(),
+          taxId: this.editTaxId(),
         },
         this.logoFile() ?? undefined
       )

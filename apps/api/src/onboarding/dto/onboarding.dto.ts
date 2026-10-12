@@ -305,6 +305,30 @@ export class CompleteAdminOnboardingDto {
   @MaxLength(200)
   primaryContactName?: string;
 
+  // Clinic tax identity — all optional. Omit to keep the value on record
+  // (lab-created clients); '' clears it. Whether the type fits the country
+  // and a number has a type is checked by assertValidTaxIdentity().
+
+  /** Registered legal name ("razón social") */
+  @ApiPropertyOptional({ example: 'Clínica Veterinaria City S.A.S.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  legalName?: string;
+
+  /** One of TAX_ID_TYPES_BY_COUNTRY[country], or 'OTHER' */
+  @ApiPropertyOptional({ example: 'NIT' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  taxIdType?: string;
+
+  @ApiPropertyOptional({ example: '900.123.456-7' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  taxId?: string;
+
   /** When true, the admin is also a veterinarian — sets isOrderingVet on their membership */
   @ApiPropertyOptional({ example: true })
   @IsOptional()

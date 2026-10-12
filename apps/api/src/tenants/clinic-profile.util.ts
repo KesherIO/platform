@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import type { ClinicProfileModel } from '@vet-ai/shared-types';
+import {
+  isTaxIdTypeForCountry,
+  type ClinicProfileModel,
+} from '@vet-ai/shared-types';
 
 /**
  * Shared clinic profile — stored once on the clinic's Tenant row and written by
@@ -93,4 +96,82 @@ export function buildClinicProfileUpdate(
 
   // REQUIRED_FIELDS above guarantees name/email are never null here.
   return update;
+}
+
+export type TaxIdentityErrorCode =
+  | 'INVALID_TAX_ID_TYPE'
+  | 'INVALID_TAX_ID'
+  | 'TAX_ID_INCOMPLETE';
+
+export interface TaxIdentityError {
+  field: 'taxIdType' | 'taxId';
+  code: TaxIdentityErrorCode;
+}
+
+export interface TaxIdentity {
+  country?: string | null;
+  taxIdType?: string | null;
+  taxId?: string | null;
+}
+
+const optional = (value: string | null | undefined) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+/**
+ * Rules that span several fields:
+ *   - taxIdType must exist for the country, or be 'OTHER';
+ *   - a taxId needs a taxIdType and a country, so the duplicate key is complete;
+ *   - a taxId must keep at least one digit or letter once normalized.
+ */
+export function checkTaxIdentity(input: TaxIdentity): TaxIdentityError[] {
+  const country = optional(input.country);
+  const taxIdType = optional(input.taxIdType);
+  const taxId = optional(input.taxId);
+  const errors: TaxIdentityError[] = [];
+
+  if (taxIdType && !isTaxIdTypeForCountry(taxIdType, country)) {
+    errors.push({ field: 'taxIdType', code: 'INVALID_TAX_ID_TYPE' });
+  }
+  if (taxId) {
+    if (!taxIdType || !country) {
+      errors.push({ field: 'taxId', code: 'TAX_ID_INCOMPLETE' });
+    } else if (!normalizeTaxId(taxId)) {
+      errors.push({ field: 'taxId', code: 'INVALID_TAX_ID' });
+    }
+  }
+  return errors;
+}
+
+/**
+ * Throws unless the tax identity after an update is valid. Fields the update
+ * omits (undefined) keep their `stored` value, so changing only the country
+ * still checks that the stored ID type fits the new one.
+ */
+export function assertValidTaxIdentity(
+  update: TaxIdentity,
+  stored: TaxIdentity | null = null
+): void {
+  const pick = (field: keyof TaxIdentity) =>
+    update[field] !== undefined ? update[field] : stored?.[field];
+  const errors = checkTaxIdentity({
+    country: pick('country'),
+    taxIdType: pick('taxIdType'),
+    taxId: pick('taxId'),
+  });
+  if (errors.length > 0) {
+    throw new BadRequestException(
+      `Invalid tax ID: ${errors.map((e) => `${e.field} ${e.code}`).join(', ')}.`
+    );
+  }
+}
+
+/** True when an update touches a field the tax ID rules depend on. */
+export function touchesTaxIdentity(update: TaxIdentity): boolean {
+  return (
+    update.country !== undefined ||
+    update.taxIdType !== undefined ||
+    update.taxId !== undefined
+  );
 }

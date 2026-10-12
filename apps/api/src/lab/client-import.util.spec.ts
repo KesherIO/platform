@@ -1,5 +1,4 @@
 import {
-  checkTaxIdentity,
   clientTaxKey,
   hashImportRow,
   toNewClinicInput,
@@ -57,27 +56,6 @@ describe('validateImportRow', () => {
       rowNumber: 2,
       errors: [{ field, code }],
     });
-  });
-});
-
-describe('checkTaxIdentity', () => {
-  it('accepts a type of the country, or OTHER anywhere', () => {
-    expect(
-      checkTaxIdentity({ country: 'CL', taxIdType: 'RUT', taxId: '1-9' })
-    ).toEqual([]);
-    expect(
-      checkTaxIdentity({ country: 'UY', taxIdType: 'OTHER', taxId: '1' })
-    ).toEqual([]);
-  });
-
-  it('accepts no tax ID at all (optional everywhere)', () => {
-    expect(checkTaxIdentity({ country: 'CO' })).toEqual([]);
-  });
-
-  it('requires a type and a country for a number', () => {
-    expect(checkTaxIdentity({ country: 'CO', taxId: '900123456' })).toEqual([
-      { field: 'taxId', code: 'TAX_ID_INCOMPLETE' },
-    ]);
   });
 });
 

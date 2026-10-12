@@ -1,8 +1,18 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  signal,
+  inject,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import {
+  AbstractControl,
   FormBuilder,
   FormGroup,
+  ValidationErrors,
   Validators,
   ReactiveFormsModule,
 } from '@angular/forms';
@@ -17,6 +27,21 @@ import { OutlineButtonComponent } from '../../../shared/components/outline-butto
 import { LogoUploadComponent } from '../../../shared/components/logo-upload/logo-upload.component';
 import { AuthBrandingComponent } from '../../../shared/components/auth-branding/auth-branding.component';
 import { COUNTRIES } from '../../../core/data/countries';
+import {
+  isTaxIdIncomplete,
+  taxIdTypeForCountry,
+  taxIdTypeOptions,
+} from '../../../core/data/tax-id-types';
+
+/** An ID number needs a country and an ID type — the API rejects it otherwise. */
+function taxIdCompleteValidator(
+  group: AbstractControl
+): ValidationErrors | null {
+  const { country, taxIdType, taxId } = group.value;
+  return isTaxIdIncomplete(country, taxIdType, taxId)
+    ? { taxIdIncomplete: true }
+    : null;
+}
 
 @Component({
   selector: 'app-clinic-setup',
@@ -40,6 +65,7 @@ export class ClinicSetupComponent implements OnInit {
   private router = inject(Router);
   private onboardingService = inject(OnboardingService);
   private languageService = inject(LanguageService);
+  private destroyRef = inject(DestroyRef);
 
   clinicForm!: FormGroup;
 
@@ -56,6 +82,15 @@ export class ClinicSetupComponent implements OnInit {
   /** ISO 3166-1 alpha-2 country options for the dropdown.
    *  The label is an i18n key; app-select translates it internally. */
   readonly countryOptions = COUNTRIES;
+
+  /** Country picked in the form — the ID type options depend on it */
+  private readonly country = signal('');
+
+  /** ID types of the picked country, plus 'OTHER' and a way to clear it */
+  readonly taxIdTypeOptions = computed(() => [
+    { label: 'CLINIC_SETUP.TAX_ID_TYPE_NONE', value: '' },
+    ...taxIdTypeOptions(this.country()),
+  ]);
 
   notificationOptions = [
     { label: 'CLINIC_SETUP.NOTIFICATION_EMAIL', value: 'email' },
@@ -108,7 +143,24 @@ export class ClinicSetupComponent implements OnInit {
           onRecord?.country ??
           (this.languageService.currentLang() === 'es' ? 'CO' : ''),
       ],
+      legalName: [saved?.legalName ?? onRecord?.legalName ?? ''],
+      taxIdType: [saved?.taxIdType ?? onRecord?.taxIdType ?? ''],
+      taxId: [saved?.taxId ?? onRecord?.taxId ?? ''],
     });
+    this.clinicForm.addValidators(taxIdCompleteValidator);
+    this.clinicForm.updateValueAndValidity();
+
+    const countryControl = this.clinicForm.controls['country'];
+    this.country.set(countryControl.value ?? '');
+    countryControl.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((country: string) => {
+        this.country.set(country ?? '');
+        // An ID type of the previous country doesn't apply to the new one.
+        const taxIdType = this.clinicForm.controls['taxIdType'];
+        const kept = taxIdTypeForCountry(taxIdType.value, country);
+        if (kept !== taxIdType.value) taxIdType.setValue(kept);
+      });
   }
 
   onLogoSelected(file: File): void {

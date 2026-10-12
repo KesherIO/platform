@@ -35,14 +35,17 @@ type ClinicDetailField =
   | 'clinicCity'
   | 'clinicPhone'
   | 'country'
-  | 'primaryContactName';
+  | 'primaryContactName'
+  | 'legalName'
+  | 'taxIdType'
+  | 'taxId';
 
 /**
  * A clinic field is sent only when it differs from the value already on
  * record, so every detail the lab entered (name, email, phone, address, city,
- * country, contact) is kept unless the admin changes it. Sending '' tells the
- * API to clear an optional field. With nothing on record (platform
- * invitations) every non-empty field is sent, as before.
+ * country, contact, legal name, tax ID) is kept unless the admin changes it.
+ * Sending '' tells the API to clear an optional field. With nothing on
+ * record (platform invitations) every non-empty field is sent, as before.
  */
 function changed<K extends ClinicDetailField>(
   key: K,
@@ -211,6 +214,9 @@ export class AdminProfileComponent implements OnInit {
         clinic.primaryContactName,
         onRecord?.primaryContactName
       ),
+      ...changed('legalName', clinic.legalName, onRecord?.legalName),
+      ...changed('taxIdType', clinic.taxIdType, onRecord?.taxIdType),
+      ...changed('taxId', clinic.taxId, onRecord?.taxId),
       ...(isVet ? { isVet: true } : {}),
     };
 
