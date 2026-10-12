@@ -4,8 +4,9 @@ import { sentryConfig } from './environment.sentry';
 
 export const environment = {
   production: true,
-  supabaseUrl: 'https://mqwurrtupumsizsvurpx.supabase.co',
-  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xd3VycnR1cHVtc2l6c3Z1cnB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMzU1MTIsImV4cCI6MjA4OTkxMTUxMn0.AYr_6e59dL4HhLjoMCCKVxU8QVKm8bGy0xurbdu_DPY',
+  supabaseUrl: 'https://vkraygviitfzgmrhbexd.supabase.co',
+  supabaseAnonKey:
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrcmF5Z3ZpaXRmemdtcmhiZXhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3OTU3OTEsImV4cCI6MjEwNzM3MTc5MX0.5KqWIDtPDQydWYkiF3AuiBTGY9qMqlDfHNl_wbmvWlY',
   sentryDsn: sentryConfig.dsn,
   sentryRelease: sentryConfig.release,
 };
