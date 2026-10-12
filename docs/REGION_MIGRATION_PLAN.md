@@ -342,9 +342,13 @@ pointed at it (that happens on the switch day, step 6).
 and region, `environment.production.ts`, Vercel lab variables, redeploys), plus the checks
 in step 6. Plan a **45-minute** window.
 
-**Before the switch day**: `kesherio-prod-us` now holds a full copy and must be empty
-again for `restore.sh`. Either delete and recreate it (and redo step 2), or empty it in
-place with a reset script (not written yet).
+**After the rehearsal**: `kesherio-prod-us` was emptied in place with
+`apps/api/prisma/region-move/reset-target.mjs` (51 s): 66 files and 4 buckets (Storage
+API), 26 Auth users (Auth admin API), `app_private` and the 82 objects in `public`
+(45 tables, 37 enums). Afterwards every Auth / Storage / `public` table matches the
+fresh-project baseline and `restore.sh`'s emptiness check passes. Kept: Data API off,
+Auth settings and keys, extensions, role settings. The `public` default privileges stay
+the locked-down ones from Ireland (`pre-restore.sql` handles either state).
 
 ## Rollback
 
@@ -358,5 +362,4 @@ project after the switch would be lost, so decide quickly (during the check in s
   rehearsal can resume.
 - Copy the Auth settings the public endpoint doesn't show (Site URL, redirect URLs, email
   templates, SMTP, rate limits, JWT expiry) from the Ireland dashboard to the new one.
-- Empty `kesherio-prod-us` again before the switch day (see Rehearsal).
 - Dev stays in Tokyo for now; moving it later is optional (`bootstrap-dev-project.mjs`).

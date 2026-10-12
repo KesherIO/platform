@@ -20,17 +20,18 @@ must be written outside the repo (`run-dump.sh` refuses a path inside it).
 
 ## Files
 
-| File                             | What it does                                                                                                                               |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `generate.sh`                    | Regenerates `generated/*.generated.sh` with `supabase@2.120.0 db dump --dry-run` and rebuilds `roles.sh`, `schema.sh`, `data.sh` from them |
-| `generated/*.generated.sh`       | Exact CLI output, with a placeholder connection                                                                                            |
-| `roles.sh` `schema.sh` `data.sh` | Runnable dump scripts. Differences from the CLI output: `diff generated/roles.generated.sh roles.sh`                                       |
-| `run-dump.sh`                    | `run-dump.sh <env-file> <out-dir>` — read-only dump of one project                                                                         |
-| `restore.sh`                     | `restore.sh <dump-dir> <target-env-file> <expected-ref>` — one-transaction restore into an empty project                                   |
-| `sql/pre-restore.sql`            | Fix 2: removes the new project's automatic grants before `schema.sql`                                                                      |
-| `inspect.sh`                     | `inspect.sh <env-file> <report-file> [old-ref]` — read-only report; diff two reports to compare projects                                   |
-| `sql/inspect.sql`                | The report's queries                                                                                                                       |
-| `lib/env.sh`                     | Loads an env file, guards, read-only `psql`                                                                                                |
+| File                             | What it does                                                                                                                                                           |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `generate.sh`                    | Regenerates `generated/*.generated.sh` with `supabase@2.120.0 db dump --dry-run` and rebuilds `roles.sh`, `schema.sh`, `data.sh` from them                             |
+| `generated/*.generated.sh`       | Exact CLI output, with a placeholder connection                                                                                                                        |
+| `roles.sh` `schema.sh` `data.sh` | Runnable dump scripts. Differences from the CLI output: `diff generated/roles.generated.sh roles.sh`                                                                   |
+| `run-dump.sh`                    | `run-dump.sh <env-file> <out-dir>` — read-only dump of one project                                                                                                     |
+| `restore.sh`                     | `restore.sh <dump-dir> <target-env-file> <expected-ref>` — one-transaction restore into an empty project                                                               |
+| `sql/pre-restore.sql`            | Fix 2: removes the new project's automatic grants before `schema.sql`                                                                                                  |
+| `inspect.sh`                     | `inspect.sh <env-file> <report-file> [old-ref]` — read-only report; diff two reports to compare projects                                                               |
+| `reset-target.mjs`               | `node reset-target.mjs <env-file> <expected-ref> [--confirm]` — empties a new project in place after a rehearsal (Storage, Auth users, app schema); keeps its settings |
+| `sql/inspect.sql`                | The report's queries                                                                                                                                                   |
+| `lib/env.sh`                     | Loads an env file, guards, read-only `psql`                                                                                                                            |
 
 Storage file contents are copied by `../seeds/copy-storage.mjs`.
 
@@ -59,6 +60,8 @@ Every Supabase exclusion and transformation is kept. Only:
   and refuses a target that already has public tables, Auth users or Storage rows.
 - Env files whose `SUPABASE_URL` or keys belong to a different project than
   `DATABASE_URL` are rejected.
+- `reset-target.mjs` refuses Ireland, the project `environment.production.ts` points to,
+  and any ref other than the one you pass; it's a dry run unless `--confirm`.
 
 ## Order (see the plan for the full steps)
 
