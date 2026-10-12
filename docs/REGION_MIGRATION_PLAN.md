@@ -123,6 +123,12 @@ credentials; `generated/*.generated.sh` is the exact CLI output.
 Every Supabase exclusion and transformation (`--exclude-schema`, `--exclude-table`,
 `--role postgres`, `--no-role-passwords`, every `sed`) is kept unchanged.
 
+- **fix 3, `roles.sh` only** (found in the rehearsal): one more `sed` comments out
+  `ALTER ROLE` on Supabase's superuser-only roles. Ireland's roles dump contains
+  `ALTER ROLE "supabase_admin" SET "statement_timeout" TO '0'`: the CLI comments it out,
+  then its "allowed configs" step (`statement_timeout`) puts it back, and `postgres`
+  can't run it. The new project already has its own settings for that role.
+
 **Fix 2, `sql/pre-restore.sql`**: a new project automatically grants `ALL` to `anon`,
 `authenticated` and `service_role` on every object created in `public`. The dump re-adds the
 source's grants but doesn't take those extra ones away, so without this file **`anon` would
@@ -306,12 +312,39 @@ For the move: the dump carries the locked-down state, so nothing extra is needed
 turning the Data API off in the new project (step 2) and running the security tests after
 the restore (step 3).
 
-## Rehearsal (recommended)
+## Rehearsal (2026-10-12): passed
 
-Do steps 2–4 once a few days before, into the new project, without switching anything.
-It checks the dump/restore, the Storage copy and the URL fix on real data, and shows how
-long the freeze needs to be. Then delete and recreate the new project (a restore needs an
-empty project) and do it for real on the switch day.
+Run from the laptop with the scripts on `feat/region-move-us-east`: Ireland only read,
+writes only to `kesherio-prod-us`, nothing switched.
+
+| Step                              | Time  | Result                                                                                                                               |
+| --------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Dump Ireland (`run-dump.sh`)      | 45 s  | 6.7 MB of data; `pg_dump` warns about circular FKs, harmless with `session_replication_role = replica`                               |
+| Restore (`restore.sh`)            | 122 s | 0 errors, 46 tables with rows. First attempt failed on `ALTER ROLE "supabase_admin"` and rolled back → fix 3                         |
+| Storage copy (`copy-storage.mjs`) | 41 s  | 66 files, 12.6 MB; 0 missing or different size                                                                                       |
+| URL fix (step 4)                  | < 1 s | `tenants.logoUrl` 3 rows, `result_report_releases.clinicLogoUrl` 27 rows; a rewritten logo URL serves the image from the new project |
+
+Checks:
+
+- `inspect.sh` diff Ireland vs US: only `vector` 0.8.0 → 0.8.2 and the stored-URL section
+  (rewritten in US). Row counts, RLS, policies, grants, functions, default privileges,
+  Auth and Storage metadata identical.
+- Security tests on US (read-only) 12/12; Data API HTTP check 21/21 (off, 503).
+- `prisma migrate status` on US: up to date.
+- Auth on US: ES256 JWKS, same public settings as Ireland; 26 users, all with password
+  hashes and identities.
+- API-style queries (orders, ordered tests, RAG vector operator) work.
+
+Not tested yet: signing in with a real password against the new project, and the apps
+pointed at it (that happens on the switch day, step 6).
+
+**Freeze estimate**: ~5 min of copy work, plus ~10 min for the switch (Railway variables
+and region, `environment.production.ts`, Vercel lab variables, redeploys), plus the checks
+in step 6. Plan a **45-minute** window.
+
+**Before the switch day**: `kesherio-prod-us` now holds a full copy and must be empty
+again for `restore.sh`. Either delete and recreate it (and redo step 2), or empty it in
+place with a reset script (not written yet).
 
 ## Rollback
 
@@ -325,10 +358,5 @@ project after the switch would be lost, so decide quickly (during the check in s
   rehearsal can resume.
 - Copy the Auth settings the public endpoint doesn't show (Site URL, redirect URLs, email
   templates, SMTP, rate limits, JWT expiry) from the Ireland dashboard to the new one.
-- Recreate `kesherio-prod-us` before the real copy: it still holds the stage 5 test
-  objects (`zz_rt_*`, `zz-rt-test@example.com`, `zz-rt-bucket`). The new project will
-  have a new ref: update `.env.prod-us.local` (the scripts take the ref as an argument).
-- `copy-storage.mjs`: guards and folder listing tested against dev; the copy itself
-  (download → upload) has not run yet, since it needs a second project. Rehearse the whole
-  move first (see below).
+- Empty `kesherio-prod-us` again before the switch day (see Rehearsal).
 - Dev stays in Tokyo for now; moving it later is optional (`bootstrap-dev-project.mjs`).

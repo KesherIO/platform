@@ -11,6 +11,9 @@
 #    - roles.sh only (fix 1): one extra sed that comments out
 #      `GRANT … ON PARAMETER … TO <Supabase role>`: `postgres` isn't a superuser and
 #      can't run it, and new projects already have those grants.
+#    - roles.sh only (fix 3): one extra sed that comments out `ALTER ROLE` on
+#      Supabase's superuser-only roles (e.g. supabase_admin). The CLI comments them
+#      out, then its "allowed configs" sed (statement_timeout) re-enables them.
 # Every Supabase exclusion and transformation is kept unchanged.
 # Review with: diff generated/roles.generated.sh roles.sh (and schema, data).
 set -euo pipefail
@@ -31,6 +34,10 @@ ROLES_FIX = (
     "dashboard_user|authenticator|anon|authenticated|service_role|pgbouncer|postgres)\";$/"
     "-- [region-move] platform-managed: &/'"
 )
+ROLES_FIX_3 = (
+    "| sed -E 's/^ALTER ROLE \"(supabase_[a-z_]*|pgsodium_[a-z_]*|pgtle_admin|dashboard_user|"
+    "pgbouncer|postgres)\" /-- [region-move] superuser-only, platform-managed: &/'"
+)
 CONNECTION = [
     '# Connection comes from run-dump.sh (PG* variables), never stored in this file.',
     ': "${PGHOST:?}" "${PGPORT:?}" "${PGUSER:?}" "${PGPASSWORD:?}" "${PGDATABASE:?}"',
@@ -47,7 +54,8 @@ for name in ('roles', 'schema', 'data'):
     if name == 'roles':
         i = out.index('| uniq')
         out[i] = '| uniq \\'
-        out.insert(i + 1, ROLES_FIX)
+        out.insert(i + 1, ROLES_FIX + ' \\')
+        out.insert(i + 2, ROLES_FIX_3)
     open(f'{name}.sh', 'w').write('\n'.join(out))
 PY
 chmod +x roles.sh schema.sh data.sh

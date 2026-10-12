@@ -43,7 +43,11 @@ Every Supabase exclusion and transformation is kept. Only:
 2. **`roles.sh` (fix 1)**: one extra `sed` comments out `GRANT … ON PARAMETER … TO`
    Supabase's own roles. `postgres` isn't a superuser and can't run them, and new
    projects already have them.
-3. **`sql/pre-restore.sql` (fix 2)**: without it the restored objects get the new
+3. **`roles.sh` (fix 3)**: one more `sed` comments out `ALTER ROLE` on Supabase's
+   superuser-only roles (e.g. `ALTER ROLE "supabase_admin" SET statement_timeout`). The
+   CLI comments those out, then its "allowed configs" step puts them back; `postgres`
+   can't run them. Found in the rehearsal.
+4. **`sql/pre-restore.sql` (fix 2)**: without it the restored objects get the new
    project's default `ALL` grants to `anon`/`authenticated`/`service_role` on top of the
    source's grants.
 
