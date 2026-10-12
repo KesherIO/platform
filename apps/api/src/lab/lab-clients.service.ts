@@ -19,10 +19,11 @@ import type { ListClientsDto } from './dto/list-clients.dto';
 import type { ImportClientsDto } from './dto/import-clients.dto';
 import {
   CLINIC_PROFILE_SELECT,
+  assertValidTaxIdentity,
   buildClinicProfileUpdate,
+  touchesTaxIdentity,
 } from '../tenants/clinic-profile.util';
 import {
-  checkTaxIdentity,
   clientEmailKey,
   clientTaxKey,
   hashImportRow,
@@ -32,7 +33,6 @@ import {
   type ImportClientsResponse,
   type ImportRowResult,
   type NewClinicInput,
-  type RowFieldError,
   type SkipReason,
 } from './client-import.util';
 
@@ -308,7 +308,7 @@ export class LabClientsService {
     dto: CreateClientDto,
     createdByUserId: string
   ) {
-    this.assertValidTaxIdentity(dto);
+    assertValidTaxIdentity(dto);
 
     const outcome = await this.runClinicCreate(
       labTenantId,
@@ -481,24 +481,12 @@ export class LabClientsService {
     });
 
     // Tax ID rules apply to the values after this update.
-    if (
-      profile.country !== undefined ||
-      profile.taxIdType !== undefined ||
-      profile.taxId !== undefined
-    ) {
+    if (touchesTaxIdentity(profile)) {
       const stored = await this.prisma.tenant.findUniqueOrThrow({
         where: { id: clientTenantId },
         select: { country: true, taxIdType: true, taxId: true },
       });
-      this.assertValidTaxIdentity({
-        country:
-          profile.country !== undefined ? profile.country : stored.country,
-        taxIdType:
-          profile.taxIdType !== undefined
-            ? profile.taxIdType
-            : stored.taxIdType,
-        taxId: profile.taxId !== undefined ? profile.taxId : stored.taxId,
-      });
+      assertValidTaxIdentity(profile, stored);
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -992,21 +980,6 @@ export class LabClientsService {
       }
     }
     return { emails, taxKeys };
-  }
-
-  private assertValidTaxIdentity(input: {
-    country?: string | null;
-    taxIdType?: string | null;
-    taxId?: string | null;
-  }) {
-    const errors: RowFieldError[] = checkTaxIdentity(input);
-    if (errors.length > 0) {
-      throw new BadRequestException(
-        `Invalid tax ID: ${errors
-          .map((e) => `${e.field} ${e.code}`)
-          .join(', ')}.`
-      );
-    }
   }
 
   /** This lab's still-usable invitations for one clinic. */

@@ -51,6 +51,9 @@ export interface MeResponse {
       address?: string | null;
       city?: string | null;
       country?: string | null;
+      legalName?: string | null;
+      taxIdType?: string | null;
+      taxId?: string | null;
       logoUrl: string | null;
       primaryColor: string | null;
     };
@@ -65,6 +68,9 @@ export interface MeResponse {
     address?: string | null;
     city?: string | null;
     country?: string | null;
+    legalName?: string | null;
+    taxIdType?: string | null;
+    taxId?: string | null;
     logoUrl: string | null;
     primaryColor: string | null;
   }>;

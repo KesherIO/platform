@@ -20,6 +20,7 @@ import {
 } from './dto/onboarding.dto';
 import {
   CLINIC_PROFILE_SELECT,
+  assertValidTaxIdentity,
   buildClinicProfileUpdate,
 } from '../tenants/clinic-profile.util';
 
@@ -781,6 +782,23 @@ export class OnboardingService {
       );
     }
 
+    // Build and check the clinic profile before any Supabase account exists.
+    // Omitted fields keep the value on record, so the tax ID rules apply to
+    // the merged result (e.g. a new country must still fit the stored ID type).
+    const profile = buildClinicProfileUpdate({
+      name: dto.clinicName,
+      email: dto.clinicEmail,
+      primaryContactName: dto.primaryContactName,
+      phone: dto.clinicPhone,
+      address: dto.clinicAddress,
+      city: dto.clinicCity,
+      country: dto.country,
+      legalName: dto.legalName,
+      taxIdType: dto.taxIdType,
+      taxId: dto.taxId,
+    });
+    assertValidTaxIdentity(profile, onRecord);
+
     // 2. Resolve the Supabase user — three possible situations:
     //
     //    a) Existing account (e.g. a lab-created client deleted + recreated, or
@@ -899,15 +917,7 @@ export class OnboardingService {
           const updated = await tx.tenant.update({
             where: { id: record.clinicTenantId },
             data: {
-              ...buildClinicProfileUpdate({
-                name: dto.clinicName,
-                email: dto.clinicEmail,
-                primaryContactName: dto.primaryContactName,
-                phone: dto.clinicPhone,
-                address: dto.clinicAddress,
-                city: dto.clinicCity,
-                country: dto.country,
-              }),
+              ...profile,
               notificationMethod: dto.notificationMethod,
               clientStatus: 'ACTIVE',
             },
@@ -918,15 +928,6 @@ export class OnboardingService {
           // Lab invitations always reach the branch above —
           // isUnresolvedLabInvitation() rejects them earlier otherwise.
           // REQUIRED_CLINIC_DETAILS were checked above, so name is present.
-          const profile = buildClinicProfileUpdate({
-            name: dto.clinicName,
-            email: dto.clinicEmail,
-            primaryContactName: dto.primaryContactName,
-            phone: dto.clinicPhone,
-            address: dto.clinicAddress,
-            city: dto.clinicCity,
-            country: dto.country,
-          });
           const tenant = await tx.tenant.create({
             data: {
               ...profile,

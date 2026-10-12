@@ -12,6 +12,7 @@ describe('ClinicSetupComponent', () => {
   let fixture: ComponentFixture<ClinicSetupComponent>;
   let mockOnboardingService: {
     storeClinicSetup: ReturnType<typeof vi.fn>;
+    storeClinicSetupDraft: ReturnType<typeof vi.fn>;
     getOnboardingState: ReturnType<typeof vi.fn>;
   };
   let mockRouter: { navigate: ReturnType<typeof vi.fn> };
@@ -25,6 +26,7 @@ describe('ClinicSetupComponent', () => {
   beforeEach(async () => {
     mockOnboardingService = {
       storeClinicSetup: vi.fn(),
+      storeClinicSetupDraft: vi.fn(),
       getOnboardingState: vi.fn().mockReturnValue(mockState.asReadonly()),
     };
     mockRouter = { navigate: vi.fn() };
@@ -196,6 +198,105 @@ describe('ClinicSetupComponent', () => {
         address: 'Edited address',
         city: 'Cali',
         primaryContactName: '',
+      });
+    });
+
+    describe('tax identity', () => {
+      const LAB_TAX_ID = {
+        ...LAB_ENTERED,
+        legalName: 'City Vet Clinic S.A.S.',
+        taxIdType: 'NIT',
+        taxId: '900.123.456-7',
+      };
+
+      it('prefills legal name, ID type and ID number from the record', () => {
+        const c = createWithState({ prefillClinic: LAB_TAX_ID });
+
+        expect(c.clinicForm.value).toMatchObject({
+          legalName: 'City Vet Clinic S.A.S.',
+          taxIdType: 'NIT',
+          taxId: '900.123.456-7',
+        });
+      });
+
+      it("offers the country's ID types, OTHER and a way to clear it", () => {
+        const c = createWithState({ prefillClinic: LAB_TAX_ID });
+
+        expect(c.taxIdTypeOptions().map((o) => o.value)).toEqual([
+          '',
+          'NIT',
+          'CC',
+          'CE',
+          'PP',
+          'OTHER',
+        ]);
+      });
+
+      it('clears the ID type when the new country does not have it', () => {
+        const c = createWithState({
+          prefillClinicName: LAB_TAX_ID.name,
+          prefillClinic: LAB_TAX_ID,
+        });
+
+        c.clinicForm.patchValue({ country: 'CL' });
+
+        expect(c.clinicForm.value.taxIdType).toBe('');
+        expect(c.taxIdTypeOptions().map((o) => o.value)).toEqual([
+          '',
+          'RUT',
+          'OTHER',
+        ]);
+        // The number is kept but needs a new ID type before continuing.
+        expect(c.clinicForm.value.taxId).toBe('900.123.456-7');
+        expect(c.clinicForm.hasError('taxIdIncomplete')).toBe(true);
+        expect(c.clinicForm.valid).toBe(false);
+
+        c.clinicForm.patchValue({ taxIdType: 'RUT' });
+        expect(c.clinicForm.valid).toBe(true);
+      });
+
+      it('keeps an ID type that also exists in the new country', () => {
+        const c = createWithState({
+          prefillClinic: { ...LAB_TAX_ID, country: 'AR', taxIdType: 'DNI' },
+        });
+
+        c.clinicForm.patchValue({ country: 'PE' });
+
+        expect(c.clinicForm.value.taxIdType).toBe('DNI');
+      });
+
+      it('keeps the tax fields in the back-navigation draft', () => {
+        const c = createWithState({ prefillClinic: LAB_TAX_ID });
+
+        c.onBack();
+
+        expect(
+          mockOnboardingService.storeClinicSetupDraft
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            legalName: 'City Vet Clinic S.A.S.',
+            taxIdType: 'NIT',
+            taxId: '900.123.456-7',
+          })
+        );
+      });
+
+      it('sends the tax fields to the next step on submit', () => {
+        const c = createWithState({
+          prefillClinicName: LAB_TAX_ID.name,
+          prefillClinic: LAB_TAX_ID,
+        });
+        c.clinicForm.patchValue({ taxId: '800.765.432-1' });
+
+        c.onSubmit();
+
+        expect(mockOnboardingService.storeClinicSetup).toHaveBeenCalledWith(
+          expect.objectContaining({
+            legalName: 'City Vet Clinic S.A.S.',
+            taxIdType: 'NIT',
+            taxId: '800.765.432-1',
+          })
+        );
       });
     });
   });

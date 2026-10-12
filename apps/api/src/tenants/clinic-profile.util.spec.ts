@@ -1,7 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import {
+  assertValidTaxIdentity,
   buildClinicProfileUpdate,
+  checkTaxIdentity,
   normalizeTaxId,
+  touchesTaxIdentity,
 } from './clinic-profile.util';
 
 describe('buildClinicProfileUpdate', () => {
@@ -73,5 +76,74 @@ describe('normalizeTaxId', () => {
 
   it('returns null when only separators are left', () => {
     expect(normalizeTaxId(' .-/ ')).toBeNull();
+  });
+});
+
+describe('checkTaxIdentity', () => {
+  it('accepts a type of the country, or OTHER anywhere', () => {
+    expect(
+      checkTaxIdentity({ country: 'CL', taxIdType: 'RUT', taxId: '1-9' })
+    ).toEqual([]);
+    expect(
+      checkTaxIdentity({ country: 'UY', taxIdType: 'OTHER', taxId: '1' })
+    ).toEqual([]);
+  });
+
+  it('accepts no tax ID at all (optional everywhere)', () => {
+    expect(checkTaxIdentity({ country: 'CO' })).toEqual([]);
+  });
+
+  it('requires a type and a country for a number', () => {
+    expect(checkTaxIdentity({ country: 'CO', taxId: '900123456' })).toEqual([
+      { field: 'taxId', code: 'TAX_ID_INCOMPLETE' },
+    ]);
+  });
+});
+
+describe('assertValidTaxIdentity', () => {
+  const STORED = { country: 'CO', taxIdType: 'NIT', taxId: '900.123.456-7' };
+
+  it('keeps stored values for fields the update omits', () => {
+    expect(() =>
+      assertValidTaxIdentity({ taxId: '800' }, STORED)
+    ).not.toThrow();
+  });
+
+  it('rejects a country change the stored ID type does not fit', () => {
+    expect(() => assertValidTaxIdentity({ country: 'CL' }, STORED)).toThrow(
+      BadRequestException
+    );
+  });
+
+  it('accepts a country change together with a type of that country', () => {
+    expect(() =>
+      assertValidTaxIdentity({ country: 'CL', taxIdType: 'RUT' }, STORED)
+    ).not.toThrow();
+  });
+
+  it('rejects clearing the type while a number stays on record', () => {
+    expect(() => assertValidTaxIdentity({ taxIdType: null }, STORED)).toThrow(
+      'Invalid tax ID: taxId TAX_ID_INCOMPLETE.'
+    );
+  });
+
+  it('accepts clearing the type and the number together', () => {
+    expect(() =>
+      assertValidTaxIdentity({ taxIdType: null, taxId: null }, STORED)
+    ).not.toThrow();
+  });
+
+  it('checks the update alone when nothing is stored', () => {
+    expect(() => assertValidTaxIdentity({ taxId: '900123456' })).toThrow(
+      BadRequestException
+    );
+  });
+});
+
+describe('touchesTaxIdentity', () => {
+  it('is true only when country, type or number is in the update', () => {
+    expect(touchesTaxIdentity({ country: '' })).toBe(true);
+    expect(touchesTaxIdentity({ taxId: null })).toBe(true);
+    expect(touchesTaxIdentity({})).toBe(false);
   });
 });

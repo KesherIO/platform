@@ -92,7 +92,7 @@
     "LOGO_TYPE_ERROR": "Tipo de archivo no válido. Por favor sube una imagen PNG, JPEG o WebP.",
     "LOGO_SIZE_ERROR": "Archivo demasiado grande. El tamaño máximo es 2 MB.",
     "NAME_LABEL": "Nombre de la clínica",
-    "NAME_PLACEHOLDER": "Ingresa el nombre legal de tu clínica",
+    "NAME_PLACEHOLDER": "Ingresa el nombre de tu clínica",
     "ADDRESS_LABEL": "Dirección",
     "ADDRESS_PLACEHOLDER": "Calle",
     "CITY_LABEL": "Ciudad",
@@ -107,7 +107,15 @@
     "PHONE_PLACEHOLDER": "555 555 5555",
     "NOTIFICATION_LABEL": "Método de notificación",
     "NOTIFICATION_EMAIL": "Correo",
-    "NOTIFICATION_SMS": "SMS"
+    "NOTIFICATION_SMS": "SMS",
+    "LEGAL_NAME_LABEL": "Razón social",
+    "LEGAL_NAME_PLACEHOLDER": "Nombre legal registrado (opcional)",
+    "TAX_ID_TYPE_LABEL": "Tipo de identificación",
+    "TAX_ID_TYPE_PLACEHOLDER": "Selecciona el tipo (opcional)",
+    "TAX_ID_TYPE_NONE": "Ninguno",
+    "TAX_ID_LABEL": "Número de identificación",
+    "TAX_ID_PLACEHOLDER": "ej. 900.123.456-7 (opcional)",
+    "TAX_ID_INCOMPLETE": "Elige un país y un tipo de identificación para este número, o borra el número."
   },
   "ADMIN_PROFILE": {
     "TITLE": "Configura tu cuenta de administrador",
@@ -215,7 +223,12 @@
       "EMAIL": "Correo",
       "EMAIL_LOCKED": "Contacta a tu gestor de cuenta para cambiar el correo de la clínica.",
       "SAVE": "Guardar",
-      "CANCEL": "Cancelar"
+      "CANCEL": "Cancelar",
+      "LEGAL_NAME": "Razón social",
+      "TAX_ID_TYPE": "Tipo de identificación",
+      "TAX_ID": "Número de identificación",
+      "TAX_ID_TYPE_NONE": "Sin definir",
+      "TAX_ID_INCOMPLETE": "Elige un país y un tipo de identificación para este número, o borra el número."
     },
     "PROFILE": {
       "EDIT": "Editar",
@@ -631,5 +644,21 @@
   },
   "CLINIC_SWITCHER": {
     "SWITCH_CLINIC": "Cambiar clínica"
+  },
+  "TAX_ID_TYPES": {
+    "NIT": "NIT",
+    "CC": "CC (cédula de ciudadanía)",
+    "CE": "CE (cédula de extranjería)",
+    "PP": "PP (pasaporte)",
+    "RUT": "RUT",
+    "CUIT": "CUIT",
+    "CUIL": "CUIL",
+    "DNI": "DNI",
+    "RUC": "RUC",
+    "CI": "CI (cédula de identidad)",
+    "CNPJ": "CNPJ",
+    "CPF": "CPF",
+    "RFC": "RFC",
+    "OTHER": "Otro"
   }
 }

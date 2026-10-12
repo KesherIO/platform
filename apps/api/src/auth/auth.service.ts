@@ -230,6 +230,9 @@ export class AuthService {
                 address: true,
                 city: true,
                 country: true,
+                legalName: true,
+                taxIdType: true,
+                taxId: true,
                 logoUrl: true,
                 primaryColor: true,
                 clinicConnections: {

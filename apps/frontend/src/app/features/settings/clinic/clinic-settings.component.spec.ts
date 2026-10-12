@@ -18,6 +18,9 @@ const MOCK_MEMBERSHIP_ADMIN = {
     primaryContactName: 'Dr. Ana',
     city: 'Bogotá',
     country: 'CO',
+    legalName: 'Clínica Veterinaria S.A.S.',
+    taxIdType: 'NIT',
+    taxId: '900.123.456-7',
     logoUrl: null,
     primaryColor: null,
   },
@@ -141,9 +144,89 @@ describe('ClinicSettingsComponent', () => {
         primaryContactName: '',
         city: 'Medellín',
         country: 'CO',
+        legalName: 'Clínica Veterinaria S.A.S.',
+        taxIdType: 'NIT',
+        taxId: '900.123.456-7',
       },
       undefined
     );
+  });
+
+  describe('tax identity', () => {
+    it('shows the legal name and ID from the record', () => {
+      const text = fixture.nativeElement.textContent as string;
+      expect(text).toContain('Clínica Veterinaria S.A.S.');
+      expect(text).toContain('900.123.456-7');
+      expect(component.clinicTaxIdTypeLabel()).toBe('TAX_ID_TYPES.NIT');
+    });
+
+    it('startEditing fills in the tax fields', () => {
+      component.startEditing();
+      expect(component.editLegalName()).toBe('Clínica Veterinaria S.A.S.');
+      expect(component.editTaxIdType()).toBe('NIT');
+      expect(component.editTaxId()).toBe('900.123.456-7');
+    });
+
+    it("offers the country's ID types plus OTHER", () => {
+      component.startEditing();
+      expect(component.editTaxIdTypeOptions().map((o) => o.value)).toEqual([
+        'NIT',
+        'CC',
+        'CE',
+        'PP',
+        'OTHER',
+      ]);
+    });
+
+    it('clears the ID type when the new country does not have it', () => {
+      component.startEditing();
+      component.onCountryChange('CL');
+      expect(component.editCountry()).toBe('CL');
+      expect(component.editTaxIdType()).toBe('');
+      expect(component.editTaxIdTypeOptions().map((o) => o.value)).toEqual([
+        'RUT',
+        'OTHER',
+      ]);
+    });
+
+    it('keeps OTHER when the country changes', () => {
+      component.startEditing();
+      component.editTaxIdType.set('OTHER');
+      component.onCountryChange('MX');
+      expect(component.editTaxIdType()).toBe('OTHER');
+    });
+
+    it('does not save an ID number without an ID type', () => {
+      component.startEditing();
+      component.onCountryChange('CL');
+      expect(component.taxIdIncomplete()).toBe(true);
+
+      component.save();
+      expect(settingsService.updateClinic).not.toHaveBeenCalled();
+
+      component.editTaxIdType.set('RUT');
+      component.save();
+      expect(settingsService.updateClinic).toHaveBeenCalledWith(
+        expect.objectContaining({
+          country: 'CL',
+          taxIdType: 'RUT',
+          taxId: '900.123.456-7',
+        }),
+        undefined
+      );
+    });
+
+    it('saves cleared tax fields as empty strings', () => {
+      component.startEditing();
+      component.editTaxIdType.set('');
+      component.editTaxId.set('');
+      component.editLegalName.set('');
+      component.save();
+      expect(settingsService.updateClinic).toHaveBeenCalledWith(
+        expect.objectContaining({ legalName: '', taxIdType: '', taxId: '' }),
+        undefined
+      );
+    });
   });
 
   it('reloads the clinic profile every time the screen opens', () => {

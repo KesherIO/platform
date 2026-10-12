@@ -382,6 +382,98 @@ describe('Shared clinic profile across lab portal, onboarding and clinic app', (
     });
   });
 
+  describe('tax identity', () => {
+    const LAB_TAX_ID = {
+      legalName: 'Clínica Veterinaria City S.A.S.',
+      taxIdType: 'NIT',
+      taxId: '900.123.456-7',
+    };
+
+    async function createWithTaxId() {
+      const { clientId, onboardingLink } = await lab.createClient(
+        LAB_ID,
+        { ...LAB_ENTERED, ...LAB_TAX_ID },
+        'lab-user'
+      );
+      return { clientId, token: tokenFromLink(onboardingLink) };
+    }
+
+    it('the lab-entered tax ID reaches onboarding, survives it and shows in the clinic app', async () => {
+      const { clientId, token } = await createWithTaxId();
+
+      const verify = await onboarding.verifyOnboardingToken(token);
+      expect(verify).toMatchObject({ clinic: LAB_TAX_ID });
+
+      await onboarding.completeAdminOnboarding(untouchedCompletion(token));
+
+      expect(await lab.getClientDetail(LAB_ID, clientId)).toMatchObject(
+        LAB_TAX_ID
+      );
+      const me = await clinicSession.getMe(ADMIN_USER_ID);
+      expect(me.memberships[0].tenant).toMatchObject(LAB_TAX_ID);
+    });
+
+    it('onboarding rejects a new country the stored ID type does not fit, before creating the account', async () => {
+      const { clientId, token } = await createWithTaxId();
+      await onboarding.verifyOnboardingToken(token);
+
+      await expect(
+        onboarding.completeAdminOnboarding(
+          untouchedCompletion(token, { country: 'CL' })
+        )
+      ).rejects.toThrow('Invalid tax ID');
+
+      expect(clinicSession.createSupabaseUser).not.toHaveBeenCalled();
+      expect(store.tenants.get(clientId)).toMatchObject({ country: 'CO' });
+      expect(store.tenants.get(clientId)?.clientStatus).not.toBe('ACTIVE');
+    });
+
+    it('onboarding accepts a new country together with an ID type of that country', async () => {
+      const { clientId, token } = await createWithTaxId();
+      await onboarding.verifyOnboardingToken(token);
+
+      await onboarding.completeAdminOnboarding(
+        untouchedCompletion(token, {
+          country: 'CL',
+          taxIdType: 'RUT',
+          taxId: '12.345.678-k',
+        })
+      );
+
+      expect(store.tenants.get(clientId)).toMatchObject({
+        country: 'CL',
+        taxIdType: 'RUT',
+        taxId: '12.345.678-k',
+        taxIdNormalized: '12345678K',
+        legalName: LAB_TAX_ID.legalName,
+      });
+    });
+
+    it('clinic settings: a tax ID change appears in the lab, an invalid one is rejected', async () => {
+      const { clientId, token } = await createWithTaxId();
+      await onboarding.verifyOnboardingToken(token);
+      await onboarding.completeAdminOnboarding(untouchedCompletion(token));
+
+      await expect(
+        clinicSettings.updateClinic(clientId, { country: 'MX' })
+      ).rejects.toThrow('Invalid tax ID');
+      expect(store.tenants.get(clientId)).toMatchObject({ country: 'CO' });
+
+      await clinicSettings.updateClinic(clientId, {
+        country: 'MX',
+        taxIdType: 'RFC',
+        taxId: 'CVC 010101 AB1',
+        legalName: '',
+      });
+      expect(await lab.getClientDetail(LAB_ID, clientId)).toMatchObject({
+        country: 'MX',
+        taxIdType: 'RFC',
+        taxId: 'CVC 010101 AB1',
+        legalName: null,
+      });
+    });
+  });
+
   it("changing a pending client's email does not break invitation management", async () => {
     const { clientId, onboardingLink } = await lab.createClient(
       LAB_ID,

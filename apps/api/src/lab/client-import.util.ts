@@ -1,8 +1,10 @@
 import { createHash } from 'crypto';
 import { plainToInstance } from 'class-transformer';
 import { validate, type ValidationError } from 'class-validator';
-import { isTaxIdTypeForCountry } from '@vet-ai/shared-types';
-import { normalizeTaxId } from '../tenants/clinic-profile.util';
+import {
+  checkTaxIdentity,
+  normalizeTaxId,
+} from '../tenants/clinic-profile.util';
 import { ImportClientRowDto } from './dto/import-clients.dto';
 import type { ClientFieldsDto } from './dto/create-client.dto';
 
@@ -115,35 +117,6 @@ export function taxKeyString(
   key: NonNullable<ReturnType<typeof clientTaxKey>>
 ): string {
   return `${key.country}|${key.taxIdType}|${key.taxIdNormalized}`;
-}
-
-/**
- * Rules that span several fields:
- *   - taxIdType must exist for the country, or be 'OTHER';
- *   - a taxId needs a taxIdType and a country, so the duplicate key is complete;
- *   - a taxId must keep at least one digit or letter once normalized.
- */
-export function checkTaxIdentity(input: {
-  country?: string | null;
-  taxIdType?: string | null;
-  taxId?: string | null;
-}): RowFieldError[] {
-  const country = optional(input.country);
-  const taxIdType = optional(input.taxIdType);
-  const taxId = optional(input.taxId);
-  const errors: RowFieldError[] = [];
-
-  if (taxIdType && !isTaxIdTypeForCountry(taxIdType, country)) {
-    errors.push({ field: 'taxIdType', code: 'INVALID_TAX_ID_TYPE' });
-  }
-  if (taxId) {
-    if (!taxIdType || !country) {
-      errors.push({ field: 'taxId', code: 'TAX_ID_INCOMPLETE' });
-    } else if (!normalizeTaxId(taxId)) {
-      errors.push({ field: 'taxId', code: 'INVALID_TAX_ID' });
-    }
-  }
-  return errors;
 }
 
 function errorCode(error: ValidationError): RowErrorCode {

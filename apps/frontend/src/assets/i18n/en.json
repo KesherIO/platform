@@ -92,7 +92,7 @@
     "LOGO_TYPE_ERROR": "Invalid file type. Please upload a PNG, JPEG, or WebP image.",
     "LOGO_SIZE_ERROR": "File too large. Maximum size is 2 MB.",
     "NAME_LABEL": "Clinic name",
-    "NAME_PLACEHOLDER": "Enter your clinic legal name",
+    "NAME_PLACEHOLDER": "Enter your clinic name",
     "ADDRESS_LABEL": "Address",
     "ADDRESS_PLACEHOLDER": "Street",
     "CITY_LABEL": "City",
@@ -107,7 +107,15 @@
     "PHONE_PLACEHOLDER": "555 555 5555",
     "NOTIFICATION_LABEL": "Notification method",
     "NOTIFICATION_EMAIL": "Email",
-    "NOTIFICATION_SMS": "SMS"
+    "NOTIFICATION_SMS": "SMS",
+    "LEGAL_NAME_LABEL": "Legal name",
+    "LEGAL_NAME_PLACEHOLDER": "Registered company name (optional)",
+    "TAX_ID_TYPE_LABEL": "ID type",
+    "TAX_ID_TYPE_PLACEHOLDER": "Select ID type (optional)",
+    "TAX_ID_TYPE_NONE": "None",
+    "TAX_ID_LABEL": "ID number",
+    "TAX_ID_PLACEHOLDER": "e.g. 900.123.456-7 (optional)",
+    "TAX_ID_INCOMPLETE": "Choose a country and an ID type for this ID number, or clear the number."
   },
   "ADMIN_PROFILE": {
     "TITLE": "Set up your admin account",
@@ -215,7 +223,12 @@
       "EMAIL": "Email",
       "EMAIL_LOCKED": "Contact your account manager to change the clinic email.",
       "SAVE": "Save",
-      "CANCEL": "Cancel"
+      "CANCEL": "Cancel",
+      "LEGAL_NAME": "Legal name",
+      "TAX_ID_TYPE": "ID type",
+      "TAX_ID": "ID number",
+      "TAX_ID_TYPE_NONE": "Not set",
+      "TAX_ID_INCOMPLETE": "Choose a country and an ID type for this ID number, or clear the number."
     },
     "PROFILE": {
       "EDIT": "Edit",
@@ -631,5 +644,21 @@
   },
   "CLINIC_SWITCHER": {
     "SWITCH_CLINIC": "Switch clinic"
+  },
+  "TAX_ID_TYPES": {
+    "NIT": "NIT (tax ID)",
+    "CC": "CC (citizenship ID)",
+    "CE": "CE (foreigner ID)",
+    "PP": "PP (passport)",
+    "RUT": "RUT (tax ID)",
+    "CUIT": "CUIT (tax ID)",
+    "CUIL": "CUIL (labor ID)",
+    "DNI": "DNI (national ID)",
+    "RUC": "RUC (tax ID)",
+    "CI": "CI (identity card)",
+    "CNPJ": "CNPJ (company tax ID)",
+    "CPF": "CPF (individual tax ID)",
+    "RFC": "RFC (tax ID)",
+    "OTHER": "Other"
   }
 }

@@ -26,6 +26,10 @@ export interface Tenant {
   email?: string;
   phone?: string;
   country?: string;
+  /** Tax identity — see ClinicProfileModel */
+  legalName?: string | null;
+  taxIdType?: string | null;
+  taxId?: string | null;
   notificationMethod?: 'email' | 'sms';
   // Branding — optional, populated via future branding/settings step
   logoUrl?: string; // URL in storage; never store raw file data

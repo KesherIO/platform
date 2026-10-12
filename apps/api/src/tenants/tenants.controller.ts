@@ -70,6 +70,23 @@ class UpdateClinicDto {
   @IsString()
   @Matches(/^([A-Z]{2})?$/)
   country?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  legalName?: string | null;
+
+  /** Must fit the country (after this update), or be 'OTHER' */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  taxIdType?: string | null;
+
+  /** Needs a taxIdType and a country */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  taxId?: string | null;
 }
 
 class UpdateStaffRoleDto {

@@ -28,7 +28,7 @@ const Trim = () =>
  * each bulk import row (ImportClientRowDto) so the two can't drift apart.
  *
  * Whether taxIdType fits the country, and whether a taxId has the type and
- * country it needs, is checked by checkTaxIdentity() (client-import.util.ts):
+ * country it needs, is checked by checkTaxIdentity() (tenants/clinic-profile.util.ts):
  * those rules depend on more than one field.
  */
 export class ClientFieldsDto {

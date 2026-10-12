@@ -783,6 +783,26 @@ above:
   the current one" confirmation.
 - `AuthContext` exposes `tenantId` (for the per-lab saved mapping).
 
+**Phase 3 status (2026-10-12)**: implemented on `feat/SCRUM-29-clinic-app-tax-fields`, not
+committed. No migration. Differences from the text above:
+
+- `SaveClinicSetupDto` isn't used by any endpoint (the wizard only calls
+  `POST /onboarding/complete`), so only `CompleteAdminOnboardingDto` got the fields.
+- `checkTaxIdentity` moved from `lab/client-import.util.ts` to
+  `tenants/clinic-profile.util.ts`, with `assertValidTaxIdentity(update, stored)`: fields
+  the update omits keep their stored value. Lab Add client / edit, onboarding and
+  `updateClinic` all use it. So changing only the country is rejected when the stored ID
+  type doesn't exist there, and clearing the type while a number stays is rejected too.
+- Onboarding builds and checks the profile **before** creating the Supabase account
+  (it used to be built inside the transaction).
+- `/auth/me` returns `legalName`, `taxIdType` and `taxId` on each tenant; clinic settings
+  reads them from there, like the other profile fields.
+- Clinic app UI: the ID number keeps its value when the country changes and the type is
+  cleared. The form then shows "choose an ID type" and blocks Continue / Save until the
+  user picks a type or clears the number. The type list has a "None" option to clear it.
+- Clinic name placeholder changed from "Enter your clinic legal name" to "Enter your clinic
+  name" (EN/ES), since Legal name is now its own field.
+
 ### B8. Not in this work / follow-ups
 
 - **Lab-side order entry** for clients that haven't onboarded (A0). Needed if labs
