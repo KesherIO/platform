@@ -1,5 +1,9 @@
 # Move production to US East — Plan
 
+**Switch day: follow [`REGION_CUTOVER_RUNBOOK.md`](REGION_CUTOVER_RUNBOOK.md)** (timeline,
+stop/resume points, gates, rollback without data loss). This file has the decisions and
+details behind it.
+
 ## Goal
 
 Production runs in two far-apart regions today:

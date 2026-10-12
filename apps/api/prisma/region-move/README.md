@@ -2,7 +2,9 @@
 
 Scripts for moving production from Ireland (`eu-west-1`) to US East (`us-east-1`).
 The full procedure, decisions and test results are in
-[`docs/REGION_MIGRATION_PLAN.md`](../../../../docs/REGION_MIGRATION_PLAN.md).
+[`docs/REGION_MIGRATION_PLAN.md`](../../../../docs/REGION_MIGRATION_PLAN.md); the
+switch-day steps, checklists and rollback in
+[`docs/REGION_CUTOVER_RUNBOOK.md`](../../../../docs/REGION_CUTOVER_RUNBOOK.md).
 
 **No credentials live here.** Every script takes the path of a gitignored env file
 (`.env.prod.local` = Ireland, `.env.prod-us.local` = new project) and reads
@@ -20,18 +22,19 @@ must be written outside the repo (`run-dump.sh` refuses a path inside it).
 
 ## Files
 
-| File                             | What it does                                                                                                                                                           |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `generate.sh`                    | Regenerates `generated/*.generated.sh` with `supabase@2.120.0 db dump --dry-run` and rebuilds `roles.sh`, `schema.sh`, `data.sh` from them                             |
-| `generated/*.generated.sh`       | Exact CLI output, with a placeholder connection                                                                                                                        |
-| `roles.sh` `schema.sh` `data.sh` | Runnable dump scripts. Differences from the CLI output: `diff generated/roles.generated.sh roles.sh`                                                                   |
-| `run-dump.sh`                    | `run-dump.sh <env-file> <out-dir>` — read-only dump of one project                                                                                                     |
-| `restore.sh`                     | `restore.sh <dump-dir> <target-env-file> <expected-ref>` — one-transaction restore into an empty project                                                               |
-| `sql/pre-restore.sql`            | Fix 2: removes the new project's automatic grants before `schema.sql`                                                                                                  |
-| `inspect.sh`                     | `inspect.sh <env-file> <report-file> [old-ref]` — read-only report; diff two reports to compare projects                                                               |
-| `reset-target.mjs`               | `node reset-target.mjs <env-file> <expected-ref> [--confirm]` — empties a new project in place after a rehearsal (Storage, Auth users, app schema); keeps its settings |
-| `sql/inspect.sql`                | The report's queries                                                                                                                                                   |
-| `lib/env.sh`                     | Loads an env file, guards, read-only `psql`                                                                                                                            |
+| File                             | What it does                                                                                                                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `generate.sh`                    | Regenerates `generated/*.generated.sh` with `supabase@2.120.0 db dump --dry-run` and rebuilds `roles.sh`, `schema.sh`, `data.sh` from them                                       |
+| `generated/*.generated.sh`       | Exact CLI output, with a placeholder connection                                                                                                                                  |
+| `roles.sh` `schema.sh` `data.sh` | Runnable dump scripts. Differences from the CLI output: `diff generated/roles.generated.sh roles.sh`                                                                             |
+| `run-dump.sh`                    | `run-dump.sh <env-file> <out-dir>` — read-only dump of one project                                                                                                               |
+| `restore.sh`                     | `restore.sh <dump-dir> <target-env-file> <expected-ref>` — one-transaction restore into an empty project                                                                         |
+| `sql/pre-restore.sql`            | Fix 2: removes the new project's automatic grants before `schema.sql`                                                                                                            |
+| `inspect.sh`                     | `inspect.sh <env-file> <report-file> [old-ref]` — read-only report; diff two reports to compare projects                                                                         |
+| `reset-target.mjs`               | `node reset-target.mjs <env-file> <expected-ref> [--confirm]` — empties a new project in place after a rehearsal (Storage, Auth users, app schema); keeps its settings           |
+| `compare-data.mjs`               | `node compare-data.mjs <env-A> <env-B> [--ids]` — row-by-row comparison of two projects (read-only on both); 0 differences after the restore, and the change list for a rollback |
+| `sql/inspect.sql`                | The report's queries                                                                                                                                                             |
+| `lib/env.sh`                     | Loads an env file, guards, read-only `psql`                                                                                                                                      |
 
 Storage file contents are copied by `../seeds/copy-storage.mjs`.
 
