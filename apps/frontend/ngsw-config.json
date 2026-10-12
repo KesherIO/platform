@@ -32,7 +32,7 @@
   "dataGroups": [
     {
       "name": "supabase-auth",
-      "urls": ["https://mqwurrtupumsizsvurpx.supabase.co/**"],
+      "urls": ["https://vkraygviitfzgmrhbexd.supabase.co/**"],
       "cacheConfig": {
         "strategy": "freshness",
         "maxSize": 0,
