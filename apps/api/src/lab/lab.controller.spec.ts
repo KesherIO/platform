@@ -7,6 +7,7 @@ import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
 import { ImportClientsDto } from './dto/import-clients.dto';
+import { UpdateLabContactDto } from './dto/update-lab-contact.dto';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
 import { CatalogService } from '../catalog/catalog.service';
@@ -502,6 +503,42 @@ describe('LabController', () => {
       ['a non-object row', { importBatchId: BATCH_ID, rows: ['x'] }],
     ])('rejects %s with 400', async (_label, body) => {
       await expect(validateBody(body)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('UpdateLabContactDto phone numbers', () => {
+    // Same options as the global pipe in main.ts.
+    const pipe = new ValidationPipe({ whitelist: true, transform: true });
+    const validate = (body: unknown) =>
+      pipe.transform(body, { type: 'body', metatype: UpdateLabContactDto });
+
+    it('keeps free-text labels and the WhatsApp flag', async () => {
+      const dto = await validate({
+        phoneNumbers: [
+          { label: 'Recepción', number: '+57 300 111 2222', whatsapp: true },
+          { label: 'commercial', number: '+57 601 555 0000' },
+        ],
+      });
+      expect(dto.phoneNumbers).toEqual([
+        { label: 'Recepción', number: '+57 300 111 2222', whatsapp: true },
+        { label: 'commercial', number: '+57 601 555 0000' },
+      ]);
+    });
+
+    it.each([
+      [
+        'a non-boolean whatsapp',
+        [{ label: 'x', number: '1', whatsapp: 'yes' }],
+      ],
+      ['a label over 50 characters', [{ label: 'x'.repeat(51), number: '1' }]],
+      [
+        'more than 10 numbers',
+        Array.from({ length: 11 }, () => ({ label: '', number: '1' })),
+      ],
+    ])('rejects %s with 400', async (_label, phoneNumbers) => {
+      await expect(validate({ phoneNumbers })).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 });

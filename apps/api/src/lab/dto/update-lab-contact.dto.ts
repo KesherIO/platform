@@ -1,19 +1,29 @@
 import {
+  ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsNumber,
   IsOptional,
   IsString,
   Matches,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class PhoneNumberDto {
+  /** Free text ("Recepción"); older saves hold commercial/personal/other/whatsapp */
   @IsString()
+  @MaxLength(50)
   label!: string;
 
   @IsString()
+  @MaxLength(50)
   number!: string;
+
+  @IsBoolean()
+  @IsOptional()
+  whatsapp?: boolean;
 }
 
 export class UpdateLabContactDto {
@@ -48,6 +58,7 @@ export class UpdateLabContactDto {
   logoUrl?: string;
 
   @IsArray()
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => PhoneNumberDto)
   @IsOptional()

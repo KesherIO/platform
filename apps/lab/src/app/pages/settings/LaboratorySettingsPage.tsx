@@ -9,6 +9,7 @@ import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import { COMMON_TIMEZONES } from '../../shared/timezones';
 import { COUNTRY_CODES, countryName } from '../../shared/countries';
+import { normalizeLabPhones, toSavedPhones } from '../../shared/phoneNumbers';
 import type {
   LaboratoryProfile,
   LabContactInfo,
@@ -39,9 +40,11 @@ const EMPTY_CONTACT: LabContactInfo = {
   timezone: 'UTC',
 };
 
-const PHONE_LABELS = ['whatsapp', 'commercial', 'personal', 'other'] as const;
-
 const ALL_ROLES: LabSignerRole[] = ['ANALYST', 'REVIEWER', 'DATA_ENTRY'];
+
+/** Text for a label saved by the old dropdown ("commercial" → "Comercial"). */
+const legacyPhoneLabel = (code: string) =>
+  i18n.t(`settings.phone_type_${code}`);
 
 let tempIdCounter = 0;
 
@@ -91,9 +94,7 @@ export function LaboratorySettingsPage() {
     return {
       ...EMPTY_CONTACT,
       ...raw,
-      phoneNumbers: Array.isArray(raw.phoneNumbers)
-        ? (raw.phoneNumbers as LabPhoneNumber[])
-        : [],
+      phoneNumbers: normalizeLabPhones(raw.phoneNumbers, legacyPhoneLabel),
     };
   });
   const [signers, setSigners] = useState<LabSigner[]>(() => {
@@ -143,9 +144,10 @@ export function LaboratorySettingsPage() {
           const parsed = {
             ...EMPTY_CONTACT,
             ...raw,
-            phoneNumbers: Array.isArray(raw.phoneNumbers)
-              ? (raw.phoneNumbers as LabPhoneNumber[])
-              : [],
+            phoneNumbers: normalizeLabPhones(
+              raw.phoneNumbers,
+              legacyPhoneLabel
+            ),
           };
           setContactInfo(parsed);
           initialContact.current = JSON.stringify(parsed);
@@ -170,9 +172,10 @@ export function LaboratorySettingsPage() {
           ...profile,
           signers,
         } as unknown as Record<string, unknown>),
-        labApi.settings.updateContactInfo(
-          contactInfo as unknown as Record<string, unknown>
-        ),
+        labApi.settings.updateContactInfo({
+          ...contactInfo,
+          phoneNumbers: toSavedPhones(contactInfo.phoneNumbers),
+        } as unknown as Record<string, unknown>),
       ]);
       await refreshTenant();
       initialProfile.current = JSON.stringify(profile);
@@ -216,7 +219,10 @@ export function LaboratorySettingsPage() {
   const addPhone = () => {
     setContactInfo((prev) => ({
       ...prev,
-      phoneNumbers: [...prev.phoneNumbers, { label: '', number: '' }],
+      phoneNumbers: [
+        ...prev.phoneNumbers,
+        { label: '', number: '', whatsapp: false },
+      ],
     }));
   };
 
@@ -227,10 +233,10 @@ export function LaboratorySettingsPage() {
     }));
   };
 
-  const updatePhone = (
+  const updatePhone = <K extends keyof LabPhoneNumber>(
     index: number,
-    field: keyof LabPhoneNumber,
-    value: string
+    field: K,
+    value: LabPhoneNumber[K]
   ) => {
     setContactInfo((prev) => ({
       ...prev,
@@ -579,29 +585,26 @@ export function LaboratorySettingsPage() {
                 {contactInfo.phoneNumbers.map((phone, i) => (
                   <div key={i} className="flex gap-2">
                     <div className="w-40 shrink-0">
-                      <select
+                      <input
+                        type="text"
                         value={phone.label}
-                        disabled={!isAdmin}
+                        readOnly={!isAdmin}
+                        maxLength={50}
+                        aria-label={t('settings.phone_label')}
                         onChange={(e) =>
                           updatePhone(i, 'label', e.target.value)
                         }
+                        placeholder={t('settings.phone_label_placeholder')}
                         className={inputClass}
-                      >
-                        <option value="">
-                          {t('settings.phone_label_placeholder')}
-                        </option>
-                        {PHONE_LABELS.map((l) => (
-                          <option key={l} value={l}>
-                            {t(`settings.phone_type_${l}`)}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
                     <div className="flex-1">
                       <input
                         type="tel"
                         value={phone.number}
                         readOnly={!isAdmin}
+                        maxLength={50}
+                        aria-label={t('settings.phone_number')}
                         onChange={(e) =>
                           updatePhone(i, 'number', e.target.value)
                         }
@@ -609,6 +612,18 @@ export function LaboratorySettingsPage() {
                         className={inputClass}
                       />
                     </div>
+                    <label className="flex shrink-0 items-center gap-1.5 text-sm text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={phone.whatsapp}
+                        disabled={!isAdmin}
+                        onChange={(e) =>
+                          updatePhone(i, 'whatsapp', e.target.checked)
+                        }
+                        className="h-4 w-4 rounded border-gray-700 bg-gray-800 accent-cyan"
+                      />
+                      {t('settings.phone_whatsapp')}
+                    </label>
                     {isAdmin && (
                       <button
                         type="button"

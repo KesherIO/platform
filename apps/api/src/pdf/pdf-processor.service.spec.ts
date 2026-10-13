@@ -159,6 +159,28 @@ describe('PdfProcessorService', () => {
       );
     });
 
+    it('passes readable phone labels to the renderer (old codes, WhatsApp flag)', async () => {
+      prisma.$queryRaw.mockResolvedValue([fakeRow()]);
+      prisma.resultReportRelease.findUniqueOrThrow.mockResolvedValue(
+        fakeRelease({
+          labPhoneNumbers: [
+            { label: 'whatsapp', number: '+57 300 111 2222' },
+            { label: 'commercial', number: '+57 601 555 0000' },
+            { label: 'Recepción', number: '+57 601 555 0001', whatsapp: true },
+            { label: '', number: '' },
+          ],
+        })
+      );
+
+      await (service as any).claimAndProcess();
+
+      expect(renderer.render.mock.calls[0][0].labPhones).toEqual([
+        { label: 'WhatsApp', number: '+57 300 111 2222' },
+        { label: 'Comercial', number: '+57 601 555 0000' },
+        { label: 'Recepción (WhatsApp)', number: '+57 601 555 0001' },
+      ]);
+    });
+
     it('uploads directly when PDF does not yet exist in storage', async () => {
       prisma.$queryRaw.mockResolvedValue([fakeRow()]);
       storage.headObject

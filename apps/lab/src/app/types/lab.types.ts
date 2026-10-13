@@ -302,11 +302,12 @@ export interface LaboratoryProfile {
   signers?: LabSigner[];
 }
 
-export type PhoneLabel = 'whatsapp' | 'commercial' | 'personal' | 'other';
-
 export interface LabPhoneNumber {
-  label: PhoneLabel | string;
+  /** Free text, e.g. "Recepción" (may be empty) */
+  label: string;
   number: string;
+  /** Reachable on WhatsApp — the clinic app shows a chat button for it */
+  whatsapp: boolean;
 }
 
 export type LabSignerRole = 'ANALYST' | 'REVIEWER' | 'DATA_ENTRY';

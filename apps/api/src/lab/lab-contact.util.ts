@@ -4,7 +4,42 @@ import { Prisma } from '@prisma/client';
 export type LabPhoneSnapshot = {
   label: string;
   number: string;
+  /** Reachable on WhatsApp; only present when true */
+  whatsapp?: true;
 };
+
+/**
+ * Codes the old Lab Settings dropdown stored as `label` (before labels were
+ * free text). Still found in saved phone lists and release snapshots.
+ * Spanish, like the rest of the PDF.
+ */
+const LEGACY_PHONE_LABELS: Record<string, string> = {
+  commercial: 'Comercial',
+  personal: 'Personal',
+  other: 'Otro',
+};
+
+/** WhatsApp flag, or the old dropdown's "whatsapp" label. */
+export function isWhatsAppPhone(entry: {
+  label?: unknown;
+  whatsapp?: unknown;
+}): boolean {
+  return entry.whatsapp === true || entry.label === 'whatsapp';
+}
+
+/**
+ * Label shown in the PDF footer: the lab's own text, old codes translated,
+ * and "WhatsApp" for WhatsApp numbers ("Recepción (WhatsApp)", "WhatsApp").
+ */
+export function phoneLabelForPdf(entry: {
+  label?: unknown;
+  whatsapp?: unknown;
+}): string {
+  const raw = typeof entry.label === 'string' ? entry.label.trim() : '';
+  const text = raw === 'whatsapp' ? '' : LEGACY_PHONE_LABELS[raw] ?? raw;
+  if (!isWhatsAppPhone(entry)) return text;
+  return text ? `${text} (WhatsApp)` : 'WhatsApp';
+}
 
 /**
  * Phone list frozen on a release for the PDF footer. Lab Settings edits the
@@ -22,6 +57,7 @@ export function labPhoneNumbersSnapshot(
           return {
             label: typeof entry.label === 'string' ? entry.label.trim() : '',
             number: typeof entry.number === 'string' ? entry.number.trim() : '',
+            ...(entry.whatsapp === true && { whatsapp: true as const }),
           };
         })
         .filter((p) => p.number)
