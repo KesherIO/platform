@@ -367,6 +367,7 @@
     "phone_label": "Label",
     "phone_label_placeholder": "e.g. Reception",
     "phone_whatsapp": "WhatsApp",
+    "phone_whatsapp_hint": "Clinics see a “Chat on WhatsApp” button for the WhatsApp number. Only one number can be WhatsApp.",
     "phone_type_commercial": "Commercial",
     "phone_type_personal": "Personal",
     "phone_type_other": "Other",

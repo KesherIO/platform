@@ -9,7 +9,11 @@ import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import { COMMON_TIMEZONES } from '../../shared/timezones';
 import { COUNTRY_CODES, countryName } from '../../shared/countries';
-import { normalizeLabPhones, toSavedPhones } from '../../shared/phoneNumbers';
+import {
+  normalizeLabPhones,
+  toSavedPhones,
+  updatePhoneRow,
+} from '../../shared/phoneNumbers';
 import type {
   LaboratoryProfile,
   LabContactInfo,
@@ -240,9 +244,9 @@ export function LaboratorySettingsPage() {
   ) => {
     setContactInfo((prev) => ({
       ...prev,
-      phoneNumbers: prev.phoneNumbers.map((p, i) =>
-        i === index ? { ...p, [field]: value } : p
-      ),
+      phoneNumbers: updatePhoneRow(prev.phoneNumbers, index, {
+        [field]: value,
+      }),
     }));
   };
 
@@ -648,6 +652,11 @@ export function LaboratorySettingsPage() {
                   </div>
                 ))}
               </div>
+              {contactInfo.phoneNumbers.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  {t('settings.phone_whatsapp_hint')}
+                </p>
+              )}
               {isAdmin && (
                 <button
                   type="button"

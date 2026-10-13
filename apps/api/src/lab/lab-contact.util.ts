@@ -27,9 +27,15 @@ export function isWhatsAppPhone(entry: {
   return entry.whatsapp === true || entry.label === 'whatsapp';
 }
 
+/** The label already says WhatsApp ("WhatsApp", "whatsapp resultados"). */
+export function mentionsWhatsApp(label: string): boolean {
+  return /\bwhats\s?app\b/i.test(label);
+}
+
 /**
  * Label shown in the PDF footer: the lab's own text, old codes translated,
- * and "WhatsApp" for WhatsApp numbers ("Recepción (WhatsApp)", "WhatsApp").
+ * and "WhatsApp" for WhatsApp numbers ("Recepción (WhatsApp)", "WhatsApp") —
+ * never twice when the label already says it.
  */
 export function phoneLabelForPdf(entry: {
   label?: unknown;
@@ -37,7 +43,7 @@ export function phoneLabelForPdf(entry: {
 }): string {
   const raw = typeof entry.label === 'string' ? entry.label.trim() : '';
   const text = raw === 'whatsapp' ? '' : LEGACY_PHONE_LABELS[raw] ?? raw;
-  if (!isWhatsAppPhone(entry)) return text;
+  if (!isWhatsAppPhone(entry) || mentionsWhatsApp(text)) return text;
   return text ? `${text} (WhatsApp)` : 'WhatsApp';
 }
 

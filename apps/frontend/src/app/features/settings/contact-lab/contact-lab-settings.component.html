@@ -93,16 +93,17 @@
           >
             {{ phone.number }}
           </a>
-          @if (legacyLabelKey(phone) || customLabel(phone) || isWhatsApp(phone))
-          {
+          @if (hasLabel(phone) || showWhatsAppTag(phone)) {
           <span class="text-xs text-gray-400">
             @if (legacyLabelKey(phone); as key) {
-            {{ key | translate }}
-            } @else {
-            {{ customLabel(phone) }}
-            } @if (isWhatsApp(phone)) { @if (legacyLabelKey(phone) ||
-            customLabel(phone)) { · }
-            {{ 'SETTINGS.CONTACT_LAB.PHONE_WHATSAPP' | translate }}
+            <span>{{ key | translate }}</span>
+            } @else if (customLabel(phone)) {
+            <span>{{ customLabel(phone) }}</span>
+            } @if (showWhatsAppTag(phone)) {
+            <span
+              >{{ hasLabel(phone) ? '· ' : ''
+              }}{{ 'SETTINGS.CONTACT_LAB.PHONE_WHATSAPP' | translate }}</span
+            >
             }
           </span>
           }

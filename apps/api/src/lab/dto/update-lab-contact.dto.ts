@@ -7,6 +7,7 @@ import {
   IsString,
   Matches,
   MaxLength,
+  ValidateBy,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -25,6 +26,23 @@ class PhoneNumberDto {
   @IsOptional()
   whatsapp?: boolean;
 }
+
+/** The clinic app has one "Chat on WhatsApp" button, so one WhatsApp number. */
+const AtMostOneWhatsApp = () =>
+  ValidateBy({
+    name: 'atMostOneWhatsApp',
+    validator: {
+      validate: (phones: unknown) =>
+        !Array.isArray(phones) ||
+        phones.filter(
+          (p) =>
+            p !== null &&
+            typeof p === 'object' &&
+            (p as Record<string, unknown>)['whatsapp'] === true
+        ).length <= 1,
+      defaultMessage: () => 'only one phone number can be WhatsApp',
+    },
+  });
 
 export class UpdateLabContactDto {
   @IsString()
@@ -59,6 +77,7 @@ export class UpdateLabContactDto {
 
   @IsArray()
   @ArrayMaxSize(10)
+  @AtMostOneWhatsApp()
   @ValidateNested({ each: true })
   @Type(() => PhoneNumberDto)
   @IsOptional()

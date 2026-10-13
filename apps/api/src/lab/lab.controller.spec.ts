@@ -532,6 +532,13 @@ describe('LabController', () => {
       ],
       ['a label over 50 characters', [{ label: 'x'.repeat(51), number: '1' }]],
       [
+        'two WhatsApp numbers',
+        [
+          { label: 'A', number: '1', whatsapp: true },
+          { label: 'B', number: '2', whatsapp: true },
+        ],
+      ],
+      [
         'more than 10 numbers',
         Array.from({ length: 11 }, () => ({ label: '', number: '1' })),
       ],

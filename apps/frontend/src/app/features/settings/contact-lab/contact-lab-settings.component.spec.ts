@@ -106,4 +106,25 @@ describe('ContactLabSettingsComponent', () => {
     expect(text).toContain('Recepción');
     expect(text).toContain('SETTINGS.CONTACT_LAB.PHONE_WHATSAPP');
   });
+
+  it("doesn't repeat WhatsApp when the label already says it", () => {
+    component.lab.set({
+      ...MOCK_LAB,
+      phoneNumbers: [
+        { label: 'WhatsApp', number: '+57 300 111 2222', whatsapp: true },
+      ],
+    });
+    fixture.detectChanges();
+    expect(
+      component.showWhatsAppTag({
+        label: 'WhatsApp',
+        number: '1',
+        whatsapp: true,
+      })
+    ).toBe(false);
+    const caption = (fixture.nativeElement as HTMLElement).querySelector(
+      'span.text-xs'
+    );
+    expect(caption?.textContent?.trim()).toBe('WhatsApp');
+  });
 });

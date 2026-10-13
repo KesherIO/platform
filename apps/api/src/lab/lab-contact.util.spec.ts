@@ -80,6 +80,8 @@ describe('phoneLabelForPdf', () => {
     [{ label: 'personal' }, 'Personal'],
     [{ label: 'other' }, 'Otro'],
     [{ label: 'other', whatsapp: true }, 'Otro (WhatsApp)'],
+    [{ label: 'WhatsApp', whatsapp: true }, 'WhatsApp'],
+    [{ label: 'whatsapp resultados', whatsapp: true }, 'whatsapp resultados'],
     [{ label: '' }, ''],
     [{}, ''],
   ])('%j → %j', (entry, expected) => {

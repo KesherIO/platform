@@ -367,6 +367,7 @@
     "phone_label": "Etiqueta",
     "phone_label_placeholder": "ej. Recepción",
     "phone_whatsapp": "WhatsApp",
+    "phone_whatsapp_hint": "Las clínicas ven un botón “Chatear por WhatsApp” para el número de WhatsApp. Solo un número puede ser de WhatsApp.",
     "phone_type_commercial": "Comercial",
     "phone_type_personal": "Personal",
     "phone_type_other": "Otro",

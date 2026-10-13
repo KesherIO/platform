@@ -102,6 +102,19 @@ export class ContactLabSettingsComponent implements OnInit {
     return map[phone.label] ?? null;
   }
 
+  /** An old code or the lab's own text to show under the number. */
+  hasLabel(phone: LabPhoneNumber): boolean {
+    return !!this.legacyLabelKey(phone) || !!this.customLabel(phone);
+  }
+
+  /** "· WhatsApp" after the label — not when the label already says it. */
+  showWhatsAppTag(phone: LabPhoneNumber): boolean {
+    return (
+      this.isWhatsApp(phone) &&
+      !/\bwhats\s?app\b/i.test(this.customLabel(phone))
+    );
+  }
+
   /** The lab's own label text ("Recepción"); empty for old codes. */
   customLabel(phone: LabPhoneNumber): string {
     if (phone.label === 'whatsapp' || this.legacyLabelKey(phone)) return '';
