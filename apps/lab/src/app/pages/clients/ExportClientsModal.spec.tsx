@@ -144,6 +144,33 @@ describe('ExportClientsModal', () => {
     expect(download.mock.calls[0][0]).toContain('"Status","Notes"');
   });
 
+  it('disables an empty filtered list and selects all clients instead', async () => {
+    renderModal({ status: 'SUSPENDED', filteredTotal: 0 });
+
+    const filtered = screen.getByLabelText('Filtered list (0)');
+    expect(filtered).toHaveProperty('disabled', true);
+    expect(await screen.findByLabelText('All clients (154)')).toHaveProperty(
+      'checked',
+      true
+    );
+    expect(screen.getByText('Download CSV')).toHaveProperty('disabled', false);
+  });
+
+  it('disables the download when the lab has no clients at all', async () => {
+    list.mockResolvedValue({
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: 1,
+      totalPages: 0,
+    });
+    renderModal({ search: 'vet', filteredTotal: 0 });
+
+    expect(await screen.findByLabelText('All clients (0)')).toBeTruthy();
+    expect(screen.getByText('Download CSV')).toHaveProperty('disabled', true);
+    expect(screen.getByText('No clients to export.')).toBeTruthy();
+  });
+
   it('explains the row cap instead of downloading a cut-off file', async () => {
     exportClients.mockRejectedValue(
       new ApiError(

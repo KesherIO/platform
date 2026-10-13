@@ -47,7 +47,9 @@ export function ExportClientsModal({
   const { t } = useTranslation();
   const hasFilters = !!status || !!search;
 
-  const [scope, setScope] = useState<Scope>(hasFilters ? 'filtered' : 'all');
+  const [scope, setScope] = useState<Scope>(
+    hasFilters && filteredTotal > 0 ? 'filtered' : 'all'
+  );
   const [includeNotes, setIncludeNotes] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,9 @@ export function ExportClientsModal({
     enabled: hasFilters,
   });
   const allTotal = hasFilters ? allData?.total : filteredTotal;
+  // Unknown while the total loads: don't block the button for that.
+  const selectedCount = scope === 'filtered' ? filteredTotal : allTotal;
+  const nothingToExport = selectedCount === 0;
 
   const filterDescription = [
     status && t(`clients.filter.${status.toLowerCase()}`),
@@ -103,13 +108,18 @@ export function ExportClientsModal({
     }
   };
 
-  const scopeOption = (value: Scope, label: string) => (
-    <label className="flex items-center gap-2 text-sm text-white">
+  const scopeOption = (value: Scope, label: string, disabled = false) => (
+    <label
+      className={`flex items-center gap-2 text-sm ${
+        disabled ? 'text-gray-500' : 'text-white'
+      }`}
+    >
       <input
         type="radio"
         name="export-scope"
         value={value}
         checked={scope === value}
+        disabled={disabled}
         onChange={() => setScope(value)}
         className="h-4 w-4 border-gray-700 bg-gray-800 accent-cyan"
       />
@@ -141,7 +151,8 @@ export function ExportClientsModal({
               <div>
                 {scopeOption(
                   'filtered',
-                  t('clients.export.filtered', { count: filteredTotal })
+                  t('clients.export.filtered', { count: filteredTotal }),
+                  filteredTotal === 0
                 )}
                 <p className="ml-6 text-xs text-gray-500">
                   {filterDescription}
@@ -171,6 +182,12 @@ export function ExportClientsModal({
             <li>{t('clients.export.personal_data')}</li>
           </ul>
 
+          {nothingToExport && (
+            <p className="text-xs text-gray-500">
+              {t('clients.export.no_clients')}
+            </p>
+          )}
+
           {error && (
             <p className="rounded-lg bg-red-900/30 px-3 py-2 text-xs text-red-300">
               {error}
@@ -188,7 +205,7 @@ export function ExportClientsModal({
             <button
               type="button"
               onClick={handleDownload}
-              disabled={exporting}
+              disabled={exporting || nothingToExport}
               className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
             >
               {exporting

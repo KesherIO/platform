@@ -866,6 +866,7 @@
       "copy_warning": "This file is a copy. Editing it and importing it again won’t update existing clients.",
       "personal_data": "The file contains personal data. Store and share it carefully.",
       "download": "Download CSV",
+      "no_clients": "No clients to export.",
       "downloading": "Preparing…",
       "cancel": "Cancel",
       "filename": "clients-{{date}}.csv",

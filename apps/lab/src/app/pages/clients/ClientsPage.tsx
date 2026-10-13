@@ -55,6 +55,9 @@ export function ClientsPage() {
   const clients = data?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
+  // Without filters the page total is every client; with filters, "Export
+  // all" may still have rows, so the modal decides.
+  const noClients = !isLoading && !statusFilter && !search && total === 0;
 
   useEffect(() => {
     setPage(1);
@@ -88,7 +91,9 @@ export function ClientsPage() {
             </button>
             <button
               onClick={() => setShowExportModal(true)}
-              className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
+              disabled={noClients}
+              title={noClients ? t('clients.export.no_clients') : undefined}
+              className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
             >
               {t('clients.export_clients')}
             </button>
