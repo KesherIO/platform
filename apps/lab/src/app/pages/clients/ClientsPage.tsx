@@ -8,6 +8,7 @@ import { SearchInput } from '../../shared/components/SearchInput';
 import { Pagination } from '../../shared/components/Pagination';
 import { AddClientModal } from './AddClientModal';
 import { ImportClientsModal } from './ImportClientsModal';
+import { ExportClientsModal } from './ExportClientsModal';
 import { ClientsListSkeleton } from './ClientSkeletons';
 import type { ClientStatus } from '../../types/lab.types';
 
@@ -35,6 +36,7 @@ export function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const pageSize = 20;
 
@@ -83,6 +85,12 @@ export function ClientsPage() {
               className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
             >
               {t('clients.import_clients')}
+            </button>
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
+            >
+              {t('clients.export_clients')}
             </button>
             <button
               onClick={() => setShowAddModal(true)}
@@ -209,6 +217,15 @@ export function ClientsPage() {
           onImported={() =>
             queryClient.invalidateQueries({ queryKey: ['clients'] })
           }
+        />
+      )}
+
+      {showExportModal && (
+        <ExportClientsModal
+          status={statusFilter}
+          search={search}
+          filteredTotal={total}
+          onClose={() => setShowExportModal(false)}
         />
       )}
 

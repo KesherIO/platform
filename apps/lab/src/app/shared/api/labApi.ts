@@ -6,6 +6,8 @@ import type {
   ClientOrganization,
   ClientDetail,
   ClientsQuery,
+  ClientsExportQuery,
+  ClientsExportResponse,
   CreateClientResponse,
   ImportClientsRequest,
   ImportClientsResponse,
@@ -184,6 +186,16 @@ export const labApi = {
     remove: (id: string) => del(`lab/clients/${id}`),
     import: (body: ImportClientsRequest) =>
       post<ImportClientsResponse>('lab/clients/import', body),
+    export: (params?: ClientsExportQuery) => {
+      const sp = new URLSearchParams();
+      if (params?.status) sp.set('status', params.status);
+      if (params?.search) sp.set('search', params.search);
+      if (params?.includeNotes) sp.set('includeNotes', 'true');
+      const qs = sp.toString();
+      return get<ClientsExportResponse>(
+        `lab/clients/export${qs ? `?${qs}` : ''}`
+      );
+    },
   },
   catalog: {
     list: (params?: CatalogQuery) => {
