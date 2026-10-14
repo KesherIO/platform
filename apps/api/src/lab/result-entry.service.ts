@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TemplateVersionService } from '../results/template-version.service';
@@ -24,6 +25,24 @@ function ageToWeeks(age: number, unit: AgeUnit): number {
   }
 }
 
+/** What a test's template is resolved from. */
+type TemplateKeyed = {
+  catalogItemCode: string | null;
+  templateDefinitionId: string | null;
+};
+
+type TemplateVersionForEntry = NonNullable<
+  NonNullable<
+    Awaited<ReturnType<TemplateVersionService['resolveTemplateForTest']>>
+  >['activeVersion']
+>;
+
+/** Ordered-test statuses normal result entry may write to. */
+const EDITABLE_TEST_STATUSES = ['READY', 'IN_PROGRESS', 'RESULTS_ENTERED'];
+
+/** Interactive transactions for result writes (row lock wait included). */
+const ENTRY_TX_OPTIONS = { maxWait: 5000, timeout: 20000 };
+
 @Injectable()
 export class ResultEntryService {
   constructor(
@@ -32,6 +51,101 @@ export class ResultEntryService {
   ) {}
 
   // ── Private helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Normal entry may only change a test that is being worked on. Released
+   * tests (COMPLETED) change only through an amendment; tests in review only
+   * after the reviewer requests corrections. Same rule as the result entry
+   * screens, which are read-only for every other status.
+   */
+  private notEditableReason(
+    testStatus: string,
+    reportTestStatus: string | null | undefined
+  ): string | null {
+    if (reportTestStatus === 'RELEASED' || testStatus === 'COMPLETED') {
+      return 'already released — use an amendment';
+    }
+    if (reportTestStatus === 'IN_REVIEW' || testStatus === 'IN_REVIEW') {
+      return 'in review — the reviewer must request corrections first';
+    }
+    if (!EDITABLE_TEST_STATUSES.includes(testStatus)) {
+      return `status is ${testStatus}`;
+    }
+    return null;
+  }
+
+  /** 409 listing every test that can't be edited, or nothing. */
+  private assertEditable(
+    tests: Array<{
+      id: string;
+      catalogItemName: string | null;
+      status: string;
+    }>,
+    reportTestStatusByTestId: Map<string | null, string>
+  ) {
+    const blocked = tests
+      .map((t) => ({
+        testId: t.id,
+        name: t.catalogItemName ?? t.id,
+        reason: this.notEditableReason(
+          t.status,
+          reportTestStatusByTestId.get(t.id)
+        ),
+      }))
+      .filter((t) => t.reason !== null);
+    if (blocked.length > 0) {
+      throw new ConflictException({
+        code: 'TESTS_NOT_EDITABLE',
+        message: `Results can't be changed: ${blocked
+          .map((b) => `${b.name} (${b.reason})`)
+          .join('; ')}`,
+        tests: blocked,
+      });
+    }
+  }
+
+  /**
+   * Inside a transaction: the order's report (created if missing), locked
+   * with the same row lock release, amendments and submit-for-review take,
+   * then every test re-checked. A release that committed after the first
+   * check is seen here, and one that starts later waits for this commit.
+   */
+  private async lockReportAndRecheck(
+    tx: Prisma.TransactionClient,
+    order: { id: string; caseId: string; tenantId: string },
+    testIds: string[]
+  ) {
+    const report = await tx.resultReport.upsert({
+      where: { orderId: order.id },
+      create: {
+        orderId: order.id,
+        caseId: order.caseId,
+        tenantId: order.tenantId,
+        status: 'DRAFT',
+      },
+      update: {},
+      select: { id: true },
+    });
+    await tx.$queryRaw`SELECT id FROM result_reports WHERE id = ${report.id} FOR UPDATE`;
+
+    const locked = await tx.resultReport.findUniqueOrThrow({
+      where: { id: report.id },
+      select: { id: true, status: true },
+    });
+    const fresh = await tx.orderedTest.findMany({
+      where: { id: { in: testIds } },
+      select: { id: true, status: true, catalogItemName: true },
+    });
+    const reportTests = await tx.resultReportTest.findMany({
+      where: { reportId: report.id, orderedTestId: { in: testIds } },
+      select: { id: true, orderedTestId: true, status: true },
+    });
+    this.assertEditable(
+      fresh,
+      new Map(reportTests.map((rt) => [rt.orderedTestId, rt.status]))
+    );
+    return { report: locked, reportTests };
+  }
 
   private computeAgeWeeks(
     patientAge: number | null,
@@ -368,6 +482,11 @@ export class ResultEntryService {
         'Cannot edit results: test has been released. Use the amendment workflow.'
       );
     }
+    // Checked again under the report lock before writing
+    this.assertEditable(
+      [test],
+      new Map([[test.id, releaseCheck?.status ?? 'DRAFT']])
+    );
 
     const species = test.order.case.patientSpecies as PatientSpecies;
     const ageWeeks = this.computeAgeWeeks(
@@ -401,198 +520,192 @@ export class ResultEntryService {
       );
     }
 
-    // Get or create the ResultReport for this order
-    let reportId = test.order.resultReport?.id;
-    if (!reportId) {
-      const report = await this.prisma.resultReport.create({
-        data: {
-          orderId: test.order.id,
-          caseId: test.order.caseId,
-          tenantId: test.order.tenantId,
-          status: 'DRAFT',
-        },
-        select: { id: true },
-      });
-      reportId = report.id;
-    }
+    // All writes in one transaction under the report lock (created if
+    // missing), re-checking the test wasn't released or sent to review.
+    return this.prisma.$transaction(async (tx) => {
+      const { report } = await this.lockReportAndRecheck(tx, test.order, [
+        testId,
+      ]);
+      const reportId = report.id;
 
-    // Get or create the ResultReportTest for this (report, orderedTest)
-    let reportTest = await this.prisma.resultReportTest.findUnique({
-      where: {
-        reportId_orderedTestId: {
-          reportId,
-          orderedTestId: testId,
-        },
-      },
-      select: { id: true },
-    });
-
-    if (!reportTest) {
-      reportTest = await this.prisma.resultReportTest.create({
-        data: {
-          reportId,
-          orderedTestId: testId,
-          templateVersionId: version.id,
-          templateDefinitionId: templateDef.id,
-        },
-        select: { id: true },
-      });
-    }
-
-    // Update observations if provided
-    if (observations !== undefined) {
-      await this.prisma.resultReport.update({
-        where: { id: reportId },
-        data: { observations: observations ?? null },
-      });
-    }
-
-    // Upsert each analyte value
-    for (const input of analytes) {
-      const templateAnalyte = analyteById.get(input.templateAnalyteId);
-      if (!templateAnalyte || templateAnalyte.isHeader) continue;
-
-      const existing = await this.prisma.resultReportAnalyte.findFirst({
+      // Get or create the ResultReportTest for this (report, orderedTest)
+      let reportTest = await tx.resultReportTest.findUnique({
         where: {
-          reportTestId: reportTest.id,
-          templateAnalyteId: input.templateAnalyteId,
+          reportId_orderedTestId: {
+            reportId,
+            orderedTestId: testId,
+          },
         },
         select: { id: true },
       });
 
-      const data = {
-        numericValue: input.numericValue ?? null,
-        textValue: input.textValue ?? null,
-        booleanValue: input.booleanValue ?? null,
-        selectValue: input.selectValue ?? null,
-      };
-
-      if (existing) {
-        await this.prisma.resultReportAnalyte.update({
-          where: { id: existing.id },
-          data,
-        });
-      } else {
-        await this.prisma.resultReportAnalyte.create({
+      if (!reportTest) {
+        reportTest = await tx.resultReportTest.create({
           data: {
+            reportId,
+            orderedTestId: testId,
+            templateVersionId: version.id,
+            templateDefinitionId: templateDef.id,
+          },
+          select: { id: true },
+        });
+      }
+
+      // Update observations if provided
+      if (observations !== undefined) {
+        await tx.resultReport.update({
+          where: { id: reportId },
+          data: { observations: observations ?? null },
+        });
+      }
+
+      // Upsert each analyte value
+      for (const input of analytes) {
+        const templateAnalyte = analyteById.get(input.templateAnalyteId);
+        if (!templateAnalyte || templateAnalyte.isHeader) continue;
+
+        const existing = await tx.resultReportAnalyte.findFirst({
+          where: {
             reportTestId: reportTest.id,
             templateAnalyteId: input.templateAnalyteId,
-            code: templateAnalyte.code,
-            name: templateAnalyte.name,
-            technique: templateAnalyte.technique ?? null,
-            unit: templateAnalyte.unit ?? null,
-            valueType: templateAnalyte.valueType,
-            sectionName: templateAnalyte.sectionId
-              ? sectionNameById.get(templateAnalyte.sectionId) ?? null
-              : null,
-            sortOrder: templateAnalyte.sortOrder,
-            isHeader: templateAnalyte.isHeader,
-            formula: templateAnalyte.formula ?? null,
-            ...data,
           },
-        });
-      }
-    }
-
-    // Compute formula analytes from just-saved input values
-    const formulaAnalytes = version.analytes.filter(
-      (a) => a.formula && !a.isHeader
-    );
-    if (formulaAnalytes.length > 0) {
-      const savedRows = await this.prisma.resultReportAnalyte.findMany({
-        where: { reportTestId: reportTest.id },
-        select: { code: true, numericValue: true },
-      });
-      const savedByCode = new Map(savedRows.map((r) => [r.code, r]));
-
-      const allForEval = version.analytes
-        .filter((a) => !a.isHeader)
-        .map((a) => ({
-          code: a.code,
-          formula: a.formula ?? null,
-          numericValue: savedByCode.get(a.code)?.numericValue ?? null,
-        }));
-
-      // Include sibling tests' values for cross-test formula references (e.g. Anion Gap)
-      const siblingRows = await this.prisma.resultReportAnalyte.findMany({
-        where: {
-          reportTest: { reportId, orderedTestId: { not: testId } },
-        },
-        select: { code: true, numericValue: true },
-      });
-      const currentCodes = new Set(allForEval.map((a) => a.code));
-      for (const sibling of siblingRows) {
-        if (!currentCodes.has(sibling.code)) {
-          allForEval.push({
-            code: sibling.code,
-            formula: null,
-            numericValue: sibling.numericValue,
-          });
-        }
-      }
-
-      const computed = evaluateAllFormulas(allForEval);
-
-      for (const fa of formulaAnalytes) {
-        const value = computed[fa.code] ?? null;
-        const existing = await this.prisma.resultReportAnalyte.findFirst({
-          where: { reportTestId: reportTest.id, templateAnalyteId: fa.id },
           select: { id: true },
         });
 
+        const data = {
+          numericValue: input.numericValue ?? null,
+          textValue: input.textValue ?? null,
+          booleanValue: input.booleanValue ?? null,
+          selectValue: input.selectValue ?? null,
+        };
+
         if (existing) {
-          await this.prisma.resultReportAnalyte.update({
+          await tx.resultReportAnalyte.update({
             where: { id: existing.id },
-            data: { numericValue: value },
+            data,
           });
         } else {
-          await this.prisma.resultReportAnalyte.create({
+          await tx.resultReportAnalyte.create({
             data: {
               reportTestId: reportTest.id,
-              templateAnalyteId: fa.id,
-              code: fa.code,
-              name: fa.name,
-              technique: fa.technique ?? null,
-              unit: fa.unit ?? null,
-              valueType: fa.valueType,
-              sectionName: fa.sectionId
-                ? sectionNameById.get(fa.sectionId) ?? null
+              templateAnalyteId: input.templateAnalyteId,
+              code: templateAnalyte.code,
+              name: templateAnalyte.name,
+              technique: templateAnalyte.technique ?? null,
+              unit: templateAnalyte.unit ?? null,
+              valueType: templateAnalyte.valueType,
+              sectionName: templateAnalyte.sectionId
+                ? sectionNameById.get(templateAnalyte.sectionId) ?? null
                 : null,
-              sortOrder: fa.sortOrder,
-              isHeader: false,
-              formula: fa.formula ?? null,
-              numericValue: value,
+              sortOrder: templateAnalyte.sortOrder,
+              isHeader: templateAnalyte.isHeader,
+              formula: templateAnalyte.formula ?? null,
+              ...data,
             },
           });
         }
       }
-    }
 
-    // Transition test to IN_PROGRESS if still READY
-    if (test.status === 'READY') {
-      await this.prisma.orderedTest.update({
-        where: { id: testId },
-        data: {
-          status: 'IN_PROGRESS',
-          startedAt: new Date(),
-          version: { increment: 1 },
-        },
-      });
-      if (actorId && actorName) {
-        await this.prisma.timelineEvent.create({
+      // Compute formula analytes from just-saved input values
+      const formulaAnalytes = version.analytes.filter(
+        (a) => a.formula && !a.isHeader
+      );
+      if (formulaAnalytes.length > 0) {
+        const savedRows = await tx.resultReportAnalyte.findMany({
+          where: { reportTestId: reportTest.id },
+          select: { code: true, numericValue: true },
+        });
+        const savedByCode = new Map(savedRows.map((r) => [r.code, r]));
+
+        const allForEval = version.analytes
+          .filter((a) => !a.isHeader)
+          .map((a) => ({
+            code: a.code,
+            formula: a.formula ?? null,
+            numericValue: savedByCode.get(a.code)?.numericValue ?? null,
+          }));
+
+        // Include sibling tests' values for cross-test formula references (e.g. Anion Gap)
+        const siblingRows = await tx.resultReportAnalyte.findMany({
+          where: {
+            reportTest: { reportId, orderedTestId: { not: testId } },
+          },
+          select: { code: true, numericValue: true },
+        });
+        const currentCodes = new Set(allForEval.map((a) => a.code));
+        for (const sibling of siblingRows) {
+          if (!currentCodes.has(sibling.code)) {
+            allForEval.push({
+              code: sibling.code,
+              formula: null,
+              numericValue: sibling.numericValue,
+            });
+          }
+        }
+
+        const computed = evaluateAllFormulas(allForEval);
+
+        for (const fa of formulaAnalytes) {
+          const value = computed[fa.code] ?? null;
+          const existing = await tx.resultReportAnalyte.findFirst({
+            where: { reportTestId: reportTest.id, templateAnalyteId: fa.id },
+            select: { id: true },
+          });
+
+          if (existing) {
+            await tx.resultReportAnalyte.update({
+              where: { id: existing.id },
+              data: { numericValue: value },
+            });
+          } else {
+            await tx.resultReportAnalyte.create({
+              data: {
+                reportTestId: reportTest.id,
+                templateAnalyteId: fa.id,
+                code: fa.code,
+                name: fa.name,
+                technique: fa.technique ?? null,
+                unit: fa.unit ?? null,
+                valueType: fa.valueType,
+                sectionName: fa.sectionId
+                  ? sectionNameById.get(fa.sectionId) ?? null
+                  : null,
+                sortOrder: fa.sortOrder,
+                isHeader: false,
+                formula: fa.formula ?? null,
+                numericValue: value,
+              },
+            });
+          }
+        }
+      }
+
+      // Transition test to IN_PROGRESS if still READY
+      if (test.status === 'READY') {
+        await tx.orderedTest.update({
+          where: { id: testId },
           data: {
-            orderId: test.order.id,
-            eventType: 'PROCESSING_STARTED',
-            actorId,
-            actorName,
-            description: `${test.catalogItemName}: result entry started`,
-            metadata: { orderedTestId: testId },
+            status: 'IN_PROGRESS',
+            startedAt: new Date(),
+            version: { increment: 1 },
           },
         });
+        if (actorId && actorName) {
+          await tx.timelineEvent.create({
+            data: {
+              orderId: test.order.id,
+              eventType: 'PROCESSING_STARTED',
+              actorId,
+              actorName,
+              description: `${test.catalogItemName}: result entry started`,
+              metadata: { orderedTestId: testId },
+            },
+          });
+        }
       }
-    }
 
-    return { reportId, saved: analytes.length };
+      return { reportId, saved: analytes.length };
+    }, ENTRY_TX_OPTIONS);
   }
 
   // POST /lab/ordered-tests/:testId/submit-results
@@ -811,6 +924,13 @@ export class ResultEntryService {
     return { status: 'RESULTS_ENTERED' };
   }
 
+  /**
+   * Save (and optionally submit) several tests of ONE order in one atomic
+   * step. Every item is validated before anything is written; the writes run
+   * in one transaction under the report lock, re-checking that no test was
+   * released or sent to review meanwhile. Any failure — including a submit
+   * validation error — rolls the whole batch back.
+   */
   async batchSaveAndSubmit(
     labTenantId: string,
     tests: Array<{
@@ -828,9 +948,15 @@ export class ResultEntryService {
     actorId: string,
     actorName: string
   ) {
+    if (tests.length === 0) return { results: [] };
     const testIds = tests.map((t) => t.testId);
+    if (new Set(testIds).size !== testIds.length) {
+      throw new BadRequestException(
+        'Each test can appear only once in a batch.'
+      );
+    }
 
-    // 1. Batch-fetch all ordered tests
+    // 1. Every test must exist in this lab — none is silently skipped
     const orderedTests = await this.prisma.orderedTest.findMany({
       where: { id: { in: testIds }, order: { labTenantId } },
       select: {
@@ -844,7 +970,15 @@ export class ResultEntryService {
             id: true,
             caseId: true,
             tenantId: true,
-            resultReport: { select: { id: true, status: true } },
+            resultReport: {
+              select: {
+                id: true,
+                tests: {
+                  where: { orderedTestId: { in: testIds } },
+                  select: { orderedTestId: true, status: true },
+                },
+              },
+            },
             case: {
               select: {
                 patientSpecies: true,
@@ -856,302 +990,335 @@ export class ResultEntryService {
         },
       },
     });
-
     const testMap = new Map(orderedTests.map((t) => [t.id, t]));
-    if (orderedTests.length === 0) return { results: [] };
+    const missing = testIds.filter((id) => !testMap.has(id));
+    if (missing.length > 0) {
+      throw new NotFoundException(
+        `Ordered tests not found: ${missing.join(', ')}`
+      );
+    }
 
-    const firstTest = orderedTests[0];
-    const species = firstTest.order.case.patientSpecies as PatientSpecies;
-    const ageWeeks = this.computeAgeWeeks(
-      firstTest.order.case.patientAge,
-      firstTest.order.case.patientAgeUnit
+    // 2. One order per batch: the tests share its report, patient and
+    // observations. Mixing orders would file results under the wrong report.
+    const orderIds = new Set(orderedTests.map((t) => t.order.id));
+    if (orderIds.size > 1) {
+      throw new BadRequestException({
+        code: 'BATCH_SPANS_ORDERS',
+        message: 'A batch can only contain tests from one order.',
+        orderIds: [...orderIds],
+      });
+    }
+    const order = orderedTests[0].order;
+
+    // 3. Status (checked again under the lock before writing)
+    this.assertEditable(
+      orderedTests,
+      new Map(
+        orderedTests
+          .flatMap((t) => t.order.resultReport?.tests ?? [])
+          .map((rt) => [rt.orderedTestId, rt.status])
+      )
     );
 
-    // 2. Resolve templates once per unique code or manual pick (shared species/age across batch)
-    const testsByTemplateKey = new Map(
-      orderedTests.map((t) => [this.templateKey(t), t])
+    // 4. Templates, resolved for this order's patient
+    const species = order.case.patientSpecies as PatientSpecies;
+    const ageWeeks = this.computeAgeWeeks(
+      order.case.patientAge,
+      order.case.patientAgeUnit
     );
     const templateCache = new Map<
       string,
       Awaited<ReturnType<typeof this.templateVersionService.resolveTemplate>>
     >();
     await Promise.all(
-      Array.from(testsByTemplateKey.entries()).map(async ([key, t]) => {
-        const tmpl = await this.templateVersionService.resolveTemplateForTest(
-          t,
-          labTenantId,
-          species,
-          ageWeeks
+      Array.from(
+        new Map(orderedTests.map((t) => [this.templateKey(t), t])).entries()
+      ).map(async ([key, t]) => {
+        templateCache.set(
+          key,
+          await this.templateVersionService.resolveTemplateForTest(
+            t,
+            labTenantId,
+            species,
+            ageWeeks
+          )
         );
-        templateCache.set(key, tmpl);
       })
     );
+    const versionOf = (ot: TemplateKeyed) =>
+      templateCache.get(this.templateKey(ot))?.activeVersion ?? null;
+    const noTemplate = orderedTests.filter((ot) => !versionOf(ot));
+    if (noTemplate.length > 0) {
+      throw new BadRequestException(
+        `No active result template for: ${noTemplate
+          .map((t) => t.catalogItemName ?? t.id)
+          .join(', ')}`
+      );
+    }
 
-    // 3. Ensure ResultReport exists
-    let reportId = firstTest.order.resultReport?.id;
-    if (!reportId) {
-      const report = await this.prisma.resultReport.create({
+    // 5. Values: known analytes of that template, no negative numbers
+    const unknown: string[] = [];
+    const negative: string[] = [];
+    for (const entry of tests) {
+      const ot = testMap.get(entry.testId)!;
+      const analyteById = new Map(
+        versionOf(ot)!.analytes.map((a) => [a.id, a])
+      );
+      for (const input of entry.analytes) {
+        const analyte = analyteById.get(input.templateAnalyteId);
+        if (!analyte) {
+          unknown.push(
+            `${ot.catalogItemName ?? ot.id}: ${input.templateAnalyteId}`
+          );
+        } else if (input.numericValue != null && input.numericValue < 0) {
+          negative.push(`${ot.catalogItemName ?? ot.id}: ${analyte.name}`);
+        }
+      }
+    }
+    if (unknown.length > 0) {
+      throw new BadRequestException(
+        `Unknown analytes (the template may have changed — reload the page): ${unknown.join(
+          ', '
+        )}`
+      );
+    }
+    if (negative.length > 0) {
+      throw new BadRequestException(
+        `Negative values are not allowed: ${negative.join(', ')}`
+      );
+    }
+
+    // 6. All writes: one transaction under the report lock
+    return this.prisma.$transaction(
+      (tx) =>
+        this.writeBatch(tx, {
+          order,
+          orderedTests,
+          tests,
+          // Every test has a template (checked above)
+          versionOf: (ot) => versionOf(ot)!,
+          submitAfterSave,
+          actorId,
+          actorName,
+        }),
+      ENTRY_TX_OPTIONS
+    );
+  }
+
+  private async writeBatch(
+    tx: Prisma.TransactionClient,
+    input: {
+      order: { id: string; caseId: string; tenantId: string };
+      orderedTests: Array<{
+        id: string;
+        status: string;
+        catalogItemName: string | null;
+        catalogItemCode: string | null;
+        templateDefinitionId: string | null;
+      }>;
+      tests: Parameters<ResultEntryService['batchSaveAndSubmit']>[1];
+      versionOf: (ot: TemplateKeyed) => TemplateVersionForEntry;
+      submitAfterSave: boolean;
+      actorId: string;
+      actorName: string;
+    }
+  ) {
+    const {
+      order,
+      orderedTests,
+      tests,
+      versionOf,
+      submitAfterSave,
+      actorId,
+      actorName,
+    } = input;
+    const testIds = orderedTests.map((t) => t.id);
+    const testMap = new Map(orderedTests.map((t) => [t.id, t]));
+
+    const { report, reportTests } = await this.lockReportAndRecheck(
+      tx,
+      order,
+      testIds
+    );
+    const reportId = report.id;
+
+    // Report-test rows for every test
+    const reportTestByTestId = new Map(
+      reportTests.map((rt) => [rt.orderedTestId, rt.id])
+    );
+    for (const ot of orderedTests) {
+      if (reportTestByTestId.has(ot.id)) continue;
+      const version = versionOf(ot);
+      const rt = await tx.resultReportTest.create({
         data: {
-          orderId: firstTest.order.id,
-          caseId: firstTest.order.caseId,
-          tenantId: firstTest.order.tenantId,
-          status: 'DRAFT',
+          reportId,
+          orderedTestId: ot.id,
+          templateVersionId: version.id,
+          templateDefinitionId: version.definitionId,
         },
         select: { id: true },
       });
-      reportId = report.id;
+      reportTestByTestId.set(ot.id, rt.id);
     }
-
-    // 4. Ensure ResultReportTest rows exist for all tests
-    const existingReportTests = await this.prisma.resultReportTest.findMany({
-      where: { reportId, orderedTestId: { in: testIds } },
-      select: { id: true, orderedTestId: true },
-    });
-    const reportTestByTestId = new Map(
-      existingReportTests.map((rt) => [rt.orderedTestId, rt.id])
-    );
-    for (const ot of orderedTests) {
-      if (!reportTestByTestId.has(ot.id)) {
-        const templateDef = templateCache.get(this.templateKey(ot));
-        if (!templateDef?.activeVersion) continue;
-        const rt = await this.prisma.resultReportTest.create({
-          data: {
-            reportId,
-            orderedTestId: ot.id,
-            templateVersionId: templateDef.activeVersion.id,
-            templateDefinitionId: templateDef.id,
-          },
-          select: { id: true },
-        });
-        reportTestByTestId.set(ot.id, rt.id);
-      }
-    }
-
-    // 5. Batch-fetch all existing analyte rows for these report tests
     const reportTestIds = [...reportTestByTestId.values()];
-    const existingAnalytes = await this.prisma.resultReportAnalyte.findMany({
+
+    // Entered values
+    const existing = await tx.resultReportAnalyte.findMany({
       where: { reportTestId: { in: reportTestIds } },
-      select: {
-        id: true,
-        reportTestId: true,
-        templateAnalyteId: true,
-        code: true,
-        numericValue: true,
-      },
+      select: { id: true, reportTestId: true, templateAnalyteId: true },
     });
     const existingByKey = new Map(
-      existingAnalytes.map((a) => [
-        `${a.reportTestId}::${a.templateAnalyteId}`,
-        a,
-      ])
+      existing.map((a) => [`${a.reportTestId}::${a.templateAnalyteId}`, a.id])
     );
-
-    // 6. Save all analyte values (batch creates + batch updates)
-    const creates: Prisma.ResultReportAnalyteUncheckedCreateInput[] = [];
-    const updates: Array<{ id: string; data: Record<string, unknown> }> = [];
-
     for (const entry of tests) {
-      const ot = testMap.get(entry.testId);
-      if (!ot || ot.status === 'BLOCKED' || ot.status === 'CANCELLED') continue;
-
-      const rtId = reportTestByTestId.get(entry.testId);
-      if (!rtId) continue;
-
-      const templateDef = templateCache.get(this.templateKey(ot));
-      if (!templateDef?.activeVersion) continue;
-
-      const version = templateDef.activeVersion;
+      const ot = testMap.get(entry.testId)!;
+      const version = versionOf(ot);
+      const rtId = reportTestByTestId.get(ot.id)!;
       const analyteById = new Map(version.analytes.map((a) => [a.id, a]));
       const sectionNameById = new Map(
         version.sections.map((s) => [s.id, s.name])
       );
-
-      for (const input of entry.analytes) {
-        const templateAnalyte = analyteById.get(input.templateAnalyteId);
-        if (!templateAnalyte || templateAnalyte.isHeader) continue;
-
+      for (const value of entry.analytes) {
+        const analyte = analyteById.get(value.templateAnalyteId)!;
+        if (analyte.isHeader) continue;
         const data = {
-          numericValue: input.numericValue ?? null,
-          textValue: input.textValue ?? null,
-          booleanValue: input.booleanValue ?? null,
-          selectValue: input.selectValue ?? null,
+          numericValue: value.numericValue ?? null,
+          textValue: value.textValue ?? null,
+          booleanValue: value.booleanValue ?? null,
+          selectValue: value.selectValue ?? null,
         };
-
-        const key = `${rtId}::${input.templateAnalyteId}`;
-        const existing = existingByKey.get(key);
-
-        if (existing) {
-          updates.push({ id: existing.id, data });
+        const id = existingByKey.get(`${rtId}::${analyte.id}`);
+        if (id) {
+          await tx.resultReportAnalyte.update({ where: { id }, data });
         } else {
-          creates.push({
-            reportTestId: rtId,
-            templateAnalyteId: input.templateAnalyteId,
-            code: templateAnalyte.code,
-            name: templateAnalyte.name,
-            technique: templateAnalyte.technique ?? null,
-            unit: templateAnalyte.unit ?? null,
-            valueType: templateAnalyte.valueType,
-            sectionName: templateAnalyte.sectionId
-              ? sectionNameById.get(templateAnalyte.sectionId) ?? null
-              : null,
-            sortOrder: templateAnalyte.sortOrder,
-            isHeader: templateAnalyte.isHeader,
-            formula: templateAnalyte.formula ?? null,
-            ...data,
+          const created = await tx.resultReportAnalyte.create({
+            data: {
+              reportTestId: rtId,
+              templateAnalyteId: analyte.id,
+              code: analyte.code,
+              name: analyte.name,
+              technique: analyte.technique ?? null,
+              unit: analyte.unit ?? null,
+              valueType: analyte.valueType,
+              sectionName: analyte.sectionId
+                ? sectionNameById.get(analyte.sectionId) ?? null
+                : null,
+              sortOrder: analyte.sortOrder,
+              isHeader: analyte.isHeader,
+              formula: analyte.formula ?? null,
+              ...data,
+            },
+            select: { id: true },
           });
+          existingByKey.set(`${rtId}::${analyte.id}`, created.id);
         }
       }
     }
 
-    // Execute batch writes in a transaction
-    await this.prisma.$transaction([
-      ...creates.map((data) =>
-        this.prisma.resultReportAnalyte.create({ data })
-      ),
-      ...updates.map(({ id, data }) =>
-        this.prisma.resultReportAnalyte.update({ where: { id }, data })
-      ),
-    ]);
-
-    // 7. Update observations (last one wins since they share a report)
+    // Observations live on the report (last one in the batch wins)
     const lastObs = [...tests]
       .reverse()
       .find((t) => t.observations !== undefined);
     if (lastObs?.observations !== undefined) {
-      await this.prisma.resultReport.update({
+      await tx.resultReport.update({
         where: { id: reportId },
         data: { observations: lastObs.observations ?? null },
       });
     }
 
-    // 8. Compute formulas for all tests (sibling values now in DB)
-    const allSavedRows = await this.prisma.resultReportAnalyte.findMany({
-      where: { reportTestId: { in: reportTestIds } },
-      select: {
-        reportTestId: true,
-        code: true,
-        numericValue: true,
-        templateAnalyteId: true,
-        id: true,
-      },
+    // Formulas: this batch's values first, then the report's other tests
+    // (cross-test references such as the anion gap)
+    const savedRows = await tx.resultReportAnalyte.findMany({
+      where: { reportTest: { reportId } },
+      select: { reportTestId: true, code: true, numericValue: true },
     });
-    const allSavedByCode = new Map<string, number | null>();
-    for (const r of allSavedRows) {
-      allSavedByCode.set(r.code, r.numericValue);
+    const savedByCode = new Map<string, number | null>();
+    for (const r of savedRows.filter((r) =>
+      reportTestIds.includes(r.reportTestId)
+    )) {
+      savedByCode.set(r.code, r.numericValue);
     }
-
-    const formulaCreates: Prisma.ResultReportAnalyteUncheckedCreateInput[] = [];
-    const formulaUpdates: Array<{ id: string; numericValue: number | null }> =
-      [];
-
+    for (const r of savedRows) {
+      if (!savedByCode.has(r.code)) savedByCode.set(r.code, r.numericValue);
+    }
     for (const ot of orderedTests) {
-      const templateDef = templateCache.get(this.templateKey(ot));
-      if (!templateDef?.activeVersion) continue;
-
-      const rtId = reportTestByTestId.get(ot.id);
-      if (!rtId) continue;
-
-      const version = templateDef.activeVersion;
+      const version = versionOf(ot);
       const formulaAnalytes = version.analytes.filter(
         (a) => a.formula && !a.isHeader
       );
       if (formulaAnalytes.length === 0) continue;
-
+      const rtId = reportTestByTestId.get(ot.id)!;
       const sectionNameById = new Map(
         version.sections.map((s) => [s.id, s.name])
       );
-
       const allForEval = version.analytes
         .filter((a) => !a.isHeader)
         .map((a) => ({
           code: a.code,
           formula: a.formula ?? null,
-          numericValue: allSavedByCode.get(a.code) ?? null,
+          numericValue: savedByCode.get(a.code) ?? null,
         }));
-
-      const currentCodes = new Set(allForEval.map((a) => a.code));
-      for (const [code, val] of allSavedByCode) {
-        if (!currentCodes.has(code)) {
-          allForEval.push({ code, formula: null, numericValue: val });
+      const ownCodes = new Set(allForEval.map((a) => a.code));
+      for (const [code, numericValue] of savedByCode) {
+        if (!ownCodes.has(code)) {
+          allForEval.push({ code, formula: null, numericValue });
         }
       }
-
       const computed = evaluateAllFormulas(allForEval);
-
       for (const fa of formulaAnalytes) {
-        const value = computed[fa.code] ?? null;
-        const key = `${rtId}::${fa.id}`;
-        const existing =
-          existingByKey.get(key) ??
-          allSavedRows.find(
-            (r) => r.reportTestId === rtId && r.templateAnalyteId === fa.id
-          );
-
-        if (existing) {
-          formulaUpdates.push({ id: existing.id, numericValue: value });
-        } else {
-          formulaCreates.push({
-            reportTestId: rtId,
-            templateAnalyteId: fa.id,
-            code: fa.code,
-            name: fa.name,
-            technique: fa.technique ?? null,
-            unit: fa.unit ?? null,
-            valueType: fa.valueType,
-            sectionName: fa.sectionId
-              ? sectionNameById.get(fa.sectionId) ?? null
-              : null,
-            sortOrder: fa.sortOrder,
-            isHeader: false,
-            formula: fa.formula ?? null,
-            numericValue: value,
-          });
-        }
-      }
-    }
-
-    if (formulaCreates.length > 0 || formulaUpdates.length > 0) {
-      await this.prisma.$transaction([
-        ...formulaCreates.map((data) =>
-          this.prisma.resultReportAnalyte.create({ data })
-        ),
-        ...formulaUpdates.map(({ id, numericValue }) =>
-          this.prisma.resultReportAnalyte.update({
+        const numericValue = computed[fa.code] ?? null;
+        const id = existingByKey.get(`${rtId}::${fa.id}`);
+        if (id) {
+          await tx.resultReportAnalyte.update({
             where: { id },
             data: { numericValue },
-          })
-        ),
-      ]);
+          });
+        } else {
+          const created = await tx.resultReportAnalyte.create({
+            data: {
+              reportTestId: rtId,
+              templateAnalyteId: fa.id,
+              code: fa.code,
+              name: fa.name,
+              technique: fa.technique ?? null,
+              unit: fa.unit ?? null,
+              valueType: fa.valueType,
+              sectionName: fa.sectionId
+                ? sectionNameById.get(fa.sectionId) ?? null
+                : null,
+              sortOrder: fa.sortOrder,
+              isHeader: false,
+              formula: fa.formula ?? null,
+              numericValue,
+            },
+            select: { id: true },
+          });
+          existingByKey.set(`${rtId}::${fa.id}`, created.id);
+        }
+      }
     }
 
-    // 9. Transition READY tests to IN_PROGRESS
+    // READY → IN_PROGRESS
     const now = new Date();
-    const readyTests = orderedTests.filter((t) => t.status === 'READY');
-    if (readyTests.length > 0) {
-      await this.prisma.$transaction([
-        ...readyTests.map((t) =>
-          this.prisma.orderedTest.update({
-            where: { id: t.id },
-            data: {
-              status: 'IN_PROGRESS',
-              startedAt: now,
-              version: { increment: 1 },
-            },
-          })
-        ),
-        ...readyTests.map((t) =>
-          this.prisma.timelineEvent.create({
-            data: {
-              orderId: t.order.id,
-              eventType: 'PROCESSING_STARTED',
-              actorId,
-              actorName,
-              description: `${t.catalogItemName}: result entry started`,
-              metadata: { orderedTestId: t.id },
-            },
-          })
-        ),
-      ]);
+    for (const t of orderedTests.filter((t) => t.status === 'READY')) {
+      await tx.orderedTest.update({
+        where: { id: t.id },
+        data: {
+          status: 'IN_PROGRESS',
+          startedAt: now,
+          version: { increment: 1 },
+        },
+      });
+      await tx.timelineEvent.create({
+        data: {
+          orderId: order.id,
+          eventType: 'PROCESSING_STARTED',
+          actorId,
+          actorName,
+          description: `${t.catalogItemName}: result entry started`,
+          metadata: { orderedTestId: t.id },
+        },
+      });
     }
 
     const results = tests.map((entry) => ({
@@ -1160,133 +1327,95 @@ export class ResultEntryService {
       saved: entry.analytes.length,
       submitted: false,
     }));
+    if (!submitAfterSave) return { results };
 
-    // 10. Submit phase — validate and transition to RESULTS_ENTERED
-    if (submitAfterSave) {
-      // Re-fetch statuses after save phase
-      const freshTests = await this.prisma.orderedTest.findMany({
-        where: { id: { in: testIds } },
-        select: { id: true, status: true },
-      });
-      const statusMap = new Map(freshTests.map((t) => [t.id, t.status]));
-
-      // Re-fetch all saved analytes for validation
-      const allAnalyteRows = await this.prisma.resultReportAnalyte.findMany({
-        where: { reportTestId: { in: reportTestIds } },
-        select: {
-          reportTestId: true,
-          templateAnalyteId: true,
-          code: true,
-          numericValue: true,
-          textValue: true,
-          booleanValue: true,
-          selectValue: true,
-        },
-      });
-
-      const submittable: typeof orderedTests = [];
-      const allFailedFormulas: string[] = [];
-
-      for (const ot of orderedTests) {
-        const status = statusMap.get(ot.id);
-        if (!status || !['READY', 'IN_PROGRESS'].includes(status)) continue;
-
-        const templateDef = templateCache.get(this.templateKey(ot));
-        if (!templateDef?.activeVersion) continue;
-
-        const rtId = reportTestByTestId.get(ot.id);
-        if (!rtId) continue;
-
-        const version = templateDef.activeVersion;
-        const rtAnalytes = allAnalyteRows.filter(
-          (a) => a.reportTestId === rtId
+    // Submit: validate every test before changing any status. A failure
+    // throws and rolls back the saves above too.
+    const rows = await tx.resultReportAnalyte.findMany({
+      where: { reportTestId: { in: reportTestIds } },
+      select: {
+        reportTestId: true,
+        templateAnalyteId: true,
+        code: true,
+        numericValue: true,
+        textValue: true,
+        booleanValue: true,
+        selectValue: true,
+      },
+    });
+    const allCodes = new Set(savedRows.map((r) => r.code));
+    // Already-entered tests are updates: saved again, not re-submitted
+    const submittable = orderedTests.filter((t) =>
+      ['READY', 'IN_PROGRESS'].includes(t.status)
+    );
+    const problems: string[] = [];
+    for (const ot of submittable) {
+      const version = versionOf(ot);
+      const rtId = reportTestByTestId.get(ot.id)!;
+      const savedByTemplateId = new Map(
+        rows
+          .filter((r) => r.reportTestId === rtId)
+          .map((r) => [r.templateAnalyteId, r])
+      );
+      const missingFields = this.validateRequiredFields(
+        version.analytes,
+        savedByTemplateId
+      );
+      if (missingFields.length > 0) {
+        problems.push(
+          `Missing required fields for ${
+            ot.catalogItemName
+          }: ${missingFields.join(', ')}`
         );
-        const savedByTemplateId = new Map(
-          rtAnalytes.map((r) => [r.templateAnalyteId, r])
-        );
-
-        // Check required fields
-        const missingFields = this.validateRequiredFields(
-          version.analytes,
-          savedByTemplateId
-        );
-        if (missingFields.length > 0) {
-          throw new BadRequestException(
-            `Missing required fields for ${
-              ot.catalogItemName
-            }: ${missingFields.join(', ')}`
+      }
+      for (const fa of version.analytes.filter(
+        (a) => a.formula && !a.isHeader
+      )) {
+        const saved = savedByTemplateId.get(fa.id);
+        if (saved && saved.numericValue !== null) continue;
+        const refs =
+          fa.formula!.match(/\[([^\]]+)\]/g)?.map((r) => r.slice(1, -1)) ?? [];
+        if (refs.every((ref) => allCodes.has(ref))) {
+          problems.push(
+            `Formula could not be computed for ${ot.catalogItemName}: ${fa.name}`
           );
-        }
-
-        // Validate formulas
-        const formulaAnalytes = version.analytes.filter(
-          (a) => a.formula && !a.isHeader
-        );
-        const allCodes = new Set(allAnalyteRows.map((r) => r.code));
-        for (const fa of formulaAnalytes) {
-          const saved = savedByTemplateId.get(fa.id);
-          if (!saved || saved.numericValue === null) {
-            const refs =
-              fa
-                .formula!.match(/\[([^\]]+)\]/g)
-                ?.map((r: string) => r.slice(1, -1)) ?? [];
-            if (refs.every((ref: string) => allCodes.has(ref))) {
-              allFailedFormulas.push(`${ot.catalogItemName}: ${fa.name}`);
-            }
-          }
-        }
-
-        submittable.push(ot);
-      }
-
-      if (allFailedFormulas.length > 0) {
-        throw new BadRequestException(
-          `Formulas could not be computed: ${allFailedFormulas.join(', ')}`
-        );
-      }
-
-      if (submittable.length > 0) {
-        const submitNow = new Date();
-        await this.prisma.$transaction([
-          ...submittable.map((t) =>
-            this.prisma.orderedTest.update({
-              where: { id: t.id },
-              data: {
-                status: 'RESULTS_ENTERED',
-                completedAt: submitNow,
-                version: { increment: 1 },
-              },
-            })
-          ),
-          ...submittable.map((t) =>
-            this.prisma.timelineEvent.create({
-              data: {
-                orderId: t.order.id,
-                eventType: 'RESULTS_COMPLETED',
-                actorId,
-                actorName,
-                description: `${t.catalogItemName}: results entered`,
-                metadata: { orderedTestId: t.id },
-              },
-            })
-          ),
-        ]);
-
-        if (firstTest.order.resultReport?.status === 'RELEASED') {
-          await this.prisma.resultReport.update({
-            where: { id: reportId },
-            data: { status: 'DRAFT' },
-          });
-        }
-
-        for (const r of results) {
-          if (submittable.some((s) => s.id === r.testId)) {
-            r.submitted = true;
-          }
         }
       }
     }
+    if (problems.length > 0) {
+      throw new BadRequestException(problems.join('; '));
+    }
 
+    for (const t of submittable) {
+      await tx.orderedTest.update({
+        where: { id: t.id },
+        data: {
+          status: 'RESULTS_ENTERED',
+          completedAt: now,
+          version: { increment: 1 },
+        },
+      });
+      await tx.timelineEvent.create({
+        data: {
+          orderId: order.id,
+          eventType: 'RESULTS_COMPLETED',
+          actorId,
+          actorName,
+          description: `${t.catalogItemName}: results entered`,
+          metadata: { orderedTestId: t.id },
+        },
+      });
+    }
+    // A partially released report goes back to DRAFT for the new results
+    if (submittable.length > 0 && report.status === 'RELEASED') {
+      await tx.resultReport.update({
+        where: { id: reportId },
+        data: { status: 'DRAFT' },
+      });
+    }
+    for (const r of results) {
+      r.submitted = submittable.some((s) => s.id === r.testId);
+    }
     return { results };
   }
 

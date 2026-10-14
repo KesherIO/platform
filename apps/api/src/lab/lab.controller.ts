@@ -76,6 +76,7 @@ import {
   BatchClaimDto,
   BatchStartDto,
   BatchResultSessionsDto,
+  BatchSaveSubmitDto,
 } from './dto/batch-ordered-tests.dto';
 import {
   ApproveReleaseDto,
@@ -1624,21 +1625,7 @@ export class LabController {
   batchSaveAndSubmit(
     @CurrentTenant() tenant: TenantContext,
     @CurrentUser() user: AuthenticatedUser,
-    @Body()
-    body: {
-      tests: Array<{
-        testId: string;
-        analytes: Array<{
-          templateAnalyteId: string;
-          numericValue?: number | null;
-          textValue?: string | null;
-          booleanValue?: boolean | null;
-          selectValue?: string | null;
-        }>;
-        observations?: string | null;
-      }>;
-      submitAfterSave: boolean;
-    }
+    @Body() body: BatchSaveSubmitDto
   ) {
     const actorName =
       [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
