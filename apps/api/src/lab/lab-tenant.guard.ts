@@ -14,12 +14,6 @@ import type {
   TenantRole,
 } from '@vet-ai/shared-types';
 
-// In-process cache keyed by "userId:tenantId" (or "userId" for the fallback
-// path). Entries are evicted after TTL_MS so role/tenant changes propagate
-// within that window without restarting the server.
-const TTL_MS = 60_000;
-const cache = new Map<string, { value: TenantContext; expiresAt: number }>();
-
 /**
  * Guards lab-only endpoints. Works like TenantGuard but additionally verifies
  * that the resolved tenant has type LAB or PLATFORM — clinic users are rejected
@@ -37,14 +31,9 @@ export class LabTenantGuard implements CanActivate {
     const user = request.user as AuthenticatedUser;
 
     const tenantId = request.headers['x-tenant-id'] as string | undefined;
-    const cacheKey = tenantId ? `${user.id}:${tenantId}` : user.id;
 
-    const cached = cache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      request.tenant = cached.value;
-      return this.checkRoles(cached.value.role as TenantRole, context);
-    }
-
+    // Read on every request, no cache: a role change or removal applies on
+    // the next request, on every API instance. One indexed lookup.
     let membership;
 
     if (tenantId) {
@@ -52,6 +41,7 @@ export class LabTenantGuard implements CanActivate {
         where: { userId_tenantId: { userId: user.id, tenantId } },
         select: {
           role: true,
+          status: true,
           canPerformPickups: true,
           tenant: {
             select: { id: true, name: true, logoUrl: true, type: true },
@@ -66,6 +56,7 @@ export class LabTenantGuard implements CanActivate {
         },
         select: {
           role: true,
+          status: true,
           canPerformPickups: true,
           tenant: {
             select: { id: true, name: true, logoUrl: true, type: true },
@@ -90,20 +81,22 @@ export class LabTenantGuard implements CanActivate {
       );
     }
 
+    if (membership.status !== 'ACTIVE') {
+      throw new ForbiddenException(
+        'Your membership in this laboratory is not active.'
+      );
+    }
+
     const tenantContext: TenantContext = {
       tenantId: membership.tenant.id,
       tenantName: membership.tenant.name,
       tenantLogoUrl: membership.tenant.logoUrl,
       role: membership.role as TenantRole,
       isOrderingVet: false,
-      status: 'ACTIVE' as MembershipStatus,
+      status: membership.status as MembershipStatus,
       canPerformPickups: membership.canPerformPickups,
     };
 
-    cache.set(cacheKey, {
-      value: tenantContext,
-      expiresAt: Date.now() + TTL_MS,
-    });
     request.tenant = tenantContext;
 
     return this.checkRoles(tenantContext.role as TenantRole, context);

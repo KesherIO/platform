@@ -572,6 +572,18 @@ export class LabClientsService {
   ) {
     await this.verifyLabClientConnection(labTenantId, clientTenantId);
 
+    // An invitation creates the clinic's first ADMIN. Once the clinic has
+    // users it belongs to them (and maybe to other labs), so a lab can't mint
+    // a new admin token for it.
+    const memberCount = await this.prisma.userTenantMembership.count({
+      where: { tenantId: clientTenantId },
+    });
+    if (memberCount > 0) {
+      throw new BadRequestException(
+        'This client has already completed onboarding. Its users can invite colleagues from the clinic app.'
+      );
+    }
+
     const client = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: clientTenantId },
       select: { name: true, email: true, clientType: true },

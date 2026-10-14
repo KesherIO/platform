@@ -14,6 +14,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LabTenantGuard } from '../lab/lab-tenant.guard';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
+import { LAB_STAFF_ROLES } from '../lab/lab-roles';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { TenantRole } from '@vet-ai/shared-types';
 import type { TenantContext } from '@vet-ai/shared-types';
@@ -28,6 +29,7 @@ import {
 export class TemplateController {
   constructor(private readonly templateService: TemplateVersionService) {}
 
+  @Roles(...LAB_STAFF_ROLES)
   @Get('templates')
   listDefinitions(
     @CurrentTenant() tenant: TenantContext,
@@ -40,9 +42,13 @@ export class TemplateController {
     });
   }
 
+  @Roles(...LAB_STAFF_ROLES)
   @Get('templates/:id')
-  getDefinition(@Param('id') id: string) {
-    return this.templateService.getDefinition(id);
+  getDefinition(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.templateService.getDefinition(id, tenant.tenantId);
   }
 
   @Post('templates')
@@ -87,8 +93,11 @@ export class TemplateController {
     TenantRole.REVIEWER,
     TenantRole.DATA_ENTRY
   )
-  createDraftVersion(@Param('id') id: string) {
-    return this.templateService.createDraftVersion(id);
+  createDraftVersion(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.templateService.createDraftVersion(id, tenant.tenantId);
   }
 
   @Patch('template-versions/:id')
@@ -101,10 +110,11 @@ export class TemplateController {
     TenantRole.DATA_ENTRY
   )
   updateDraftVersion(
+    @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
     @Body() dto: UpdateDraftVersionDto
   ) {
-    return this.templateService.updateDraftVersion(id, dto);
+    return this.templateService.updateDraftVersion(id, dto, tenant.tenantId);
   }
 
   @Post('template-versions/:id/publish')
@@ -117,8 +127,11 @@ export class TemplateController {
     TenantRole.DATA_ENTRY
   )
   @HttpCode(HttpStatus.OK)
-  publishVersion(@Param('id') id: string) {
-    return this.templateService.publishVersion(id);
+  publishVersion(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.templateService.publishVersion(id, tenant.tenantId);
   }
 
   @Post('template-versions/:id/archive')
@@ -131,8 +144,11 @@ export class TemplateController {
     TenantRole.DATA_ENTRY
   )
   @HttpCode(HttpStatus.OK)
-  archiveVersion(@Param('id') id: string) {
-    return this.templateService.archiveVersion(id);
+  archiveVersion(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.templateService.archiveVersion(id, tenant.tenantId);
   }
 
   @Delete('templates/:id')

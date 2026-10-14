@@ -410,8 +410,6 @@ export const labApi = {
           submitted: boolean;
         }>;
       }>('lab/ordered-tests/batch-save-submit', { tests, submitAfterSave }),
-    releaseReport: (reportId: string) =>
-      post<{ id: string; status: string }>(`lab/reports/${reportId}/release`),
   },
   reports: {
     getById: (reportId: string) => get<unknown>(`lab/reports/${reportId}`),

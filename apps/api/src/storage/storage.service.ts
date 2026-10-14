@@ -268,13 +268,25 @@ export class StorageService {
       const match = /^data:[^;,]*;base64,(.+)$/s.exec(url);
       return match ? Buffer.from(match[1], 'base64') : null;
     }
-    if (!url.startsWith(this.supabaseUrl)) return null;
+    if (!this.isSupabaseUrl(url)) return null;
     try {
       const res = await fetch(url);
       if (!res.ok) return null;
       return Buffer.from(await res.arrayBuffer());
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Same origin as SUPABASE_URL. A prefix check would also accept hosts like
+   * "<project>.supabase.co.attacker.example".
+   */
+  private isSupabaseUrl(url: string): boolean {
+    try {
+      return new URL(url).origin === new URL(this.supabaseUrl).origin;
+    } catch {
+      return false;
     }
   }
 

@@ -78,6 +78,21 @@ export class LabTestConfigService {
   }
 
   async upsertConfig(labTenantId: string, dto: UpsertLabTestConfigDto) {
+    // Both ids must belong to this lab: the config's list view returns their
+    // names, and another lab's catalog delete would cascade into this config.
+    const catalogItem = await this.prisma.catalogItem.findFirst({
+      where: { id: dto.catalogItemId, labTenantId },
+      select: { id: true },
+    });
+    if (!catalogItem) throw new NotFoundException('Catalog item not found');
+    if (dto.defaultAnalyzerId) {
+      const analyzer = await this.prisma.analyzer.findFirst({
+        where: { id: dto.defaultAnalyzerId, labTenantId },
+        select: { id: true },
+      });
+      if (!analyzer) throw new NotFoundException('Analyzer not found');
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.labTestConfiguration.findUnique({
         where: {

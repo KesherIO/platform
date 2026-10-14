@@ -87,6 +87,21 @@ describe('StorageService', () => {
       fetchSpy.mockRestore();
     });
 
+    it.each([
+      'https://project.supabase.co.attacker.example/logo.png',
+      'https://project.supabase.com/logo.png',
+      'http://project.supabase.co/logo.png',
+      'not a url',
+    ])('refuses look-alike hosts: %s', async (url) => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      expect(
+        await service.snapshotReleaseImage('rel-1', 'logo', url)
+      ).toBeNull();
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
+    });
+
     it('returns null when there is no image', async () => {
       expect(
         await service.snapshotReleaseImage('rel-1', 'logo', null)
