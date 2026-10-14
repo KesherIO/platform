@@ -1225,7 +1225,8 @@ export class LabController {
       tenant.tenantId,
       userId,
       dto.role,
-      user.id
+      user.id,
+      tenant.role
     );
   }
 
@@ -1251,7 +1252,12 @@ export class LabController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('userId') userId: string
   ) {
-    return this.labUsersService.removeMember(tenant.tenantId, userId, user.id);
+    return this.labUsersService.removeMember(
+      tenant.tenantId,
+      userId,
+      user.id,
+      tenant.role
+    );
   }
 
   // ---------------------------------------------------------------------------

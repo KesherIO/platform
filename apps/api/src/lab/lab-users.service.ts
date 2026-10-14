@@ -245,27 +245,78 @@ export class LabUsersService {
     labTenantId: string,
     userId: string,
     role: string,
-    requestingUserId: string
+    requestingUserId: string,
+    requestingRole: TenantRole
   ) {
     if (userId === requestingUserId) {
       throw new ForbiddenException('You cannot change your own role.');
     }
 
-    const membership = await this.prisma.userTenantMembership.findUnique({
+    return this.prisma.$transaction(async (tx) => {
+      const membership = await this.lockOwnersAndGetMember(
+        tx,
+        labTenantId,
+        userId
+      );
+      if (membership.role === TenantRole.OWNER && role !== TenantRole.OWNER) {
+        await this.assertCanActOnOwner(tx, labTenantId, userId, requestingRole);
+      }
+
+      return tx.userTenantMembership.update({
+        where: { userId_tenantId: { userId, tenantId: labTenantId } },
+        data: {
+          role: role as TenantRole,
+          ...(role === 'MESSENGER' || membership.role === TenantRole.MESSENGER
+            ? { canPerformPickups: false }
+            : {}),
+        },
+      });
+    });
+  }
+
+  /**
+   * Locks the lab's OWNER memberships (so two concurrent demotions/removals
+   * can't both see "another owner remains") and returns the target member.
+   */
+  private async lockOwnersAndGetMember(
+    tx: Prisma.TransactionClient,
+    labTenantId: string,
+    userId: string
+  ) {
+    await tx.$queryRaw`SELECT "userId" FROM user_tenant_memberships WHERE "tenantId" = ${labTenantId} AND role = 'OWNER' FOR UPDATE`;
+    const membership = await tx.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId, tenantId: labTenantId } },
     });
     if (!membership)
       throw new NotFoundException('User is not a member of this lab.');
+    return membership;
+  }
 
-    return this.prisma.userTenantMembership.update({
-      where: { userId_tenantId: { userId, tenantId: labTenantId } },
-      data: {
-        role: role as TenantRole,
-        ...(role === 'MESSENGER' || membership.role === TenantRole.MESSENGER
-          ? { canPerformPickups: false }
-          : {}),
+  /**
+   * Only an owner may demote or remove an owner, and the lab always keeps at
+   * least one owner. (Ownership transfer is a separate feature.)
+   */
+  private async assertCanActOnOwner(
+    tx: Prisma.TransactionClient,
+    labTenantId: string,
+    ownerUserId: string,
+    requestingRole: TenantRole
+  ) {
+    if (requestingRole !== TenantRole.OWNER) {
+      throw new ForbiddenException(
+        'Only an owner can change or remove another owner.'
+      );
+    }
+    const otherOwners = await tx.userTenantMembership.count({
+      where: {
+        tenantId: labTenantId,
+        role: TenantRole.OWNER,
+        userId: { not: ownerUserId },
       },
     });
+    if (otherOwners === 0) {
+      throw new ForbiddenException('The lab must keep at least one owner.');
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -275,20 +326,25 @@ export class LabUsersService {
   async removeMember(
     labTenantId: string,
     userId: string,
-    requestingUserId: string
+    requestingUserId: string,
+    requestingRole: TenantRole
   ) {
     if (userId === requestingUserId) {
       throw new ForbiddenException('You cannot remove yourself from the lab.');
     }
 
-    const membership = await this.prisma.userTenantMembership.findUnique({
-      where: { userId_tenantId: { userId, tenantId: labTenantId } },
-    });
-    if (!membership)
-      throw new NotFoundException('User is not a member of this lab.');
-
-    await this.prisma.userTenantMembership.delete({
-      where: { userId_tenantId: { userId, tenantId: labTenantId } },
+    await this.prisma.$transaction(async (tx) => {
+      const membership = await this.lockOwnersAndGetMember(
+        tx,
+        labTenantId,
+        userId
+      );
+      if (membership.role === TenantRole.OWNER) {
+        await this.assertCanActOnOwner(tx, labTenantId, userId, requestingRole);
+      }
+      await tx.userTenantMembership.delete({
+        where: { userId_tenantId: { userId, tenantId: labTenantId } },
+      });
     });
   }
 }
