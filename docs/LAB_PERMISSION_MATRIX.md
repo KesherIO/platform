@@ -267,18 +267,17 @@ Notes on the proposal:
 1. **Real combinations Biomet needs.** For example: an Analista who also reviews; a Revisor
    who can release.
 2. **Who may grant extra permissions?** Owner only, or Admin too?
-3. **How are grants revoked,** and how fast must that take effect? Today the guard caches a
-   user's role for 60 s (`lab-tenant.guard.ts`), so a role change takes up to a minute to
-   apply. Removing a user hard-deletes the membership. The guard does not read
-   `membership.status`.
+3. **How are grants revoked,** and how fast must that take effect? Since PR 1 the guard reads
+   the membership on every request (no cache) and only ACTIVE memberships pass, so a role
+   change or removal applies on the next request. Removing a user hard-deletes the
+   membership.
 4. **How are grants and role changes audited?** Today there is **no audit log** of role
    changes. `LabUsersService.updateRole` only updates the membership row and records nothing
    about who changed what, or when. The same is true of `updateUser` (incl.
    `canPerformPickups`) and `removeMember`.
-5. **Owner protection.** `updateRole` only blocks changing your own role, so an Admin can
-   change or remove the Owner. The Team page lists OWNER as an option, but the API DTOs
-   (`create-lab-user.dto.ts`, `update-lab-user-role.dto.ts`) reject OWNER. Is that the
-   intended behaviour?
+5. **Owner protection** is handled in its own PR (`SCRUM-owner-protection`): only an owner
+   can change or remove an owner, the last owner is kept, and the Team page no longer offers
+   OWNER. Ownership transfer is out of scope.
 
 ---
 
@@ -298,8 +297,8 @@ How it works today:
   signer belongs to the lab and has the REVIEWER signer role.
 - The release stores the chosen signer (`signerId` + snapshot) and the actual user who
   released it (`releasedByUserId`, `releasedByName`). These two can be different people.
-- The **analyst signer** is looked up by id with **no tenant check and no ANALYST role
-  check** (`release.service.ts`, the `analystId` branch).
+- The **analyst signer** must belong to the lab and have the ANALYST signer role (fixed in
+  PR 1; before, it was looked up by id only).
 
 The gap: the PDF can show a reviewer who never logged in or reviewed anything. The person
 who actually released appears only in the database, not on the PDF.
