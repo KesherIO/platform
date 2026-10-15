@@ -1,6 +1,7 @@
 import en from '../../assets/i18n/en.json';
 import es from '../../assets/i18n/es.json';
 import {
+  buildExportCsv,
   buildPreviewRows,
   buildRetryCsv,
   checkKey,
@@ -19,6 +20,7 @@ import {
 } from './clientImport';
 import { parseCsvText } from './spreadsheet';
 import type {
+  ClientExportRow,
   ClientType,
   ColumnMapping,
   ImportPreviewRow,
@@ -516,6 +518,144 @@ describe('buildRetryCsv', () => {
       '=HYPERLINK("x")'
     );
   });
+});
+
+describe('buildExportCsv', () => {
+  const exportRow = (
+    overrides: Partial<ClientExportRow> = {}
+  ): ClientExportRow => ({
+    id: 'tenant-1',
+    name: 'City Vet',
+    legalName: 'City Vet SAS',
+    primaryContactName: 'Dr. Ana Gómez',
+    primaryContactEmail: 'info@cityvet.com',
+    phone: '+57 300 111 2222',
+    address: 'Calle 10 #20-30',
+    city: 'Bogotá',
+    country: 'CO',
+    clientType: 'VETERINARY_CLINIC',
+    taxIdType: 'NIT',
+    taxId: '900.123.456-7',
+    status: 'PENDING',
+    ...overrides,
+  });
+  const optionsFor = (
+    lang: typeof en,
+    includeNotes = false
+  ): Parameters<typeof buildExportCsv>[1] => ({
+    headers: lang.clients.import.template,
+    clientTypeLabel: (code) =>
+      (lang.clients.type as Record<string, string>)[code] ?? code,
+    statusLabel: (status) => lang.clients.status[status],
+    includeNotes,
+  });
+
+  const rows = [
+    exportRow(),
+    exportRow({
+      id: 'tenant-2',
+      name: 'Vet, "Norte"',
+      phone: '3001112222',
+      taxIdType: 'CC',
+      taxId: '0012345',
+      clientType: null,
+      legalName: null,
+      status: 'ACTIVE',
+      notes: 'Pays monthly',
+    }),
+    exportRow({
+      id: 'tenant-3',
+      taxIdType: 'RUT',
+      taxId: '12.345.678-K',
+      address: '=HYPERLINK("x")',
+      city: '@SUM(1)',
+    }),
+  ];
+
+  it('has a BOM, CRLF and the template headers: Client ID first, Status last, no Notes', () => {
+    const csv = buildExportCsv(rows, optionsFor(en));
+    expect(csv.startsWith('\uFEFF')).toBe(true);
+    expect(csv.split('\r\n')[0]).toBe(
+      '\uFEFF"Client ID","Name","Legal name","Contact name","Email","Phone",' +
+        '"Address","City","Country","Client type","ID type","ID number","Status"'
+    );
+    expect(csv).not.toContain('Pays monthly');
+  });
+
+  it('adds Notes as the last column only when asked', () => {
+    const sheet = parseCsvText(buildExportCsv(rows, optionsFor(en, true)));
+    expect(sheet.headers.at(-1)).toBe('Notes');
+    expect(sheet.rows.map((r) => r[13].text)).toEqual(['', 'Pays monthly', '']);
+  });
+
+  it('keeps IDs, phones and country codes exactly as stored, labels translated', () => {
+    const sheet = parseCsvText(buildExportCsv(rows, optionsFor(es)));
+    const [first, second, third] = sheet.rows;
+    expect(first.map((c) => c.text)).toEqual([
+      'tenant-1',
+      'City Vet',
+      'City Vet SAS',
+      'Dr. Ana Gómez',
+      'info@cityvet.com',
+      "'+57 300 111 2222",
+      'Calle 10 #20-30',
+      'Bogotá',
+      'CO',
+      'Clínica veterinaria',
+      'NIT',
+      '900.123.456-7',
+      'Pendiente de registro',
+    ]);
+    expect(second[0].text).toBe('tenant-2');
+    expect(second[1].text).toBe('Vet, "Norte"');
+    expect(second[5].text).toBe('3001112222');
+    expect(second[9].text).toBe('');
+    expect(second[11].text).toBe('0012345');
+    expect(third[11].text).toBe('12.345.678-K');
+  });
+
+  it('escapes every value that starts with a formula character', () => {
+    const sheet = parseCsvText(buildExportCsv(rows, optionsFor(en)));
+    expect(sheet.rows[2][6].text).toBe(`'=HYPERLINK("x")`);
+    expect(sheet.rows[2][7].text).toBe("'@SUM(1)");
+  });
+
+  it.each([
+    ['en', en],
+    ['es', es],
+  ])(
+    'importing a %s export recognizes the mapping, with Client ID and Status on Ignore',
+    (_lang, lang) => {
+      const sheet = parseCsvText(buildExportCsv(rows, optionsFor(lang, true)));
+      const mapping = guessMapping(sheet.headers, TEMPLATES);
+
+      expect(mapping).toEqual([
+        'ignore',
+        'name',
+        'legalName',
+        'primaryContactName',
+        'primaryContactEmail',
+        'phone',
+        'address',
+        'city',
+        'country',
+        'clientType',
+        'taxIdType',
+        'taxId',
+        'ignore',
+        'notes',
+      ]);
+
+      const preview = buildPreviewRows(sheet, mapping, OPTIONS);
+      expect(preview[0].values).toMatchObject({
+        name: 'City Vet',
+        country: 'CO',
+        clientType: 'VETERINARY_CLINIC',
+        taxId: '900.123.456-7',
+      });
+      expect(preview[1].values.taxId).toBe('0012345');
+    }
+  );
 });
 
 describe('runImportGroups', () => {

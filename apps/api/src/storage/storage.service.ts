@@ -268,13 +268,32 @@ export class StorageService {
       const match = /^data:[^;,]*;base64,(.+)$/s.exec(url);
       return match ? Buffer.from(match[1], 'base64') : null;
     }
-    if (!url.startsWith(this.supabaseUrl)) return null;
+    if (!this.isSupabaseUrl(url)) return null;
     try {
-      const res = await fetch(url);
+      // No redirects: a same-origin URL could redirect anywhere (e.g. the
+      // Auth provider endpoints), which would bypass the origin check.
+      const res = await fetch(url, { redirect: 'error' });
       if (!res.ok) return null;
       return Buffer.from(await res.arrayBuffer());
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * A Storage object on our Supabase project: same origin as SUPABASE_URL (a
+   * prefix check would also accept "<project>.supabase.co.attacker.example")
+   * and under /storage/v1/, so other same-origin endpoints are never fetched.
+   */
+  private isSupabaseUrl(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return (
+        parsed.origin === new URL(this.supabaseUrl).origin &&
+        parsed.pathname.startsWith('/storage/v1/')
+      );
+    } catch {
+      return false;
     }
   }
 

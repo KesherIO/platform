@@ -690,6 +690,7 @@
       }
     },
     "import_clients": "Importar clientes",
+    "export_clients": "Exportar",
     "tax_id_types": {
       "NIT": "NIT",
       "CC": "CC (cédula de ciudadanía)",
@@ -746,7 +747,8 @@
         "taxId": "Número de identificación",
         "notes": "Notas",
         "status": "Estado",
-        "reason": "Motivo"
+        "reason": "Motivo",
+        "clientId": "ID de cliente"
       },
       "upload": {
         "description": "Sube un archivo CSV o Excel (.xlsx) con un cliente por fila. Los clientes se crean sin usuarios ni invitaciones: puedes invitar a cada uno después desde su página.",
@@ -850,6 +852,28 @@
         "all_existing": "Todas las filas ya estaban en tu laboratorio. Este archivo parece una copia de clientes existentes: importarlo de nuevo no los actualiza.",
         "rows_not_created": "Filas no creadas",
         "leave_warning": "La importación sigue en curso."
+      }
+    },
+    "export": {
+      "title": "Exportar clientes",
+      "scope": "Qué clientes",
+      "all": "Todos los clientes ({{count}})",
+      "all_no_count": "Todos los clientes",
+      "filtered": "Lista filtrada ({{count}})",
+      "filter_search": "búsqueda “{{search}}”",
+      "include_notes": "Incluir notas internas",
+      "include_notes_hint": "Las notas pueden tener comentarios sensibles. Solo se incluyen las notas de tu laboratorio.",
+      "excel_note": "Para conservar los números de identificación exactos en Excel, abre el archivo con Datos → Desde texto/CSV, o usa Google Sheets.",
+      "copy_warning": "Este archivo es una copia. Editarlo e importarlo de nuevo no actualiza los clientes existentes.",
+      "personal_data": "El archivo contiene datos personales. Guárdalo y compártelo con cuidado.",
+      "download": "Descargar CSV",
+      "no_clients": "No hay clientes para exportar.",
+      "downloading": "Preparando…",
+      "cancel": "Cancelar",
+      "filename": "clientes-{{date}}.csv",
+      "errors": {
+        "too_large": "Demasiados clientes para exportar de una vez (máximo {{max}}). Usa los filtros para exportar una lista más pequeña.",
+        "generic": "No se pudieron exportar los clientes. Inténtalo de nuevo."
       }
     }
   },

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
+  ForbiddenException,
   BadRequestException,
   ConflictException,
   NotFoundException,
@@ -24,6 +25,14 @@ const DEFINITION = {
   activeVersionId: 'ver-1',
   createdAt: new Date(),
   updatedAt: new Date(),
+};
+
+/** A template owned by the caller's lab — the only kind a lab may write. */
+const LAB_DEFINITION = {
+  ...DEFINITION,
+  scope: 'LABORATORY',
+  labTenantId: 'lab-1',
+  ownerKey: 'lab-1',
 };
 
 const VERSION = {
@@ -179,22 +188,22 @@ describe('TemplateVersionService', () => {
 
   describe('getDefinition', () => {
     it('returns definition with active version', async () => {
-      prisma.resultTemplateDefinition.findUnique.mockResolvedValue({
+      prisma.resultTemplateDefinition.findFirst.mockResolvedValue({
         ...DEFINITION,
         activeVersion: VERSION,
         versions: [VERSION],
       });
 
-      const result = await service.getDefinition('def-1');
+      const result = await service.getDefinition('def-1', 'lab-1');
 
       expect(result.id).toBe('def-1');
       expect(result.activeVersion).toBeDefined();
     });
 
     it('throws NotFoundException when not found', async () => {
-      prisma.resultTemplateDefinition.findUnique.mockResolvedValue(null);
+      prisma.resultTemplateDefinition.findFirst.mockResolvedValue(null);
 
-      await expect(service.getDefinition('missing')).rejects.toThrow(
+      await expect(service.getDefinition('missing', 'lab-1')).rejects.toThrow(
         NotFoundException
       );
     });
@@ -289,7 +298,7 @@ describe('TemplateVersionService', () => {
         ...VERSION,
         id: 'ver-draft',
         status: 'DRAFT',
-        definition: { ...DEFINITION, activeVersionId: 'ver-old' },
+        definition: { ...LAB_DEFINITION, activeVersionId: 'ver-old' },
       });
       prisma.resultTemplateVersion.update.mockResolvedValue({
         ...VERSION,
@@ -298,7 +307,7 @@ describe('TemplateVersionService', () => {
       });
       prisma.resultTemplateDefinition.update.mockResolvedValue({});
 
-      await service.publishVersion('ver-draft');
+      await service.publishVersion('ver-draft', 'lab-1');
 
       // Archives old version
       expect(prisma.resultTemplateVersion.update).toHaveBeenCalledWith(
@@ -321,10 +330,10 @@ describe('TemplateVersionService', () => {
       prisma.resultTemplateVersion.findUnique.mockResolvedValue({
         ...VERSION,
         status: 'PUBLISHED',
-        definition: DEFINITION,
+        definition: LAB_DEFINITION,
       });
 
-      await expect(service.publishVersion('ver-1')).rejects.toThrow(
+      await expect(service.publishVersion('ver-1', 'lab-1')).rejects.toThrow(
         BadRequestException
       );
     });
@@ -332,7 +341,7 @@ describe('TemplateVersionService', () => {
     it('throws NotFoundException for missing version', async () => {
       prisma.resultTemplateVersion.findUnique.mockResolvedValue(null);
 
-      await expect(service.publishVersion('missing')).rejects.toThrow(
+      await expect(service.publishVersion('missing', 'lab-1')).rejects.toThrow(
         NotFoundException
       );
     });
@@ -345,7 +354,7 @@ describe('TemplateVersionService', () => {
       prisma.resultTemplateVersion.findUnique.mockResolvedValue({
         ...VERSION,
         status: 'PUBLISHED',
-        definition: DEFINITION,
+        definition: LAB_DEFINITION,
       });
       prisma.resultTemplateVersion.update.mockResolvedValue({
         ...VERSION,
@@ -353,7 +362,7 @@ describe('TemplateVersionService', () => {
       });
       prisma.resultTemplateDefinition.update.mockResolvedValue({});
 
-      await service.archiveVersion('ver-1');
+      await service.archiveVersion('ver-1', 'lab-1');
 
       expect(prisma.resultTemplateDefinition.update).toHaveBeenCalledWith({
         where: { id: 'def-1' },
@@ -365,10 +374,10 @@ describe('TemplateVersionService', () => {
       prisma.resultTemplateVersion.findUnique.mockResolvedValue({
         ...VERSION,
         status: 'DRAFT',
-        definition: DEFINITION,
+        definition: LAB_DEFINITION,
       });
 
-      await expect(service.archiveVersion('ver-1')).rejects.toThrow(
+      await expect(service.archiveVersion('ver-1', 'lab-1')).rejects.toThrow(
         BadRequestException
       );
     });
@@ -494,5 +503,121 @@ describe('TemplateVersionService', () => {
         })
       );
     });
+  });
+
+  // ── Lab ownership ─────────────────────────────────────────────────────────
+
+  describe('lab ownership', () => {
+    it("getDefinition only finds platform templates and this lab's", async () => {
+      prisma.resultTemplateDefinition.findFirst.mockResolvedValue(null);
+
+      await expect(service.getDefinition('def-b', 'lab-1')).rejects.toThrow(
+        NotFoundException
+      );
+      expect(prisma.resultTemplateDefinition.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 'def-b',
+            OR: [
+              { scope: 'PLATFORM' },
+              { scope: 'LABORATORY', labTenantId: 'lab-1' },
+            ],
+          },
+        })
+      );
+    });
+
+    const otherLab = { ...LAB_DEFINITION, labTenantId: 'lab-2' };
+
+    it.each([
+      [
+        'createDraftVersion',
+        () => service.createDraftVersion('def-1', 'lab-1'),
+        () =>
+          prisma.resultTemplateDefinition.findUnique.mockResolvedValue({
+            ...otherLab,
+            versions: [],
+          }),
+      ],
+      [
+        'updateDraftVersion',
+        () => service.updateDraftVersion('ver-1', {}, 'lab-1'),
+        () =>
+          prisma.resultTemplateVersion.findUnique.mockResolvedValue({
+            ...VERSION,
+            status: 'DRAFT',
+            definition: otherLab,
+          }),
+      ],
+      [
+        'publishVersion',
+        () => service.publishVersion('ver-1', 'lab-1'),
+        () =>
+          prisma.resultTemplateVersion.findUnique.mockResolvedValue({
+            ...VERSION,
+            status: 'DRAFT',
+            definition: otherLab,
+          }),
+      ],
+      [
+        'archiveVersion',
+        () => service.archiveVersion('ver-1', 'lab-1'),
+        () =>
+          prisma.resultTemplateVersion.findUnique.mockResolvedValue({
+            ...VERSION,
+            status: 'PUBLISHED',
+            definition: otherLab,
+          }),
+      ],
+    ])(
+      "%s on another lab's template → 404, nothing written",
+      async (_n, call, arrange) => {
+        arrange();
+        await expect(call()).rejects.toThrow(NotFoundException);
+        expect(prisma.resultTemplateVersion.update).not.toHaveBeenCalled();
+        expect(prisma.resultTemplateVersion.create).not.toHaveBeenCalled();
+        expect(prisma.resultTemplateDefinition.update).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
+      [
+        'createDraftVersion',
+        () => service.createDraftVersion('def-1', 'lab-1'),
+        () =>
+          prisma.resultTemplateDefinition.findUnique.mockResolvedValue({
+            ...DEFINITION,
+            versions: [],
+          }),
+      ],
+      [
+        'publishVersion',
+        () => service.publishVersion('ver-1', 'lab-1'),
+        () =>
+          prisma.resultTemplateVersion.findUnique.mockResolvedValue({
+            ...VERSION,
+            status: 'DRAFT',
+            definition: DEFINITION,
+          }),
+      ],
+      [
+        'archiveVersion',
+        () => service.archiveVersion('ver-1', 'lab-1'),
+        () =>
+          prisma.resultTemplateVersion.findUnique.mockResolvedValue({
+            ...VERSION,
+            status: 'PUBLISHED',
+            definition: DEFINITION,
+          }),
+      ],
+    ])(
+      '%s on a platform template → 403, nothing written',
+      async (_n, call, arrange) => {
+        arrange();
+        await expect(call()).rejects.toThrow(ForbiddenException);
+        expect(prisma.resultTemplateVersion.update).not.toHaveBeenCalled();
+        expect(prisma.resultTemplateDefinition.update).not.toHaveBeenCalled();
+      }
+    );
   });
 });

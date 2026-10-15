@@ -690,6 +690,7 @@
       }
     },
     "import_clients": "Import clients",
+    "export_clients": "Export",
     "tax_id_types": {
       "NIT": "NIT (tax ID)",
       "CC": "CC (citizenship ID)",
@@ -746,7 +747,8 @@
         "taxId": "ID number",
         "notes": "Notes",
         "status": "Status",
-        "reason": "Reason"
+        "reason": "Reason",
+        "clientId": "Client ID"
       },
       "upload": {
         "description": "Upload a CSV or Excel (.xlsx) file with one client per row. Clients are created without users or invitations: you can invite each one later from its page.",
@@ -850,6 +852,28 @@
         "all_existing": "Every row was already in your lab. This file looks like a copy of existing clients: importing it again doesn't update them.",
         "rows_not_created": "Rows not created",
         "leave_warning": "The import is still running."
+      }
+    },
+    "export": {
+      "title": "Export clients",
+      "scope": "Which clients",
+      "all": "All clients ({{count}})",
+      "all_no_count": "All clients",
+      "filtered": "Filtered list ({{count}})",
+      "filter_search": "search “{{search}}”",
+      "include_notes": "Include internal notes",
+      "include_notes_hint": "Notes may contain sensitive comments. Only your lab’s notes are included.",
+      "excel_note": "To keep ID numbers exact in Excel, open the file with Data → From Text/CSV, or use Google Sheets.",
+      "copy_warning": "This file is a copy. Editing it and importing it again won’t update existing clients.",
+      "personal_data": "The file contains personal data. Store and share it carefully.",
+      "download": "Download CSV",
+      "no_clients": "No clients to export.",
+      "downloading": "Preparing…",
+      "cancel": "Cancel",
+      "filename": "clients-{{date}}.csv",
+      "errors": {
+        "too_large": "Too many clients to export at once (maximum {{max}}). Use the filters to export a smaller list.",
+        "generic": "Couldn’t export the clients. Try again."
       }
     }
   },

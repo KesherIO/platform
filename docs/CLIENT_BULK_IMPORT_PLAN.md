@@ -812,8 +812,7 @@ committed. No migration. Differences from the text above:
   - `getClientDetail` orders filtered by lab (A1);
   - `listClients` `orderCount` filtered by lab: today it counts all of the clinic's
     orders (`_count.orders`, `lab-clients.service.ts:69`).
-- **Export clients**: see B9. A small task that starts **after** the import is finished and
-  tested.
+- **Export clients**: see B9. Implemented 2026-10-13 (CSV).
 - Bulk invitation generation / a list of WhatsApp messages; email invitations.
 - **Updating existing clients from a file** (update-import). A separate feature with its
   own plan. It needs a match key (the `Client ID` column from B9, safer than email), rules
@@ -823,6 +822,22 @@ committed. No migration. Differences from the text above:
 - Merging city spellings.
 
 ### B9. Follow-up: Export clients
+
+**Status: implemented (2026-10-13), CSV only.** What was built, and where it differs
+from the plan below:
+
+- API: `GET /lab/clients/export` → `LabClientsService.exportClients`
+  (`apps/api/src/lab/lab-clients.service.ts`), DTO `dto/export-clients.dto.ts`. Shares
+  `clientListWhere` with `listClients`, so the filters can't drift. The route is declared
+  before `clients/:id`.
+- Cap: `EXPORT_MAX_ROWS = 5000`. The query asks for 5,001 rows instead of running a separate
+  count. Above the cap: `400 { code: 'EXPORT_TOO_LARGE', maxRows }`.
+- Rows are sorted by name (then id), not by created date like the list.
+- Lab: `ExportClientsModal.tsx` (Export button next to Import, ADMIN only) and
+  `buildExportCsv` in `shared/clientImport.ts` (same `toCsv` / `csvCell` as the retry file).
+  Header `clients.import.template.clientId` ("Client ID" / "ID de cliente").
+- The modal also says the file contains personal data.
+- Still to do: the manual Excel / Google Sheets check (see Tests).
 
 Lets the lab download its client list for internal administration, reporting or moving
 data between tools. Kept small on purpose. It reuses the CSV writer and escaping from the

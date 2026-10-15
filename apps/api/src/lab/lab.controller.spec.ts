@@ -8,6 +8,9 @@ import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
 import { ImportClientsDto } from './dto/import-clients.dto';
 import { UpdateLabContactDto } from './dto/update-lab-contact.dto';
+import { ExportClientsDto } from './dto/export-clients.dto';
+import { ROLES_KEY } from '../auth/decorators/roles.decorator';
+import { TenantRole } from '@prisma/client';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
 import { CatalogService } from '../catalog/catalog.service';
@@ -66,6 +69,7 @@ describe('LabController', () => {
       getClientDetail: jest.fn().mockResolvedValue({}),
       createClient: jest.fn().mockResolvedValue({}),
       importClients: jest.fn().mockResolvedValue({ results: [], summary: {} }),
+      exportClients: jest.fn().mockResolvedValue({ rows: [] }),
       updateClient: jest.fn().mockResolvedValue({}),
       suspendClient: jest.fn().mockResolvedValue(undefined),
       reactivateClient: jest.fn().mockResolvedValue(undefined),
@@ -544,6 +548,58 @@ describe('LabController', () => {
       ],
     ])('rejects %s with 400', async (_label, phoneNumbers) => {
       await expect(validate({ phoneNumbers })).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  describe('exportClients', () => {
+    const user = { id: 'user-1', email: 'admin@lab.com' };
+
+    it('delegates to the clients service with lab, filters, user and request id', async () => {
+      const clients = module.get(LabClientsService);
+      const query = { status: 'PENDING', search: 'vet', includeNotes: true };
+
+      await controller.exportClients(tenant, user as never, query, {
+        requestId: 'req-1',
+      } as unknown as Request);
+
+      expect(clients.exportClients).toHaveBeenCalledWith(
+        'lab-1',
+        query,
+        'user-1',
+        'req-1'
+      );
+    });
+
+    it('is ADMIN/OWNER only, like the other client endpoints', () => {
+      expect(
+        Reflect.getMetadata(ROLES_KEY, LabController.prototype.exportClients)
+      ).toEqual([TenantRole.ADMIN, TenantRole.OWNER]);
+    });
+
+    // Same options as the global pipe in main.ts.
+    const pipe = new ValidationPipe({ whitelist: true, transform: true });
+    const validateQuery = (query: unknown) =>
+      pipe.transform(query, { type: 'query', metatype: ExportClientsDto });
+
+    it.each([
+      ['true', true],
+      ['false', false],
+      ['1', false],
+    ])('reads includeNotes=%s as %s', async (raw, expected) => {
+      const dto = await validateQuery({ includeNotes: raw });
+      expect(dto.includeNotes).toBe(expected);
+    });
+
+    it('drops paging params instead of honoring them', async () => {
+      const dto = await validateQuery({ page: '2', pageSize: '10' });
+      expect(dto).not.toHaveProperty('page');
+      expect(dto).not.toHaveProperty('pageSize');
+    });
+
+    it('rejects an unknown status with 400', async () => {
+      await expect(validateQuery({ status: 'DELETED' })).rejects.toThrow(
         BadRequestException
       );
     });

@@ -524,12 +524,29 @@ export class ResultsService {
     return this.formatReport(report);
   }
 
-  async findReportByOrder(
-    tenantId: string,
+  /**
+   * Lab side: the report of an order processed by this lab. `tenantId` on the
+   * report is the clinic's, so the lab is checked through the order.
+   */
+  async findLabReport(
+    labTenantId: string,
+    reportId: string
+  ): Promise<ResultReportModel> {
+    const report = await this.prisma.resultReport.findFirst({
+      where: { id: reportId, order: { labTenantId } },
+      include: REPORT_INCLUDE,
+    });
+    if (!report) throw new NotFoundException('Result report not found.');
+    return this.formatReport(report);
+  }
+
+  /** Lab side: by order id, same lab check as findLabReport. */
+  async findLabReportByOrder(
+    labTenantId: string,
     orderId: string
   ): Promise<ResultReportModel> {
     const report = await this.prisma.resultReport.findFirst({
-      where: { orderId, tenantId },
+      where: { orderId, order: { labTenantId } },
       include: REPORT_INCLUDE,
     });
     if (!report) throw new NotFoundException('Result report not found.');
