@@ -1077,6 +1077,22 @@ describe('LabClientsService', () => {
     });
   });
 
+  describe('regenerateInvitation for a clinic that already onboarded', () => {
+    it('refuses: an admin token would let the lab take over the clinic', async () => {
+      prisma.clinicLabConnection.findFirst.mockResolvedValue(mockConnection);
+      prisma.userTenantMembership.count.mockResolvedValue(2);
+
+      await expect(
+        service.regenerateInvitation(LAB_ID, CLIENT_ID, USER_ID)
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.userTenantMembership.count).toHaveBeenCalledWith({
+        where: { tenantId: CLIENT_ID },
+      });
+      expect(prisma.onboardingToken.updateMany).not.toHaveBeenCalled();
+      expect(prisma.onboardingToken.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('regenerateInvitation for a client that never had one (imported)', () => {
     it('creates a token linked to the clinic', async () => {
       prisma.clinicLabConnection.findFirst.mockResolvedValue(mockConnection);

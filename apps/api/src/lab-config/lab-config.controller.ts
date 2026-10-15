@@ -13,6 +13,7 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LabTenantGuard } from '../lab/lab-tenant.guard';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
+import { LAB_STAFF_ROLES } from '../lab/lab-roles';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { TenantRole } from '@vet-ai/shared-types';
 import type { TenantContext } from '@vet-ai/shared-types';
@@ -36,6 +37,7 @@ export class LabConfigController {
   // Analyzers
   // -------------------------------------------------------------------------
 
+  @Roles(...LAB_STAFF_ROLES)
   @Get('analyzers')
   listAnalyzers(@CurrentTenant() tenant: TenantContext) {
     return this.analyzerService.listAnalyzers(tenant.tenantId);
@@ -84,6 +86,7 @@ export class LabConfigController {
   // Test Configurations
   // -------------------------------------------------------------------------
 
+  @Roles(...LAB_STAFF_ROLES)
   @Get('test-configs')
   listTestConfigs(@CurrentTenant() tenant: TenantContext) {
     return this.labTestConfigService.listConfigs(tenant.tenantId);

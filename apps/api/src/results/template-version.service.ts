@@ -83,9 +83,40 @@ export class TemplateVersionService {
     });
   }
 
-  async getDefinition(id: string) {
-    const definition = await this.prisma.resultTemplateDefinition.findUnique({
-      where: { id },
+  /** Platform templates (read-only for labs) and this lab's own. */
+  private visibleTo(labTenantId: string) {
+    return {
+      OR: [
+        { scope: 'PLATFORM' as const },
+        { scope: 'LABORATORY' as const, labTenantId },
+      ],
+    };
+  }
+
+  /**
+   * Labs only write their own LABORATORY templates. Platform templates are
+   * shared by every lab and change only through the seed scripts; a lab
+   * customizes one by cloning it. Same 404 for "missing" and "another lab's".
+   */
+  private assertOwnLabTemplate(
+    definition: { scope: string; labTenantId: string | null } | null,
+    labTenantId: string,
+    notFound: string
+  ) {
+    if (!definition) throw new NotFoundException(notFound);
+    if (definition.scope === 'PLATFORM') {
+      throw new ForbiddenException(
+        'Platform templates are read-only. Clone it to customize it.'
+      );
+    }
+    if (definition.labTenantId !== labTenantId) {
+      throw new NotFoundException(notFound);
+    }
+  }
+
+  async getDefinition(id: string, labTenantId: string) {
+    const definition = await this.prisma.resultTemplateDefinition.findFirst({
+      where: { id, ...this.visibleTo(labTenantId) },
       include: {
         ...DEFINITION_INCLUDE,
         versions: {
@@ -216,7 +247,7 @@ export class TemplateVersionService {
     });
   }
 
-  async createDraftVersion(definitionId: string) {
+  async createDraftVersion(definitionId: string, labTenantId: string) {
     const definition = await this.prisma.resultTemplateDefinition.findUnique({
       where: { id: definitionId },
       include: {
@@ -225,6 +256,7 @@ export class TemplateVersionService {
       },
     });
 
+    this.assertOwnLabTemplate(definition, labTenantId, 'Definition not found');
     if (!definition) throw new NotFoundException('Definition not found');
     if (definition.versions.length > 0) {
       throw new ConflictException('A DRAFT version already exists');
@@ -261,11 +293,21 @@ export class TemplateVersionService {
     });
   }
 
-  async updateDraftVersion(versionId: string, dto: UpdateDraftVersionDto) {
+  async updateDraftVersion(
+    versionId: string,
+    dto: UpdateDraftVersionDto,
+    labTenantId: string
+  ) {
     const version = await this.prisma.resultTemplateVersion.findUnique({
       where: { id: versionId },
+      include: { definition: { select: { scope: true, labTenantId: true } } },
     });
 
+    this.assertOwnLabTemplate(
+      version?.definition ?? null,
+      labTenantId,
+      'Version not found'
+    );
     if (!version) throw new NotFoundException('Version not found');
     if (version.status !== 'DRAFT') {
       throw new BadRequestException('Only DRAFT versions can be edited');
@@ -318,12 +360,17 @@ export class TemplateVersionService {
     return { ...updated, formulaWarnings };
   }
 
-  async publishVersion(versionId: string) {
+  async publishVersion(versionId: string, labTenantId: string) {
     const version = await this.prisma.resultTemplateVersion.findUnique({
       where: { id: versionId },
       include: { definition: true, ...VERSION_INCLUDE },
     });
 
+    this.assertOwnLabTemplate(
+      version?.definition ?? null,
+      labTenantId,
+      'Version not found'
+    );
     if (!version) throw new NotFoundException('Version not found');
     if (version.status !== 'DRAFT') {
       throw new BadRequestException('Only DRAFT versions can be published');
@@ -365,12 +412,17 @@ export class TemplateVersionService {
     });
   }
 
-  async archiveVersion(versionId: string) {
+  async archiveVersion(versionId: string, labTenantId: string) {
     const version = await this.prisma.resultTemplateVersion.findUnique({
       where: { id: versionId },
       include: { definition: true },
     });
 
+    this.assertOwnLabTemplate(
+      version?.definition ?? null,
+      labTenantId,
+      'Version not found'
+    );
     if (!version) throw new NotFoundException('Version not found');
     if (version.status !== 'PUBLISHED') {
       throw new BadRequestException('Only PUBLISHED versions can be archived');

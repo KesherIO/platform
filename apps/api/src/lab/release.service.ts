@@ -173,8 +173,13 @@ export class ReleaseService {
     } | null = null;
 
     if (analystId) {
-      analyst = await this.prisma.labSigner.findUnique({
-        where: { id: analystId },
+      // Same rule as the reviewer: this lab's signer, with the ANALYST role
+      analyst = await this.prisma.labSigner.findFirst({
+        where: {
+          id: analystId,
+          laboratoryProfile: { tenantId: labTenantId },
+          roles: { has: 'ANALYST' },
+        },
         select: {
           id: true,
           name: true,

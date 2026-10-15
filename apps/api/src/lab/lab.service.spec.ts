@@ -62,6 +62,16 @@ describe('LabService', () => {
         findUnique: jest.fn(),
         upsert: jest.fn(),
       },
+      labSigner: {
+        count: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn(),
+        delete: jest.fn(),
+      },
+      userTenantMembership: {
+        findUnique: jest.fn(),
+      },
       tenant: {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
         update: jest.fn().mockResolvedValue({}),
@@ -726,6 +736,50 @@ describe('LabService', () => {
   });
 
   describe('updateOrderedTest', () => {
+    const pendingTest = { id: 'test-1', status: 'PENDING', startedAt: null };
+
+    it('rejects an assignee who is not a member of this lab', async () => {
+      (prisma.orderedTest.findFirst as jest.Mock).mockResolvedValue(
+        pendingTest
+      );
+      (prisma.userTenantMembership.findUnique as jest.Mock).mockResolvedValue(
+        null
+      );
+
+      await expect(
+        service.updateOrderedTest(LAB_TENANT_ID, 'test-1', {
+          assignedUserId: 'user-from-another-lab',
+        })
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.userTenantMembership.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_tenantId: {
+              userId: 'user-from-another-lab',
+              tenantId: LAB_TENANT_ID,
+            },
+          },
+        })
+      );
+      expect(prisma.orderedTest.update).not.toHaveBeenCalled();
+    });
+
+    it('accepts an assignee from this lab', async () => {
+      (prisma.orderedTest.findFirst as jest.Mock).mockResolvedValue(
+        pendingTest
+      );
+      (prisma.userTenantMembership.findUnique as jest.Mock).mockResolvedValue({
+        userId: 'tech-1',
+      });
+      (prisma.orderedTest.update as jest.Mock).mockResolvedValue({});
+
+      await service.updateOrderedTest(LAB_TENANT_ID, 'test-1', {
+        assignedUserId: 'tech-1',
+      });
+
+      expect(prisma.orderedTest.update).toHaveBeenCalled();
+    });
+
     it('throws NotFoundException when ordered test is not found', async () => {
       (prisma.orderedTest.findFirst as jest.Mock).mockResolvedValue(null);
 
@@ -777,6 +831,46 @@ describe('LabService', () => {
       expect(calls[0][0].data).toEqual({ country: 'CO' });
       expect(calls[1][0].data).toEqual({ country: null });
       expect(calls[2][0].data).toEqual({ city: 'Cali' });
+    });
+  });
+
+  describe('upsertLaboratoryProfile signers', () => {
+    it("rejects another lab's signer id before writing anything", async () => {
+      (prisma.labSigner.count as jest.Mock).mockResolvedValue(0);
+
+      await expect(
+        service.upsertLaboratoryProfile(LAB_TENANT_ID, {
+          signers: [{ id: 'signer-of-lab-b', name: 'Forged', roles: [] }],
+        })
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.labSigner.count).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['signer-of-lab-b'] },
+          laboratoryProfile: { tenantId: LAB_TENANT_ID },
+        },
+      });
+      expect(prisma.laboratoryProfile.upsert).not.toHaveBeenCalled();
+      expect(prisma.labSigner.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("updates this lab's signers scoped to its profile", async () => {
+      (prisma.labSigner.count as jest.Mock).mockResolvedValue(1);
+      (prisma.laboratoryProfile.findUnique as jest.Mock).mockResolvedValue(
+        null
+      );
+      (prisma.laboratoryProfile.upsert as jest.Mock).mockResolvedValue({
+        id: 'profile-1',
+      });
+
+      await service.upsertLaboratoryProfile(LAB_TENANT_ID, {
+        signers: [{ id: 'signer-1', name: 'Dra. Ana', roles: ['REVIEWER'] }],
+      });
+
+      expect(prisma.labSigner.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'signer-1', laboratoryProfileId: 'profile-1' },
+        })
+      );
     });
   });
 });

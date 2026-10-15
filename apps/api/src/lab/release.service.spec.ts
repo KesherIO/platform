@@ -118,7 +118,7 @@ describe('ReleaseService', () => {
       resultReportReleaseArtifact: { create: jest.fn() },
       resultReportAnalyte: { update: jest.fn() },
       orderedTest: { findMany: jest.fn(), update: jest.fn() },
-      labSigner: { findUnique: jest.fn() },
+      labSigner: { findUnique: jest.fn(), findFirst: jest.fn() },
       timelineEvent: { create: jest.fn() },
       case: { findUniqueOrThrow: jest.fn() },
       tenant: { findUniqueOrThrow: jest.fn(), findUnique: jest.fn() },
@@ -262,6 +262,35 @@ describe('ReleaseService', () => {
           actorName: 'User',
         })
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('rejects an analyst signer from another lab or without the ANALYST role', async () => {
+      prisma.order.findFirst.mockResolvedValue(baseOrder);
+      prisma.resultReportTest.findMany.mockResolvedValue([baseReportTest]);
+      prisma.resultReportAmendment.findMany.mockResolvedValue([]);
+      prisma.labSigner.findUnique.mockResolvedValue(baseSigner);
+      prisma.labSigner.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.approveAndRelease({
+          orderId: 'order-1',
+          labTenantId: 'lab-1',
+          signerId: 'signer-1',
+          analystId: 'analyst-of-lab-b',
+          testIds: ['rt-1'],
+          actorId: 'user-1',
+          actorName: 'User',
+        })
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.labSigner.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 'analyst-of-lab-b',
+            laboratoryProfile: { tenantId: 'lab-1' },
+            roles: { has: 'ANALYST' },
+          },
+        })
+      );
     });
 
     it('throws ForbiddenException when signer lacks REVIEWER role', async () => {
