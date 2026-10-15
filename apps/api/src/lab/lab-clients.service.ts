@@ -17,6 +17,7 @@ import type { CreateClientDto } from './dto/create-client.dto';
 import type { UpdateClientDto } from './dto/update-client.dto';
 import type { ListClientsDto } from './dto/list-clients.dto';
 import type { ImportClientsDto } from './dto/import-clients.dto';
+import type { ExportClientsDto } from './dto/export-clients.dto';
 import {
   CLINIC_PROFILE_SELECT,
   assertValidTaxIdentity,
@@ -60,6 +61,9 @@ function describeError(err: unknown): string {
   return err instanceof Error ? err.name : 'unknown';
 }
 
+/** Above this the export fails instead of returning a cut-off file (plan B9). */
+export const EXPORT_MAX_ROWS = 5000;
+
 /** The advisory-lock wait counts toward these (plan A5). */
 const CLIENT_CREATE_TX_OPTIONS = { maxWait: 5000, timeout: 10000 };
 
@@ -88,9 +92,11 @@ export class LabClientsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async listClients(labTenantId: string, query: ListClientsDto) {
-    const { status, search, page = 1, pageSize = 20 } = query;
-
+  /** Clients connected to this lab, with the list's status/search filters. */
+  private clientListWhere(
+    labTenantId: string,
+    { status, search }: { status?: string; search?: string }
+  ) {
     const conditions: Record<string, unknown>[] = [
       {
         clinicConnections: { some: { labId: labTenantId, isActive: true } },
@@ -108,7 +114,13 @@ export class LabClientsService {
       });
     }
 
-    const where = { AND: conditions };
+    return { AND: conditions };
+  }
+
+  async listClients(labTenantId: string, query: ListClientsDto) {
+    const { page = 1, pageSize = 20 } = query;
+
+    const where = this.clientListWhere(labTenantId, query);
     const skip = (page - 1) * pageSize;
 
     const [clients, total] = await Promise.all([
@@ -163,6 +175,79 @@ export class LabClientsService {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /**
+   * Every client connected to this lab that matches the filters, unpaged, for
+   * the CSV export (plan B9). The lab app writes the file. Never returns
+   * users, invitations, order counts or the normalized tax ID; notes only
+   * when asked for, and only this lab's.
+   */
+  async exportClients(
+    labTenantId: string,
+    query: ExportClientsDto,
+    userId: string,
+    requestId?: string
+  ) {
+    const includeNotes = query.includeNotes === true;
+
+    // One extra row tells us the cap was passed, without a separate count.
+    const clients = await this.prisma.tenant.findMany({
+      where: this.clientListWhere(labTenantId, query),
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: EXPORT_MAX_ROWS + 1,
+      select: {
+        id: true,
+        ...CLINIC_PROFILE_SELECT,
+        clientType: true,
+        clientStatus: true,
+        ...(includeNotes && {
+          clinicConnections: {
+            where: { labId: labTenantId },
+            select: { notes: true },
+            take: 1,
+          },
+        }),
+      },
+    });
+
+    if (clients.length > EXPORT_MAX_ROWS) {
+      throw new BadRequestException({
+        code: 'EXPORT_TOO_LARGE',
+        message: `More than ${EXPORT_MAX_ROWS} clients match. Narrow the filters and export again.`,
+        maxRows: EXPORT_MAX_ROWS,
+      });
+    }
+
+    // Who, how many and which filters — never row contents (personal data).
+    this.logger.log(
+      `Client export lab=${labTenantId} user=${userId} rows=${clients.length} ` +
+        `status=${query.status ?? '-'} search=${query.search ? 'yes' : 'no'} ` +
+        `includeNotes=${includeNotes} requestId=${requestId ?? '-'}`
+    );
+
+    return {
+      rows: clients.map((c) => ({
+        id: c.id,
+        name: c.name,
+        legalName: c.legalName,
+        primaryContactName: c.primaryContactName,
+        primaryContactEmail: c.email,
+        phone: c.phone,
+        address: c.address,
+        city: c.city,
+        country: c.country,
+        clientType: c.clientType,
+        taxIdType: c.taxIdType,
+        taxId: c.taxId,
+        status: c.clientStatus ?? 'PENDING',
+        ...(includeNotes && {
+          notes:
+            (c as { clinicConnections?: { notes: string | null }[] })
+              .clinicConnections?.[0]?.notes ?? null,
+        }),
+      })),
     };
   }
 
@@ -571,6 +656,18 @@ export class LabClientsService {
     createdByUserId: string
   ) {
     await this.verifyLabClientConnection(labTenantId, clientTenantId);
+
+    // An invitation creates the clinic's first ADMIN. Once the clinic has
+    // users it belongs to them (and maybe to other labs), so a lab can't mint
+    // a new admin token for it.
+    const memberCount = await this.prisma.userTenantMembership.count({
+      where: { tenantId: clientTenantId },
+    });
+    if (memberCount > 0) {
+      throw new BadRequestException(
+        'This client has already completed onboarding. Its users can invite colleagues from the clinic app.'
+      );
+    }
 
     const client = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: clientTenantId },

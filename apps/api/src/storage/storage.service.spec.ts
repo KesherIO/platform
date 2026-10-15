@@ -87,6 +87,37 @@ describe('StorageService', () => {
       fetchSpy.mockRestore();
     });
 
+    it.each([
+      'https://project.supabase.co.attacker.example/logo.png',
+      'https://project.supabase.com/logo.png',
+      'http://project.supabase.co/logo.png',
+      'not a url',
+      'https://project.supabase.co/auth/v1/authorize?provider=github',
+      'https://project.supabase.co/rest/v1/tenants',
+    ])('refuses look-alike hosts and non-Storage paths: %s', async (url) => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      expect(
+        await service.snapshotReleaseImage('rel-1', 'logo', url)
+      ).toBeNull();
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
+    });
+
+    it('fetches Storage URLs without following redirects', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockRejectedValue(new TypeError('fetch failed: redirect'));
+      const url =
+        'https://project.supabase.co/storage/v1/object/public/clinic-logos/a.png';
+
+      expect(
+        await service.snapshotReleaseImage('rel-1', 'logo', url)
+      ).toBeNull();
+      expect(fetchSpy).toHaveBeenCalledWith(url, { redirect: 'error' });
+      fetchSpy.mockRestore();
+    });
+
     it('returns null when there is no image', async () => {
       expect(
         await service.snapshotReleaseImage('rel-1', 'logo', null)

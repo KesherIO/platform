@@ -39,6 +39,13 @@ function makePrismaMock() {
     labTestSpecimenRequirement: {
       deleteMany: jest.fn(),
     },
+    // Ownership checks: by default the ids belong to the caller's lab
+    catalogItem: {
+      findFirst: jest.fn().mockResolvedValue({ id: 'cat-1' }),
+    },
+    analyzer: {
+      findFirst: jest.fn().mockResolvedValue({ id: 'an-1' }),
+    },
     $transaction: jest
       .fn()
       .mockImplementation((cb: (tx: typeof mock) => Promise<unknown>) =>
@@ -168,6 +175,33 @@ describe('LabTestConfigService', () => {
 
       expect(prisma.labTestSpecimenRequirement.deleteMany).toHaveBeenCalledWith(
         { where: { labTestConfigurationId: 'cfg-1' } }
+      );
+    });
+
+    it("rejects another lab's catalog item", async () => {
+      prisma.catalogItem.findFirst.mockResolvedValue(null);
+
+      await expect(service.upsertConfig('lab-1', dto)).rejects.toThrow(
+        NotFoundException
+      );
+      expect(prisma.catalogItem.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'cat-1', labTenantId: 'lab-1' },
+        })
+      );
+      expect(prisma.labTestConfiguration.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects another lab's analyzer", async () => {
+      prisma.analyzer.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.upsertConfig('lab-1', { ...dto, defaultAnalyzerId: 'an-x' })
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.analyzer.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'an-x', labTenantId: 'lab-1' },
+        })
       );
     });
   });

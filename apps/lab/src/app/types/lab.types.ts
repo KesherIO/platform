@@ -456,6 +456,37 @@ export interface ClientsQuery {
   pageSize?: number;
 }
 
+/** GET lab/clients/export — same filters as the list, unpaged (plan B9). */
+export interface ClientsExportQuery {
+  status?: string;
+  search?: string;
+  includeNotes?: boolean;
+}
+
+/** One exported client. `notes` is only present when includeNotes was set. */
+export interface ClientExportRow {
+  /** Tenant id — the match key a future update-import can use */
+  id: string;
+  name: string;
+  legalName: string | null;
+  primaryContactName: string | null;
+  primaryContactEmail: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  clientType: ClientType | null;
+  taxIdType: string | null;
+  /** As entered, never the normalized copy */
+  taxId: string | null;
+  status: ClientStatus;
+  notes?: string | null;
+}
+
+export interface ClientsExportResponse {
+  rows: ClientExportRow[];
+}
+
 // ---------------------------------------------------------------------------
 // Client bulk import (docs/CLIENT_BULK_IMPORT_PLAN.md)
 // ---------------------------------------------------------------------------
