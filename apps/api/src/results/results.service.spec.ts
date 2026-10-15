@@ -629,6 +629,36 @@ describe('ResultsService', () => {
     });
   });
 
+  // ── Lab-side lookups ───────────────────────────────────────────────────────
+
+  describe('findLabReport / findLabReportByOrder', () => {
+    it('finds a report only through an order of this lab', async () => {
+      prisma.resultReport.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.findLabReport('lab-1', 'report-of-lab-b')
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.resultReport.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'report-of-lab-b', order: { labTenantId: 'lab-1' } },
+        })
+      );
+    });
+
+    it('by order: checks the lab on the order, not the clinic tenant column', async () => {
+      prisma.resultReport.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.findLabReportByOrder('lab-1', 'order-1')
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.resultReport.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { orderId: 'order-1', order: { labTenantId: 'lab-1' } },
+        })
+      );
+    });
+  });
+
   // ── findReportByOrderId ────────────────────────────────────────────────────
 
   describe('findReportByOrderId', () => {

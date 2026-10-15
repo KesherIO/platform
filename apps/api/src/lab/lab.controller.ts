@@ -22,6 +22,7 @@ import { LabTenantGuard } from './lab-tenant.guard';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
+import { LAB_STAFF_AND_MESSENGER_ROLES, LAB_STAFF_ROLES } from './lab-roles';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApiSecurity } from '@nestjs/swagger';
 import { TenantRole } from '@vet-ai/shared-types';
@@ -44,6 +45,7 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ListClientsDto } from './dto/list-clients.dto';
 import { ImportClientsDto } from './dto/import-clients.dto';
+import { ExportClientsDto } from './dto/export-clients.dto';
 import { ListPickupsDto } from './dto/list-pickups.dto';
 import { ListVetVerificationsDto } from './dto/list-vet-verifications.dto';
 import {
@@ -134,6 +136,7 @@ export class LabController {
 
   // GET /api/lab/me
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_AND_MESSENGER_ROLES)
   @Get('me')
   async getMe(@CurrentTenant() tenant: TenantContext) {
     const vetVerificationRequired =
@@ -150,6 +153,7 @@ export class LabController {
 
   // GET /api/lab/orders?status=RECEIVED_BY_LAB&search=luna&dateFrom=2026-08-01&dateTo=2026-08-08&page=1&pageSize=20
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('orders')
   getOrders(
     @CurrentTenant() tenant: TenantContext,
@@ -160,6 +164,7 @@ export class LabController {
 
   // GET /api/lab/orders/:id
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('orders/:id')
   getOrderById(
     @CurrentTenant() tenant: TenantContext,
@@ -274,6 +279,7 @@ export class LabController {
 
   // GET /api/lab/orders/:id/expected-specimens
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('orders/:id/expected-specimens')
   getExpectedSpecimens(
     @CurrentTenant() tenant: TenantContext,
@@ -444,6 +450,7 @@ export class LabController {
 
   // GET /api/lab/ordered-tests/:testId/result-session
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('ordered-tests/:testId/result-session')
   getResultSession(
     @CurrentTenant() tenant: TenantContext,
@@ -454,6 +461,7 @@ export class LabController {
 
   // PATCH /api/lab/ordered-tests/:testId/analytes
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Patch('ordered-tests/:testId/analytes')
   @HttpCode(HttpStatus.OK)
   saveAnalytes(
@@ -486,6 +494,7 @@ export class LabController {
 
   // POST /api/lab/ordered-tests/:testId/submit-results
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Post('ordered-tests/:testId/submit-results')
   @HttpCode(HttpStatus.OK)
   submitResults(
@@ -505,32 +514,24 @@ export class LabController {
 
   // GET /api/lab/reports/by-order/:orderId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('reports/by-order/:orderId')
   getReportByOrder(
     @CurrentTenant() tenant: TenantContext,
     @Param('orderId') orderId: string
   ) {
-    return this.resultsService.findReportByOrder(tenant.tenantId, orderId);
+    return this.resultsService.findLabReportByOrder(tenant.tenantId, orderId);
   }
 
   // GET /api/lab/reports/:reportId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('reports/:reportId')
-  getReport(@Param('reportId') reportId: string) {
-    return this.resultsService.findReport(reportId);
-  }
-
-  // POST /api/lab/reports/:reportId/release
-  @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Post('reports/:reportId/release')
-  @HttpCode(HttpStatus.OK)
-  releaseReport(
-    @CurrentUser() user: AuthenticatedUser,
+  getReport(
+    @CurrentTenant() tenant: TenantContext,
     @Param('reportId') reportId: string
   ) {
-    const processedByName =
-      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
-    return this.resultsService.releaseReport(reportId, { processedByName });
+    return this.resultsService.findLabReport(tenant.tenantId, reportId);
   }
 
   // ---------------------------------------------------------------------------
@@ -617,6 +618,7 @@ export class LabController {
 
   // GET /api/lab/signers/reviewers
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('signers/reviewers')
   getReviewerSigners(@CurrentTenant() tenant: TenantContext) {
     return this.reviewService.getReviewerSigners(tenant.tenantId);
@@ -624,6 +626,7 @@ export class LabController {
 
   // GET /api/lab/signers/analysts
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('signers/analysts')
   getAnalystSigners(@CurrentTenant() tenant: TenantContext) {
     return this.reviewService.getAnalystSigners(tenant.tenantId);
@@ -854,6 +857,7 @@ export class LabController {
 
   // GET /api/lab/settings/laboratory
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('settings/laboratory')
   getLaboratoryProfile(@CurrentTenant() tenant: TenantContext) {
     return this.labService.getLaboratoryProfile(tenant.tenantId);
@@ -872,6 +876,7 @@ export class LabController {
 
   // GET /api/lab/settings/contact
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('settings/contact')
   getLabContact(@CurrentTenant() tenant: TenantContext) {
     return this.labService.getLabContact(tenant.tenantId);
@@ -894,6 +899,7 @@ export class LabController {
 
   // GET /api/lab/vet-verifications/count?status=PENDING
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('vet-verifications/count')
   getVetVerificationCount(
     @CurrentTenant() tenant: TenantContext,
@@ -904,6 +910,7 @@ export class LabController {
 
   // GET /api/lab/vet-verifications?status=PENDING&search=jones&page=1&pageSize=20
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('vet-verifications')
   listVetVerifications(
     @CurrentTenant() tenant: TenantContext,
@@ -914,6 +921,7 @@ export class LabController {
 
   // GET /api/lab/vet-verifications/:id
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('vet-verifications/:id')
   getVetVerification(
     @CurrentTenant() tenant: TenantContext,
@@ -1018,6 +1026,7 @@ export class LabController {
 
   // GET /api/lab/pickups?status=REQUESTED&search=luna&messengerId=...&dateFrom=2026-08-01&dateTo=2026-08-08&page=1&pageSize=20
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('pickups')
   listPickups(
     @CurrentTenant() tenant: TenantContext,
@@ -1028,6 +1037,7 @@ export class LabController {
 
   // GET /api/lab/pickups/unassigned-count
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('pickups/unassigned-count')
   async getUnassignedPickupCount(@CurrentTenant() tenant: TenantContext) {
     const { total } = await this.pickupService.listPickups(tenant.tenantId, {
@@ -1040,6 +1050,7 @@ export class LabController {
   // GET /api/lab/my-pickups — the current user's own assigned pickups.
   // No status filter = active pickups only; pass status=RECEIVED_AT_LAB,CANCELLED,FAILED for history.
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_AND_MESSENGER_ROLES)
   @Get('my-pickups')
   getMyPickups(
     @CurrentTenant() tenant: TenantContext,
@@ -1051,6 +1062,7 @@ export class LabController {
 
   // GET /api/lab/pickups/:id
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('pickups/:id')
   getPickupById(
     @CurrentTenant() tenant: TenantContext,
@@ -1079,6 +1091,7 @@ export class LabController {
 
   // POST /api/lab/pickups/:id/received — lab staff confirms the sample arrived
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Post('pickups/:id/received')
   @HttpCode(HttpStatus.OK)
   confirmPickupReceived(
@@ -1091,6 +1104,7 @@ export class LabController {
 
   // POST /api/lab/pickups/:id/cancel
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Post('pickups/:id/cancel')
   @HttpCode(HttpStatus.OK)
   cancelPickup(
@@ -1109,6 +1123,7 @@ export class LabController {
 
   // POST /api/lab/pickups/:id/accept — messenger accepts their assigned pickup
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_AND_MESSENGER_ROLES)
   @Post('pickups/:id/accept')
   @HttpCode(HttpStatus.OK)
   acceptPickup(
@@ -1121,6 +1136,7 @@ export class LabController {
 
   // POST /api/lab/pickups/:id/collected — messenger marks the sample collected
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_AND_MESSENGER_ROLES)
   @Post('pickups/:id/collected')
   @HttpCode(HttpStatus.OK)
   markPickupCollected(
@@ -1133,6 +1149,7 @@ export class LabController {
 
   // POST /api/lab/pickups/:id/problem — messenger reports a collection problem
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_AND_MESSENGER_ROLES)
   @Post('pickups/:id/problem')
   @HttpCode(HttpStatus.OK)
   reportPickupProblem(
@@ -1152,6 +1169,7 @@ export class LabController {
 
   // GET /api/lab/messengers
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('messengers')
   getAvailableMessengers(@CurrentTenant() tenant: TenantContext) {
     return this.pickupService.getAvailableMessengers(tenant.tenantId);
@@ -1159,6 +1177,7 @@ export class LabController {
 
   // POST /api/lab/messengers/me/push-subscription
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_AND_MESSENGER_ROLES)
   @Post('messengers/me/push-subscription')
   @HttpCode(HttpStatus.OK)
   savePushSubscription(
@@ -1170,6 +1189,7 @@ export class LabController {
 
   // DELETE /api/lab/messengers/me/push-subscription
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_AND_MESSENGER_ROLES)
   @Delete('messengers/me/push-subscription')
   @HttpCode(HttpStatus.OK)
   removePushSubscription(
@@ -1181,6 +1201,7 @@ export class LabController {
 
   // GET /api/lab/orders/:id/timeline
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('orders/:id/timeline')
   getOrderTimeline(
     @CurrentTenant() tenant: TenantContext,
@@ -1195,6 +1216,7 @@ export class LabController {
 
   // GET /api/lab/users
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('users')
   getMembers(@CurrentTenant() tenant: TenantContext) {
     return this.labUsersService.getLabMembers(tenant.tenantId);
@@ -1273,6 +1295,27 @@ export class LabController {
     @Query() query: ListClientsDto
   ) {
     return this.labClientsService.listClients(tenant.tenantId, query);
+  }
+
+  // GET /api/lab/clients/export?status=&search=&includeNotes=true — every
+  // matching client, unpaged, as JSON rows; the lab app writes the CSV.
+  // Declared before clients/:id so "export" isn't read as an id.
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('clients/export')
+  exportClients(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ExportClientsDto,
+    @Req() req: Request
+  ) {
+    const requestId = (req as unknown as Record<string, unknown>)['requestId'];
+    return this.labClientsService.exportClients(
+      tenant.tenantId,
+      query,
+      user.id,
+      typeof requestId === 'string' ? requestId : undefined
+    );
   }
 
   // GET /api/lab/clients/:id
@@ -1625,6 +1668,7 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Post('ordered-tests/batch-save-submit')
   @HttpCode(HttpStatus.OK)
   batchSaveAndSubmit(
@@ -1658,6 +1702,7 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Post('ordered-tests/batch-result-sessions')
   @HttpCode(HttpStatus.OK)
   batchGetResultSessions(
@@ -1699,6 +1744,7 @@ export class LabController {
   // ---------------------------------------------------------------------------
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('releases/:releaseId/artifacts/pdf')
   async getPdfArtifactStatus(
     @CurrentTenant() tenant: TenantContext,
@@ -1712,6 +1758,7 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
   @Get('releases/:releaseId/artifacts/pdf/download')
   async downloadPdf(
     @CurrentTenant() tenant: TenantContext,

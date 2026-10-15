@@ -511,6 +511,24 @@ export class LabService {
       );
     }
 
+    // The assignee must be a member of this lab (null unassigns)
+    if (dto.assignedUserId) {
+      const member = await this.prisma.userTenantMembership.findUnique({
+        where: {
+          userId_tenantId: {
+            userId: dto.assignedUserId,
+            tenantId: labTenantId,
+          },
+        },
+        select: { userId: true },
+      });
+      if (!member) {
+        throw new BadRequestException(
+          'The assigned user is not a member of this laboratory.'
+        );
+      }
+    }
+
     const now = new Date();
     const timestamps: Record<string, Date | null> = {};
     if (dto.status === 'IN_PROGRESS' && !test.startedAt)
@@ -651,6 +669,23 @@ export class LabService {
   ) {
     const { signers, vetVerificationRequired, ...profileData } = data;
 
+    // Signer ids sent back must be this lab's, checked before anything is
+    // written so a bad id can't leave a half-applied save.
+    const existingSignerIds = (signers ?? [])
+      .map((s) => s.id)
+      .filter((id): id is string => !!id && !id.startsWith('temp-'));
+    if (existingSignerIds.length > 0) {
+      const own = await this.prisma.labSigner.count({
+        where: {
+          id: { in: existingSignerIds },
+          laboratoryProfile: { tenantId: labTenantId },
+        },
+      });
+      if (own !== new Set(existingSignerIds).size) {
+        throw new NotFoundException('Signer not found.');
+      }
+    }
+
     // Fetch current value before upsert to detect toggle direction
     const currentProfile = await this.prisma.laboratoryProfile.findUnique({
       where: { tenantId: labTenantId },
@@ -737,10 +772,12 @@ export class LabService {
         };
 
         if (isRealId(s.id)) {
-          await this.prisma.labSigner.update({
-            where: { id: s.id },
+          // Only this lab's signers: an id from another lab updates nothing
+          const { count } = await this.prisma.labSigner.updateMany({
+            where: { id: s.id, laboratoryProfileId: profile.id },
             data: signerData,
           });
+          if (count === 0) throw new NotFoundException('Signer not found.');
         } else {
           await this.prisma.labSigner.create({
             data: {
