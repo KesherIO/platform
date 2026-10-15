@@ -111,9 +111,21 @@ export function LaboratorySettingsPage() {
   const [saved, setSaved] = useState(false);
   const [importingPlatform, setImportingPlatform] = useState(false);
 
-  const initialProfile = useRef<string>('');
-  const initialContact = useRef<string>('');
-  const initialSigners = useRef<string>('');
+  // Baselines for isDirty. On a re-mount with cached data the queryFn doesn't
+  // run (global staleTime), so seed them from the cache-initialised state —
+  // otherwise they stay '' and Save is disabled until the cache goes stale.
+  const hasCachedSettings = !!queryClient.getQueryData([
+    'settings-profile-contact',
+  ]);
+  const initialProfile = useRef<string>(
+    hasCachedSettings ? JSON.stringify(profile) : ''
+  );
+  const initialContact = useRef<string>(
+    hasCachedSettings ? JSON.stringify(contactInfo) : ''
+  );
+  const initialSigners = useRef<string>(
+    hasCachedSettings ? JSON.stringify(signers) : ''
+  );
 
   const isDirty =
     !!initialProfile.current &&
@@ -185,6 +197,9 @@ export function LaboratorySettingsPage() {
       initialProfile.current = JSON.stringify(profile);
       initialContact.current = JSON.stringify(contactInfo);
       initialSigners.current = JSON.stringify(signers);
+      // Refresh the cache so a later visit doesn't start from pre-save data,
+      // and new signers get their real ids instead of temp- ones.
+      queryClient.invalidateQueries({ queryKey: ['settings-profile-contact'] });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
