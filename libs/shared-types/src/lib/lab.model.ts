@@ -40,8 +40,11 @@ export interface LaboratoryProfileModel {
 }
 
 export interface LabPhoneNumber {
+  /** Free text ("Recepción"); older saves hold commercial/personal/other/whatsapp */
   label: string;
   number: string;
+  /** Reachable on WhatsApp */
+  whatsapp?: boolean;
 }
 
 export type LabSignerRole = 'ANALYST' | 'REVIEWER' | 'DATA_ENTRY';
