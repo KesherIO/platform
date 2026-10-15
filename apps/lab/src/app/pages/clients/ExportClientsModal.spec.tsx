@@ -22,6 +22,9 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: translate }),
 }));
 
+// labApi imports the Supabase client, which throws without env vars (CI)
+vi.mock('../../auth/supabase', () => ({ supabase: {} }));
+
 vi.mock('../../shared/api/labApi', async (importOriginal) => {
   const actual = await importOriginal<
     typeof import('../../shared/api/labApi')
