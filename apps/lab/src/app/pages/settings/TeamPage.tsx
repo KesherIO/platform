@@ -12,8 +12,8 @@ import {
 } from '../../shared/components/WeeklyScheduleEditor';
 import type { LabMember, LabRole, WeeklySchedule } from '../../types/lab.types';
 
+/** Roles an admin can assign (the API rejects OWNER; no ownership transfer yet). */
 const ROLES: LabRole[] = [
-  'OWNER',
   'ADMIN',
   'TECHNICIAN',
   'ANALYST',
@@ -137,7 +137,13 @@ function RowActionsMenu({
 
 export function TeamPage() {
   const { t } = useTranslation();
-  const { user, isAdmin, refreshTenant } = useAuth();
+  const { user, isAdmin, labRole, refreshTenant } = useAuth();
+  // Only an owner may change or remove an owner (the API enforces it too,
+  // plus "at least one owner"). Changing an owner's role isn't offered here.
+  const canManage = (member: LabMember) =>
+    isAdmin &&
+    member.userId !== user?.id &&
+    (member.role !== 'OWNER' || labRole === 'OWNER');
   const confirm = useConfirm();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -539,22 +545,30 @@ export function TeamPage() {
                       <label className="mb-1 block text-xs text-gray-500">
                         {t('team.form.role')}
                       </label>
-                      <select
-                        value={editForm.role}
-                        onChange={(e) =>
-                          setEditForm((f) => ({
-                            ...f,
-                            role: e.target.value as LabRole,
-                          }))
-                        }
-                        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
-                      >
-                        {ROLES.map((r) => (
-                          <option key={r} value={r}>
-                            {t(`team.roles.${r}`)}
-                          </option>
-                        ))}
-                      </select>
+                      {member.role === 'OWNER' ? (
+                        <span
+                          className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${ROLE_COLORS.OWNER}`}
+                        >
+                          {t('team.roles.OWNER')}
+                        </span>
+                      ) : (
+                        <select
+                          value={editForm.role}
+                          onChange={(e) =>
+                            setEditForm((f) => ({
+                              ...f,
+                              role: e.target.value as LabRole,
+                            }))
+                          }
+                          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+                        >
+                          {ROLES.map((r) => (
+                            <option key={r} value={r}>
+                              {t(`team.roles.${r}`)}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                     {editForm.role === 'MESSENGER' && (
                       <div>
@@ -651,7 +665,7 @@ export function TeamPage() {
 
                       {/* Role — fixed width */}
                       <div className="flex w-32 justify-end">
-                        {isMe || !isAdmin ? (
+                        {!canManage(member) || member.role === 'OWNER' ? (
                           <span
                             className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${
                               ROLE_COLORS[member.role]
@@ -681,7 +695,7 @@ export function TeamPage() {
                         <RowActionsMenu
                           onEdit={() => startEditing(member)}
                           onRemove={() => handleRemove(member)}
-                          disableRemove={isMe}
+                          disableRemove={!canManage(member)}
                           editLabel={t('team.actions.edit')}
                           removeLabel={t('team.actions.remove')}
                         />

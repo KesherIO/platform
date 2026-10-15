@@ -2,7 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { ClinicProfileModel, StaffMember } from '@vet-ai/shared-types';
+import {
+  ClinicProfileModel,
+  LabPhoneNumber,
+  StaffMember,
+} from '@vet-ai/shared-types';
 import { TenantService } from './tenant.service';
 
 export type InviteErrorType =
@@ -28,7 +32,7 @@ export interface LabContact {
   phone: string | null;
   address: string | null;
   logoUrl: string | null;
-  phoneNumbers: { label: string; number: string }[] | null;
+  phoneNumbers: LabPhoneNumber[] | null;
   mapLat: number | null;
   mapLng: number | null;
 }

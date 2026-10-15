@@ -8,6 +8,7 @@ import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
 import { ImportClientsDto } from './dto/import-clients.dto';
 import { BatchSaveSubmitDto } from './dto/batch-ordered-tests.dto';
+import { UpdateLabContactDto } from './dto/update-lab-contact.dto';
 import { ExportClientsDto } from './dto/export-clients.dto';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import { TenantRole } from '@prisma/client';
@@ -556,6 +557,49 @@ describe('LabController', () => {
       ],
     ])('rejects %s with 400', async (_label, body) => {
       await expect(validate(body)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('UpdateLabContactDto phone numbers', () => {
+    // Same options as the global pipe in main.ts.
+    const pipe = new ValidationPipe({ whitelist: true, transform: true });
+    const validate = (body: unknown) =>
+      pipe.transform(body, { type: 'body', metatype: UpdateLabContactDto });
+
+    it('keeps free-text labels and the WhatsApp flag', async () => {
+      const dto = await validate({
+        phoneNumbers: [
+          { label: 'Recepción', number: '+57 300 111 2222', whatsapp: true },
+          { label: 'commercial', number: '+57 601 555 0000' },
+        ],
+      });
+      expect(dto.phoneNumbers).toEqual([
+        { label: 'Recepción', number: '+57 300 111 2222', whatsapp: true },
+        { label: 'commercial', number: '+57 601 555 0000' },
+      ]);
+    });
+
+    it.each([
+      [
+        'a non-boolean whatsapp',
+        [{ label: 'x', number: '1', whatsapp: 'yes' }],
+      ],
+      ['a label over 50 characters', [{ label: 'x'.repeat(51), number: '1' }]],
+      [
+        'two WhatsApp numbers',
+        [
+          { label: 'A', number: '1', whatsapp: true },
+          { label: 'B', number: '2', whatsapp: true },
+        ],
+      ],
+      [
+        'more than 10 numbers',
+        Array.from({ length: 11 }, () => ({ label: '', number: '1' })),
+      ],
+    ])('rejects %s with 400', async (_label, phoneNumbers) => {
+      await expect(validate({ phoneNumbers })).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 

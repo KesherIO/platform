@@ -9,6 +9,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer } from '@angular/platform-browser';
 import { TranslatePipe } from '@ngx-translate/core';
+import { LabPhoneNumber } from '@vet-ai/shared-types';
 import {
   SettingsService,
   LabContact,
@@ -41,7 +42,7 @@ export class ContactLabSettingsComponent implements OnInit {
   });
 
   readonly whatsAppUrl = computed(() => {
-    const wp = this.phones().find((p) => p.label === 'whatsapp');
+    const wp = this.phones().find((p) => this.isWhatsApp(p));
     if (!wp) return null;
     const digits = wp.number.replace(/\D/g, '');
     return `https://wa.me/${digits}`;
@@ -86,13 +87,37 @@ export class ContactLabSettingsComponent implements OnInit {
       });
   }
 
-  phoneTypeKey(label: string): string {
+  /** The WhatsApp checkbox, or the old dropdown's "whatsapp" label. */
+  isWhatsApp(phone: LabPhoneNumber): boolean {
+    return phone.whatsapp === true || phone.label === 'whatsapp';
+  }
+
+  /** Translation key for a label saved by the old dropdown, else null. */
+  legacyLabelKey(phone: LabPhoneNumber): string | null {
     const map: Record<string, string> = {
-      whatsapp: 'SETTINGS.CONTACT_LAB.PHONE_WHATSAPP',
       commercial: 'SETTINGS.CONTACT_LAB.PHONE_COMMERCIAL',
       personal: 'SETTINGS.CONTACT_LAB.PHONE_PERSONAL',
       other: 'SETTINGS.CONTACT_LAB.PHONE_OTHER',
     };
-    return map[label] ?? 'SETTINGS.CONTACT_LAB.PHONE_OTHER';
+    return map[phone.label] ?? null;
+  }
+
+  /** An old code or the lab's own text to show under the number. */
+  hasLabel(phone: LabPhoneNumber): boolean {
+    return !!this.legacyLabelKey(phone) || !!this.customLabel(phone);
+  }
+
+  /** "· WhatsApp" after the label — not when the label already says it. */
+  showWhatsAppTag(phone: LabPhoneNumber): boolean {
+    return (
+      this.isWhatsApp(phone) &&
+      !/\bwhats\s?app\b/i.test(this.customLabel(phone))
+    );
+  }
+
+  /** The lab's own label text ("Recepción"); empty for old codes. */
+  customLabel(phone: LabPhoneNumber): string {
+    if (phone.label === 'whatsapp' || this.legacyLabelKey(phone)) return '';
+    return phone.label.trim();
   }
 }

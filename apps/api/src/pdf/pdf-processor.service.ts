@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { PdfRendererService } from './pdf-renderer.service';
 import type { ReleaseForPdf } from './pdf-renderer.service';
+import { phoneLabelForPdf } from '../lab/lab-contact.util';
 
 const STALE_THRESHOLD_MS = 10 * 60 * 1000;
 const POLL_INTERVAL_MS = 5_000;
@@ -70,10 +71,17 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
   ): ReleaseForPdf['labPhones'] {
     if (Array.isArray(phoneNumbers)) {
       return phoneNumbers
-        .map((p) => (p ?? {}) as { label?: unknown; number?: unknown })
+        .map(
+          (p) =>
+            (p ?? {}) as {
+              label?: unknown;
+              number?: unknown;
+              whatsapp?: unknown;
+            }
+        )
         .filter((p) => typeof p.number === 'string' && p.number)
         .map((p) => ({
-          label: typeof p.label === 'string' ? p.label : '',
+          label: phoneLabelForPdf(p),
           number: p.number as string,
         }));
     }

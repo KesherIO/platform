@@ -60,4 +60,71 @@ describe('ContactLabSettingsComponent', () => {
   it('computes phone list from phoneNumbers', () => {
     expect(component.phones().length).toBe(2);
   });
+
+  it('derives WhatsApp URL from the WhatsApp checkbox', () => {
+    component.lab.set({
+      ...MOCK_LAB,
+      phoneNumbers: [
+        { label: 'Urgencias', number: '+57 601 555 0000' },
+        { label: 'Recepción', number: '+57 300 111 2222', whatsapp: true },
+      ],
+    });
+    expect(component.whatsAppUrl()).toBe('https://wa.me/573001112222');
+  });
+
+  it('has no WhatsApp URL when no number is marked', () => {
+    component.lab.set({
+      ...MOCK_LAB,
+      phoneNumbers: [{ label: 'Urgencias', number: '+57 601 555 0000' }],
+    });
+    expect(component.whatsAppUrl()).toBeNull();
+  });
+
+  it('shows custom labels as typed and old codes through translation keys', () => {
+    expect(component.customLabel({ label: ' Recepción ', number: '1' })).toBe(
+      'Recepción'
+    );
+    expect(component.legacyLabelKey({ label: 'commercial', number: '1' })).toBe(
+      'SETTINGS.CONTACT_LAB.PHONE_COMMERCIAL'
+    );
+    expect(component.customLabel({ label: 'commercial', number: '1' })).toBe(
+      ''
+    );
+    expect(component.customLabel({ label: 'whatsapp', number: '1' })).toBe('');
+    expect(component.isWhatsApp({ label: 'whatsapp', number: '1' })).toBe(true);
+  });
+
+  it('renders a custom label with the WhatsApp tag', () => {
+    component.lab.set({
+      ...MOCK_LAB,
+      phoneNumbers: [
+        { label: 'Recepción', number: '+57 300 111 2222', whatsapp: true },
+      ],
+    });
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Recepción');
+    expect(text).toContain('SETTINGS.CONTACT_LAB.PHONE_WHATSAPP');
+  });
+
+  it("doesn't repeat WhatsApp when the label already says it", () => {
+    component.lab.set({
+      ...MOCK_LAB,
+      phoneNumbers: [
+        { label: 'WhatsApp', number: '+57 300 111 2222', whatsapp: true },
+      ],
+    });
+    fixture.detectChanges();
+    expect(
+      component.showWhatsAppTag({
+        label: 'WhatsApp',
+        number: '1',
+        whatsapp: true,
+      })
+    ).toBe(false);
+    const caption = (fixture.nativeElement as HTMLElement).querySelector(
+      'span.text-xs'
+    );
+    expect(caption?.textContent?.trim()).toBe('WhatsApp');
+  });
 });
