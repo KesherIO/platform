@@ -1,11 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
+  Logger,
   NotFoundException,
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { LabClientsService } from './lab-clients.service';
+import { EXPORT_MAX_ROWS, LabClientsService } from './lab-clients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ImportClientsDto } from './dto/import-clients.dto';
 
@@ -159,6 +160,135 @@ describe('LabClientsService', () => {
       const call = prisma.tenant.findMany.mock.calls[0][0];
       const andConditions = call.where.AND;
       expect(andConditions).toHaveLength(2);
+    });
+  });
+
+  describe('exportClients', () => {
+    const exportOf = (query = {}) =>
+      service.exportClients(LAB_ID, query, USER_ID, 'req-1');
+
+    it('uses the same lab/status/search filter as listClients', async () => {
+      prisma.tenant.findMany.mockResolvedValue([]);
+      prisma.tenant.count.mockResolvedValue(0);
+      const filters = { status: 'PENDING', search: 'vet' };
+
+      await service.listClients(LAB_ID, filters);
+      await exportOf(filters);
+
+      const [listCall, exportCall] = prisma.tenant.findMany.mock.calls;
+      expect(exportCall[0].where).toEqual(listCall[0].where);
+      expect(exportCall[0].where.AND[0]).toMatchObject({
+        clinicConnections: { some: { labId: LAB_ID, isActive: true } },
+        type: 'CLINIC',
+        clientStatus: 'PENDING',
+      });
+    });
+
+    it('is not paged: asks for the cap plus one row', async () => {
+      prisma.tenant.findMany.mockResolvedValue([]);
+
+      await exportOf();
+
+      const call = prisma.tenant.findMany.mock.calls[0][0];
+      expect(call.skip).toBeUndefined();
+      expect(call.take).toBe(EXPORT_MAX_ROWS + 1);
+    });
+
+    it('returns the profile fields with the ID number as entered', async () => {
+      prisma.tenant.findMany.mockResolvedValue([mockClientTenant]);
+
+      const { rows } = await exportOf();
+
+      expect(rows).toEqual([
+        {
+          id: CLIENT_ID,
+          name: 'Test Clinic',
+          legalName: 'Test Clinic SAS',
+          primaryContactName: 'Dr. Smith',
+          primaryContactEmail: 'clinic@example.com',
+          phone: '+1234567890',
+          address: '123 Main St',
+          city: 'Bogotá',
+          country: 'CO',
+          clientType: 'VETERINARY_CLINIC',
+          taxIdType: 'NIT',
+          taxId: '900.123.456-7',
+          status: 'PENDING',
+        },
+      ]);
+    });
+
+    it('never selects users, invitations, order counts or import fields', async () => {
+      prisma.tenant.findMany.mockResolvedValue([]);
+
+      await exportOf({ includeNotes: true });
+
+      const select = prisma.tenant.findMany.mock.calls[0][0].select;
+      for (const key of [
+        '_count',
+        'memberships',
+        'onboardingTokens',
+        'taxIdNormalized',
+        'importBatchId',
+        'importRowNumber',
+      ]) {
+        expect(select).not.toHaveProperty(key);
+      }
+    });
+
+    it('has no notes field at all unless includeNotes is true', async () => {
+      prisma.tenant.findMany.mockResolvedValue([mockClientTenant]);
+
+      const { rows } = await exportOf({ includeNotes: false });
+
+      expect(rows[0]).not.toHaveProperty('notes');
+      expect(prisma.tenant.findMany.mock.calls[0][0].select).not.toHaveProperty(
+        'clinicConnections'
+      );
+    });
+
+    it("with includeNotes, returns only this lab's notes", async () => {
+      prisma.tenant.findMany.mockResolvedValue([mockClientTenant]);
+
+      const { rows } = await exportOf({ includeNotes: true });
+
+      expect(rows[0].notes).toBe('Pays monthly');
+      expect(
+        prisma.tenant.findMany.mock.calls[0][0].select.clinicConnections
+      ).toEqual(expect.objectContaining({ where: { labId: LAB_ID } }));
+    });
+
+    it('fails above the row cap instead of returning a cut-off file', async () => {
+      prisma.tenant.findMany.mockResolvedValue(
+        Array.from({ length: EXPORT_MAX_ROWS + 1 }, () => mockClientTenant)
+      );
+
+      await expect(exportOf()).rejects.toThrow(BadRequestException);
+    });
+
+    it('logs one line per export, without row contents', async () => {
+      prisma.tenant.findMany.mockResolvedValue([mockClientTenant]);
+      const log = jest
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation(() => undefined);
+
+      await exportOf({ status: 'ACTIVE', search: 'Test', includeNotes: true });
+
+      expect(log).toHaveBeenCalledTimes(1);
+      const line = log.mock.calls[0][0] as string;
+      expect(line).toContain(`lab=${LAB_ID}`);
+      expect(line).toContain(`user=${USER_ID}`);
+      expect(line).toContain('rows=1');
+      expect(line).toContain('status=ACTIVE');
+      expect(line).toContain('includeNotes=true');
+      expect(line).toContain('requestId=req-1');
+      for (const value of [
+        'Test Clinic',
+        'clinic@example.com',
+        'Pays monthly',
+      ]) {
+        expect(line).not.toContain(value);
+      }
     });
   });
 

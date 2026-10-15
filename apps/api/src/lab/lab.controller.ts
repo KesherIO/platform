@@ -44,6 +44,7 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ListClientsDto } from './dto/list-clients.dto';
 import { ImportClientsDto } from './dto/import-clients.dto';
+import { ExportClientsDto } from './dto/export-clients.dto';
 import { ListPickupsDto } from './dto/list-pickups.dto';
 import { ListVetVerificationsDto } from './dto/list-vet-verifications.dto';
 import {
@@ -1267,6 +1268,27 @@ export class LabController {
     @Query() query: ListClientsDto
   ) {
     return this.labClientsService.listClients(tenant.tenantId, query);
+  }
+
+  // GET /api/lab/clients/export?status=&search=&includeNotes=true — every
+  // matching client, unpaged, as JSON rows; the lab app writes the CSV.
+  // Declared before clients/:id so "export" isn't read as an id.
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('clients/export')
+  exportClients(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ExportClientsDto,
+    @Req() req: Request
+  ) {
+    const requestId = (req as unknown as Record<string, unknown>)['requestId'];
+    return this.labClientsService.exportClients(
+      tenant.tenantId,
+      query,
+      user.id,
+      typeof requestId === 'string' ? requestId : undefined
+    );
   }
 
   // GET /api/lab/clients/:id

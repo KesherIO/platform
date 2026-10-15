@@ -1,4 +1,5 @@
 import type {
+  ClientExportRow,
   ClientType,
   ColumnMapping,
   ImportBucket,
@@ -774,6 +775,45 @@ export function buildRetryCsv(
       options.statusLabel(row),
       options.reasonLabel(row),
     ]);
+  return toCsv([header, ...body]);
+}
+
+export interface ExportCsvOptions {
+  headers: TemplateHeaders & { clientId: string; status: string };
+  clientTypeLabel: (code: string) => string;
+  statusLabel: (status: ClientExportRow['status']) => string;
+  /** Adds the Notes column; the API only sends notes when asked (B9). */
+  includeNotes: boolean;
+}
+
+/**
+ * The lab's client list (plan B9) under our template headers, so the import
+ * recognizes the file — Client ID and Status stay on Ignore there. Values as
+ * stored (ID numbers, phones, country codes), escaped like the retry file.
+ */
+export function buildExportCsv(
+  rows: ClientExportRow[],
+  options: ExportCsvOptions
+): string {
+  const fields = IMPORT_FIELDS.filter((f) => f !== 'notes');
+  const header = [
+    options.headers.clientId,
+    ...fields.map((f) => options.headers[f]),
+    options.headers.status,
+    ...(options.includeNotes ? [options.headers.notes] : []),
+  ];
+  const body = rows.map((row) => [
+    row.id,
+    ...fields.map((field) =>
+      field === 'clientType'
+        ? row.clientType
+          ? options.clientTypeLabel(row.clientType)
+          : ''
+        : row[field] ?? ''
+    ),
+    options.statusLabel(row.status),
+    ...(options.includeNotes ? [row.notes ?? ''] : []),
+  ]);
   return toCsv([header, ...body]);
 }
 
