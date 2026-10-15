@@ -147,6 +147,15 @@ Ireland has every migration up to `20261007000001` applied. `main` adds two:
 | `20261008000000_lock_down_public_schema`        | This lockdown (grants and RLS only)                                                                                            |
 | `20261010000001_client_tax_identity_and_import` | Client import + clinic tax fields: nullable columns and two indexes on `tenants` and `clinic_lab_connections`; no data changes |
 
+**Added after the 2026-10-12 decision (pending, same manual release):**
+`20261015000001_membership_events` — membership audit log: new enum + new table
+`membership_events` (RLS on, Data API roles revoked), an `app_private` function and an
+UPDATE trigger that makes rows immutable. New objects only, no change to existing rows,
+no backfill (history starts at deployment). The new lab code writes to this table on
+every add/role/pickup/remove change, so **apply it before that code goes live** —
+otherwise those requests fail. `migrate status` should then list three pending
+migrations.
+
 **Decision (2026-10-12): one release.** Both migrations go to Ireland together with plain
 `prisma migrate deploy`, which applies them in name order, and then `main` is merged into
 `production` (client import #37–#38, Phase 3 tax fields #39, this lockdown #40). No

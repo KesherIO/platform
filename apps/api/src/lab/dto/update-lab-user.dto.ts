@@ -35,4 +35,10 @@ export class UpdateLabUserDto {
   @IsBoolean()
   @IsOptional()
   canPerformPickups?: boolean;
+
+  /** Optional — stored in the membership audit log. */
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  reason?: string;
 }

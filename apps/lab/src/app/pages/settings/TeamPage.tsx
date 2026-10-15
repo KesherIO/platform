@@ -1,16 +1,21 @@
 import { useEffect, useState, useRef, FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Trash2, MoreVertical } from 'lucide-react';
+import { Pencil, Trash2, MoreVertical, History, UserCog } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
-import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
-import { useToast } from '../../shared/components/ToastProvider';
 import {
   WeeklyScheduleEditor,
   makeEmptySchedule,
 } from '../../shared/components/WeeklyScheduleEditor';
-import type { LabMember, LabRole, WeeklySchedule } from '../../types/lab.types';
+import type {
+  LabMember,
+  LabRole,
+  RemovedLabMember,
+  WeeklySchedule,
+} from '../../types/lab.types';
+import { ReasonDialog } from './ReasonDialog';
+import { MembershipHistoryPanel } from './MembershipHistoryPanel';
 
 /** Roles an admin can assign (the API rejects OWNER; no ownership transfer yet). */
 const ROLES: LabRole[] = [
@@ -49,6 +54,8 @@ interface EditForm {
   role: LabRole;
   schedule: WeeklySchedule;
   canPerformPickups: boolean;
+  /** Audit-log reason: required for a role change, optional for pickups. */
+  reason: string;
 }
 
 const EMPTY_FORM: CreateForm = {
@@ -63,15 +70,19 @@ const EMPTY_FORM: CreateForm = {
 
 function RowActionsMenu({
   onEdit,
+  onHistory,
   onRemove,
   disableRemove,
   editLabel,
+  historyLabel,
   removeLabel,
 }: {
   onEdit: () => void;
+  onHistory: () => void;
   onRemove: () => void;
   disableRemove: boolean;
   editLabel: string;
+  historyLabel: string;
   removeLabel: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -114,6 +125,17 @@ function RowActionsMenu({
           <button
             type="button"
             onClick={() => {
+              onHistory();
+              setOpen(false);
+            }}
+            className="flex w-full items-center gap-2 border-t border-gray-800 px-3 py-2.5 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-white"
+          >
+            <History size={15} strokeWidth={2} />
+            {historyLabel}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               if (!disableRemove) {
                 onRemove();
                 setOpen(false);
@@ -136,7 +158,7 @@ function RowActionsMenu({
 }
 
 export function TeamPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, isAdmin, labRole, refreshTenant } = useAuth();
   // Only an owner may change or remove an owner (the API enforces it too,
   // plus "at least one owner"). Changing an owner's role isn't offered here.
@@ -144,8 +166,6 @@ export function TeamPage() {
     isAdmin &&
     member.userId !== user?.id &&
     (member.role !== 'OWNER' || labRole === 'OWNER');
-  const confirm = useConfirm();
-  const toast = useToast();
   const queryClient = useQueryClient();
 
   const {
@@ -158,6 +178,13 @@ export function TeamPage() {
   });
 
   const error = queryError ? t('team.errors.load') : null;
+
+  // Removed people drop out of the team list; this keeps their history reachable.
+  const { data: removedMembers = [] } = useQuery({
+    queryKey: ['users-removed'],
+    queryFn: () => labApi.users.removed() as Promise<RemovedLabMember[]>,
+    enabled: isAdmin,
+  });
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM);
@@ -172,12 +199,31 @@ export function TeamPage() {
     role: 'TECHNICIAN',
     schedule: makeEmptySchedule(),
     canPerformPickups: false,
+    reason: '',
   });
+  const [editOriginal, setEditOriginal] = useState<LabMember | null>(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const invalidateUsers = () =>
+  const [pendingRoleChange, setPendingRoleChange] = useState<{
+    member: LabMember;
+    role: LabRole;
+  } | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<LabMember | null>(null);
+  const [historyFor, setHistoryFor] = useState<{
+    userId?: string;
+    title: string;
+  } | null>(null);
+
+  const nameOf = (member: LabMember) =>
+    [member.firstName, member.lastName].filter(Boolean).join(' ') ||
+    member.email;
+
+  const invalidateUsers = () => {
     queryClient.invalidateQueries({ queryKey: ['users'] });
+    queryClient.invalidateQueries({ queryKey: ['users-removed'] });
+    queryClient.invalidateQueries({ queryKey: ['membership-history'] });
+  };
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -200,34 +246,12 @@ export function TeamPage() {
     }
   };
 
-  const handleRoleChange = async (userId: string, role: string) => {
-    try {
-      await labApi.users.updateRole(userId, role);
-      invalidateUsers();
-    } catch {
-      invalidateUsers();
-    }
+  // Role and removal changes ask for a reason first (audit log).
+  const handleRoleChange = (member: LabMember, role: LabRole) => {
+    if (role !== member.role) setPendingRoleChange({ member, role });
   };
 
-  const handleRemove = async (member: LabMember) => {
-    const name =
-      [member.firstName, member.lastName].filter(Boolean).join(' ') ||
-      member.email;
-    try {
-      const confirmed = await confirm({
-        title: t('team.remove.title'),
-        message: t('team.remove.confirm', { name }),
-        confirmLabel: t('team.actions.remove'),
-        variant: 'destructive',
-        icon: Trash2,
-        onConfirm: () => labApi.users.remove(member.userId),
-      });
-      if (!confirmed) return;
-      invalidateUsers();
-    } catch (err) {
-      toast.error(`${t('team.errors.remove')} ${(err as Error).message}`);
-    }
-  };
+  const handleRemove = (member: LabMember) => setPendingRemoval(member);
 
   const startEditing = (member: LabMember) => {
     setEditForm({
@@ -237,30 +261,45 @@ export function TeamPage() {
       role: member.role,
       schedule: member.schedule ?? makeEmptySchedule(),
       canPerformPickups: member.canPerformPickups,
+      reason: '',
     });
+    setEditOriginal(member);
     setEditingId(member.userId);
     setActionError(null);
   };
 
+  const editRoleChanged = !!editOriginal && editForm.role !== editOriginal.role;
+  const editPickupsChanged =
+    !!editOriginal &&
+    editForm.role !== 'MESSENGER' &&
+    editForm.canPerformPickups !== editOriginal.canPerformPickups;
+  const editReasonMissing = editRoleChanged && !editForm.reason.trim();
+
   const handleSaveEdit = async (originalRole: LabRole) => {
-    if (!editingId) return;
+    if (!editingId || editReasonMissing) return;
     try {
       setSaving(true);
       setActionError(null);
-      const { schedule, canPerformPickups, role, ...rest } = editForm;
+      const { schedule, canPerformPickups, role, reason, ...rest } = editForm;
+      const trimmedReason = reason.trim();
       const payload =
         role === 'MESSENGER'
           ? { ...rest, schedule }
-          : { ...rest, canPerformPickups };
+          : {
+              ...rest,
+              canPerformPickups,
+              ...(trimmedReason && { reason: trimmedReason }),
+            };
       await labApi.users.update(
         editingId,
         payload as unknown as Record<string, unknown>
       );
       if (role !== originalRole) {
-        await labApi.users.updateRole(editingId, role);
+        await labApi.users.updateRole(editingId, role, trimmedReason);
       }
       if (editingId === user?.id) await refreshTenant();
       setEditingId(null);
+      setEditOriginal(null);
       invalidateUsers();
     } catch (err) {
       setActionError(`${t('team.errors.update')} ${(err as Error).message}`);
@@ -281,15 +320,24 @@ export function TeamPage() {
           )}
         </div>
         {isAdmin && (
-          <button
-            onClick={() => {
-              setShowForm(true);
-              setFormError(null);
-            }}
-            className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
-          >
-            + {t('team.add_user')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setHistoryFor({ title: t('team.history.title') })}
+              className="flex items-center gap-2 rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+            >
+              <History size={15} strokeWidth={2} />
+              {t('team.history.open')}
+            </button>
+            <button
+              onClick={() => {
+                setShowForm(true);
+                setFormError(null);
+              }}
+              className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90"
+            >
+              + {t('team.add_user')}
+            </button>
+          </div>
         )}
       </div>
 
@@ -599,10 +647,32 @@ export function TeamPage() {
                         {t('team.form.can_perform_pickups')}
                       </label>
                     )}
+                    {(editRoleChanged || editPickupsChanged) && (
+                      <div>
+                        <label className="mb-1 block text-xs text-gray-500">
+                          {editRoleChanged
+                            ? t('team.reason.label')
+                            : t('team.reason.label_optional')}
+                        </label>
+                        <textarea
+                          value={editForm.reason}
+                          onChange={(e) =>
+                            setEditForm((f) => ({
+                              ...f,
+                              reason: e.target.value,
+                            }))
+                          }
+                          maxLength={500}
+                          rows={2}
+                          placeholder={t('team.reason.placeholder')}
+                          className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+                        />
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleSaveEdit(member.role)}
-                        disabled={saving}
+                        disabled={saving || editReasonMissing}
                         className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
                       >
                         {saving ? t('team.saving') : t('team.save')}
@@ -677,7 +747,10 @@ export function TeamPage() {
                           <select
                             value={member.role}
                             onChange={(e) =>
-                              handleRoleChange(member.userId, e.target.value)
+                              handleRoleChange(
+                                member,
+                                e.target.value as LabRole
+                              )
                             }
                             className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-white focus:border-cyan focus:outline-none"
                           >
@@ -694,9 +767,18 @@ export function TeamPage() {
                       {isAdmin && (
                         <RowActionsMenu
                           onEdit={() => startEditing(member)}
+                          onHistory={() =>
+                            setHistoryFor({
+                              userId: member.userId,
+                              title: t('team.history.title_for', {
+                                name: displayName,
+                              }),
+                            })
+                          }
                           onRemove={() => handleRemove(member)}
                           disableRemove={!canManage(member)}
                           editLabel={t('team.actions.edit')}
+                          historyLabel={t('team.actions.history')}
                           removeLabel={t('team.actions.remove')}
                         />
                       )}
@@ -707,6 +789,100 @@ export function TeamPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Former members — history stays available after removal */}
+      {isAdmin && removedMembers.length > 0 && (
+        <div className="mt-8">
+          <h2 className="mb-2 text-sm font-semibold text-gray-400">
+            {t('team.removed.title')} ({removedMembers.length})
+          </h2>
+          <div className="space-y-2">
+            {removedMembers.map((r) => {
+              const name = r.name ?? r.email ?? r.userId;
+              return (
+                <div
+                  key={r.userId}
+                  className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/60 px-5 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-gray-300">{name}</p>
+                    <p className="truncate text-xs text-gray-500">
+                      {t('team.removed.removed_on', {
+                        date: new Date(r.removedAt).toLocaleDateString(
+                          i18n.language
+                        ),
+                      })}
+                      {r.lastRole && ` · ${t(`team.roles.${r.lastRole}`)}`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setHistoryFor({
+                        userId: r.userId,
+                        title: t('team.history.title_for', { name }),
+                      })
+                    }
+                    className="flex shrink-0 items-center gap-2 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
+                  >
+                    <History size={14} strokeWidth={2} />
+                    {t('team.actions.history')}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {pendingRoleChange && (
+        <ReasonDialog
+          title={t('team.role_change.title')}
+          message={t('team.role_change.confirm', {
+            name: nameOf(pendingRoleChange.member),
+            from: t(`team.roles.${pendingRoleChange.member.role}`),
+            to: t(`team.roles.${pendingRoleChange.role}`),
+          })}
+          confirmLabel={t('team.role_change.submit')}
+          required
+          icon={UserCog}
+          onCancel={() => setPendingRoleChange(null)}
+          onSubmit={async (reason) => {
+            await labApi.users.updateRole(
+              pendingRoleChange.member.userId,
+              pendingRoleChange.role,
+              reason
+            );
+            setPendingRoleChange(null);
+            invalidateUsers();
+          }}
+        />
+      )}
+
+      {pendingRemoval && (
+        <ReasonDialog
+          title={t('team.remove.title')}
+          message={t('team.remove.confirm', { name: nameOf(pendingRemoval) })}
+          confirmLabel={t('team.actions.remove')}
+          required
+          destructive
+          icon={Trash2}
+          onCancel={() => setPendingRemoval(null)}
+          onSubmit={async (reason) => {
+            await labApi.users.remove(pendingRemoval.userId, reason);
+            setPendingRemoval(null);
+            invalidateUsers();
+          }}
+        />
+      )}
+
+      {historyFor && (
+        <MembershipHistoryPanel
+          userId={historyFor.userId}
+          title={historyFor.title}
+          onClose={() => setHistoryFor(null)}
+        />
       )}
     </div>
   );

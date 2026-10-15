@@ -40,6 +40,8 @@ import { UpdateLabContactDto } from './dto/update-lab-contact.dto';
 import { CreateLabUserDto } from './dto/create-lab-user.dto';
 import { UpdateLabUserRoleDto } from './dto/update-lab-user-role.dto';
 import { UpdateLabUserDto } from './dto/update-lab-user.dto';
+import { RemoveLabUserDto } from './dto/remove-lab-user.dto';
+import { ListMembershipEventsDto } from './dto/list-membership-events.dto';
 import { ListLabOrdersDto } from './dto/list-lab-orders.dto';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -1223,15 +1225,36 @@ export class LabController {
     return this.labUsersService.getLabMembers(tenant.tenantId);
   }
 
+  // GET /api/lab/users/history?userId=&cursor=&limit=
+  // Read-only membership audit log, this lab only (removed members included).
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('users/history')
+  getMembershipHistory(
+    @CurrentTenant() tenant: TenantContext,
+    @Query() query: ListMembershipEventsDto
+  ) {
+    return this.labUsersService.getMembershipHistory(tenant.tenantId, query);
+  }
+
+  // GET /api/lab/users/removed
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Get('users/removed')
+  getRemovedMembers(@CurrentTenant() tenant: TenantContext) {
+    return this.labUsersService.getRemovedMembers(tenant.tenantId);
+  }
+
   // POST /api/lab/users
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Roles(TenantRole.ADMIN, TenantRole.OWNER)
   @Post('users')
   createUser(
     @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateLabUserDto
   ) {
-    return this.labUsersService.createLabUser(tenant.tenantId, dto);
+    return this.labUsersService.createLabUser(tenant.tenantId, dto, user.id);
   }
 
   // PATCH /api/lab/users/:userId/role
@@ -1248,6 +1271,7 @@ export class LabController {
       tenant.tenantId,
       userId,
       dto.role,
+      dto.reason,
       user.id,
       tenant.role
     );
@@ -1259,10 +1283,16 @@ export class LabController {
   @Patch('users/:userId')
   updateUser(
     @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('userId') userId: string,
     @Body() dto: UpdateLabUserDto
   ) {
-    return this.labUsersService.updateUser(tenant.tenantId, userId, dto);
+    return this.labUsersService.updateUser(
+      tenant.tenantId,
+      userId,
+      dto,
+      user.id
+    );
   }
 
   // DELETE /api/lab/users/:userId
@@ -1273,11 +1303,13 @@ export class LabController {
   removeMember(
     @CurrentTenant() tenant: TenantContext,
     @CurrentUser() user: AuthenticatedUser,
-    @Param('userId') userId: string
+    @Param('userId') userId: string,
+    @Body() dto: RemoveLabUserDto
   ) {
     return this.labUsersService.removeMember(
       tenant.tenantId,
       userId,
+      dto.reason,
       user.id,
       tenant.role
     );

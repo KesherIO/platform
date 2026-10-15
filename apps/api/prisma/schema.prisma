@@ -217,6 +217,20 @@ enum MembershipStatus {
   SUSPENDED
 }
 
+/// Kinds of membership change recorded in membership_events. INVITED,
+/// INVITATION_ACCEPTED, DEACTIVATED and REACTIVATED are reserved: the lab has
+/// no invite or deactivate flow yet, so nothing writes them today.
+enum MembershipEventType {
+  MEMBER_ADDED
+  INVITED
+  INVITATION_ACCEPTED
+  ROLE_CHANGED
+  PICKUP_CAPABILITY_CHANGED
+  DEACTIVATED
+  REACTIVATED
+  REMOVED
+}
+
 enum VetVerificationStatus {
   PENDING
   APPROVED
@@ -372,6 +386,7 @@ model Tenant {
   updatedAt             DateTime        @updatedAt
 
   memberships            UserTenantMembership[]
+  membershipEvents       MembershipEvent[]
   invitations            TenantInvitation[]
   cases                  Case[]
   orders                 Order[]                    @relation("ClinicOrders")
@@ -443,6 +458,38 @@ model UserTenantMembership {
   @@index([tenantId])
   @@index([userId])
   @@map("user_tenant_memberships")
+}
+
+/// Append-only audit log of membership changes, written in the same
+/// transaction as the change. No FK to users and a snapshot of names, so the
+/// history survives the membership (and the user) being removed. An UPDATE
+/// trigger (see migration) makes rows immutable; the app never deletes them.
+model MembershipEvent {
+  id                        String              @id @default(cuid())
+  tenantId                  String
+  eventType                 MembershipEventType
+  targetUserId              String
+  targetName                String?
+  targetEmail               String?
+  /// null = system (InternalApiKey bootstrap, self-service lab onboarding)
+  actorUserId               String?
+  actorName                 String?
+  previousRole              TenantRole?
+  newRole                   TenantRole?
+  previousStatus            MembershipStatus?
+  newStatus                 MembershipStatus?
+  previousCanPerformPickups Boolean?
+  newCanPerformPickups      Boolean?
+  reason                    String?
+  /// Where the change came from, e.g. "lab_users", "lab_setup", "lab_onboarding"
+  source                    String
+  createdAt                 DateTime            @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, targetUserId, createdAt])
+  @@map("membership_events")
 }
 
 /// Pending invitations sent by clinic owners/admins to bring staff onboard.

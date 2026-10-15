@@ -5,6 +5,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  MaxLength,
   MinLength,
 } from 'class-validator';
 
@@ -40,4 +41,10 @@ export class CreateLabUserDto {
   @IsBoolean()
   @IsOptional()
   canPerformPickups?: boolean;
+
+  /** Optional — stored in the membership audit log. */
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  reason?: string;
 }

@@ -7,7 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { StorageService } from '../storage/storage.service';
-import { TenantRole } from '@prisma/client';
+import { MembershipEventType, TenantRole } from '@prisma/client';
+import { recordMembershipEvent } from '../lab/membership-events';
 import { randomBytes, randomUUID, createHash } from 'crypto';
 import {
   SaveStaffProfileDto,
@@ -1164,12 +1165,23 @@ export class OnboardingService {
           },
         });
 
-        await tx.userTenantMembership.create({
+        const membership = await tx.userTenantMembership.create({
           data: {
             userId: supabaseUserId,
             tenantId: tenant.id,
             role: TenantRole.OWNER,
           },
+        });
+
+        await recordMembershipEvent(tx, {
+          tenantId: tenant.id,
+          eventType: MembershipEventType.MEMBER_ADDED,
+          targetUserId: supabaseUserId,
+          actorUserId: null,
+          source: 'lab_onboarding',
+          newRole: membership.role,
+          newStatus: membership.status,
+          newCanPerformPickups: membership.canPerformPickups,
         });
 
         return { tenantId: tenant.id, userId: supabaseUserId };

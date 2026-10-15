@@ -40,6 +40,9 @@ import type {
   VetVerificationSummary,
   VetVerificationDetail,
   VetVerificationsQuery,
+  MembershipHistoryPage,
+  MembershipHistoryQuery,
+  RemovedLabMember,
 } from '../../types/lab.types';
 
 /** Non-2xx response. `message` is the response body, as before. */
@@ -152,11 +155,25 @@ export const labApi = {
   users: {
     list: () => get<unknown[]>('lab/users'),
     create: (data: Record<string, unknown>) => post<unknown>('lab/users', data),
-    updateRole: (userId: string, role: string) =>
-      patch<unknown>(`lab/users/${userId}/role`, { role }),
+    /** `reason` is required — it goes to the membership audit log. */
+    updateRole: (userId: string, role: string, reason: string) =>
+      patch<unknown>(`lab/users/${userId}/role`, { role, reason }),
     update: (userId: string, data: Record<string, unknown>) =>
       patch<unknown>(`lab/users/${userId}`, data),
-    remove: (userId: string) => del(`lab/users/${userId}`),
+    /** `reason` is required — it goes to the membership audit log. */
+    remove: (userId: string, reason: string) =>
+      del(`lab/users/${userId}`, { reason }),
+    history: (params?: MembershipHistoryQuery) => {
+      const sp = new URLSearchParams();
+      if (params?.userId) sp.set('userId', params.userId);
+      if (params?.cursor) sp.set('cursor', params.cursor);
+      if (params?.limit) sp.set('limit', String(params.limit));
+      const qs = sp.toString();
+      return get<MembershipHistoryPage>(
+        `lab/users/history${qs ? `?${qs}` : ''}`
+      );
+    },
+    removed: () => get<RemovedLabMember[]>('lab/users/removed'),
   },
   clients: {
     list: (params?: ClientsQuery) => {
