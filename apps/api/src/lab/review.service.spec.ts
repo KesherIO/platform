@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ReviewService } from './review.service';
@@ -12,7 +13,12 @@ describe('ReviewService', () => {
       order: { findFirst: jest.fn() },
       resultReport: { update: jest.fn().mockResolvedValue({}) },
       resultReportTest: { updateMany: jest.fn().mockResolvedValue({}) },
-      orderedTest: { updateMany: jest.fn().mockResolvedValue({}) },
+      orderedTest: {
+        updateMany: jest.fn().mockResolvedValue({}),
+        // Under the report lock: every submitted test is still RESULTS_ENTERED
+        count: jest.fn(async (args: any) => args.where.id.in.length),
+      },
+      $queryRaw: jest.fn().mockResolvedValue([]),
       timelineEvent: { create: jest.fn().mockResolvedValue({}) },
       labSigner: { findMany: jest.fn() },
       laboratoryProfile: { findUnique: jest.fn() },
@@ -136,6 +142,27 @@ describe('ReviewService', () => {
       );
 
       expect(result.status).toBe('IN_REVIEW');
+    });
+
+    it('locks the report and refuses if a test changed status meanwhile', async () => {
+      prisma.order.findFirst.mockResolvedValue({
+        id: 'order-1',
+        orderedTests: [
+          { id: 'ot-1', status: 'RESULTS_ENTERED', catalogItemName: 'CBC' },
+        ],
+        resultReport: { id: 'report-1', status: 'DRAFT' },
+      });
+      prisma.laboratoryProfile.findUnique.mockResolvedValue({
+        id: 'profile-1',
+      });
+      prisma.labSigner.findMany.mockResolvedValue([{ id: 'signer-1' }]);
+      prisma.orderedTest.count.mockResolvedValue(0);
+
+      await expect(
+        service.submitForReview('order-1', 'lab-1', 'user-1', 'User')
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.$queryRaw).toHaveBeenCalled();
+      expect(prisma.orderedTest.updateMany).not.toHaveBeenCalled();
     });
   });
 

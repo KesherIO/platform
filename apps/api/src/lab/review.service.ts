@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
   BadRequestException,
@@ -65,6 +66,18 @@ export class ReviewService {
 
     await this.prisma.$transaction(
       async (tx) => {
+        // Same lock as result entry: a save in flight finishes first, and
+        // the tests must still be RESULTS_ENTERED once we hold it.
+        await tx.$queryRaw`SELECT id FROM result_reports WHERE id = ${reportId} FOR UPDATE`;
+        const stillEntered = await tx.orderedTest.count({
+          where: { id: { in: submittedTestIds }, status: 'RESULTS_ENTERED' },
+        });
+        if (stillEntered !== submittedTestIds.length) {
+          throw new ConflictException(
+            'The tests changed while submitting. Reload and try again.'
+          );
+        }
+
         await tx.orderedTest.updateMany({
           where: { id: { in: submittedTestIds } },
           data: { status: 'IN_REVIEW', version: { increment: 1 } },

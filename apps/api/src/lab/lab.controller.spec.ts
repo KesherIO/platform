@@ -7,6 +7,7 @@ import { LabService } from './lab.service';
 import { LabUsersService } from './lab-users.service';
 import { LabClientsService } from './lab-clients.service';
 import { ImportClientsDto } from './dto/import-clients.dto';
+import { BatchSaveSubmitDto } from './dto/batch-ordered-tests.dto';
 import { UpdateLabContactDto } from './dto/update-lab-contact.dto';
 import { ExportClientsDto } from './dto/export-clients.dto';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
@@ -507,6 +508,55 @@ describe('LabController', () => {
       ['a non-object row', { importBatchId: BATCH_ID, rows: ['x'] }],
     ])('rejects %s with 400', async (_label, body) => {
       await expect(validateBody(body)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('BatchSaveSubmitDto', () => {
+    // Same options as the global pipe in main.ts.
+    const pipe = new ValidationPipe({ whitelist: true, transform: true });
+    const validate = (body: unknown) =>
+      pipe.transform(body, { type: 'body', metatype: BatchSaveSubmitDto });
+    const item = (testId: string) => ({
+      testId,
+      analytes: [{ templateAnalyteId: 'a1', numericValue: 4.2 }],
+    });
+
+    it('accepts a valid batch', async () => {
+      const dto = await validate({
+        tests: [item('t1'), item('t2')],
+        submitAfterSave: true,
+      });
+      expect(dto.tests).toHaveLength(2);
+    });
+
+    it.each([
+      ['no tests', { tests: [], submitAfterSave: false }],
+      [
+        'the same test twice',
+        { tests: [item('t1'), item('t1')], submitAfterSave: false },
+      ],
+      [
+        'more than 100 tests',
+        {
+          tests: Array.from({ length: 101 }, (_, i) => item(`t${i}`)),
+          submitAfterSave: false,
+        },
+      ],
+      ['a missing submitAfterSave', { tests: [item('t1')] }],
+      [
+        'a non-numeric numericValue',
+        {
+          tests: [
+            {
+              testId: 't1',
+              analytes: [{ templateAnalyteId: 'a1', numericValue: 'x' }],
+            },
+          ],
+          submitAfterSave: false,
+        },
+      ],
+    ])('rejects %s with 400', async (_label, body) => {
+      await expect(validate(body)).rejects.toThrow(BadRequestException);
     });
   });
 

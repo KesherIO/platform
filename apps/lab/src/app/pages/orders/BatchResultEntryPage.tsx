@@ -12,6 +12,9 @@ import { evaluateAllFormulas } from '../../shared/formula';
 import type { LabOrderDetail, OrderedTest } from '../../types/lab.types';
 import { ChevronDown, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
 
+/** Same as the API: result entry writes only to these test statuses. */
+const EDITABLE_STATUSES = ['READY', 'IN_PROGRESS', 'RESULTS_ENTERED'];
+
 type Analyte = {
   id: string;
   code: string;
@@ -278,6 +281,16 @@ export function BatchResultEntryPage() {
     });
   }, []);
 
+  /**
+   * Only tests that can still be edited go to the API: a released test or one
+   * in review is read-only here, and the API rejects the whole batch if one
+   * is included (released results change only through an amendment).
+   */
+  const editableSessions = useMemo(
+    () => sessions.filter((s) => EDITABLE_STATUSES.includes(s.test.status)),
+    [sessions]
+  );
+
   function buildPayloadForTest(testId: string) {
     const testValues = values[testId] ?? {};
     const testFormulaCodes = formulaCodes[testId] ?? new Set();
@@ -290,11 +303,11 @@ export function BatchResultEntryPage() {
   }
 
   const handleSave = useCallback(async () => {
-    if (!sessions.length) return;
+    if (!editableSessions.length) return;
     setSaving(true);
     try {
       await labApi.resultEntry.batchSaveAndSubmit(
-        sessions.map((s) => ({
+        editableSessions.map((s) => ({
           testId: s.test.id,
           analytes: buildPayloadForTest(s.test.id),
           observations: observations[s.test.id] || null,
@@ -312,14 +325,14 @@ export function BatchResultEntryPage() {
     } finally {
       setSaving(false);
     }
-  }, [sessions, values, observations, t, toast, queryClient]);
+  }, [editableSessions, values, observations, t, toast, queryClient]);
 
   const handleSubmit = async () => {
-    if (!orderId || !sessions.length) return;
+    if (!orderId || !editableSessions.length) return;
     setSubmitting(true);
     try {
       await labApi.resultEntry.batchSaveAndSubmit(
-        sessions.map((s) => ({
+        editableSessions.map((s) => ({
           testId: s.test.id,
           analytes: buildPayloadForTest(s.test.id),
           observations: observations[s.test.id] || null,
@@ -441,7 +454,7 @@ export function BatchResultEntryPage() {
             {!anyUpdate && (
               <button
                 onClick={handleSave}
-                disabled={saving || submitting}
+                disabled={saving || submitting || !editableSessions.length}
                 className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 disabled:opacity-50"
               >
                 {t('batch_result_entry.save_draft')}
@@ -449,7 +462,12 @@ export function BatchResultEntryPage() {
             )}
             <button
               onClick={handleSubmit}
-              disabled={saving || submitting || (anyUpdate && !isDirty)}
+              disabled={
+                saving ||
+                submitting ||
+                !editableSessions.length ||
+                (anyUpdate && !isDirty)
+              }
               className="rounded-lg bg-cyan px-4 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
             >
               {anyUpdate
@@ -465,11 +483,7 @@ export function BatchResultEntryPage() {
           const isCollapsed = collapsedTests.has(session.test.id);
           const completion = getTestCompletionStatus(session);
           const testFormulaResults = formulaResults[session.test.id] ?? {};
-          const isReadOnly = ![
-            'READY',
-            'IN_PROGRESS',
-            'RESULTS_ENTERED',
-          ].includes(session.test.status);
+          const isReadOnly = !EDITABLE_STATUSES.includes(session.test.status);
 
           return (
             <div
