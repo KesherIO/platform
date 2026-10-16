@@ -48,7 +48,8 @@ describeWithDb('Resultados search against Postgres', () => {
     labId: string,
     clinic: { id: string },
     patientName: string,
-    testStatus = 'COMPLETED'
+    testStatus = 'COMPLETED',
+    orderStatus = 'COMPLETED'
   ) {
     const kase = await prisma.case.create({
       data: {
@@ -66,6 +67,7 @@ describeWithDb('Resultados search against Postgres', () => {
         tenantId: clinic.id,
         labTenantId: labId,
         orderedItems: [],
+        status: orderStatus as never,
       },
     });
     const test = await prisma.orderedTest.create({
@@ -258,12 +260,14 @@ describeWithDb('Resultados search against Postgres', () => {
       })
     ).id;
 
-    // Lab A: Max (amended), Luna; lab B: Rocky; one open test in lab A
+    // Lab A: Max (amended), Luna; lab B: Rocky. Open in lab A: Kira (in the
+    // lab), Nala (sample not received yet)
     const max = await released(labA, clinic1, 'Max', 100, recent(5));
     await release(labA, clinic1, max, 2, 150, recent(2), max.releaseTestId);
     await released(labA, clinic2, 'Luna', 90, recent(3));
     await released(labB, clinic1, 'Rocky', 80, recent(1));
-    await newOrder(labA, clinic2, 'Kira', 'IN_PROGRESS');
+    await newOrder(labA, clinic2, 'Kira', 'IN_PROGRESS', 'PROCESSING');
+    await newOrder(labA, clinic2, 'Nala', 'PENDING', 'PENDING');
   });
 
   afterAll(async () => {
@@ -340,9 +344,13 @@ describeWithDb('Resultados search against Postgres', () => {
     const staff = await service.search(ctx(labA), userId, {
       view: 'in_progress',
     });
-    expect(staff.data).toEqual([
-      expect.objectContaining({ patientName: 'Kira', status: 'IN_PROGRESS' }),
-    ]);
+    expect(staff.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ patientName: 'Kira', status: 'IN_PROGRESS' }),
+        expect.objectContaining({ patientName: 'Nala', status: 'PENDING' }),
+      ])
+    );
+    expect(staff.total).toBe(2);
     expect(staff.data[0]).not.toHaveProperty('analyte');
 
     await expect(
@@ -356,7 +364,8 @@ describeWithDb('Resultados search against Postgres', () => {
       userId,
       { view: 'in_progress' }
     );
-    expect(billing.total).toBe(1);
+    // Billing doesn't see Nala: her sample hasn't reached the lab
+    expect(billing.data.map((r) => r.patientName)).toEqual(['Kira']);
   });
 
   it('pickers only show this lab', async () => {

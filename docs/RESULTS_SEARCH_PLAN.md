@@ -24,7 +24,8 @@ values.
 - **Analyte (v1)**: tests that contain the analyte code, showing its released value, unit
   and H/L flag. No min/max or abnormal-only filters yet.
 - **In progress** = ordered tests of this lab not COMPLETED or CANCELLED, with their status.
-  **Never values**.
+  **Never values**. Consulta (billing) only sees orders the lab has received (order past
+  PENDING / READY_FOR_PICKUP / COLLECTED); staff also see orders still waiting for the sample.
 
 ## API (PR 2, `apps/api/src/lab/results-search.service.ts`)
 

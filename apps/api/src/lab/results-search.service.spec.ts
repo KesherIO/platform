@@ -125,6 +125,12 @@ describe('ResultsSearchService', () => {
         status: { notIn: ['COMPLETED', 'CANCELLED'] },
         order: { labTenantId: 'lab-1', tenantId: 'c-1' },
       });
+      // Billing never sees orders the lab hasn't received; staff do
+      expect(where.order.status).toEqual(
+        role === TenantRole.RESULTS_VIEWER
+          ? { notIn: ['PENDING', 'READY_FOR_PICKUP', 'COLLECTED'] }
+          : undefined
+      );
       expect(res.data).toEqual([
         {
           id: 't-1',
