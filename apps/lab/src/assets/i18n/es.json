@@ -1440,6 +1440,42 @@
   },
   "results": {
     "title": "Resultados",
-    "coming_soon": "La búsqueda de resultados estará disponible pronto."
+    "count_one": "{{count}} resultado",
+    "count_other": "{{count}} resultados",
+    "tabs": {
+      "released": "Liberados",
+      "in_progress": "En proceso"
+    },
+    "filters": {
+      "clinic": "Entidad",
+      "all_clinics": "Todas las entidades",
+      "patient": "Paciente",
+      "patient_placeholder": "Paciente, propietario o requisición…",
+      "analyte": "Analito",
+      "analyte_placeholder": "Buscar analito…",
+      "no_analytes": "No se encontraron analitos",
+      "clear_analyte": "Quitar analito",
+      "released_date": "Fecha de liberación",
+      "order_date": "Fecha de la orden",
+      "dates": "Fechas",
+      "default_range": "Mostrando del {{from}} al {{to}}. Elige fechas o filtra por entidad, paciente o analito para buscar más atrás."
+    },
+    "columns": {
+      "released_at": "Liberado",
+      "ordered_at": "Ordenado",
+      "clinic": "Entidad",
+      "patient": "Paciente",
+      "test": "Prueba",
+      "status": "Estado",
+      "requisition": "Requisición"
+    },
+    "amended": "Corregido",
+    "empty": "Sin resultados para estos filtros.",
+    "detail": {
+      "error": "No se pudo cargar este reporte.",
+      "history": "Historial de versiones",
+      "original": "Original",
+      "correction": "Corrección {{n}}"
+    }
   }
 }

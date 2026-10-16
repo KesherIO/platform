@@ -1440,6 +1440,42 @@
   },
   "results": {
     "title": "Results",
-    "coming_soon": "Results search is coming soon."
+    "count_one": "{{count}} result",
+    "count_other": "{{count}} results",
+    "tabs": {
+      "released": "Released",
+      "in_progress": "In progress"
+    },
+    "filters": {
+      "clinic": "Clinic",
+      "all_clinics": "All clinics",
+      "patient": "Patient",
+      "patient_placeholder": "Patient, owner or requisition…",
+      "analyte": "Analyte",
+      "analyte_placeholder": "Search analyte…",
+      "no_analytes": "No analytes found",
+      "clear_analyte": "Clear analyte",
+      "released_date": "Release date",
+      "order_date": "Order date",
+      "dates": "Dates",
+      "default_range": "Showing {{from}} – {{to}}. Pick dates or filter by clinic, patient or analyte to search further back."
+    },
+    "columns": {
+      "released_at": "Released",
+      "ordered_at": "Ordered",
+      "clinic": "Clinic",
+      "patient": "Patient",
+      "test": "Test",
+      "status": "Status",
+      "requisition": "Requisition"
+    },
+    "amended": "Corrected",
+    "empty": "No results for these filters.",
+    "detail": {
+      "error": "Couldn't load this report.",
+      "history": "Version history",
+      "original": "Original",
+      "correction": "Correction {{n}}"
+    }
   }
 }
