@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
+import { useAuth } from '../../auth/AuthContext';
+import type { LabOrderSummary } from '../../types/lab.types';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { SearchInput } from '../../shared/components/SearchInput';
 import { Pagination } from '../../shared/components/Pagination';
@@ -15,6 +17,10 @@ const TOOLBAR_TAB_INACTIVE =
   'border-gray-800 text-gray-400 hover:bg-gray-800 hover:text-white';
 
 const PAGE_SIZE = 20;
+/** Filter tab value for "Por revisar" — not an order status */
+const FOR_REVIEW = 'FOR_REVIEW';
+
+const TAG = 'rounded-full px-2 py-0.5 text-xs font-medium';
 
 const PRIORITY_COLORS: Record<string, string> = {
   STAT: 'text-red-400',
@@ -32,10 +38,23 @@ function formatTimestamp(iso: string): string {
   });
 }
 
+/** What each order is waiting for, from its tests and amendments. */
+function reviewTags(order: LabOrderSummary) {
+  const count = (status: string) =>
+    order.orderedTests.filter((test) => test.status === status).length;
+  return {
+    inReview: count('IN_REVIEW'),
+    notSubmitted: count('RESULTS_ENTERED'),
+    amendments: order.amendmentsInReview ?? 0,
+  };
+}
+
 export function OrdersQueuePage() {
   const { t } = useTranslation();
+  const { canRelease, labRole } = useAuth();
+  // Reviewers come here to release, so they start on what's waiting for them
   const [activeFilter, setActiveFilter] = useState<string | undefined>(
-    undefined
+    labRole === 'REVIEWER' ? FOR_REVIEW : undefined
   );
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -49,7 +68,8 @@ export function OrdersQueuePage() {
     ],
     queryFn: () =>
       labApi.orders.list({
-        status: activeFilter,
+        status: activeFilter === FOR_REVIEW ? undefined : activeFilter,
+        forReview: activeFilter === FOR_REVIEW,
         search: search || undefined,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
@@ -58,6 +78,14 @@ export function OrdersQueuePage() {
       }),
     staleTime: 0,
   });
+
+  // Same query as the sidebar badge, so both stay in step
+  const { data: reviewCountData } = useQuery({
+    queryKey: ['orders-review-count'],
+    queryFn: () => labApi.orders.reviewCount(),
+    enabled: canRelease,
+  });
+  const reviewCount = reviewCountData?.count ?? 0;
 
   const orders = data?.data ?? [];
   const total = data?.total ?? 0;
@@ -73,6 +101,17 @@ export function OrdersQueuePage() {
       value: undefined,
       tooltip: t('orders.filter.all_tooltip'),
     },
+    ...(canRelease
+      ? [
+          {
+            label: `${t('orders.filter.for_review')}${
+              reviewCount > 0 ? ` (${reviewCount})` : ''
+            }`,
+            value: FOR_REVIEW,
+            tooltip: t('orders.filter.for_review_tooltip'),
+          },
+        ]
+      : []),
     {
       label: t('orders.filter.awaiting_sample'),
       value: 'PENDING,READY_FOR_PICKUP',
@@ -122,7 +161,7 @@ export function OrdersQueuePage() {
         <div className="flex flex-wrap items-center gap-2">
           {FILTER_TABS.map((tab) => (
             <button
-              key={tab.label}
+              key={tab.value ?? 'all'}
               onClick={() => handleFilterChange(tab.value)}
               title={tab.tooltip}
               className={`${TOOLBAR_TAB} ${
@@ -189,57 +228,89 @@ export function OrdersQueuePage() {
           }`}
         >
           <div className="space-y-2">
-            {orders.map((order) => (
-              <Link
-                key={order.id}
-                to={`/orders/${order.id}`}
-                className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4 transition hover:border-gray-700 hover:bg-gray-800"
-              >
-                <div>
-                  <p className="font-mono text-xs text-gray-500">
-                    {order.requisitionNumber}
-                  </p>
-                  <p className="mt-0.5 font-semibold text-white">
-                    {order.patientName}{' '}
-                    <span className="text-sm font-normal text-gray-400">
-                      (
-                      {t(`species.${order.patientSpecies}`, {
-                        defaultValue: order.patientSpecies,
-                      })}
-                      )
-                    </span>
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    {t('orders.owner')} {order.ownerName}
-                  </p>
-                  <p className="text-xs text-gray-500">{order.clinicName}</p>
-                </div>
-
-                <div className="flex items-center gap-4 text-right">
+            {orders.map((order) => {
+              const tags = reviewTags(order);
+              return (
+                <Link
+                  key={order.id}
+                  to={`/orders/${order.id}`}
+                  className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4 transition hover:border-gray-700 hover:bg-gray-800"
+                >
                   <div>
-                    <p className="text-xs text-gray-500">
-                      {t('orders.created')} {formatTimestamp(order.createdAt)}
+                    <p className="font-mono text-xs text-gray-500">
+                      {order.requisitionNumber}
                     </p>
-                    {order.receivedByLabAt && (
-                      <p className="text-xs text-gray-500">
-                        {t('orders.received')}{' '}
-                        {formatTimestamp(order.receivedByLabAt)}
-                      </p>
+                    <p className="mt-0.5 font-semibold text-white">
+                      {order.patientName}{' '}
+                      <span className="text-sm font-normal text-gray-400">
+                        (
+                        {t(`species.${order.patientSpecies}`, {
+                          defaultValue: order.patientSpecies,
+                        })}
+                        )
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      {t('orders.owner')} {order.ownerName}
+                    </p>
+                    <p className="text-xs text-gray-500">{order.clinicName}</p>
+                    {((canRelease &&
+                      (tags.inReview > 0 || tags.amendments > 0)) ||
+                      tags.notSubmitted > 0) && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {canRelease && tags.inReview > 0 && (
+                          <span className={`${TAG} bg-purple/15 text-purple`}>
+                            {t('orders.tags.for_review', {
+                              count: tags.inReview,
+                            })}
+                          </span>
+                        )}
+                        {canRelease && tags.amendments > 0 && (
+                          <span className={`${TAG} bg-purple/15 text-purple`}>
+                            {t('orders.tags.amendment_for_review', {
+                              count: tags.amendments,
+                            })}
+                          </span>
+                        )}
+                        {tags.notSubmitted > 0 && (
+                          <span
+                            className={`${TAG} bg-yellow-900/40 text-yellow-300`}
+                          >
+                            {t('orders.tags.not_submitted', {
+                              count: tags.notSubmitted,
+                            })}
+                          </span>
+                        )}
+                      </div>
                     )}
-                    <p
-                      className={`mt-0.5 text-xs font-semibold ${
-                        PRIORITY_COLORS[order.priority] ?? ''
-                      }`}
-                    >
-                      {t(`priority.${order.priority}`, {
-                        defaultValue: order.priority,
-                      })}
-                    </p>
                   </div>
-                  <StatusBadge status={order.status} size="sm" />
-                </div>
-              </Link>
-            ))}
+
+                  <div className="flex items-center gap-4 text-right">
+                    <div>
+                      <p className="text-xs text-gray-500">
+                        {t('orders.created')} {formatTimestamp(order.createdAt)}
+                      </p>
+                      {order.receivedByLabAt && (
+                        <p className="text-xs text-gray-500">
+                          {t('orders.received')}{' '}
+                          {formatTimestamp(order.receivedByLabAt)}
+                        </p>
+                      )}
+                      <p
+                        className={`mt-0.5 text-xs font-semibold ${
+                          PRIORITY_COLORS[order.priority] ?? ''
+                        }`}
+                      >
+                        {t(`priority.${order.priority}`, {
+                          defaultValue: order.priority,
+                        })}
+                      </p>
+                    </div>
+                    <StatusBadge status={order.status} size="sm" />
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
           <Pagination

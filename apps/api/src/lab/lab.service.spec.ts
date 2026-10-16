@@ -128,7 +128,93 @@ describe('LabService', () => {
       );
       expect(result.data[0].clinicName).toBe('Clínica Veterinaria Demo');
       expect(result.data[0].patientName).toBe('Max');
+      expect(result.data[0].amendmentsInReview).toBe(0);
       expect(result.total).toBe(1);
+    });
+
+    const AWAITING_REVIEW = {
+      OR: [
+        { orderedTests: { some: { status: 'IN_REVIEW' } } },
+        { resultReport: { amendments: { some: { status: 'IN_REVIEW' } } } },
+      ],
+    };
+
+    it('"Por revisar" lists orders with a test in review or an amendment to approve, whatever their status', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([
+        { ...mockOrder, resultReport: { _count: { amendments: 2 } } },
+      ]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(1);
+
+      const result = await service.getLabOrders(LAB_TENANT_ID, {
+        forReview: true,
+        status: 'COMPLETED',
+      });
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { AND: [{ labTenantId: LAB_TENANT_ID, ...AWAITING_REVIEW }] },
+        })
+      );
+      expect(result.data[0].amendmentsInReview).toBe(2);
+    });
+
+    it('"Por revisar" still narrows by an explicit date range', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(0);
+
+      await service.getLabOrders(LAB_TENANT_ID, {
+        forReview: true,
+        dateFrom: '2026-08-01',
+        dateTo: '2026-08-08',
+      });
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              {
+                labTenantId: LAB_TENANT_ID,
+                ...AWAITING_REVIEW,
+                createdAt: { gte: expect.any(Date), lte: expect.any(Date) },
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    it('counts amendments awaiting approval for each order', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(0);
+
+      await service.getLabOrders(LAB_TENANT_ID, {});
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            resultReport: {
+              select: {
+                _count: {
+                  select: { amendments: { where: { status: 'IN_REVIEW' } } },
+                },
+              },
+            },
+          }),
+        })
+      );
+    });
+
+    describe('getReviewCount', () => {
+      it("counts this lab's orders waiting for a reviewer", async () => {
+        (prisma.order.count as jest.Mock).mockResolvedValue(3);
+
+        await expect(service.getReviewCount(LAB_TENANT_ID)).resolves.toEqual({
+          count: 3,
+        });
+        expect(prisma.order.count).toHaveBeenCalledWith({
+          where: { labTenantId: LAB_TENANT_ID, ...AWAITING_REVIEW },
+        });
+      });
     });
 
     it('defaults "All" (no status, no date range) to unresolved orders plus completed today', async () => {

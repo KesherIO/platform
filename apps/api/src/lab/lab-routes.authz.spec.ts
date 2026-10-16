@@ -93,6 +93,8 @@ const RELEASE_ROUTES = [
   'POST lab/orders/:orderId/approve-release',
   'POST lab/orders/:orderId/request-corrections',
   'POST lab/orders/:orderId/amendments/:amendmentId/approve',
+  // "Por revisar" badge: only those who can release see what's waiting
+  'GET lab/orders/review-count',
 ];
 
 /** What "Consulta" (RESULTS_VIEWER) reaches: its session and released results. */

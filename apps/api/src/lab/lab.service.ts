@@ -38,6 +38,14 @@ type SignerInput = {
 // is picked — recent completions, not the full all-time archive.
 const COMPLETED_DEFAULT_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** "Por revisar": a test sent for review, or an amendment awaiting approval. */
+const AWAITING_REVIEW = {
+  OR: [
+    { orderedTests: { some: { status: 'IN_REVIEW' } } },
+    { resultReport: { amendments: { some: { status: 'IN_REVIEW' } } } },
+  ],
+} satisfies Prisma.OrderWhereInput;
+
 // Valid status transitions for orders handled by the lab
 const LAB_STATUS_TRANSITIONS: Record<string, OrderStatus[]> = {
   PENDING: ['RECEIVED_BY_LAB', 'CANCELLED'],
@@ -61,13 +69,25 @@ export class LabService {
   // ---------------------------------------------------------------------------
 
   async getLabOrders(labTenantId: string, query: ListLabOrdersDto) {
-    const { status, search, dateFrom, dateTo, page = 1, pageSize = 20 } = query;
+    const {
+      status,
+      forReview,
+      search,
+      dateFrom,
+      dateTo,
+      page = 1,
+      pageSize = 20,
+    } = query;
     const statuses = status?.split(',') as OrderStatus[] | undefined;
     const explicitRange = buildDateRangeFilter(dateFrom, dateTo);
 
     const baseCondition: Record<string, unknown> = { labTenantId };
 
-    if (explicitRange) {
+    if (forReview) {
+      // Waiting on a reviewer: no age limit, a date range still narrows it
+      Object.assign(baseCondition, AWAITING_REVIEW);
+      if (explicitRange) baseCondition.createdAt = explicitRange;
+    } else if (explicitRange) {
       // An explicit date range always wins, applied to whatever status scope
       // was selected — including "All", which can then surface historical
       // completed orders too.
@@ -138,6 +158,13 @@ export class LabService {
             orderBy: { createdAt: 'asc' },
             include: { sources: true },
           },
+          resultReport: {
+            select: {
+              _count: {
+                select: { amendments: { where: { status: 'IN_REVIEW' } } },
+              },
+            },
+          },
         },
       }),
       this.prisma.order.count({ where }),
@@ -150,6 +177,14 @@ export class LabService {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  /** Sidebar badge for reviewers: orders in the "Por revisar" filter. */
+  async getReviewCount(labTenantId: string) {
+    const count = await this.prisma.order.count({
+      where: { labTenantId, ...AWAITING_REVIEW },
+    });
+    return { count };
   }
 
   async getLabOrderById(
@@ -1063,6 +1098,7 @@ export class LabService {
     tenant: { name: string };
     case: { patientName: string; patientSpecies: string; ownerName: string };
     orderedTests: unknown[];
+    resultReport?: { _count: { amendments: number } } | null;
   }) {
     return {
       id: order.id,
@@ -1076,6 +1112,7 @@ export class LabService {
       deliveryMethod: order.deliveryMethod,
       orderedItems: order.orderedItems,
       orderedTests: order.orderedTests,
+      amendmentsInReview: order.resultReport?._count.amendments ?? 0,
       clinicNotes: order.clinicNotes,
       labNotes: order.labNotes,
       sampleType: order.sampleType,
