@@ -872,9 +872,14 @@ export class LabController {
   @Patch('settings/laboratory')
   upsertLaboratoryProfile(
     @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() body: UpsertLaboratoryProfileDto
   ) {
-    return this.labService.upsertLaboratoryProfile(tenant.tenantId, body);
+    return this.labService.upsertLaboratoryProfile(
+      tenant.tenantId,
+      body,
+      user.id
+    );
   }
 
   // GET /api/lab/settings/contact

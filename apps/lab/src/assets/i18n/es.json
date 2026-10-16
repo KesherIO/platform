@@ -423,7 +423,16 @@
     },
     "country": "País",
     "country_placeholder": "Seleccionar país",
-    "country_hint": "País predeterminado para los clientes que importes."
+    "country_hint": "País predeterminado para los clientes que importes.",
+    "signer_team_member": "Miembro del equipo",
+    "signer_team_member_required": "Miembro del equipo (obligatorio para analistas)",
+    "signer_no_team_member": "No está en el equipo",
+    "signer_removed_member": "Miembro eliminado del equipo",
+    "signer_analyst_needs_member_hint": "Los analistas deben ser miembros del equipo. Elige quién es este firmante.",
+    "signer_removed_member_hint": "Esta persona ya no está en el equipo, por eso ya no aparece en la lista de analistas.",
+    "signer_analyst_needs_member": "El firmante \"{{name}}\" tiene el rol de Analista. Vincúlalo a un miembro del equipo antes de guardar.",
+    "signer_unnamed": "(sin nombre)",
+    "save_error": "No se pudo guardar la configuración:"
   },
   "catalog": {
     "title": "Catálogo",
@@ -974,9 +983,14 @@
         "PICKUP_CAPABILITY_CHANGED": "Acceso a recolecciones modificado",
         "DEACTIVATED": "Desactivado",
         "REACTIVATED": "Reactivado",
-        "REMOVED": "Eliminado del laboratorio (era {{role}})"
+        "REMOVED": "Eliminado del laboratorio (era {{role}})",
+        "SIGNER_LINKED": "Vinculado al firmante {{signer}}",
+        "SIGNER_UNLINKED": "Desvinculado del firmante {{signer}}",
+        "SIGNER_ROLES_CHANGED": "Firmante {{signer}}: roles cambiados de {{from}} a {{to}}",
+        "SIGNATURE_REPLACED": "Imagen de firma reemplazada para el firmante {{signer}}"
       }
-    }
+    },
+    "signer_badge": "Firmante"
   },
   "collections": {
     "title": "Recolecciones",

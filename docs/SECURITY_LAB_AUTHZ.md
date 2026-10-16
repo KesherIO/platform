@@ -120,3 +120,22 @@ lab membership change, written by `recordMembershipEvent()`
   lab staff have no invite or deactivate flow yet (staff invitations are clinic-only).
   Clinic memberships (`tenants.service`, `onboarding` invite/accept, vet-verification
   status changes) are not logged yet.
+
+## Signers linked to the team (2026-10-15)
+
+Biomet decision: the analyst and reviewer are still picked from dropdowns at release, but
+an **Analyst signer must be a team member**. Reviewer (and Data entry) signers may be
+people without an account, e.g. a director.
+
+- `lab_signers.userId` (migration `20261015000002_signer_team_link`), one signer per person
+  per lab. `upsertLaboratoryProfile` rejects, before writing: an Analyst signer without a
+  link, a person linked twice, a new or changed link to someone who isn't a member of the
+  lab. An unchanged link to someone since removed is kept so settings still save.
+- Analyst dropdown (`getAnalystSigners`) and the release check (`approveAndRelease`) only
+  accept analyst signers linked to an ACTIVE member of this lab: removing someone from the
+  team takes them off the analyst list. Past releases keep their frozen snapshot.
+- Link/unlink, signer role changes and signature replacement of a linked signer go to the
+  team history (`SIGNER_LINKED`, `SIGNER_UNLINKED`, `SIGNER_ROLES_CHANGED`,
+  `SIGNATURE_REPLACED`, `details` holds the signer), in the same transaction as the signer
+  save. Unlinked signers aren't audited (no team member to attach them to).
+- Team page shows a "Signer" badge; Settings has a "Team member" picker per signer.

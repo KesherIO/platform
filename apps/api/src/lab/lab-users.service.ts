@@ -52,7 +52,7 @@ export class LabUsersService {
   // ---------------------------------------------------------------------------
 
   async getLabMembers(labTenantId: string) {
-    const [memberships, tenant] = await Promise.all([
+    const [memberships, tenant, signers] = await Promise.all([
       this.prisma.userTenantMembership.findMany({
         where: { tenantId: labTenantId },
         include: {
@@ -72,11 +72,21 @@ export class LabUsersService {
         where: { id: labTenantId },
         select: { timezone: true },
       }),
+      // Linked report-signer profiles, for the "Signer" badge
+      this.prisma.labSigner.findMany({
+        where: {
+          laboratoryProfile: { tenantId: labTenantId },
+          userId: { not: null },
+        },
+        select: { userId: true, roles: true },
+      }),
     ]);
+    const signerRolesByUser = new Map(signers.map((s) => [s.userId, s.roles]));
 
     return memberships.map((m) => {
       const schedule = m.schedule as WeeklySchedule | null;
       return {
+        signerRoles: signerRolesByUser.get(m.userId) ?? null,
         userId: m.userId,
         role: m.role,
         joinedAt: m.createdAt,
@@ -488,6 +498,7 @@ export class LabUsersService {
         previousCanPerformPickups: e.previousCanPerformPickups,
         newCanPerformPickups: e.newCanPerformPickups,
         reason: e.reason,
+        details: e.details,
         source: e.source,
         createdAt: e.createdAt,
       })),

@@ -51,6 +51,8 @@ export type LabSignerRole = 'ANALYST' | 'REVIEWER' | 'DATA_ENTRY';
 
 export interface LabSignerModel {
   id: string;
+  /** Team member this signer is; required when roles include ANALYST */
+  userId?: string | null;
   name: string;
   roles: LabSignerRole[];
   title: string;
