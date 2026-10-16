@@ -71,6 +71,16 @@ describe('LabService', () => {
       },
       userTenantMembership: {
         findUnique: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      resultReportRelease: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      user: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      membershipEvent: {
+        create: jest.fn().mockResolvedValue({}),
       },
       tenant: {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
@@ -835,42 +845,288 @@ describe('LabService', () => {
   });
 
   describe('upsertLaboratoryProfile signers', () => {
-    it("rejects another lab's signer id before writing anything", async () => {
-      (prisma.labSigner.count as jest.Mock).mockResolvedValue(0);
-
-      await expect(
-        service.upsertLaboratoryProfile(LAB_TENANT_ID, {
-          signers: [{ id: 'signer-of-lab-b', name: 'Forged', roles: [] }],
-        })
-      ).rejects.toThrow(NotFoundException);
-      expect(prisma.labSigner.count).toHaveBeenCalledWith({
-        where: {
-          id: { in: ['signer-of-lab-b'] },
-          laboratoryProfile: { tenantId: LAB_TENANT_ID },
-        },
-      });
-      expect(prisma.laboratoryProfile.upsert).not.toHaveBeenCalled();
-      expect(prisma.labSigner.updateMany).not.toHaveBeenCalled();
+    const ACTOR = 'admin-1';
+    const signerRow = (over: Record<string, unknown> = {}) => ({
+      id: 'signer-1',
+      name: 'Dra. Ana',
+      roles: ['REVIEWER'],
+      userId: null,
+      signatureUrl: null,
+      ...over,
     });
+    const events = () =>
+      (prisma.membershipEvent.create as jest.Mock).mock.calls.map(
+        (c) => c[0].data
+      );
 
-    it("updates this lab's signers scoped to its profile", async () => {
-      (prisma.labSigner.count as jest.Mock).mockResolvedValue(1);
+    beforeEach(() => {
       (prisma.laboratoryProfile.findUnique as jest.Mock).mockResolvedValue(
         null
       );
       (prisma.laboratoryProfile.upsert as jest.Mock).mockResolvedValue({
         id: 'profile-1',
       });
+      (prisma.$transaction as jest.Mock).mockImplementation(
+        (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)
+      );
+    });
 
-      await service.upsertLaboratoryProfile(LAB_TENANT_ID, {
-        signers: [{ id: 'signer-1', name: 'Dra. Ana', roles: ['REVIEWER'] }],
+    /** findMany is called by validation (ids of this lab) then by the save (before) */
+    const existing = (rows: Record<string, unknown>[]) =>
+      (prisma.labSigner.findMany as jest.Mock)
+        .mockResolvedValueOnce(
+          rows.map((r) => ({ id: r.id, userId: r.userId }))
+        )
+        .mockResolvedValueOnce(rows);
+
+    it("rejects another lab's signer id before writing anything", async () => {
+      (prisma.labSigner.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+      await expect(
+        service.upsertLaboratoryProfile(
+          LAB_TENANT_ID,
+          { signers: [{ id: 'signer-of-lab-b', name: 'Forged', roles: [] }] },
+          ACTOR
+        )
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.labSigner.findMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: ['signer-of-lab-b'] },
+          laboratoryProfile: { tenantId: LAB_TENANT_ID },
+        },
+        select: { id: true, userId: true },
       });
+      expect(prisma.laboratoryProfile.upsert).not.toHaveBeenCalled();
+      expect(prisma.labSigner.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("updates this lab's signers scoped to its profile", async () => {
+      existing([signerRow()]);
+
+      await service.upsertLaboratoryProfile(
+        LAB_TENANT_ID,
+        {
+          signers: [{ id: 'signer-1', name: 'Dra. Ana', roles: ['REVIEWER'] }],
+        },
+        ACTOR
+      );
 
       expect(prisma.labSigner.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'signer-1', laboratoryProfileId: 'profile-1' },
         })
       );
+      expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects an Analyst signer that is not linked to a team member', async () => {
+      await expect(
+        service.upsertLaboratoryProfile(
+          LAB_TENANT_ID,
+          { signers: [{ id: 'temp-1', name: 'Juan', roles: ['ANALYST'] }] },
+          ACTOR
+        )
+      ).rejects.toThrow('Signer "Juan" has the Analyst role');
+      expect(prisma.laboratoryProfile.upsert).not.toHaveBeenCalled();
+    });
+
+    it('allows a Reviewer signer without an account', async () => {
+      await service.upsertLaboratoryProfile(
+        LAB_TENANT_ID,
+        { signers: [{ id: 'temp-1', name: 'Director', roles: ['REVIEWER'] }] },
+        ACTOR
+      );
+
+      expect(prisma.labSigner.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ name: 'Director', userId: null }),
+      });
+    });
+
+    it('rejects linking someone who is not a member of this lab', async () => {
+      (prisma.userTenantMembership.count as jest.Mock).mockResolvedValue(0);
+
+      await expect(
+        service.upsertLaboratoryProfile(
+          LAB_TENANT_ID,
+          {
+            signers: [
+              { id: 'temp-1', name: 'X', roles: ['ANALYST'], userId: 'u-out' },
+            ],
+          },
+          ACTOR
+        )
+      ).rejects.toThrow('not a member of this lab');
+      expect(prisma.userTenantMembership.count).toHaveBeenCalledWith({
+        where: { tenantId: LAB_TENANT_ID, userId: { in: ['u-out'] } },
+      });
+      expect(prisma.laboratoryProfile.upsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects linking the same person to two signers', async () => {
+      await expect(
+        service.upsertLaboratoryProfile(
+          LAB_TENANT_ID,
+          {
+            signers: [
+              { id: 'temp-1', name: 'A', roles: ['ANALYST'], userId: 'u-1' },
+              { id: 'temp-2', name: 'B', roles: ['REVIEWER'], userId: 'u-1' },
+            ],
+          },
+          ACTOR
+        )
+      ).rejects.toThrow('only one signer');
+    });
+
+    it('keeps an unchanged link to someone since removed from the team', async () => {
+      existing([signerRow({ roles: ['ANALYST'], userId: 'u-gone' })]);
+
+      await service.upsertLaboratoryProfile(
+        LAB_TENANT_ID,
+        {
+          signers: [
+            {
+              id: 'signer-1',
+              name: 'Dra. Ana',
+              roles: ['ANALYST'],
+              userId: 'u-gone',
+            },
+          ],
+        },
+        ACTOR
+      );
+
+      expect(prisma.userTenantMembership.count).not.toHaveBeenCalled();
+      expect(prisma.labSigner.updateMany).toHaveBeenCalled();
+    });
+
+    it('logs SIGNER_LINKED when a new signer is linked', async () => {
+      (prisma.userTenantMembership.count as jest.Mock).mockResolvedValue(1);
+      (prisma.labSigner.create as jest.Mock).mockResolvedValue({
+        id: 'signer-9',
+        name: 'Juan',
+      });
+
+      await service.upsertLaboratoryProfile(
+        LAB_TENANT_ID,
+        {
+          signers: [
+            { id: 'temp-1', name: 'Juan', roles: ['ANALYST'], userId: 'u-1' },
+          ],
+        },
+        ACTOR
+      );
+
+      expect(events()).toEqual([
+        expect.objectContaining({
+          tenantId: LAB_TENANT_ID,
+          eventType: 'SIGNER_LINKED',
+          targetUserId: 'u-1',
+          actorUserId: ACTOR,
+          source: 'lab_settings',
+          details: {
+            signerId: 'signer-9',
+            signerName: 'Juan',
+            roles: ['ANALYST'],
+          },
+        }),
+      ]);
+    });
+
+    it('logs UNLINKED + LINKED when a signer moves to another person', async () => {
+      existing([signerRow({ userId: 'u-1' })]);
+      (prisma.userTenantMembership.count as jest.Mock).mockResolvedValue(1);
+
+      await service.upsertLaboratoryProfile(
+        LAB_TENANT_ID,
+        {
+          signers: [
+            {
+              id: 'signer-1',
+              name: 'Dra. Ana',
+              roles: ['REVIEWER'],
+              userId: 'u-2',
+            },
+          ],
+        },
+        ACTOR
+      );
+
+      expect(events().map((e) => [e.eventType, e.targetUserId])).toEqual([
+        ['SIGNER_UNLINKED', 'u-1'],
+        ['SIGNER_LINKED', 'u-2'],
+      ]);
+    });
+
+    it('logs role and signature changes of a linked signer, nothing when unchanged', async () => {
+      existing([signerRow({ userId: 'u-1', signatureUrl: 'data:old' })]);
+
+      await service.upsertLaboratoryProfile(
+        LAB_TENANT_ID,
+        {
+          signers: [
+            {
+              id: 'signer-1',
+              name: 'Dra. Ana',
+              roles: ['REVIEWER', 'ANALYST'],
+              userId: 'u-1',
+              signatureUrl: 'data:new',
+            },
+          ],
+        },
+        ACTOR
+      );
+
+      expect(events()).toEqual([
+        expect.objectContaining({
+          eventType: 'SIGNER_ROLES_CHANGED',
+          details: expect.objectContaining({
+            previousRoles: ['REVIEWER'],
+            newRoles: ['REVIEWER', 'ANALYST'],
+          }),
+        }),
+        expect.objectContaining({ eventType: 'SIGNATURE_REPLACED' }),
+      ]);
+    });
+
+    it('logs SIGNER_UNLINKED when a linked signer is deleted', async () => {
+      existing([signerRow({ userId: 'u-1' })]);
+
+      await service.upsertLaboratoryProfile(
+        LAB_TENANT_ID,
+        { signers: [] },
+        ACTOR
+      );
+
+      expect(prisma.labSigner.delete).toHaveBeenCalledWith({
+        where: { id: 'signer-1' },
+      });
+      expect(events()).toEqual([
+        expect.objectContaining({
+          eventType: 'SIGNER_UNLINKED',
+          details: expect.objectContaining({ signerRemoved: true }),
+        }),
+      ]);
+    });
+
+    it('does not log changes of unlinked signers', async () => {
+      existing([signerRow({ signatureUrl: 'data:old' })]);
+
+      await service.upsertLaboratoryProfile(
+        LAB_TENANT_ID,
+        {
+          signers: [
+            {
+              id: 'signer-1',
+              name: 'Dra. Ana',
+              roles: ['REVIEWER', 'DATA_ENTRY'],
+              signatureUrl: 'data:new',
+            },
+          ],
+        },
+        ACTOR
+      );
+
+      expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
     });
   });
 });

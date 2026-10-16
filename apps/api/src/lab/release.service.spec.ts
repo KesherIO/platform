@@ -264,7 +264,7 @@ describe('ReleaseService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('rejects an analyst signer from another lab or without the ANALYST role', async () => {
+    it('rejects an analyst signer from another lab, without the ANALYST role or not on the team', async () => {
       prisma.order.findFirst.mockResolvedValue(baseOrder);
       prisma.resultReportTest.findMany.mockResolvedValue([baseReportTest]);
       prisma.resultReportAmendment.findMany.mockResolvedValue([]);
@@ -288,6 +288,11 @@ describe('ReleaseService', () => {
             id: 'analyst-of-lab-b',
             laboratoryProfile: { tenantId: 'lab-1' },
             roles: { has: 'ANALYST' },
+            user: {
+              memberships: {
+                some: { tenantId: 'lab-1', status: 'ACTIVE' },
+              },
+            },
           },
         })
       );

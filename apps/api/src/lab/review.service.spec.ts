@@ -251,4 +251,25 @@ describe('ReviewService', () => {
       expect(result).toHaveLength(1);
     });
   });
+
+  describe('getAnalystSigners', () => {
+    it('lists only analyst signers linked to an active member of this lab', async () => {
+      prisma.laboratoryProfile.findUnique.mockResolvedValue({ id: 'lp-1' });
+      prisma.labSigner.findMany.mockResolvedValue([]);
+
+      await service.getAnalystSigners('lab-1');
+
+      expect(prisma.labSigner.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            laboratoryProfileId: 'lp-1',
+            roles: { has: 'ANALYST' },
+            user: {
+              memberships: { some: { tenantId: 'lab-1', status: 'ACTIVE' } },
+            },
+          },
+        })
+      );
+    });
+  });
 });

@@ -3,7 +3,12 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { OrderStatus, OrderedTestSourceType, Prisma } from '@prisma/client';
+import {
+  MembershipEventType,
+  OrderStatus,
+  OrderedTestSourceType,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   buildDateRangeFilter,
@@ -14,6 +19,20 @@ import type { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import type { ListLabOrdersDto } from './dto/list-lab-orders.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
 import { OrderStatusService } from './order-status.service';
+import { recordMembershipEvent } from './membership-events';
+
+type SignerInput = {
+  id?: string;
+  /** Team member this signer is; required when roles include ANALYST */
+  userId?: string | null;
+  name: string;
+  roles: string[];
+  title?: string;
+  specialty?: string;
+  university?: string;
+  registrationNumber?: string;
+  signatureUrl?: string;
+};
 
 // Default lookback window for the Completed tab when no explicit date range
 // is picked — recent completions, not the full all-time archive.
@@ -637,6 +656,227 @@ export class LabService {
     });
   }
 
+  /**
+   * Signer ids must be this lab's; an ANALYST signer must be linked to a team
+   * member; one signer per person; a new or changed link must point at a
+   * current member of this lab. An unchanged link to someone since removed is
+   * kept (they stay off the analyst dropdown, see getAnalystSigners).
+   */
+  private async validateSigners(labTenantId: string, signers: SignerInput[]) {
+    const realIds = signers
+      .map((s) => s.id)
+      .filter((id): id is string => !!id && !id.startsWith('temp-'));
+    const existing =
+      realIds.length > 0
+        ? await this.prisma.labSigner.findMany({
+            where: {
+              id: { in: realIds },
+              laboratoryProfile: { tenantId: labTenantId },
+            },
+            select: { id: true, userId: true },
+          })
+        : [];
+    if (existing.length !== new Set(realIds).size) {
+      throw new NotFoundException('Signer not found.');
+    }
+
+    const linked = new Set<string>();
+    for (const s of signers) {
+      if (s.roles.includes('ANALYST') && !s.userId) {
+        throw new BadRequestException(
+          `Signer "${s.name}" has the Analyst role and must be linked to a team member.`
+        );
+      }
+      if (!s.userId) continue;
+      if (linked.has(s.userId)) {
+        throw new BadRequestException(
+          'A team member can be linked to only one signer.'
+        );
+      }
+      linked.add(s.userId);
+    }
+
+    const currentLink = new Map(existing.map((e) => [e.id, e.userId]));
+    const newLinks = signers
+      .filter((s) => s.userId && currentLink.get(s.id ?? '') !== s.userId)
+      .map((s) => s.userId as string);
+    if (newLinks.length > 0) {
+      const members = await this.prisma.userTenantMembership.count({
+        where: { tenantId: labTenantId, userId: { in: newLinks } },
+      });
+      if (members !== newLinks.length) {
+        throw new BadRequestException(
+          'A linked team member is not a member of this lab.'
+        );
+      }
+    }
+  }
+
+  /**
+   * Replaces the lab's signer list. Signers referenced by a release are kept.
+   * Changes to a linked signer go to the membership audit log in the same
+   * transaction.
+   */
+  private async saveSigners(
+    labTenantId: string,
+    profileId: string,
+    signers: SignerInput[],
+    actorUserId: string
+  ) {
+    const isRealId = (id?: string) => !!id && !id.startsWith('temp-');
+    const incomingIds = signers
+      .filter((s) => isRealId(s.id))
+      .map((s) => s.id as string);
+
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          const before = new Map(
+            (
+              await tx.labSigner.findMany({
+                where: { laboratoryProfileId: profileId },
+                select: {
+                  id: true,
+                  name: true,
+                  roles: true,
+                  userId: true,
+                  signatureUrl: true,
+                },
+              })
+            ).map((b) => [b.id, b])
+          );
+
+          const signerEvent = (
+            eventType: MembershipEventType,
+            targetUserId: string,
+            signer: { id: string; name: string },
+            extra: Record<string, unknown> = {}
+          ) =>
+            recordMembershipEvent(tx, {
+              tenantId: labTenantId,
+              eventType,
+              targetUserId,
+              actorUserId,
+              source: 'lab_settings',
+              details: {
+                signerId: signer.id,
+                signerName: signer.name,
+                ...extra,
+              } as Prisma.InputJsonValue,
+            });
+
+          // Delete signers removed from the list, unless a release references them
+          for (const old of before.values()) {
+            if (incomingIds.includes(old.id)) continue;
+            const referencedByRelease = await tx.resultReportRelease.findFirst({
+              where: { OR: [{ signerId: old.id }, { analystId: old.id }] },
+              select: { id: true },
+            });
+            if (referencedByRelease) continue;
+            await tx.labSigner.delete({ where: { id: old.id } });
+            if (old.userId) {
+              await signerEvent(
+                MembershipEventType.SIGNER_UNLINKED,
+                old.userId,
+                old,
+                { signerRemoved: true }
+              );
+            }
+          }
+
+          const now = new Date();
+          for (const s of signers) {
+            const userId = s.userId || null;
+            const signerData = {
+              name: s.name,
+              roles: s.roles,
+              userId,
+              title: s.title ?? '',
+              specialty: s.specialty ?? '',
+              university: s.university ?? '',
+              registrationNumber: s.registrationNumber ?? '',
+              signatureUrl: s.signatureUrl ?? null,
+              updatedAt: now,
+            };
+
+            const prev = isRealId(s.id)
+              ? before.get(s.id as string)
+              : undefined;
+            if (isRealId(s.id) && !prev) {
+              throw new NotFoundException('Signer not found.');
+            }
+            if (!prev) {
+              const created = await tx.labSigner.create({
+                data: { laboratoryProfileId: profileId, ...signerData },
+              });
+              if (userId) {
+                await signerEvent(
+                  MembershipEventType.SIGNER_LINKED,
+                  userId,
+                  created,
+                  { roles: s.roles }
+                );
+              }
+              continue;
+            }
+
+            await tx.labSigner.updateMany({
+              where: { id: prev.id, laboratoryProfileId: profileId },
+              data: signerData,
+            });
+            const signer = { id: prev.id, name: s.name };
+            if (prev.userId !== userId) {
+              if (prev.userId) {
+                await signerEvent(
+                  MembershipEventType.SIGNER_UNLINKED,
+                  prev.userId,
+                  signer
+                );
+              }
+              if (userId) {
+                await signerEvent(
+                  MembershipEventType.SIGNER_LINKED,
+                  userId,
+                  signer,
+                  { roles: s.roles }
+                );
+              }
+            } else if (userId) {
+              const sortedRoles = (r: string[]) => [...r].sort().join(',');
+              if (sortedRoles(prev.roles) !== sortedRoles(s.roles)) {
+                await signerEvent(
+                  MembershipEventType.SIGNER_ROLES_CHANGED,
+                  userId,
+                  signer,
+                  { previousRoles: prev.roles, newRoles: s.roles }
+                );
+              }
+              if ((prev.signatureUrl ?? null) !== signerData.signatureUrl) {
+                await signerEvent(
+                  MembershipEventType.SIGNATURE_REPLACED,
+                  userId,
+                  signer
+                );
+              }
+            }
+          }
+        },
+        { timeout: 15000 }
+      );
+    } catch (err) {
+      // A signer kept for its releases can still hold the link
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new BadRequestException(
+          'A team member can be linked to only one signer.'
+        );
+      }
+      throw err;
+    }
+  }
+
   async getVetVerificationRequired(tenantId: string): Promise<boolean> {
     const profile = await this.prisma.laboratoryProfile.findUnique({
       where: { tenantId },
@@ -655,36 +895,15 @@ export class LabService {
       defaultObservations?: string;
       reportDisclaimer?: string;
       vetVerificationRequired?: boolean;
-      signers?: {
-        id?: string;
-        name: string;
-        roles: string[];
-        title?: string;
-        specialty?: string;
-        university?: string;
-        registrationNumber?: string;
-        signatureUrl?: string;
-      }[];
-    }
+      signers?: SignerInput[];
+    },
+    actorUserId: string
   ) {
     const { signers, vetVerificationRequired, ...profileData } = data;
 
-    // Signer ids sent back must be this lab's, checked before anything is
-    // written so a bad id can't leave a half-applied save.
-    const existingSignerIds = (signers ?? [])
-      .map((s) => s.id)
-      .filter((id): id is string => !!id && !id.startsWith('temp-'));
-    if (existingSignerIds.length > 0) {
-      const own = await this.prisma.labSigner.count({
-        where: {
-          id: { in: existingSignerIds },
-          laboratoryProfile: { tenantId: labTenantId },
-        },
-      });
-      if (own !== new Set(existingSignerIds).size) {
-        throw new NotFoundException('Signer not found.');
-      }
-    }
+    // Checked before anything is written so a bad signer can't leave a
+    // half-applied save.
+    if (signers !== undefined) await this.validateSigners(labTenantId, signers);
 
     // Fetch current value before upsert to detect toggle direction
     const currentProfile = await this.prisma.laboratoryProfile.findUnique({
@@ -728,65 +947,7 @@ export class LabService {
     }
 
     if (signers !== undefined) {
-      const isRealId = (id?: string) => id && !id.startsWith('temp-');
-      const incomingIds = signers
-        .filter((s) => isRealId(s.id))
-        .map((s) => s.id!);
-
-      // Delete signers removed from the list, but only if no release references them
-      const toDelete = await this.prisma.labSigner.findMany({
-        where: {
-          laboratoryProfileId: profile.id,
-          ...(incomingIds.length > 0 ? { id: { notIn: incomingIds } } : {}),
-        },
-        select: { id: true },
-      });
-
-      for (const signer of toDelete) {
-        const referencedByRelease =
-          await this.prisma.resultReportRelease.findFirst({
-            where: {
-              OR: [{ signerId: signer.id }, { analystId: signer.id }],
-            },
-            select: { id: true },
-          });
-        if (!referencedByRelease) {
-          await this.prisma.labSigner.delete({
-            where: { id: signer.id },
-          });
-        }
-      }
-
-      // Upsert existing signers and create new ones
-      const now = new Date();
-      for (const s of signers) {
-        const signerData = {
-          name: s.name,
-          roles: s.roles,
-          title: s.title ?? '',
-          specialty: s.specialty ?? '',
-          university: s.university ?? '',
-          registrationNumber: s.registrationNumber ?? '',
-          signatureUrl: s.signatureUrl ?? null,
-          updatedAt: now,
-        };
-
-        if (isRealId(s.id)) {
-          // Only this lab's signers: an id from another lab updates nothing
-          const { count } = await this.prisma.labSigner.updateMany({
-            where: { id: s.id, laboratoryProfileId: profile.id },
-            data: signerData,
-          });
-          if (count === 0) throw new NotFoundException('Signer not found.');
-        } else {
-          await this.prisma.labSigner.create({
-            data: {
-              laboratoryProfileId: profile.id,
-              ...signerData,
-            },
-          });
-        }
-      }
+      await this.saveSigners(labTenantId, profile.id, signers, actorUserId);
     }
 
     return this.prisma.laboratoryProfile.findUnique({

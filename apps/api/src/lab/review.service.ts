@@ -242,10 +242,15 @@ export class ReviewService {
     });
     if (!profile) return [];
 
+    // Analysts are team members (Biomet 2026-10-15): only signers linked to a
+    // current member of this lab — someone removed from the team drops off.
     return this.prisma.labSigner.findMany({
       where: {
         laboratoryProfileId: profile.id,
         roles: { has: 'ANALYST' },
+        user: {
+          memberships: { some: { tenantId: labTenantId, status: 'ACTIVE' } },
+        },
       },
       select: {
         id: true,

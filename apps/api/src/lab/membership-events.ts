@@ -9,7 +9,8 @@ import type {
 export type MembershipEventSource =
   | 'lab_users'
   | 'lab_setup'
-  | 'lab_onboarding';
+  | 'lab_onboarding'
+  | 'lab_settings';
 
 export interface MembershipEventInput {
   tenantId: string;
@@ -25,6 +26,8 @@ export interface MembershipEventInput {
   previousCanPerformPickups?: boolean | null;
   newCanPerformPickups?: boolean | null;
   reason?: string | null;
+  /** Event-specific facts (signer events: signerId, signerName, roles) */
+  details?: Prisma.InputJsonValue;
 }
 
 /**
