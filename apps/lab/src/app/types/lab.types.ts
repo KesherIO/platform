@@ -1201,6 +1201,94 @@ export interface CurrentResultsResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Resultados search (GET lab/results/*)
+// ---------------------------------------------------------------------------
+
+export type ResultsView = 'released' | 'in_progress';
+
+export interface ResultsSearchQuery {
+  view: ResultsView;
+  clinicId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  patient?: string;
+  analyteCode?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/** The searched analyte's released value on a row */
+export interface ResultRowAnalyte {
+  code: string;
+  name: string | null;
+  valueType: string | null;
+  numericValue: number | null;
+  textValue: string | null;
+  booleanValue: boolean | null;
+  selectValue: string | null;
+  unit: string | null;
+  flag: string | null;
+}
+
+/** One current released test */
+export interface ReleasedResultRow {
+  id: string;
+  releaseId: string;
+  releaseSequence: number;
+  releaseType: ReleaseType;
+  releasedAt: string;
+  amended: boolean;
+  orderId: string;
+  requisitionNumber: string;
+  clinicId: string;
+  clinicName: string;
+  patientName: string;
+  patientSpecies: string;
+  ownerName: string;
+  testName: string;
+  testCode: string | null;
+  analyte: ResultRowAnalyte | null;
+}
+
+/** One open test — status only, never values */
+export interface InProgressResultRow {
+  id: string;
+  status: OrderedTestStatus;
+  orderId: string;
+  requisitionNumber: string;
+  orderedAt: string;
+  clinicId: string;
+  clinicName: string;
+  patientName: string;
+  patientSpecies: string;
+  ownerName: string;
+  testName: string;
+  testCode: string | null;
+}
+
+export interface ResultsSearchResponse<Row> {
+  data: Row[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  view: ResultsView;
+  /** The date range actually applied (defaults filled in by the API) */
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface ResultsClinic {
+  id: string;
+  name: string;
+}
+
+export interface ResultsAnalyte {
+  code: string;
+  name: string;
+}
+
+// ---------------------------------------------------------------------------
 // Vet verification
 // ---------------------------------------------------------------------------
 

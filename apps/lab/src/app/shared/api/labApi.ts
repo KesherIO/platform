@@ -41,6 +41,12 @@ import type {
   VetVerificationDetail,
   VetVerificationsQuery,
   MembershipHistoryPage,
+  ResultsSearchQuery,
+  ResultsSearchResponse,
+  ReleasedResultRow,
+  InProgressResultRow,
+  ResultsClinic,
+  ResultsAnalyte,
   MembershipHistoryQuery,
   RemovedLabMember,
 } from '../../types/lab.types';
@@ -478,6 +484,28 @@ export const labApi = {
       ),
     getReviewerSigners: () => get<LabSigner[]>('lab/signers/reviewers'),
     getAnalystSigners: () => get<LabSigner[]>('lab/signers/analysts'),
+  },
+  results: {
+    search: <Row extends ReleasedResultRow | InProgressResultRow>(
+      q: ResultsSearchQuery
+    ) => {
+      const sp = new URLSearchParams({ view: q.view });
+      if (q.clinicId) sp.set('clinicId', q.clinicId);
+      if (q.dateFrom) sp.set('dateFrom', q.dateFrom);
+      if (q.dateTo) sp.set('dateTo', q.dateTo);
+      if (q.patient) sp.set('patient', q.patient);
+      if (q.analyteCode) sp.set('analyteCode', q.analyteCode);
+      if (q.page) sp.set('page', String(q.page));
+      if (q.pageSize) sp.set('pageSize', String(q.pageSize));
+      return get<ResultsSearchResponse<Row>>(`lab/results/search?${sp}`);
+    },
+    clinics: () => get<ResultsClinic[]>('lab/results/clinics'),
+    analytes: (search?: string) =>
+      get<ResultsAnalyte[]>(
+        `lab/results/analytes${
+          search ? `?search=${encodeURIComponent(search)}` : ''
+        }`
+      ),
   },
   release: {
     getHistory: (orderId: string) =>

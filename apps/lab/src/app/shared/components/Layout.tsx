@@ -130,6 +130,7 @@ export function Layout() {
           icon: Microscope,
           badge: worklistReadyCount > 0 ? worklistReadyCount : undefined,
         },
+        { to: RESULTS_VIEWER_HOME, label: t('nav.results'), icon: Search },
         // Catalog management is admin-only server-side (LabTenantGuard +
         // @Roles(ADMIN) on every /catalog admin route) — hide the tab entirely
         // for non-admins rather than showing a page that 403s on load.
