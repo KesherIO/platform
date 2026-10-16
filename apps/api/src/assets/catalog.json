@@ -713,13 +713,6 @@
     },
     {
       "kind": "TEST",
-      "code": "HBA1C",
-      "name": "Hemoglobina Glicada",
-      "category": "Endocrinología",
-      "turnaroundHours": 4
-    },
-    {
-      "kind": "TEST",
       "code": "NEURO_PCR_DOG",
       "name": "Perfil Neurológico Canino Cualitativo (qPCR)",
       "category": "Biología Molecular",
