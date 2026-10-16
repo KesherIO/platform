@@ -6,6 +6,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma, ResultType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CatalogItemKindDto,
@@ -112,9 +113,15 @@ export class CatalogService {
   // ---------------------------------------------------------------------------
 
   async import(body: ImportCatalogDto) {
+    const labTenantId = body.labTenantId;
+
+    // A fixed number of queries whatever the catalog size: from a laptop to
+    // a remote database one round trip per item ran past the transaction
+    // timeout ("Transaction not found"). Same rules as before: upsert by
+    // code within this lab, else by name; within one import a later row for
+    // the same key wins.
     let created = 0;
     let updated = 0;
-    const labTenantId = body.labTenantId;
 
     await this.prisma.$transaction(
       async (tx) => {
@@ -126,75 +133,122 @@ export class CatalogService {
           await tx.catalogItem.deleteMany({ where: { labTenantId } });
         }
 
-        // Pass 1 — upsert all items (tests and packages), collect id map
-        const idByCode = new Map<string, string>(); // code → id
-        const idByName = new Map<string, string>(); // name → id
+        const existing = await tx.catalogItem.findMany({
+          where: { labTenantId },
+          select: { id: true, code: true, name: true },
+          orderBy: { createdAt: 'asc' },
+        });
+        const existingByCode = new Map<string, string>();
+        const existingByName = new Map<string, string>();
+        for (const e of existing) {
+          if (e.code) existingByCode.set(e.code, e.id);
+          if (!existingByName.has(e.name)) existingByName.set(e.name, e.id);
+        }
+
+        // Pass 1 (in memory) — decide create vs update per key
+        type Row = {
+          kind: CatalogItemKindDto;
+          name: string;
+          code: string | null;
+          description: string | null;
+          category: string | null;
+          turnaroundHours: number | null;
+          resultType: ResultType | null;
+          unit: string | null;
+        };
+        const toUpdate = new Map<string, Row>(); // existing id → data
+        const toCreate = new Map<string, Row>(); // import key → data
+        const keyOf = (r: { code?: string | null; name: string }) =>
+          r.code ? `code:${r.code}` : `name:${r.name}`;
 
         for (const item of body.items) {
-          const upsertData = {
-            labTenantId,
+          const row: Row = {
             kind: item.kind,
             name: item.name,
             code: item.code ?? null,
             description: item.description ?? null,
             category: item.category ?? null,
             turnaroundHours: item.turnaroundHours ?? null,
-            resultType: item.resultType ?? null,
+            resultType: (item.resultType as ResultType | undefined) ?? null,
             unit: item.unit ?? null,
           };
-
-          let result: { id: string };
-
-          if (item.code) {
-            // Upsert key: code, unique within this lab's catalog
-            const existing = await tx.catalogItem.findFirst({
-              where: { code: item.code, labTenantId },
-              select: { id: true },
-            });
-
-            if (existing) {
-              result = await tx.catalogItem.update({
-                where: { id: existing.id },
-                data: upsertData,
-                select: { id: true },
-              });
-              updated++;
-            } else {
-              result = await tx.catalogItem.create({
-                data: upsertData,
-                select: { id: true },
-              });
-              created++;
-            }
-
-            idByCode.set(item.code, result.id);
+          const existingId = item.code
+            ? existingByCode.get(item.code)
+            : existingByName.get(item.name);
+          const key = keyOf(item);
+          if (existingId) {
+            toUpdate.set(existingId, row);
+            updated++;
+          } else if (toCreate.has(key)) {
+            toCreate.set(key, row); // repeated in this import: updates it
+            updated++;
           } else {
-            // Fallback upsert key: name, within this lab's catalog
-            const existing = await tx.catalogItem.findFirst({
-              where: { name: item.name, labTenantId },
-              select: { id: true },
-            });
-
-            if (existing) {
-              result = await tx.catalogItem.update({
-                where: { id: existing.id },
-                data: upsertData,
-                select: { id: true },
-              });
-              updated++;
-            } else {
-              result = await tx.catalogItem.create({
-                data: upsertData,
-                select: { id: true },
-              });
-              created++;
-            }
-
-            idByName.set(item.name, result.id);
+            toCreate.set(key, row);
+            created++;
           }
         }
 
-        // Pass 2 — wire package compositions
+        // Package components must already be this lab's items or come in
+        // this import — checked before anything is written.
+        const knownCodes = new Set([
+          ...existingByCode.keys(),
+          ...body.items.map((i) => i.code).filter((c): c is string => !!c),
+        ]);
+        for (const item of body.items) {
+          if (item.kind !== CatalogItemKindDto.PACKAGE) continue;
+          const missing = (item.componentCodes ?? []).filter(
+            (c) => !knownCodes.has(c)
+          );
+          if (missing.length > 0) {
+            throw new BadRequestException(
+              `Component codes not found for package "${
+                item.name
+              }": ${missing.join(', ')}`
+            );
+          }
+        }
+
+        const createdRows =
+          toCreate.size > 0
+            ? await tx.catalogItem.createManyAndReturn({
+                data: [...toCreate.values()].map((r) => ({
+                  ...r,
+                  labTenantId,
+                })),
+                select: { id: true, code: true, name: true },
+              })
+            : [];
+
+        if (toUpdate.size > 0) {
+          const values = [...toUpdate.entries()].map(
+            ([id, r]) =>
+              Prisma.sql`(${id}, ${r.kind}, ${r.name}, ${r.code}, ${r.description}, ${r.category}, ${r.turnaroundHours}::int, ${r.resultType}, ${r.unit})`
+          );
+          await tx.$executeRaw`
+            UPDATE catalog_items AS c SET
+              kind = v.kind::"CatalogItemKind",
+              name = v.name,
+              code = v.code,
+              description = v.description,
+              category = v.category,
+              "turnaroundHours" = v.turnaround_hours,
+              "resultType" = v.result_type::"ResultType",
+              unit = v.unit,
+              "updatedAt" = now()
+            FROM (VALUES ${Prisma.join(values)})
+              AS v(id, kind, name, code, description, category, turnaround_hours, result_type, unit)
+            WHERE c.id = v.id AND c."labTenantId" = ${labTenantId}`;
+        }
+
+        // Pass 2 — package compositions, replaced for every package listed
+        const idByCode = new Map(existingByCode);
+        const idByName = new Map(existingByName);
+        for (const c of createdRows) {
+          if (c.code) idByCode.set(c.code, c.id);
+          else idByName.set(c.name, c.id);
+        }
+        const compositions: { packageId: string; componentId: string }[] = [];
+        const packageIds: string[] = [];
         for (const item of body.items) {
           if (
             item.kind !== CatalogItemKindDto.PACKAGE ||
@@ -202,39 +256,30 @@ export class CatalogService {
           ) {
             continue;
           }
-
           const packageId = item.code
             ? idByCode.get(item.code)
             : idByName.get(item.name);
-
           if (!packageId) continue;
-
-          // Resolve component IDs from this lab's own catalog only
-          const components = await tx.catalogItem.findMany({
-            where: { code: { in: item.componentCodes }, labTenantId },
-            select: { id: true, code: true },
-          });
-
-          const missingCodes = item.componentCodes.filter(
-            (c) => !components.find((comp) => comp.code === c)
-          );
-          if (missingCodes.length > 0) {
-            throw new BadRequestException(
-              `Component codes not found for package "${
-                item.name
-              }": ${missingCodes.join(', ')}`
-            );
+          packageIds.push(packageId);
+          for (const code of new Set(item.componentCodes)) {
+            compositions.push({
+              packageId,
+              componentId: idByCode.get(code) as string,
+            });
           }
-
-          // Replace compositions atomically
-          await tx.catalogItemComposition.deleteMany({ where: { packageId } });
+        }
+        if (packageIds.length > 0) {
+          await tx.catalogItemComposition.deleteMany({
+            where: { packageId: { in: packageIds } },
+          });
           await tx.catalogItemComposition.createMany({
-            data: components.map((c) => ({ packageId, componentId: c.id })),
+            data: compositions,
+            skipDuplicates: true,
           });
         }
       },
       {
-        timeout: 60_000, // large catalogs can have many items — 60s is safe
+        timeout: 60_000, // a handful of queries now; margin for big catalogs
       }
     );
 

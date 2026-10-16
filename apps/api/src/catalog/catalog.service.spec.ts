@@ -33,6 +33,7 @@ describe('CatalogService', () => {
       findFirst: ReturnType<typeof jest.fn>;
       count: ReturnType<typeof jest.fn>;
       create: ReturnType<typeof jest.fn>;
+      createManyAndReturn: ReturnType<typeof jest.fn>;
       update: ReturnType<typeof jest.fn>;
       deleteMany: ReturnType<typeof jest.fn>;
     };
@@ -42,6 +43,7 @@ describe('CatalogService', () => {
     };
     caseCatalogItem: { count: ReturnType<typeof jest.fn> };
     orderedTest: { count: ReturnType<typeof jest.fn> };
+    $executeRaw: ReturnType<typeof jest.fn>;
     $transaction: ReturnType<typeof jest.fn>;
   };
 
@@ -56,6 +58,7 @@ describe('CatalogService', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         count: jest.fn().mockResolvedValue(1),
         create: jest.fn().mockResolvedValue({ id: 'new1', labTenantId: LAB_A }),
+        createManyAndReturn: jest.fn().mockResolvedValue([]),
         update: jest
           .fn()
           .mockResolvedValue({ id: 'item1', labTenantId: LAB_A }),
@@ -67,6 +70,7 @@ describe('CatalogService', () => {
       },
       caseCatalogItem: { count: jest.fn().mockResolvedValue(0) },
       orderedTest: { count: jest.fn().mockResolvedValue(0) },
+      $executeRaw: jest.fn().mockResolvedValue(0),
       $transaction: jest
         .fn()
         .mockImplementation((cb: (tx: typeof prisma) => Promise<void>) =>
@@ -124,34 +128,94 @@ describe('CatalogService', () => {
   // ── import ────────────────────────────────────────────────────────────────
 
   describe('import', () => {
-    it('returns created/updated counts, scoped to labTenantId', async () => {
-      prisma.catalogItem.findFirst.mockResolvedValue(null);
+    /** The lab's current catalog, read once at the start of the import */
+    const existing = (
+      rows: { id: string; code: string | null; name: string }[]
+    ) => prisma.catalogItem.findMany.mockResolvedValueOnce(rows);
+
+    it("reads this lab's catalog once, then creates new items in one query", async () => {
+      existing([]);
+      prisma.catalogItem.createManyAndReturn.mockResolvedValue([
+        { id: 'n1', code: 'NT', name: 'New Test' },
+        { id: 'n2', code: 'NT2', name: 'Other' },
+      ]);
+
       const result = await service.import({
         labTenantId: LAB_A,
-        items: [{ kind: 'TEST' as const, name: 'New Test', code: 'NT' }],
+        items: [
+          { kind: 'TEST' as const, name: 'New Test', code: 'NT' },
+          { kind: 'TEST' as const, name: 'Other', code: 'NT2' },
+        ],
       });
-      expect(result).toEqual({ created: 1, updated: 0 });
-      expect(prisma.catalogItem.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ labTenantId: LAB_A }),
-        })
+
+      expect(result).toEqual({ created: 2, updated: 0 });
+      expect(prisma.catalogItem.findMany).toHaveBeenCalledTimes(1);
+      expect(prisma.catalogItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { labTenantId: LAB_A } })
       );
+      expect(prisma.catalogItem.createManyAndReturn).toHaveBeenCalledTimes(1);
+      expect(
+        prisma.catalogItem.createManyAndReturn.mock.calls[0][0].data
+      ).toEqual([
+        expect.objectContaining({ labTenantId: LAB_A, code: 'NT' }),
+        expect.objectContaining({ labTenantId: LAB_A, code: 'NT2' }),
+      ]);
+      expect(prisma.$executeRaw).not.toHaveBeenCalled();
+      expect(prisma.catalogItem.findFirst).not.toHaveBeenCalled();
     });
 
-    it('updates existing item when code matches within the same lab', async () => {
-      prisma.catalogItem.findFirst.mockResolvedValue({ id: 'item1' });
+    it('updates items whose code exists in this lab, in one query', async () => {
+      existing([{ id: 'item1', code: 'CBC', name: 'Hemograma' }]);
+
       const result = await service.import({
         labTenantId: LAB_A,
         items: [{ kind: 'TEST' as const, name: 'Updated Test', code: 'CBC' }],
       });
+
       expect(result).toEqual({ created: 0, updated: 1 });
-      expect(prisma.catalogItem.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { code: 'CBC', labTenantId: LAB_A } })
-      );
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+      expect(prisma.catalogItem.createManyAndReturn).not.toHaveBeenCalled();
+      // the UPDATE is scoped to the lab and carries the row values
+      const values = prisma.$executeRaw.mock.calls[0].slice(1);
+      expect(values).toEqual(expect.arrayContaining([LAB_A]));
+    });
+
+    it('uses name as fallback key for items without a code', async () => {
+      existing([{ id: 'pkg-old', code: null, name: 'Wellness Panel' }]);
+
+      const result = await service.import({
+        labTenantId: LAB_A,
+        items: [
+          { kind: 'PACKAGE' as const, name: 'Wellness Panel' },
+          { kind: 'PACKAGE' as const, name: 'Brand New Panel' },
+        ],
+      });
+
+      expect(result).toEqual({ created: 1, updated: 1 });
+      expect(
+        prisma.catalogItem.createManyAndReturn.mock.calls[0][0].data
+      ).toEqual([expect.objectContaining({ name: 'Brand New Panel' })]);
+    });
+
+    it('a key repeated in one import is created once and counted as an update', async () => {
+      existing([]);
+
+      const result = await service.import({
+        labTenantId: LAB_A,
+        items: [
+          { kind: 'TEST' as const, name: 'First', code: 'X' },
+          { kind: 'TEST' as const, name: 'Second', code: 'X' },
+        ],
+      });
+
+      expect(result).toEqual({ created: 1, updated: 1 });
+      expect(
+        prisma.catalogItem.createManyAndReturn.mock.calls[0][0].data
+      ).toEqual([expect.objectContaining({ code: 'X', name: 'Second' })]);
     });
 
     it("replace:true only deletes this lab's items", async () => {
-      prisma.catalogItem.findFirst.mockResolvedValue(null);
+      existing([]);
       await service.import({
         labTenantId: LAB_A,
         replace: true,
@@ -163,7 +227,7 @@ describe('CatalogService', () => {
     });
 
     it('without replace:true does not call deleteMany', async () => {
-      prisma.catalogItem.findFirst.mockResolvedValue(null);
+      existing([]);
       await service.import({
         labTenantId: LAB_A,
         items: [{ kind: 'TEST' as const, name: 'New Test', code: 'NT' }],
@@ -171,53 +235,40 @@ describe('CatalogService', () => {
       expect(prisma.catalogItem.deleteMany).not.toHaveBeenCalled();
     });
 
-    it('uses name as fallback key, scoped to the lab', async () => {
-      prisma.catalogItem.findFirst.mockResolvedValue(null);
-      const result = await service.import({
-        labTenantId: LAB_A,
-        items: [{ kind: 'PACKAGE' as const, name: 'Wellness Panel' }],
-      });
-      expect(result).toEqual({ created: 1, updated: 0 });
-      expect(prisma.catalogItem.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { name: 'Wellness Panel', labTenantId: LAB_A },
-        })
-      );
-    });
-
-    it("wires package compositions from this lab's own catalog only", async () => {
-      prisma.catalogItem.findFirst.mockResolvedValue(null);
-      prisma.catalogItem.create.mockResolvedValueOnce({ id: 'pkg1' });
-      prisma.catalogItem.findMany.mockResolvedValueOnce([
-        { id: 'comp1', code: 'CBC' },
+    it("wires package compositions from this lab's catalog and this import", async () => {
+      existing([{ id: 'comp1', code: 'CBC', name: 'Hemograma' }]);
+      prisma.catalogItem.createManyAndReturn.mockResolvedValue([
+        { id: 'chem1', code: 'CHEM', name: 'Química' },
+        { id: 'pkg1', code: 'MINI', name: 'Mini Panel' },
       ]);
 
       await service.import({
         labTenantId: LAB_A,
         items: [
+          { kind: 'TEST' as const, name: 'Química', code: 'CHEM' },
           {
             kind: 'PACKAGE' as const,
             name: 'Mini Panel',
             code: 'MINI',
-            componentCodes: ['CBC'],
+            componentCodes: ['CBC', 'CHEM', 'CBC'],
           },
         ],
       });
 
-      expect(prisma.catalogItem.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { code: { in: ['CBC'] }, labTenantId: LAB_A },
-        })
-      );
+      expect(prisma.catalogItemComposition.deleteMany).toHaveBeenCalledWith({
+        where: { packageId: { in: ['pkg1'] } },
+      });
       expect(prisma.catalogItemComposition.createMany).toHaveBeenCalledWith({
-        data: [{ packageId: 'pkg1', componentId: 'comp1' }],
+        data: [
+          { packageId: 'pkg1', componentId: 'comp1' },
+          { packageId: 'pkg1', componentId: 'chem1' },
+        ],
+        skipDuplicates: true,
       });
     });
 
-    it('throws BadRequestException when a componentCode is not found', async () => {
-      prisma.catalogItem.findFirst.mockResolvedValue(null);
-      prisma.catalogItem.create.mockResolvedValue({ id: 'pkg1' });
-      prisma.catalogItem.findMany.mockResolvedValueOnce([]);
+    it('throws BadRequestException for a missing component, before writing', async () => {
+      existing([]);
 
       await expect(
         service.import({
@@ -232,6 +283,8 @@ describe('CatalogService', () => {
           ],
         })
       ).rejects.toThrow('MISSING');
+      expect(prisma.catalogItem.createManyAndReturn).not.toHaveBeenCalled();
+      expect(prisma.$executeRaw).not.toHaveBeenCalled();
     });
   });
 
