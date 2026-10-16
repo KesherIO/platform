@@ -46,6 +46,7 @@ describe('AmendmentService', () => {
       },
       resultReportAmendmentAnalyte: {
         create: jest.fn(),
+        createManyAndReturn: jest.fn().mockResolvedValue([]),
         update: jest.fn(),
         updateMany: jest.fn(),
       },
@@ -282,19 +283,22 @@ describe('AmendmentService', () => {
         ],
       });
 
+      const tx = buildPrismaMock();
       prisma.$transaction.mockImplementation(async (fn) => {
-        const tx = buildPrismaMock();
         tx.resultReportAmendment.create.mockResolvedValue({
           id: 'amend-1',
           status: 'DRAFT',
         });
-        tx.resultReportAmendmentAnalyte.create.mockResolvedValue({
-          id: 'ama-1',
-          code: 'WBC',
-          name: 'White Blood Cells',
-          numericValue: 12.5,
-          flag: 'N',
-        });
+        tx.resultReportAmendmentAnalyte.createManyAndReturn.mockResolvedValue([
+          {
+            id: 'ama-1',
+            code: 'WBC',
+            name: 'White Blood Cells',
+            sortOrder: 1,
+            numericValue: 12.5,
+            flag: 'N',
+          },
+        ]);
         tx.timelineEvent.create.mockResolvedValue({});
         return fn(tx);
       });
@@ -311,6 +315,23 @@ describe('AmendmentService', () => {
       expect(result.amendmentId).toBe('amend-1');
       expect(result.status).toBe('DRAFT');
       expect(result.analytes).toHaveLength(1);
+      // The whole panel in one INSERT, inside a transaction given room for it
+      expect(
+        tx.resultReportAmendmentAnalyte.createManyAndReturn
+      ).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            amendmentId: 'amend-1',
+            code: 'WBC',
+            numericValue: 12.5,
+            referenceSnapshot: { min: 5.5, max: 16.9 },
+          }),
+        ],
+      });
+      expect(tx.resultReportAmendmentAnalyte.create).not.toHaveBeenCalled();
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        timeout: 15000,
+      });
     });
   });
 
