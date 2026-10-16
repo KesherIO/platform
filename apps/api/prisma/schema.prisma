@@ -744,6 +744,7 @@ model Order {
   @@unique([labTenantId, requisitionNumber])
   @@index([labTenantId])
   @@index([labTenantId, status])
+  @@index([labTenantId, createdAt])
   @@map("orders")
 }
 
@@ -1016,6 +1017,7 @@ model ResultReportTest {
   @@unique([reportId, orderedTestId])
   @@index([reportId])
   @@index([orderedTestId])
+  @@index([latestReleaseId])
   @@map("result_report_tests")
 }
 
@@ -1527,6 +1529,9 @@ model ResultReportRelease {
   @@unique([reportId, releaseSequence])
   @@index([reportId])
   @@index([orderId])
+  /// Resultados search: this lab's releases by date, optionally per clinic
+  @@index([labTenantId, releasedAt])
+  @@index([labTenantId, clinicTenantId, releasedAt])
   @@map("result_report_releases")
 }
 
@@ -1617,6 +1622,7 @@ model ResultReportReleaseAnalyte {
   releaseTest ResultReportReleaseTest @relation(fields: [releaseTestId], references: [id], onDelete: Restrict)
 
   @@index([releaseTestId])
+  @@index([code])
   @@map("result_report_release_analytes")
 }
 

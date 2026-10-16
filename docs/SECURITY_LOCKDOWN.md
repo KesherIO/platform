@@ -172,6 +172,11 @@ touched. At Biomet nobody has those two roles (2026-10-14 count), so no Biomet u
 Apply it before the code: the new code no longer lets TECHNICIAN/DATA_ENTRY into lab
 routes. `migrate status` should then list five pending migrations.
 
+`20261016000002_results_search_indexes` — five indexes for the Resultados search
+(`result_report_releases` by lab + date and lab + clinic + date, analyte `code`,
+`result_report_tests.latestReleaseId`, `orders` by lab + date). No data change. Safe before
+or after the code; with it before, the first searches aren't slow. Six pending migrations.
+
 **Decision (2026-10-12): one release.** Both migrations go to Ireland together with plain
 `prisma migrate deploy`, which applies them in name order, and then `main` is merged into
 `production` (client import #37–#38, Phase 3 tax fields #39, this lockdown #40). No

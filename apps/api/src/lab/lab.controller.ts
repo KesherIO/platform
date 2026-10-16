@@ -76,6 +76,8 @@ import { ResultEntryService } from './result-entry.service';
 import { ResultsService } from '../results/results.service';
 import { ReviewService } from './review.service';
 import { ReleaseService } from './release.service';
+import { ResultsSearchService } from './results-search.service';
+import { SearchAnalytesDto, SearchResultsDto } from './dto/search-results.dto';
 import { AmendmentService } from './amendment.service';
 import { WorklistService } from './worklist.service';
 import { ListWorklistDto } from './dto/list-worklist.dto';
@@ -115,6 +117,7 @@ export class LabController {
     private readonly resultsService: ResultsService,
     private readonly reviewService: ReviewService,
     private readonly releaseService: ReleaseService,
+    private readonly resultsSearchService: ResultsSearchService,
     private readonly amendmentService: AmendmentService,
     private readonly worklistService: WorklistService,
     private readonly readinessService: ReadinessService,
@@ -569,6 +572,42 @@ export class LabController {
   @Get('signers/analysts')
   getAnalystSigners(@CurrentTenant() tenant: TenantContext) {
     return this.reviewService.getAnalystSigners(tenant.tenantId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Resultados search — staff and RESULTS_VIEWER; the in-progress view also
+  // needs canViewInProgress for a results viewer (checked in the service)
+  // ---------------------------------------------------------------------------
+
+  // GET /api/lab/results/search?view=released&clinicId=&dateFrom=&dateTo=&patient=&analyteCode=&page=
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_RESULTS_ROLES)
+  @Get('results/search')
+  searchResults(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: SearchResultsDto
+  ) {
+    return this.resultsSearchService.search(tenant, user.id, query);
+  }
+
+  // GET /api/lab/results/clinics
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_RESULTS_ROLES)
+  @Get('results/clinics')
+  getResultsClinics(@CurrentTenant() tenant: TenantContext) {
+    return this.resultsSearchService.getClinics(tenant.tenantId);
+  }
+
+  // GET /api/lab/results/analytes?search=
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_RESULTS_ROLES)
+  @Get('results/analytes')
+  getResultsAnalytes(
+    @CurrentTenant() tenant: TenantContext,
+    @Query() query: SearchAnalytesDto
+  ) {
+    return this.resultsSearchService.getAnalytes(tenant.tenantId, query.search);
   }
 
   // ---------------------------------------------------------------------------
