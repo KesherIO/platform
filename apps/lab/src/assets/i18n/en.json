@@ -416,6 +416,11 @@
     "vet_verification_required_label": "Require veterinarian verification before order submission",
     "vet_verification_description": "When enabled, vets must be reviewed and approved before they can place orders through connected clinics.",
     "vet_verification_warning_on": "Vets already approved will remain active. New vets will require review.",
+    "amendments_title": "Amendments",
+    "amendments_subtitle": "Choose whether clinics see when a released result is corrected.",
+    "show_amendments_label": "Show amendments to clinics",
+    "show_amendments_on": "Clinics see every release, and corrections are marked as amendments.",
+    "show_amendments_off": "Clinics only get the current report, with the latest values and the original release dates. Amendments are only visible in the lab. PDFs a clinic already downloaded are not updated.",
     "catalog_setup": {
       "title": "Catalog setup",
       "subtitle": "Import the standard platform catalog as a starting point. This adds all standard tests and packages with platform codes. You can customize them afterwards in the Catalog page.",

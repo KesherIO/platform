@@ -93,7 +93,9 @@ export interface ReleasedTestResult {
   testName: string;
   catalogItemCode: string | null;
   department: string | null;
-  releaseType: string;
+  /** Absent when the lab keeps amendments silent */
+  releaseType?: string;
+  /** When the clinic first got this test if the lab keeps amendments silent */
   releasedAt: string;
   signerName: string;
   signerTitle?: string;
@@ -144,7 +146,15 @@ export interface ClinicReleaseSummaryModel {
   testNames: string[];
 }
 
+export interface ClinicCurrentReportModel {
+  pdfStatus: ReleasePdfStatus;
+}
+
 export interface ClinicOrderReleasesModel {
   requisitionNumber: string;
+  /** Lab setting. When false, `releases` is empty and the clinic gets `currentReport` */
+  showAmendments: boolean;
   releases: ClinicReleaseSummaryModel[];
+  /** Silent amendments only: the one PDF with every result at its latest values */
+  currentReport: ClinicCurrentReportModel | null;
 }

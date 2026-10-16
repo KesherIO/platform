@@ -248,19 +248,34 @@ export class CasesService {
     releaseSequence: number,
     filename: string
   ): Observable<void> {
+    return this.downloadPdf(
+      `/api/results/by-order/${orderId}/pdf?releaseSequence=${releaseSequence}`,
+      filename
+    );
+  }
+
+  /** Downloads the current report (labs that keep amendments silent). */
+  downloadCurrentReportPdf(
+    orderId: string,
+    filename: string
+  ): Observable<void> {
+    return this.downloadPdf(
+      `/api/results/by-order/${orderId}/current-report/pdf`,
+      filename
+    );
+  }
+
+  private downloadPdf(url: string, filename: string): Observable<void> {
     return this.http
-      .get(
-        `/api/results/by-order/${orderId}/pdf?releaseSequence=${releaseSequence}`,
-        { ...this.tenantHeaders, responseType: 'blob' }
-      )
+      .get(url, { ...this.tenantHeaders, responseType: 'blob' })
       .pipe(
         map((blob) => {
-          const url = URL.createObjectURL(blob);
+          const objectUrl = URL.createObjectURL(blob);
           const a = document.createElement('a');
-          a.href = url;
+          a.href = objectUrl;
           a.download = filename;
           a.click();
-          URL.revokeObjectURL(url);
+          URL.revokeObjectURL(objectUrl);
         })
       );
   }

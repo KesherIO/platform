@@ -119,4 +119,28 @@ describe('CasesService', () => {
     const result = await promise;
     expect(result.status).toBe(CaseStatus.CANCELLED);
   });
+
+  it('downloadCurrentReportPdf fetches the current report as a file', async () => {
+    const createObjectURL = vi.fn(() => 'blob:report');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined);
+
+    const promise = firstValueFrom(
+      service.downloadCurrentReportPdf('REQ-1', 'REQ-1.pdf')
+    );
+    const req = httpMock.expectOne(
+      '/api/results/by-order/REQ-1/current-report/pdf'
+    );
+    expect(req.request.responseType).toBe('blob');
+    req.flush(new Blob(['%PDF']));
+    await promise;
+
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:report');
+    click.mockRestore();
+    vi.unstubAllGlobals();
+  });
 });

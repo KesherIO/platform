@@ -675,6 +675,12 @@ describe('AmendmentService', () => {
           analystSignatureUrl: null,
         })
       );
+      // Amendment PDF for the lab, and the clinic's current report
+      for (const artifactType of ['PDF', 'CLINIC_REPORT_PDF']) {
+        expect(lastTx.resultReportReleaseArtifact.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({ releaseId: 'rel-2', artifactType }),
+        });
+      }
     });
 
     it('scenario 17: report status unaffected by pending amendment', async () => {

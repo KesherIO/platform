@@ -201,6 +201,9 @@ function makePrismaMock() {
       updateMany: jest.fn(),
     },
     order: { findUnique: jest.fn(), findFirst: jest.fn() },
+    resultReportReleaseTest: { findMany: jest.fn() },
+    laboratoryProfile: { findUnique: jest.fn() },
+    labTestConfiguration: { findMany: jest.fn().mockResolvedValue([]) },
     case: { update: jest.fn() },
     catalogItemComposition: { findMany: jest.fn() },
     $transaction: jest
@@ -698,6 +701,111 @@ describe('ResultsService', () => {
       await expect(
         service.findReportByOrderId('tenant-99', 'REQ-001')
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+  // ── findReleasedResultsByOrder (clinic view) ─────────────────────────────
+
+  describe('findReleasedResultsByOrder', () => {
+    const firstRelease = new Date('2026-10-12T10:00:00Z');
+    const amendedAt = new Date('2026-10-16T09:00:00Z');
+
+    /** Chemistry released on the 12th, its creatinine amended on the 16th. */
+    function arrangeAmendedOrder(showAmendmentsToClinic: boolean | null) {
+      prisma.order.findFirst.mockResolvedValue({
+        id: 'order-1',
+        caseId: 'case-1',
+        labTenantId: 'lab-1',
+      });
+      prisma.resultReport.findFirst.mockResolvedValue({ id: 'report-1' });
+      prisma.resultReportTest.findMany.mockResolvedValue([
+        {
+          id: 'rt-1',
+          status: 'RELEASED',
+          latestReleaseId: 'rel-2',
+          orderedTest: {
+            catalogItemName: 'Química',
+            department: 'Bioquímica',
+            catalogItemId: 'cat-1',
+          },
+        },
+      ]);
+      prisma.laboratoryProfile.findUnique.mockResolvedValue(
+        showAmendmentsToClinic === null ? null : { showAmendmentsToClinic }
+      );
+      prisma.resultReportReleaseTest.findMany.mockImplementation(
+        ({ select }: { select?: unknown }) =>
+          // Second query (silent mode): every snapshot of the test, for its first date
+          select
+            ? [
+                {
+                  sourceReportTestId: 'rt-1',
+                  release: { releasedAt: amendedAt },
+                },
+                {
+                  sourceReportTestId: 'rt-1',
+                  release: { releasedAt: firstRelease },
+                },
+              ]
+            : [
+                {
+                  sourceReportTestId: 'rt-1',
+                  releaseId: 'rel-2',
+                  catalogItemName: 'Química',
+                  catalogItemCode: 'CHEM',
+                  department: 'Bioquímica',
+                  observations: null,
+                  analytes: [],
+                  release: {
+                    releaseType: 'AMENDMENT',
+                    releasedAt: amendedAt,
+                    signerName: 'Dr. Lab',
+                  },
+                },
+              ]
+      );
+    }
+
+    it('shows the amendment release and date when the lab shows amendments', async () => {
+      arrangeAmendedOrder(true);
+
+      const result = await service.findReleasedResultsByOrder(
+        'clinic-1',
+        'REQ-001'
+      );
+
+      expect(result.releasedTests[0].releaseType).toBe('AMENDMENT');
+      expect(result.releasedTests[0].releasedAt).toBe(amendedAt.toISOString());
+      expect(prisma.resultReportReleaseTest.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('defaults to showing amendments when the lab has no profile', async () => {
+      arrangeAmendedOrder(null);
+
+      const result = await service.findReleasedResultsByOrder(
+        'clinic-1',
+        'REQ-001'
+      );
+
+      expect(result.releasedTests[0].releaseType).toBe('AMENDMENT');
+    });
+
+    it('keeps the original date and hides the release type when amendments are silent', async () => {
+      arrangeAmendedOrder(false);
+
+      const result = await service.findReleasedResultsByOrder(
+        'clinic-1',
+        'REQ-001'
+      );
+
+      expect(result.releasedTests[0].releaseType).toBeUndefined();
+      expect(result.releasedTests[0].releasedAt).toBe(
+        firstRelease.toISOString()
+      );
+      expect(result.latestReleasedAt).toBe(firstRelease.toISOString());
+      expect(prisma.laboratoryProfile.findUnique).toHaveBeenCalledWith({
+        where: { tenantId: 'lab-1' },
+        select: { showAmendmentsToClinic: true },
+      });
     });
   });
 });

@@ -12,6 +12,10 @@ import { StorageService } from '../storage/storage.service';
 import { OrderStatusService } from './order-status.service';
 import { labPhoneNumbersSnapshot } from './lab-contact.util';
 import { evaluateAllFormulas } from './formula.util';
+import {
+  CLINIC_REPORT_PDF_ARTIFACT,
+  RELEASE_PDF_ARTIFACT,
+} from './current-report.util';
 import type { ReferenceRangeSnapshot } from '@vet-ai/shared-types';
 
 type TxClient = Prisma.TransactionClient;
@@ -727,15 +731,22 @@ export class AmendmentService {
           data: { currentReleaseSequence: newSequence },
         });
 
-        await tx.resultReportReleaseArtifact.create({
-          data: {
-            releaseId: release.id,
-            artifactType: 'PDF',
-            logoStoragePath: imageStoragePaths.logoStoragePath,
-            signerSignatureStoragePath:
-              imageStoragePaths.signerSignatureStoragePath,
-          },
-        });
+        // The release's own PDF, and the clinic's current report as of this
+        // release (served instead when the lab keeps amendments silent)
+        for (const artifactType of [
+          RELEASE_PDF_ARTIFACT,
+          CLINIC_REPORT_PDF_ARTIFACT,
+        ]) {
+          await tx.resultReportReleaseArtifact.create({
+            data: {
+              releaseId: release.id,
+              artifactType,
+              logoStoragePath: imageStoragePaths.logoStoragePath,
+              signerSignatureStoragePath:
+                imageStoragePaths.signerSignatureStoragePath,
+            },
+          });
+        }
 
         await tx.timelineEvent.create({
           data: {

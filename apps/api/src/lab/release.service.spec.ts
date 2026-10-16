@@ -465,13 +465,18 @@ describe('ReleaseService', () => {
           data: expect.objectContaining({ id: releaseId }),
         })
       );
-      expect(tx.resultReportReleaseArtifact.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          logoStoragePath: 'rel/logo.png',
-          signerSignatureStoragePath: 'rel/signer-sig.png',
-          analystSignatureStoragePath: null,
-        }),
-      });
+      // The release PDF and the clinic's current report, same images
+      for (const artifactType of ['PDF', 'CLINIC_REPORT_PDF']) {
+        expect(tx.resultReportReleaseArtifact.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            artifactType,
+            logoStoragePath: 'rel/logo.png',
+            signerSignatureStoragePath: 'rel/signer-sig.png',
+            analystSignatureStoragePath: null,
+          }),
+        });
+      }
+      expect(tx.resultReportReleaseArtifact.create).toHaveBeenCalledTimes(2);
     });
 
     it('scenario 2: multiple selected tests released together', async () => {
