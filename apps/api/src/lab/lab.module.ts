@@ -12,6 +12,7 @@ import { WorklistService } from './worklist.service';
 import { ReadinessService } from './readiness.service';
 import { OrderStatusService } from './order-status.service';
 import { ReleaseService } from './release.service';
+import { ResultsSearchService } from './results-search.service';
 import { AmendmentService } from './amendment.service';
 import { LabTenantGuard } from './lab-tenant.guard';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -46,6 +47,7 @@ import { PdfModule } from '../pdf/pdf.module';
     ReadinessService,
     OrderStatusService,
     ReleaseService,
+    ResultsSearchService,
     AmendmentService,
     LabTenantGuard,
   ],
