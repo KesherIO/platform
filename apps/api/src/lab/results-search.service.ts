@@ -4,7 +4,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, type OrderStatus } from '@prisma/client';
 import { TenantRole } from '@vet-ai/shared-types';
 import type { TenantContext } from '@vet-ai/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,6 +16,12 @@ const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_WINDOW_DAYS = 30;
 const MAX_WINDOW_DAYS = 366;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Order statuses before the sample reaches the lab */
+const NOT_YET_RECEIVED: OrderStatus[] = [
+  'PENDING',
+  'READY_FOR_PICKUP',
+  'COLLECTED',
+];
 
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -134,6 +140,8 @@ export class ResultsSearchService {
           )
         : await this.searchInProgress(
             tenant.tenantId,
+            // Billing (Consulta) only sees orders the lab has received
+            tenant.role === TenantRole.RESULTS_VIEWER,
             q,
             patient,
             window,
@@ -267,6 +275,7 @@ export class ResultsSearchService {
 
   private async searchInProgress(
     labTenantId: string,
+    receivedOnly: boolean,
     q: SearchResultsDto,
     patient: string | undefined,
     window: { dateFrom?: string; dateTo?: string },
@@ -277,6 +286,7 @@ export class ResultsSearchService {
       status: { notIn: ['COMPLETED', 'CANCELLED'] },
       order: {
         labTenantId,
+        ...(receivedOnly && { status: { notIn: NOT_YET_RECEIVED } }),
         ...(q.clinicId && { tenantId: q.clinicId }),
         ...(window.dateFrom || window.dateTo
           ? { createdAt: buildDateRangeFilter(window.dateFrom, window.dateTo) }
