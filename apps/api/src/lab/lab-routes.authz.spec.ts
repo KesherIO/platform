@@ -98,6 +98,9 @@ const RELEASE_ROUTES = [
 /** What "Consulta" (RESULTS_VIEWER) reaches: its session and released results. */
 const RESULTS_VIEWER_ROUTES = [
   'GET lab/me',
+  'GET lab/results/search',
+  'GET lab/results/clinics',
+  'GET lab/results/analytes',
   'GET lab/orders/:orderId/releases',
   'GET lab/orders/:orderId/current-results',
   'GET lab/releases/:releaseId/artifacts/pdf',

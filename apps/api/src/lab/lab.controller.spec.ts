@@ -20,6 +20,7 @@ import { ResultsService } from '../results/results.service';
 import { WorklistService } from './worklist.service';
 import { ReviewService } from './review.service';
 import { ReleaseService } from './release.service';
+import { ResultsSearchService } from './results-search.service';
 import { AmendmentService } from './amendment.service';
 import { ReadinessService } from './readiness.service';
 import { LabVetVerificationService } from './lab-vet-verification.service';
@@ -152,6 +153,14 @@ describe('LabController', () => {
             submitForReview: jest.fn(),
             requestCorrections: jest.fn(),
             getReviewerSigners: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: ResultsSearchService,
+          useValue: {
+            search: jest.fn().mockResolvedValue({ data: [], total: 0 }),
+            getClinics: jest.fn().mockResolvedValue([]),
+            getAnalytes: jest.fn().mockResolvedValue([]),
           },
         },
         {
