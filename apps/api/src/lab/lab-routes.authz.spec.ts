@@ -70,16 +70,12 @@ function labRoutes(): Route[] {
   return routes;
 }
 
-const STAFF = [
-  'ADMIN',
-  'ANALYST',
-  'DATA_ENTRY',
-  'OWNER',
-  'REVIEWER',
-  'TECHNICIAN',
-];
+/** Role sets since the lab roles consolidation of 2026-10-15 (lab-roles.ts). */
+const STAFF = ['ADMIN', 'ANALYST', 'OWNER', 'REVIEWER'];
 const STAFF_RECEPTION = [...STAFF, 'RECEPTIONIST'].sort();
 const ADMIN = ['ADMIN', 'OWNER'];
+const RELEASE = ['ADMIN', 'OWNER', 'REVIEWER'];
+const RESULTS = [...STAFF, 'RESULTS_VIEWER'].sort();
 
 /** The messenger's pickup workflow (MyPickupsPage, push, session). */
 const MESSENGER_ROUTES = [
@@ -92,8 +88,30 @@ const MESSENGER_ROUTES = [
   'DELETE lab/messengers/me/push-subscription',
 ];
 
+/** Release and its review actions: Revisor, Admin, Owner — not the Analista. */
+const RELEASE_ROUTES = [
+  'POST lab/orders/:orderId/approve-release',
+  'POST lab/orders/:orderId/request-corrections',
+  'POST lab/orders/:orderId/amendments/:amendmentId/approve',
+];
+
+/** What "Consulta" (RESULTS_VIEWER) reaches: its session and released results. */
+const RESULTS_VIEWER_ROUTES = [
+  'GET lab/me',
+  'GET lab/orders/:orderId/releases',
+  'GET lab/orders/:orderId/current-results',
+  'GET lab/releases/:releaseId/artifacts/pdf',
+  'GET lab/releases/:releaseId/artifacts/pdf/download',
+  'POST lab/releases/:releaseId/artifacts/pdf/retry',
+];
+
 const routes = labRoutes();
 const sorted = (r?: string[]) => [...(r ?? [])].sort();
+const allowing = (role: string) =>
+  routes
+    .filter((r) => r.roles?.includes(role as TenantRole))
+    .map((r) => r.key)
+    .sort();
 
 describe('lab route permissions', () => {
   it('finds the lab routes', () => {
@@ -112,44 +130,52 @@ describe('lab route permissions', () => {
   });
 
   it('MESSENGER is allowed on exactly its pickup workflow', () => {
-    const allowed = routes
-      .filter((r) => r.roles?.includes(TenantRole.MESSENGER))
-      .map((r) => r.key)
-      .sort();
-    expect(allowed).toEqual([...MESSENGER_ROUTES].sort());
+    expect(allowing('MESSENGER')).toEqual([...MESSENGER_ROUTES].sort());
+  });
+
+  it('RESULTS_VIEWER is allowed on exactly its session and released results', () => {
+    expect(allowing('RESULTS_VIEWER')).toEqual(
+      [...RESULTS_VIEWER_ROUTES].sort()
+    );
+  });
+
+  it('no lab route admits the retired lab roles TECHNICIAN or DATA_ENTRY', () => {
+    expect([...allowing('TECHNICIAN'), ...allowing('DATA_ENTRY')]).toEqual([]);
   });
 
   it('messenger routes keep every staff role', () => {
     for (const r of routes.filter((x) => MESSENGER_ROUTES.includes(x.key))) {
-      expect(sorted(r.roles)).toEqual([...STAFF, 'MESSENGER'].sort());
+      expect(sorted(r.roles)).toEqual(expect.arrayContaining(STAFF));
     }
   });
 
-  it('staff permissions are unchanged: every route is staff, staff+reception or admin', () => {
+  it('every other route is staff, staff+reception, admin, release or results', () => {
+    const allowedSets = [STAFF, STAFF_RECEPTION, ADMIN, RELEASE, RESULTS].map(
+      (s) => JSON.stringify([...s].sort())
+    );
     const unexpected = routes
       .filter((r) => !MESSENGER_ROUTES.includes(r.key))
-      .filter((r) => {
-        const roles = JSON.stringify(sorted(r.roles));
-        return ![STAFF, STAFF_RECEPTION, ADMIN]
-          .map((s) => JSON.stringify([...s].sort()))
-          .includes(roles);
-      })
+      .filter((r) => !allowedSets.includes(JSON.stringify(sorted(r.roles))))
       .map((r) => `${r.key}: ${sorted(r.roles).join(',')}`);
     expect(unexpected).toEqual([]);
   });
 
-  it.each([
-    'POST lab/orders/:orderId/approve-release',
-    'POST lab/orders/:orderId/request-corrections',
-    'POST lab/orders/:orderId/amendments/:amendmentId/approve',
-    'POST lab/releases/:releaseId/artifacts/pdf/retry',
-    'PATCH lab/users/:userId/role',
-  ])('%s stays ADMIN/OWNER only', (key) => {
-    const route = routes.find((r) => r.key === key);
+  it('only the release routes use the release set', () => {
+    const release = routes
+      .filter(
+        (r) => JSON.stringify(sorted(r.roles)) === JSON.stringify(RELEASE)
+      )
+      .map((r) => r.key)
+      .sort();
+    expect(release).toEqual([...RELEASE_ROUTES].sort());
+  });
+
+  it('changing a role stays ADMIN/OWNER only', () => {
+    const route = routes.find((r) => r.key === 'PATCH lab/users/:userId/role');
     expect(sorted(route?.roles)).toEqual(ADMIN);
   });
 
-  describe('enforced by LabTenantGuard for a messenger', () => {
+  describe('enforced by LabTenantGuard', () => {
     const guardFor = (role: string) =>
       new LabTenantGuard(
         {
@@ -158,6 +184,7 @@ describe('lab route permissions', () => {
               role,
               status: 'ACTIVE',
               canPerformPickups: false,
+              canViewInProgress: false,
               tenant: { id: 'lab-1', name: 'Lab', logoUrl: null, type: 'LAB' },
             }),
           },
@@ -177,9 +204,12 @@ describe('lab route permissions', () => {
         getClass: () => route.controller,
       } as unknown as ExecutionContext);
 
-    const prohibited = routes.filter((r) => !MESSENGER_ROUTES.includes(r.key));
+    const cases = (keys: string[], inside: boolean) =>
+      routes
+        .filter((r) => keys.includes(r.key) === inside)
+        .map((r) => [r.key, r] as const);
 
-    it.each(prohibited.map((r) => [r.key, r] as const))(
+    it.each(cases(MESSENGER_ROUTES, false))(
       'MESSENGER → 403 on %s',
       async (_key, route) => {
         await expect(
@@ -188,24 +218,40 @@ describe('lab route permissions', () => {
       }
     );
 
-    it.each(
-      routes
-        .filter((r) => MESSENGER_ROUTES.includes(r.key))
-        .map((r) => [r.key, r] as const)
-    )('MESSENGER → allowed on %s', async (_key, route) => {
-      await expect(
-        guardFor('MESSENGER').canActivate(contextFor(route))
-      ).resolves.toBe(true);
-    });
+    it.each(cases(MESSENGER_ROUTES, true))(
+      'MESSENGER → allowed on %s',
+      async (_key, route) => {
+        await expect(
+          guardFor('MESSENGER').canActivate(contextFor(route))
+        ).resolves.toBe(true);
+      }
+    );
 
-    it.each(
-      routes
-        .filter((r) => sorted(r.roles).includes('TECHNICIAN'))
-        .map((r) => [r.key, r] as const)
-    )('TECHNICIAN keeps access to %s', async (_key, route) => {
-      await expect(
-        guardFor('TECHNICIAN').canActivate(contextFor(route))
-      ).resolves.toBe(true);
-    });
+    it.each(cases(RESULTS_VIEWER_ROUTES, false))(
+      'RESULTS_VIEWER → 403 on %s',
+      async (_key, route) => {
+        await expect(
+          guardFor('RESULTS_VIEWER').canActivate(contextFor(route))
+        ).rejects.toThrow(ForbiddenException);
+      }
+    );
+
+    it.each(cases(RELEASE_ROUTES, true))(
+      'ANALYST → 403 on %s',
+      async (_key, route) => {
+        await expect(
+          guardFor('ANALYST').canActivate(contextFor(route))
+        ).rejects.toThrow(ForbiddenException);
+      }
+    );
+
+    it.each(cases(RELEASE_ROUTES, true))(
+      'REVIEWER → allowed on %s',
+      async (_key, route) => {
+        await expect(
+          guardFor('REVIEWER').canActivate(contextFor(route))
+        ).resolves.toBe(true);
+      }
+    );
   });
 });

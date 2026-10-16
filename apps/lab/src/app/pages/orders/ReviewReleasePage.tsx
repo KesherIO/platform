@@ -368,7 +368,6 @@ function PdfActions({
   orderId: string;
 }) {
   const { t } = useTranslation();
-  const { isAdmin } = useAuth();
   const toast = useToast();
   const queryClient = useQueryClient();
   const [downloading, setDownloading] = useState(false);
@@ -416,7 +415,7 @@ function PdfActions({
     );
   }
 
-  if (release.pdfStatus === 'FAILED' && isAdmin) {
+  if (release.pdfStatus === 'FAILED') {
     return (
       <button
         onClick={() => void handleRetry()}
@@ -523,7 +522,7 @@ function AmendmentPanel({
   const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuth();
+  const { canRelease } = useAuth();
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [approverId, setApproverId] = useState('');
@@ -531,7 +530,7 @@ function AmendmentPanel({
   const { data: reviewerSigners } = useQuery({
     queryKey: ['reviewer-signers'],
     queryFn: () => labApi.review.getReviewerSigners(),
-    enabled: isAdmin,
+    enabled: canRelease,
   });
   const approver = reviewerSigners?.find((s) => s.id === approverId);
 
@@ -829,7 +828,7 @@ function AmendmentPanel({
 
         <AmendmentValuesTable analytes={analytes} released={released} />
 
-        {isAdmin ? (
+        {canRelease ? (
           <>
             {reviewerSigners && reviewerSigners.length === 0 ? (
               <p className="text-xs text-yellow-300">
@@ -900,7 +899,7 @@ export function ReviewReleasePage() {
   const toast = useToast();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuth();
+  const { canRelease } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [amendingTestId, setAmendingTestId] = useState<string | null>(null);
@@ -999,7 +998,7 @@ export function ReviewReleasePage() {
             block: 'center',
           });
         } else {
-          // Non-admins don't get the reviewer panel — go back to the top
+          // Roles that can't release don't get the reviewer panel — go back to the top
           pageTopRef.current?.scrollIntoView({
             behavior: 'smooth',
             block: 'start',
@@ -1157,7 +1156,7 @@ export function ReviewReleasePage() {
     enteredTests.length === 0 &&
     draftOrPendingTests.length === 0;
 
-  const showActionButtons = hasSelectableTests && isAdmin;
+  const showActionButtons = hasSelectableTests && canRelease;
 
   return (
     <div ref={pageTopRef} className="p-6 max-w-3xl">
@@ -1182,7 +1181,7 @@ export function ReviewReleasePage() {
                 {t('review.already_released')}
               </span>
             )}
-            {hasSelectableTests && !isAdmin && (
+            {hasSelectableTests && !canRelease && (
               <span className="shrink-0 rounded-full bg-blue-900/30 px-3 py-1 text-sm font-medium text-blue-400">
                 {t('review.in_review_status')}
               </span>
@@ -1354,7 +1353,7 @@ export function ReviewReleasePage() {
             <div key={test.id}>
               {/* Checkbox / status row */}
               <div className="mb-1 flex items-center gap-2">
-                {isTestInReview && isAdmin ? (
+                {isTestInReview && canRelease ? (
                   <label className="flex cursor-pointer items-center gap-2">
                     <input
                       type="checkbox"

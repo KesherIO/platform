@@ -25,6 +25,8 @@ export interface MembershipEventInput {
   newStatus?: MembershipStatus | null;
   previousCanPerformPickups?: boolean | null;
   newCanPerformPickups?: boolean | null;
+  previousCanViewInProgress?: boolean | null;
+  newCanViewInProgress?: boolean | null;
   reason?: string | null;
   /** Event-specific facts (signer events: signerId, signerName, roles) */
   details?: Prisma.InputJsonValue;

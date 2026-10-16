@@ -139,3 +139,18 @@ people without an account, e.g. a director.
   `SIGNATURE_REPLACED`, `details` holds the signer), in the same transaction as the signer
   save. Unlinked signers aren't audited (no team member to attach them to).
 - Team page shows a "Signer" badge; Settings has a "Team member" picker per signer.
+
+## Lab roles consolidation (2026-10-15)
+
+See docs/LAB_PERMISSION_MATRIX.md section 0. Security-relevant points:
+
+- `LabTenantGuard` now **denies a route without `@Roles`** (before: open to every active
+  member). The route audit spec already required `@Roles`, so no route changed behaviour.
+- RESULTS_VIEWER reaches exactly `GET lab/me`, release history, current (released) results
+  and the release PDF routes; pinned in `lab-routes.authz.spec.ts`. No write route admits it.
+- Release, request corrections and amendment approval: REVIEWER, ADMIN, OWNER.
+- PDF retry: conditional on `status = FAILED` (409 otherwise), so it can't reset a PDF that
+  is pending, generating or done; open to everyone who can read the release.
+- `canViewInProgress` is loaded into the tenant context by the guard; only meaningful for
+  RESULTS_VIEWER (forced false for other roles, cleared on role change), audited as
+  `IN_PROGRESS_ACCESS_CHANGED`.

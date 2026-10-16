@@ -16,6 +16,14 @@ import {
 } from './messenger-schedule.util';
 import { recordMembershipEvent } from './membership-events';
 
+/** MESSENGER does pickups by role; a results viewer never does them. */
+const canHavePickupFlag = (role: string) =>
+  role !== TenantRole.MESSENGER && role !== TenantRole.RESULTS_VIEWER;
+
+/** Only a results viewer ("Consulta") can be given in-progress access. */
+const canHaveInProgressFlag = (role: string) =>
+  role === TenantRole.RESULTS_VIEWER;
+
 @Injectable()
 export class LabUsersService {
   constructor(
@@ -95,6 +103,7 @@ export class LabUsersService {
         lastName: m.user.lastName,
         schedule,
         canPerformPickups: m.canPerformPickups,
+        canViewInProgress: m.canViewInProgress,
         isCurrentlyScheduled: isWithinSchedule(schedule, tenant.timezone),
       };
     });
@@ -161,7 +170,9 @@ export class LabUsersService {
               schedule: schedule as unknown as Prisma.InputJsonValue,
             }),
             ...(dto.canPerformPickups &&
-              dto.role !== 'MESSENGER' && { canPerformPickups: true }),
+              canHavePickupFlag(dto.role) && { canPerformPickups: true }),
+            ...(dto.canViewInProgress &&
+              canHaveInProgressFlag(dto.role) && { canViewInProgress: true }),
           },
         });
 
@@ -174,6 +185,7 @@ export class LabUsersService {
           newRole: membership.role,
           newStatus: membership.status,
           newCanPerformPickups: membership.canPerformPickups,
+          newCanViewInProgress: membership.canViewInProgress,
           reason: dto.reason,
         });
 
@@ -188,6 +200,7 @@ export class LabUsersService {
         role: result.membership.role,
         joinedAt: result.membership.createdAt,
         canPerformPickups: result.membership.canPerformPickups,
+        canViewInProgress: result.membership.canViewInProgress,
       };
     } catch (err) {
       // Compensate — remove the Supabase user so we don't leave orphaned auth accounts
@@ -237,16 +250,21 @@ export class LabUsersService {
     });
 
     let schedule = membership.schedule as WeeklySchedule | null;
-    let { canPerformPickups } = membership;
+    let { canPerformPickups, canViewInProgress } = membership;
 
-    if (dto.schedule !== undefined || dto.canPerformPickups !== undefined) {
+    if (
+      dto.schedule !== undefined ||
+      dto.canPerformPickups !== undefined ||
+      dto.canViewInProgress !== undefined
+    ) {
       // Re-read under a row lock so concurrent edits (or a retry) can't both
       // see the old value and log the same change twice.
-      ({ schedule, canPerformPickups } = await this.prisma.$transaction(
-        async (tx) => {
+      ({ schedule, canPerformPickups, canViewInProgress } =
+        await this.prisma.$transaction(async (tx) => {
           const current = await this.lockMember(tx, labTenantId, userId);
           let nextSchedule = current.schedule as WeeklySchedule | null;
           let nextPickups = current.canPerformPickups;
+          let nextInProgress = current.canViewInProgress;
           const membershipUpdates: Record<string, unknown> = {};
 
           if (dto.schedule !== undefined) {
@@ -260,11 +278,17 @@ export class LabUsersService {
           }
 
           if (dto.canPerformPickups !== undefined) {
-            nextPickups =
-              current.role === TenantRole.MESSENGER
-                ? false
-                : dto.canPerformPickups;
+            nextPickups = canHavePickupFlag(current.role)
+              ? dto.canPerformPickups
+              : false;
             membershipUpdates.canPerformPickups = nextPickups;
+          }
+
+          if (dto.canViewInProgress !== undefined) {
+            nextInProgress = canHaveInProgressFlag(current.role)
+              ? dto.canViewInProgress
+              : false;
+            membershipUpdates.canViewInProgress = nextInProgress;
           }
 
           await tx.userTenantMembership.update({
@@ -272,8 +296,7 @@ export class LabUsersService {
             data: membershipUpdates,
           });
 
-          // The schedule is informational; only the pickup capability grants
-          // access, so only that is audited.
+          // The schedule is informational; only the access flags are audited.
           if (nextPickups !== current.canPerformPickups) {
             await recordMembershipEvent(tx, {
               tenantId: labTenantId,
@@ -286,10 +309,25 @@ export class LabUsersService {
               reason: dto.reason,
             });
           }
+          if (nextInProgress !== current.canViewInProgress) {
+            await recordMembershipEvent(tx, {
+              tenantId: labTenantId,
+              eventType: MembershipEventType.IN_PROGRESS_ACCESS_CHANGED,
+              targetUserId: userId,
+              actorUserId: requestingUserId,
+              source: 'lab_users',
+              previousCanViewInProgress: current.canViewInProgress,
+              newCanViewInProgress: nextInProgress,
+              reason: dto.reason,
+            });
+          }
 
-          return { schedule: nextSchedule, canPerformPickups: nextPickups };
-        }
-      ));
+          return {
+            schedule: nextSchedule,
+            canPerformPickups: nextPickups,
+            canViewInProgress: nextInProgress,
+          };
+        }));
     }
 
     return {
@@ -300,6 +338,7 @@ export class LabUsersService {
       role: membership.role,
       schedule,
       canPerformPickups,
+      canViewInProgress,
     };
   }
 
@@ -335,9 +374,13 @@ export class LabUsersService {
         where: { userId_tenantId: { userId, tenantId: labTenantId } },
         data: {
           role: role as TenantRole,
-          ...(role === 'MESSENGER' || membership.role === TenantRole.MESSENGER
+          // Flags that don't apply to the new role are cleared; leaving
+          // MESSENGER clears pickups too (they were intrinsic to the role).
+          ...(!canHavePickupFlag(role) ||
+          membership.role === TenantRole.MESSENGER
             ? { canPerformPickups: false }
             : {}),
+          ...(!canHaveInProgressFlag(role) ? { canViewInProgress: false } : {}),
         },
       });
 
@@ -351,6 +394,8 @@ export class LabUsersService {
         newRole: updated.role,
         previousCanPerformPickups: membership.canPerformPickups,
         newCanPerformPickups: updated.canPerformPickups,
+        previousCanViewInProgress: membership.canViewInProgress,
+        newCanViewInProgress: updated.canViewInProgress,
         reason,
       });
 
@@ -453,6 +498,7 @@ export class LabUsersService {
         previousRole: membership.role,
         previousStatus: membership.status,
         previousCanPerformPickups: membership.canPerformPickups,
+        previousCanViewInProgress: membership.canViewInProgress,
         reason,
       });
     });
@@ -497,6 +543,8 @@ export class LabUsersService {
         newStatus: e.newStatus,
         previousCanPerformPickups: e.previousCanPerformPickups,
         newCanPerformPickups: e.newCanPerformPickups,
+        previousCanViewInProgress: e.previousCanViewInProgress,
+        newCanViewInProgress: e.newCanViewInProgress,
         reason: e.reason,
         details: e.details,
         source: e.source,

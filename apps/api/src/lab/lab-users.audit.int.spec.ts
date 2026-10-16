@@ -66,27 +66,27 @@ describeWithDb('Membership audit log against Postgres', () => {
 
   it('the same role change sent twice at once is logged once', async () => {
     const admin = await member('ADMIN');
-    const tech = await member('TECHNICIAN');
+    const tech = await member('ANALYST');
 
     await Promise.all([
-      service.updateRole(labId, tech, 'ANALYST', 'r', admin, TenantRole.ADMIN),
-      service.updateRole(labId, tech, 'ANALYST', 'r', admin, TenantRole.ADMIN),
+      service.updateRole(labId, tech, 'REVIEWER', 'r', admin, TenantRole.ADMIN),
+      service.updateRole(labId, tech, 'REVIEWER', 'r', admin, TenantRole.ADMIN),
     ]);
 
     const logged = await events();
     expect(logged).toHaveLength(1);
     expect(logged[0]).toMatchObject({
       eventType: 'ROLE_CHANGED',
-      previousRole: 'TECHNICIAN',
-      newRole: 'ANALYST',
+      previousRole: 'ANALYST',
+      newRole: 'REVIEWER',
       actorUserId: admin,
-      targetName: 'It TECHNICIAN',
+      targetName: 'It ANALYST',
     });
   });
 
   it('a removal sent twice at once is logged once', async () => {
     const admin = await member('ADMIN');
-    const tech = await member('TECHNICIAN');
+    const tech = await member('ANALYST');
 
     const results = await Promise.allSettled([
       service.removeMember(labId, tech, 'left', admin, TenantRole.ADMIN),
@@ -109,7 +109,7 @@ describeWithDb('Membership audit log against Postgres', () => {
 
   it("a removed member's history stays readable", async () => {
     const admin = await member('ADMIN');
-    const tech = await member('TECHNICIAN');
+    const tech = await member('ANALYST');
     await service.updateRole(
       labId,
       tech,

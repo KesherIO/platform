@@ -6,9 +6,10 @@ import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import type { PrismaService } from '../prisma/prisma.service';
 
 const membership = (overrides: Record<string, unknown> = {}) => ({
-  role: 'TECHNICIAN',
+  role: 'ANALYST',
   status: 'ACTIVE',
   canPerformPickups: false,
+  canViewInProgress: false,
   tenant: { id: 'lab-1', name: 'Lab', logoUrl: null, type: 'LAB' },
   ...overrides,
 });
@@ -46,14 +47,32 @@ describe('LabTenantGuard', () => {
   });
 
   it('sets the tenant context from the membership', async () => {
-    const { context, request } = contextFor([TenantRole.TECHNICIAN]);
+    const { context, request } = contextFor([TenantRole.ANALYST]);
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request['tenant']).toMatchObject({
       tenantId: 'lab-1',
-      role: 'TECHNICIAN',
+      role: 'ANALYST',
       status: 'ACTIVE',
+      canViewInProgress: false,
     });
+  });
+
+  it('passes the in-progress flag of a results viewer', async () => {
+    findUnique.mockResolvedValue(
+      membership({ role: 'RESULTS_VIEWER', canViewInProgress: true })
+    );
+    const { context, request } = contextFor([TenantRole.RESULTS_VIEWER]);
+
+    await guard.canActivate(context);
+    expect(request['tenant']).toMatchObject({ canViewInProgress: true });
+  });
+
+  it('denies a route without @Roles, whatever the role', async () => {
+    findUnique.mockResolvedValue(membership({ role: 'OWNER' }));
+    await expect(
+      guard.canActivate(contextFor(undefined).context)
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it('reads the membership on every request: a role change applies at once', async () => {
@@ -63,7 +82,7 @@ describe('LabTenantGuard', () => {
       true
     );
 
-    findUnique.mockResolvedValueOnce(membership({ role: 'TECHNICIAN' }));
+    findUnique.mockResolvedValueOnce(membership({ role: 'ANALYST' }));
     await expect(guard.canActivate(contextFor(roles).context)).rejects.toThrow(
       ForbiddenException
     );
@@ -71,11 +90,11 @@ describe('LabTenantGuard', () => {
   });
 
   it('a removed member is rejected on the next request', async () => {
-    await guard.canActivate(contextFor([TenantRole.TECHNICIAN]).context);
+    await guard.canActivate(contextFor([TenantRole.ANALYST]).context);
 
     findUnique.mockResolvedValueOnce(null);
     await expect(
-      guard.canActivate(contextFor([TenantRole.TECHNICIAN]).context)
+      guard.canActivate(contextFor([TenantRole.ANALYST]).context)
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -84,7 +103,7 @@ describe('LabTenantGuard', () => {
     async (status) => {
       findUnique.mockResolvedValue(membership({ status }));
       await expect(
-        guard.canActivate(contextFor([TenantRole.TECHNICIAN]).context)
+        guard.canActivate(contextFor([TenantRole.ANALYST]).context)
       ).rejects.toThrow(ForbiddenException);
     }
   );
@@ -96,14 +115,14 @@ describe('LabTenantGuard', () => {
       })
     );
     await expect(
-      guard.canActivate(contextFor([TenantRole.TECHNICIAN]).context)
+      guard.canActivate(contextFor([TenantRole.ANALYST]).context)
     ).rejects.toThrow(ForbiddenException);
   });
 
   it('rejects a role missing from @Roles', async () => {
     findUnique.mockResolvedValue(membership({ role: 'MESSENGER' }));
     await expect(
-      guard.canActivate(contextFor([TenantRole.TECHNICIAN]).context)
+      guard.canActivate(contextFor([TenantRole.ANALYST]).context)
     ).rejects.toThrow(ForbiddenException);
   });
 });

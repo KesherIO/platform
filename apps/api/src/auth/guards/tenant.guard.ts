@@ -87,6 +87,7 @@ export class TenantGuard implements CanActivate {
       isOrderingVet: membership.isOrderingVet,
       status: membership.status as MembershipStatus,
       canPerformPickups: false,
+      canViewInProgress: false,
     };
     request.tenant = tenantContext;
 

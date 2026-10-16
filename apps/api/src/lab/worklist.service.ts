@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LAB_STAFF_ROLES } from './lab-roles';
 import type { ListWorklistDto } from './dto/list-worklist.dto';
 import type { TenantRole } from '@prisma/client';
 
@@ -474,7 +475,8 @@ export class WorklistService {
       );
     }
 
-    const allowedRoles = new Set(['TECHNICIAN', 'ADMIN', 'OWNER']);
+    // Lab work roles; RESULTS_VIEWER and MESSENGER can't be assigned tests
+    const allowedRoles: ReadonlySet<string> = new Set(LAB_STAFF_ROLES);
     if (!allowedRoles.has(membership.role)) {
       throw new BadRequestException(
         'Target user does not have a role that can be assigned tests.'

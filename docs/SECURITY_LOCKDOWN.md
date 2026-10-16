@@ -163,6 +163,15 @@ them (analyst signers must be linked before the next settings save). Apply it be
 code: the settings and team pages read `userId`. `migrate status` should then list four
 pending migrations.
 
+`20261016000001_lab_roles_consolidation` — new `TenantRole` value `RESULTS_VIEWER`,
+`user_tenant_memberships.canViewInProgress` (default false), `membership_events`
+previous/new in-progress columns and the `IN_PROGRESS_ACCESS_CHANGED` event type. **Data
+change:** lab (LAB/PLATFORM tenants) members with TECHNICIAN or DATA_ENTRY become ANALYST,
+with one ROLE_CHANGED history entry each (source `migration`). Clinic memberships are not
+touched. At Biomet nobody has those two roles (2026-10-14 count), so no Biomet user changes.
+Apply it before the code: the new code no longer lets TECHNICIAN/DATA_ENTRY into lab
+routes. `migrate status` should then list five pending migrations.
+
 **Decision (2026-10-12): one release.** Both migrations go to Ireland together with plain
 `prisma migrate deploy`, which applies them in name order, and then `main` is merged into
 `production` (client import #37–#38, Phase 3 tax fields #39, this lockdown #40). No

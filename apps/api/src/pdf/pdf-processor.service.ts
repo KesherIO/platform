@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   Logger,
   OnModuleInit,
@@ -355,9 +356,14 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Re-queues a FAILED PDF. It re-renders the frozen release, so anyone who
+   * can read the release may ask for it; a PDF that is pending, generating or
+   * done is left alone (conditional update, so a racing worker isn't reset).
+   */
   async retryArtifact(artifactId: string): Promise<void> {
-    await this.prisma.resultReportReleaseArtifact.update({
-      where: { id: artifactId },
+    const { count } = await this.prisma.resultReportReleaseArtifact.updateMany({
+      where: { id: artifactId, status: 'FAILED' },
       data: {
         status: 'PENDING',
         retryCount: 0,
@@ -367,5 +373,8 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
         nextRetryAt: null,
       },
     });
+    if (count === 0) {
+      throw new ConflictException('Only a failed PDF can be retried.');
+    }
   }
 }

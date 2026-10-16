@@ -2,13 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { labApi } from '../../shared/api/labApi';
-
-interface LabMember {
-  id: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-}
+import type { LabMember } from '../../types/lab.types';
 
 interface ReassignModalProps {
   testId: string;
@@ -18,7 +12,8 @@ interface ReassignModalProps {
   onReassigned: () => void;
 }
 
-const ELIGIBLE_ROLES = new Set(['TECHNICIAN', 'ADMIN', 'OWNER']);
+/** Lab work roles, same as the API's reassign check (LAB_STAFF_ROLES). */
+const ELIGIBLE_ROLES = new Set(['ANALYST', 'REVIEWER', 'ADMIN', 'OWNER']);
 
 export function ReassignModal({
   testId,
@@ -39,7 +34,7 @@ export function ReassignModal({
       .list()
       .then((data) => {
         const eligible = (data as LabMember[]).filter(
-          (m) => ELIGIBLE_ROLES.has(m.role) && m.id !== currentAssigneeId
+          (m) => ELIGIBLE_ROLES.has(m.role) && m.userId !== currentAssigneeId
         );
         setMembers(eligible);
       })
@@ -100,9 +95,9 @@ export function ReassignModal({
             </p>
             {members.map((m) => (
               <label
-                key={m.id}
+                key={m.userId}
                 className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${
-                  selectedId === m.id
+                  selectedId === m.userId
                     ? 'border-cyan/40 bg-cyan/5'
                     : 'border-gray-800 hover:bg-gray-800'
                 }`}
@@ -110,9 +105,9 @@ export function ReassignModal({
                 <input
                   type="radio"
                   name="target-user"
-                  value={m.id}
-                  checked={selectedId === m.id}
-                  onChange={() => setSelectedId(m.id)}
+                  value={m.userId}
+                  checked={selectedId === m.userId}
+                  onChange={() => setSelectedId(m.userId)}
                   className="accent-cyan"
                 />
                 <span className="text-sm text-white">

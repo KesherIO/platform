@@ -24,6 +24,8 @@ enum TenantRole {
   ANALYST
   REVIEWER
   DATA_ENTRY
+  /// Lab "Consulta": read-only search of released results (2026-10-15).
+  RESULTS_VIEWER
 }
 
 enum DeliveryMethod {
@@ -234,6 +236,7 @@ enum MembershipEventType {
   SIGNER_UNLINKED
   SIGNER_ROLES_CHANGED
   SIGNATURE_REPLACED
+  IN_PROGRESS_ACCESS_CHANGED
 }
 
 enum VetVerificationStatus {
@@ -451,10 +454,13 @@ model UserTenantMembership {
   /// Informational for now — displayed and used to sort the assign-messenger
   /// list; does not block or exclude manual assignment outside these hours.
   schedule          Json?
-  /// When true, non-MESSENGER users (ADMIN, TECHNICIAN) can be assigned
+  /// When true, non-MESSENGER users (ADMIN, ANALYST…) can be assigned
   /// pickups, appear in the messenger list, access My Pickups, and receive
   /// push notifications. Ignored for MESSENGER role (intrinsic capability).
   canPerformPickups Boolean          @default(false)
+  /// RESULTS_VIEWER only ("Facturación"): may also list orders in progress,
+  /// status only, no result values. Always false for other roles.
+  canViewInProgress Boolean          @default(false)
   createdAt         DateTime         @default(now())
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -486,6 +492,8 @@ model MembershipEvent {
   newStatus                 MembershipStatus?
   previousCanPerformPickups Boolean?
   newCanPerformPickups      Boolean?
+  previousCanViewInProgress Boolean?
+  newCanViewInProgress      Boolean?
   reason                    String?
   /// Event-specific facts, e.g. { signerId, signerName, previousRoles, newRoles }
   details                   Json?

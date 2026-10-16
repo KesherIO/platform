@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
 import { labApi } from '../api/labApi';
-import { useAuth } from '../../auth/AuthContext';
 import { useToast } from './ToastProvider';
 import type { ReleaseInfo } from '../../types/lab.types';
 
@@ -31,7 +30,6 @@ export function ReleasePdfMenu({
   releases,
 }: ReleasePdfMenuProps) {
   const { t } = useTranslation();
-  const { isAdmin } = useAuth();
   const toast = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -110,17 +108,14 @@ export function ReleasePdfMenu({
       );
     }
     if (release.pdfStatus === 'FAILED') {
-      return isAdmin ? (
+      // Anyone who can see the release may re-render a failed PDF
+      return (
         <button
           onClick={() => void handleRetry(release)}
           disabled={busy}
           className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-50"
         >
           {busy ? '...' : t('review.pdf_retry')}
-        </button>
-      ) : (
-        <button disabled className={BUTTON_CLASS}>
-          {t('review.pdf_failed')}
         </button>
       );
     }
@@ -200,20 +195,14 @@ export function ReleasePdfMenu({
                         {busy ? '...' : t('review.pdf_download_short')}
                       </button>
                     ) : release.pdfStatus === 'FAILED' ? (
-                      isAdmin ? (
-                        <button
-                          role="menuitem"
-                          onClick={() => void handleRetry(release)}
-                          disabled={busy}
-                          className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
-                        >
-                          {busy ? '...' : t('review.pdf_retry')}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-red-400">
-                          {t('review.pdf_failed')}
-                        </span>
-                      )
+                      <button
+                        role="menuitem"
+                        onClick={() => void handleRetry(release)}
+                        disabled={busy}
+                        className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+                      >
+                        {busy ? '...' : t('review.pdf_retry')}
+                      </button>
                     ) : (
                       <span className="text-xs italic text-gray-500">
                         {t('review.pdf_generating')}

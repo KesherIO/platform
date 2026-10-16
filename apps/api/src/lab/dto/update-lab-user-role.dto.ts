@@ -1,15 +1,9 @@
+import { LAB_ASSIGNABLE_ROLES } from '../lab-roles';
 import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class UpdateLabUserRoleDto {
-  @IsEnum([
-    'ADMIN',
-    'TECHNICIAN',
-    'ANALYST',
-    'REVIEWER',
-    'DATA_ENTRY',
-    'MESSENGER',
-  ])
+  @IsEnum(LAB_ASSIGNABLE_ROLES)
   role!: string;
 
   /** Required — stored in the membership audit log. */

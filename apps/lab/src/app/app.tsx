@@ -26,6 +26,7 @@ import { MyPickupsPage } from './pages/pickups/MyPickupsPage';
 import { TemplateManagementPage } from './pages/templates/TemplateManagementPage';
 import { TemplateBuilderPage } from './pages/templates/TemplateBuilderPage';
 import { WorklistPage } from './pages/worklist/WorklistPage';
+import { ResultsPage } from './pages/results/ResultsPage';
 import { VetVerificationQueuePage } from './pages/verifications/VetVerificationQueuePage';
 import { LabOnboardingWelcome } from './pages/onboarding/LabOnboardingWelcome';
 import { LabOnboardingSetup } from './pages/onboarding/LabOnboardingSetup';
@@ -65,6 +66,7 @@ export function App() {
                   element={<OrderWorkspacePage />}
                 />
                 <Route path="/worklist" element={<WorklistPage />} />
+                <Route path="/results" element={<ResultsPage />} />
                 <Route
                   path="/orders/:orderId/tests/:testId/results"
                   element={<ResultEntryPage />}

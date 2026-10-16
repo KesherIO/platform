@@ -251,6 +251,22 @@ describe('WorklistService', () => {
       );
     });
 
+    it.each(['RESULTS_VIEWER', 'MESSENGER', 'TECHNICIAN'])(
+      'rejects reassigning to a %s',
+      async (role) => {
+        prisma.orderedTest.findFirst.mockResolvedValue({
+          id: 'test-1',
+          version: 1,
+          status: 'READY',
+        });
+        prisma.userTenantMembership.findUnique.mockResolvedValue({ role });
+
+        await expect(
+          service.reassignTest(labTenantId, 'test-1', otherUserId, 1)
+        ).rejects.toThrow('can be assigned tests');
+      }
+    );
+
     it('throws ConflictException on version mismatch', async () => {
       prisma.orderedTest.findFirst.mockResolvedValue({
         id: 'test-1',
@@ -471,7 +487,7 @@ describe('WorklistService', () => {
         status: 'READY',
       });
       prisma.userTenantMembership.findUnique.mockResolvedValue({
-        role: 'TECHNICIAN',
+        role: 'ANALYST',
       });
       prisma.orderedTest.updateMany.mockResolvedValue({ count: 1 });
       prisma.orderedTest.findUniqueOrThrow.mockResolvedValue({
@@ -526,7 +542,7 @@ describe('WorklistService', () => {
         status: 'READY',
       });
       prisma.userTenantMembership.findUnique.mockResolvedValue({
-        role: 'TECHNICIAN',
+        role: 'ANALYST',
       });
       prisma.orderedTest.updateMany.mockResolvedValue({ count: 0 });
 

@@ -1,18 +1,50 @@
 import { TenantRole } from '@vet-ai/shared-types';
 
 /**
- * Every lab role except MESSENGER: what an endpoint without `@Roles` allowed
- * before LabTenantGuard denied by default (minus messengers). Staff
- * permissions stay as they were until the permission matrix is approved
- * (docs/RESULTS_SEARCH_PLAN.md, PR 2).
+ * Lab roles since the consolidation of 2026-10-15 (docs/LAB_PERMISSION_MATRIX.md):
+ * OWNER, ADMIN, REVIEWER, ANALYST, RESULTS_VIEWER, MESSENGER. Lab TECHNICIAN and
+ * DATA_ENTRY members were moved to ANALYST; those values remain in the enum for
+ * clinic staff and old history rows only.
+ *
+ * LabTenantGuard denies a route without @Roles, so every lab route lists one
+ * of these sets (lab-routes.authz.spec.ts pins them).
  */
+
+/** Lab work: receive, claim, enter results, templates, configuration reads. */
 export const LAB_STAFF_ROLES = [
-  TenantRole.TECHNICIAN,
   TenantRole.ANALYST,
   TenantRole.REVIEWER,
-  TenantRole.DATA_ENTRY,
   TenantRole.ADMIN,
   TenantRole.OWNER,
+] as const;
+
+/**
+ * Release and its review actions: approve & release, request corrections,
+ * approve amendments. The Analista enters results but doesn't release.
+ */
+export const LAB_RELEASE_ROLES = [
+  TenantRole.REVIEWER,
+  TenantRole.ADMIN,
+  TenantRole.OWNER,
+] as const;
+
+/**
+ * Reading released results: staff plus RESULTS_VIEWER ("Consulta"). Released
+ * reports, release history and their PDFs (retry included: it only re-renders
+ * a failed PDF from the frozen release).
+ */
+export const LAB_RESULTS_ROLES = [
+  ...LAB_STAFF_ROLES,
+  TenantRole.RESULTS_VIEWER,
+] as const;
+
+/** Roles an Owner/Admin can give on the Team page (OWNER: no transfer yet). */
+export const LAB_ASSIGNABLE_ROLES = [
+  TenantRole.ADMIN,
+  TenantRole.REVIEWER,
+  TenantRole.ANALYST,
+  TenantRole.RESULTS_VIEWER,
+  TenantRole.MESSENGER,
 ] as const;
 
 /**

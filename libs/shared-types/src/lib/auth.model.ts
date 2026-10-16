@@ -12,6 +12,8 @@ export enum TenantRole {
   ANALYST = 'ANALYST',
   REVIEWER = 'REVIEWER',
   DATA_ENTRY = 'DATA_ENTRY',
+  /** Lab "Consulta": read-only search of released results */
+  RESULTS_VIEWER = 'RESULTS_VIEWER',
 }
 
 /**
@@ -64,4 +66,6 @@ export interface TenantContext {
   isOrderingVet: boolean;
   status: MembershipStatus;
   canPerformPickups: boolean;
+  /** Lab RESULTS_VIEWER only: may list orders in progress (status, no values) */
+  canViewInProgress: boolean;
 }
