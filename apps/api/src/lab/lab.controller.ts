@@ -1208,7 +1208,8 @@ export class LabController {
       tenant.tenantId,
       userId,
       dto,
-      user.id
+      user.id,
+      tenant.role
     );
   }
 

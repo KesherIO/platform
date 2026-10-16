@@ -59,6 +59,17 @@ export class ApiError extends Error {
   }
 }
 
+/** The API's error message from an ApiError body ({ message }), else the raw text */
+export function apiErrorMessage(err: unknown): string {
+  const raw = (err as Error).message;
+  try {
+    const m = JSON.parse(raw).message;
+    return Array.isArray(m) ? m.join(' ') : String(m ?? raw);
+  } catch {
+    return raw;
+  }
+}
+
 let _tenantId: string | null = null;
 
 export function setActiveTenantId(id: string | null) {

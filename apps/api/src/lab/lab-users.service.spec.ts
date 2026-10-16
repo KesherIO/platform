@@ -15,6 +15,15 @@ const USER_ID = 'user-1';
 const ADMIN_ID = 'admin-1';
 const REASON = 'Covers the night shift';
 
+/** The user row as read before an update (and returned when nothing changes). */
+const before = {
+  id: USER_ID,
+  email: 'existing@lab.com',
+  firstName: 'Jane',
+  lastName: 'Doe',
+  phone: null,
+};
+
 const mockMembership = {
   userId: USER_ID,
   tenantId: LAB_ID,
@@ -34,10 +43,14 @@ describe('LabUsersService', () => {
     prisma = {
       user: {
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn().mockResolvedValue(before),
         findFirst: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
         upsert: jest.fn(),
-        update: jest.fn(),
+        update: jest.fn(({ data }: { data: Record<string, unknown> }) => ({
+          ...before,
+          ...data,
+        })),
       },
       userTenantMembership: {
         findFirst: jest.fn(),
@@ -65,6 +78,7 @@ describe('LabUsersService', () => {
     auth = {
       createSupabaseUser: jest.fn(),
       deleteSupabaseUser: jest.fn(),
+      updateSupabaseUserEmail: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -304,7 +318,13 @@ describe('LabUsersService', () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.updateUser(LAB_ID, USER_ID, { firstName: 'Updated' }, ADMIN_ID)
+        service.updateUser(
+          LAB_ID,
+          USER_ID,
+          { firstName: 'Updated' },
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -317,7 +337,8 @@ describe('LabUsersService', () => {
           LAB_ID,
           USER_ID,
           { email: 'taken@lab.com' },
-          ADMIN_ID
+          ADMIN_ID,
+          TenantRole.ADMIN
         )
       ).rejects.toThrow(ConflictException);
     });
@@ -340,7 +361,8 @@ describe('LabUsersService', () => {
           lastName: 'Name',
           email: 'new@lab.com',
         },
-        ADMIN_ID
+        ADMIN_ID,
+        TenantRole.ADMIN
       );
 
       expect(result.userId).toBe(USER_ID);
@@ -372,7 +394,8 @@ describe('LabUsersService', () => {
         LAB_ID,
         USER_ID,
         { firstName: 'Updated' },
-        ADMIN_ID
+        ADMIN_ID,
+        TenantRole.ADMIN
       );
 
       expect(prisma.user.findFirst).not.toHaveBeenCalled();
@@ -401,7 +424,8 @@ describe('LabUsersService', () => {
         LAB_ID,
         USER_ID,
         { schedule },
-        ADMIN_ID
+        ADMIN_ID,
+        TenantRole.ADMIN
       );
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
@@ -427,7 +451,8 @@ describe('LabUsersService', () => {
           {
             schedule: { MONDAY: { start: '25:00', end: '17:00' } } as any,
           },
-          ADMIN_ID
+          ADMIN_ID,
+          TenantRole.ADMIN
         )
       ).rejects.toThrow(BadRequestException);
     });
@@ -447,7 +472,8 @@ describe('LabUsersService', () => {
         {
           canPerformPickups: true,
         } as any,
-        ADMIN_ID
+        ADMIN_ID,
+        TenantRole.ADMIN
       );
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
@@ -475,7 +501,8 @@ describe('LabUsersService', () => {
         {
           canPerformPickups: true,
         } as any,
-        ADMIN_ID
+        ADMIN_ID,
+        TenantRole.ADMIN
       );
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
@@ -483,6 +510,203 @@ describe('LabUsersService', () => {
         data: { canPerformPickups: false },
       });
       expect(result.canPerformPickups).toBe(false);
+    });
+
+    describe('owner protection', () => {
+      const owner = { ...mockMembership, role: 'OWNER' };
+
+      it('an admin cannot edit an owner, and nothing is written', async () => {
+        prisma.userTenantMembership.findUnique.mockResolvedValue(owner);
+
+        await expect(
+          service.updateUser(
+            LAB_ID,
+            USER_ID,
+            { firstName: 'X', email: 'new@lab.com' },
+            ADMIN_ID,
+            TenantRole.ADMIN
+          )
+        ).rejects.toThrow(ForbiddenException);
+        expect(auth.updateSupabaseUserEmail).not.toHaveBeenCalled();
+        expect(prisma.user.update).not.toHaveBeenCalled();
+      });
+
+      it('re-checks under the lock (member promoted to owner meanwhile)', async () => {
+        prisma.userTenantMembership.findUnique
+          .mockResolvedValueOnce(mockMembership)
+          .mockResolvedValueOnce(owner);
+
+        await expect(
+          service.updateUser(
+            LAB_ID,
+            USER_ID,
+            { firstName: 'X' },
+            ADMIN_ID,
+            TenantRole.ADMIN
+          )
+        ).rejects.toThrow(ForbiddenException);
+        expect(prisma.user.update).not.toHaveBeenCalled();
+      });
+
+      it('an owner can edit an owner', async () => {
+        prisma.userTenantMembership.findUnique.mockResolvedValue(owner);
+        prisma.user.update.mockResolvedValue({ ...before, firstName: 'X' });
+
+        const result = await service.updateUser(
+          LAB_ID,
+          USER_ID,
+          { firstName: 'X' },
+          ADMIN_ID,
+          TenantRole.OWNER
+        );
+        expect(result.firstName).toBe('X');
+      });
+    });
+
+    describe('email change', () => {
+      beforeEach(() => {
+        prisma.userTenantMembership.findUnique.mockResolvedValue(
+          mockMembership
+        );
+        prisma.user.findFirst.mockResolvedValue(null);
+      });
+
+      it('changes the Supabase login first, then our row, and logs it', async () => {
+        prisma.user.update.mockImplementation(async () => {
+          expect(auth.updateSupabaseUserEmail).toHaveBeenCalledWith(
+            USER_ID,
+            'new@lab.com'
+          );
+          return { ...before, email: 'new@lab.com' };
+        });
+
+        const result = await service.updateUser(
+          LAB_ID,
+          USER_ID,
+          { email: '  New@Lab.com ' },
+          ADMIN_ID,
+          TenantRole.ADMIN
+        );
+
+        expect(result.email).toBe('new@lab.com');
+        expect(prisma.user.update).toHaveBeenCalledWith(
+          expect.objectContaining({ data: { email: 'new@lab.com' } })
+        );
+        expect(prisma.membershipEvent.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            eventType: 'EMAIL_CHANGED',
+            targetUserId: USER_ID,
+            actorUserId: ADMIN_ID,
+            details: {
+              previousEmail: 'existing@lab.com',
+              newEmail: 'new@lab.com',
+            },
+          }),
+        });
+      });
+
+      it('surfaces a Supabase refusal and writes nothing', async () => {
+        auth.updateSupabaseUserEmail.mockRejectedValue(
+          new ConflictException('This email is already used by another login.')
+        );
+
+        await expect(
+          service.updateUser(
+            LAB_ID,
+            USER_ID,
+            { email: 'new@lab.com' },
+            ADMIN_ID,
+            TenantRole.ADMIN
+          )
+        ).rejects.toThrow('This email is already used by another login.');
+        expect(prisma.user.update).not.toHaveBeenCalled();
+        expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+      });
+
+      it('puts the old login email back when the DB write fails', async () => {
+        prisma.user.update.mockRejectedValue(new Error('db down'));
+
+        await expect(
+          service.updateUser(
+            LAB_ID,
+            USER_ID,
+            { email: 'new@lab.com' },
+            ADMIN_ID,
+            TenantRole.ADMIN
+          )
+        ).rejects.toThrow('db down');
+        expect(auth.updateSupabaseUserEmail).toHaveBeenNthCalledWith(
+          2,
+          USER_ID,
+          'existing@lab.com'
+        );
+      });
+
+      it('refuses when the person also belongs to another tenant', async () => {
+        prisma.userTenantMembership.count.mockResolvedValue(1);
+
+        await expect(
+          service.updateUser(
+            LAB_ID,
+            USER_ID,
+            { email: 'new@lab.com' },
+            ADMIN_ID,
+            TenantRole.ADMIN
+          )
+        ).rejects.toThrow(ForbiddenException);
+        expect(prisma.userTenantMembership.count).toHaveBeenCalledWith({
+          where: { userId: USER_ID, tenantId: { not: LAB_ID } },
+        });
+        expect(auth.updateSupabaseUserEmail).not.toHaveBeenCalled();
+      });
+
+      it('same email in another case: no login change, nothing logged', async () => {
+        prisma.user.update.mockResolvedValue(before);
+
+        await service.updateUser(
+          LAB_ID,
+          USER_ID,
+          { email: 'Existing@Lab.com' },
+          ADMIN_ID,
+          TenantRole.ADMIN
+        );
+
+        expect(auth.updateSupabaseUserEmail).not.toHaveBeenCalled();
+        expect(prisma.user.update).toHaveBeenCalledWith(
+          expect.objectContaining({ data: {} })
+        );
+        expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+      });
+    });
+
+    it('logs name/phone changes as one PROFILE_CHANGED event', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+      prisma.user.update.mockResolvedValue({
+        ...before,
+        firstName: 'Ana',
+        phone: '555',
+      });
+
+      await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        { firstName: 'Ana', lastName: 'Doe', phone: '555' },
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
+
+      expect(prisma.membershipEvent.create).toHaveBeenCalledTimes(1);
+      expect(prisma.membershipEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          eventType: 'PROFILE_CHANGED',
+          details: {
+            changes: {
+              firstName: { from: 'Jane', to: 'Ana' },
+              phone: { from: null, to: '555' },
+            },
+          },
+        }),
+      });
     });
   });
 
@@ -893,13 +1117,13 @@ describe('LabUsersService', () => {
 
     it('logs PICKUP_CAPABILITY_CHANGED when the flag flips', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
-      prisma.user.update.mockResolvedValue({ id: USER_ID });
 
       await service.updateUser(
         LAB_ID,
         USER_ID,
         { canPerformPickups: true, reason: 'Backup driver' },
-        ADMIN_ID
+        ADMIN_ID,
+        TenantRole.ADMIN
       );
 
       expect(event()).toMatchObject({
@@ -910,22 +1134,22 @@ describe('LabUsersService', () => {
       });
     });
 
-    it('does not log unchanged pickups, schedule edits or profile edits', async () => {
+    it('does not log unchanged pickups or schedule edits', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue({
         ...mockMembership,
         role: 'MESSENGER',
       });
-      prisma.user.update.mockResolvedValue({ id: USER_ID });
 
       await service.updateUser(
         LAB_ID,
         USER_ID,
         {
-          firstName: 'New',
+          firstName: before.firstName, // unchanged → no PROFILE_CHANGED
           canPerformPickups: true, // ignored for messengers → still false
           schedule: { MONDAY: { start: '09:00', end: '17:00' } } as any,
         },
-        ADMIN_ID
+        ADMIN_ID,
+        TenantRole.ADMIN
       );
 
       expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
@@ -976,13 +1200,13 @@ describe('LabUsersService', () => {
 
     it('turning it on for a viewer is saved and logged', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(viewer);
-      prisma.user.update.mockResolvedValue({ id: USER_ID });
 
       const result = await service.updateUser(
         LAB_ID,
         USER_ID,
         { canViewInProgress: true, reason: 'Facturación' },
-        ADMIN_ID
+        ADMIN_ID,
+        TenantRole.ADMIN
       );
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
@@ -1002,13 +1226,13 @@ describe('LabUsersService', () => {
 
     it('stays off for a non-viewer and logs nothing', async () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
-      prisma.user.update.mockResolvedValue({ id: USER_ID });
 
       await service.updateUser(
         LAB_ID,
         USER_ID,
         { canViewInProgress: true },
-        ADMIN_ID
+        ADMIN_ID,
+        TenantRole.ADMIN
       );
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(

@@ -977,6 +977,12 @@
       "by": "Por {{name}}",
       "by_system": "Por el sistema",
       "unknown_user": "usuario desconocido",
+      "field_change": "{{field}} {{from}} → {{to}}",
+      "fields": {
+        "firstName": "nombre",
+        "lastName": "apellido",
+        "phone": "teléfono"
+      },
       "events": {
         "MEMBER_ADDED": "Agregado como {{role}}",
         "INVITED": "Invitado",
@@ -993,7 +999,9 @@
         "SIGNER_ROLES_CHANGED": "Firmante {{signer}}: roles cambiados de {{from}} a {{to}}",
         "SIGNATURE_REPLACED": "Imagen de firma reemplazada para el firmante {{signer}}",
         "IN_PROGRESS_GRANTED": "Acceso a órdenes en proceso otorgado",
-        "IN_PROGRESS_REVOKED": "Acceso a órdenes en proceso retirado"
+        "IN_PROGRESS_REVOKED": "Acceso a órdenes en proceso retirado",
+        "EMAIL_CHANGED": "Correo de acceso cambiado de {{from}} a {{to}}",
+        "PROFILE_CHANGED": "Datos cambiados: {{changes}}"
       }
     },
     "signer_badge": "Firmante",

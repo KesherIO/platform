@@ -315,7 +315,9 @@ export type MembershipEventType =
   | 'SIGNER_UNLINKED'
   | 'SIGNER_ROLES_CHANGED'
   | 'SIGNATURE_REPLACED'
-  | 'IN_PROGRESS_ACCESS_CHANGED';
+  | 'IN_PROGRESS_ACCESS_CHANGED'
+  | 'EMAIL_CHANGED'
+  | 'PROFILE_CHANGED';
 
 /** `details` of the SIGNER_* / SIGNATURE_REPLACED events */
 export interface SignerEventDetails {
@@ -326,6 +328,27 @@ export interface SignerEventDetails {
   newRoles?: LabSignerRole[];
   signerRemoved?: boolean;
 }
+
+/** `details` of EMAIL_CHANGED (the login email) */
+export interface EmailChangeEventDetails {
+  previousEmail: string;
+  newEmail: string;
+}
+
+/** `details` of PROFILE_CHANGED — only the fields that changed */
+export interface ProfileChangeEventDetails {
+  changes: Partial<
+    Record<
+      'firstName' | 'lastName' | 'phone',
+      { from: string | null; to: string | null }
+    >
+  >;
+}
+
+/** Event `details` — which fields are present depends on `eventType`. */
+export type MembershipEventDetails = Partial<SignerEventDetails> &
+  Partial<EmailChangeEventDetails> &
+  Partial<ProfileChangeEventDetails>;
 
 /** One row of the membership audit log (GET lab/users/history). */
 export interface MembershipEvent {
@@ -346,7 +369,7 @@ export interface MembershipEvent {
   previousCanViewInProgress: boolean | null;
   newCanViewInProgress: boolean | null;
   reason: string | null;
-  details: SignerEventDetails | null;
+  details: MembershipEventDetails | null;
   source: string;
   createdAt: string;
 }

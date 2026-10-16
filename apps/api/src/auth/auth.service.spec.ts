@@ -1,11 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import {
+  BadGatewayException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
+import type { JwtPayload } from '@vet-ai/shared-types';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 
+const updateUserById = jest.fn();
+
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({
-    auth: { admin: { createUser: jest.fn(), deleteUser: jest.fn() } },
+    auth: {
+      admin: {
+        createUser: jest.fn(),
+        deleteUser: jest.fn(),
+        updateUserById: (...args: unknown[]) => updateUserById(...args),
+      },
+    },
   })),
 }));
 
@@ -49,6 +63,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
 function makePrismaMock() {
   return {
     user: {
+      findUnique: jest.fn(),
       upsert: jest.fn(),
       update: jest.fn(),
       findUniqueOrThrow: jest.fn(),
@@ -84,6 +99,117 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get(AuthService);
+    updateUserById.mockReset();
+  });
+
+  // ── updateSupabaseUserEmail ───────────────────────────────────────────────
+
+  describe('updateSupabaseUserEmail', () => {
+    it('changes the login email, confirmed, via the Admin API', async () => {
+      updateUserById.mockResolvedValue({ data: {}, error: null });
+
+      await service.updateSupabaseUserEmail('user-1', 'new@lab.com');
+
+      expect(updateUserById).toHaveBeenCalledWith('user-1', {
+        email: 'new@lab.com',
+        email_confirm: true,
+      });
+    });
+
+    it('maps an address already in use to a 409', async () => {
+      updateUserById.mockResolvedValue({
+        data: {},
+        error: { message: 'taken', status: 422, code: 'email_exists' },
+      });
+
+      await expect(
+        service.updateSupabaseUserEmail('user-1', 'x@lab.com')
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("surfaces Supabase's message for other refusals", async () => {
+      updateUserById.mockResolvedValue({
+        data: {},
+        error: { message: 'Unable to validate email address', status: 400 },
+      });
+
+      await expect(
+        service.updateSupabaseUserEmail('user-1', 'x@lab.com')
+      ).rejects.toThrow(
+        new BadRequestException(
+          'The login email could not be changed: Unable to validate email address'
+        )
+      );
+    });
+
+    it('treats a Supabase outage as a 502', async () => {
+      updateUserById.mockResolvedValue({
+        data: {},
+        error: { message: 'boom', status: 500 },
+      });
+
+      await expect(
+        service.updateSupabaseUserEmail('user-1', 'x@lab.com')
+      ).rejects.toThrow(BadGatewayException);
+    });
+  });
+
+  // ── upsertUserFromJwt ─────────────────────────────────────────────────────
+
+  describe('upsertUserFromJwt', () => {
+    const row = {
+      id: 'user-1',
+      email: 'new@lab.com',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      updatedAt: new Date('2026-10-15T12:00:00Z'),
+    };
+    const jwt = (email: string, issuedAt: string) =>
+      ({
+        sub: 'user-1',
+        email,
+        iat: new Date(issuedAt).getTime() / 1000,
+      } as JwtPayload);
+
+    it('returns the row without writing when the email matches', async () => {
+      prisma.user.findUnique.mockResolvedValue(row);
+
+      const result = await service.upsertUserFromJwt(
+        jwt('new@lab.com', '2026-10-15T11:00:00Z')
+      );
+
+      expect(result).toEqual({
+        id: 'user-1',
+        email: 'new@lab.com',
+        firstName: 'Jane',
+        lastName: 'Doe',
+      });
+      expect(prisma.user.upsert).not.toHaveBeenCalled();
+    });
+
+    it('a token from before a lab-side email change does not revert it', async () => {
+      prisma.user.findUnique.mockResolvedValue(row);
+
+      const result = await service.upsertUserFromJwt(
+        jwt('old@lab.com', '2026-10-15T11:59:00Z')
+      );
+
+      expect(result.email).toBe('new@lab.com');
+      expect(prisma.user.upsert).not.toHaveBeenCalled();
+    });
+
+    it('a newer token syncs an email changed in Supabase', async () => {
+      prisma.user.findUnique.mockResolvedValue(row);
+      prisma.user.upsert.mockResolvedValue({ ...row, email: 'other@lab.com' });
+
+      await service.upsertUserFromJwt(
+        jwt('other@lab.com', '2026-10-15T12:05:00Z')
+      );
+
+      expect(prisma.user.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ update: { email: 'other@lab.com' } })
+      );
+    });
   });
 
   // ── getMe ─────────────────────────────────────────────────────────────────

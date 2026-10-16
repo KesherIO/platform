@@ -2,6 +2,8 @@ import {
   Injectable,
   InternalServerErrorException,
   ConflictException,
+  BadRequestException,
+  BadGatewayException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -81,6 +83,33 @@ export class AuthService {
   }
 
   /**
+   * Changes the user's login email via the Admin API. Applied immediately
+   * (email_confirm: true, no confirmation link) — the caller is a lab admin
+   * editing a team member. Throws when Supabase refuses, so the caller can
+   * stop before touching our DB.
+   */
+  async updateSupabaseUserEmail(userId: string, email: string): Promise<void> {
+    const { error } = await this.supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { email, email_confirm: true }
+    );
+    if (!error) return;
+
+    if (
+      error.code === 'email_exists' ||
+      error.message.toLowerCase().includes('already been registered')
+    ) {
+      throw new ConflictException(
+        'This email is already used by another login.'
+      );
+    }
+    const msg = `The login email could not be changed: ${error.message}`;
+    throw error.status && error.status < 500
+      ? new BadRequestException(msg)
+      : new BadGatewayException(msg);
+  }
+
+  /**
    * Finds a Supabase Auth user by email and deletes them.
    * Used to clean up orphaned auth accounts — Supabase users left behind when
    * a client was deleted from the app DB without removing their auth record.
@@ -153,12 +182,16 @@ export class AuthService {
 
     const existing = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select,
+      select: { ...select, updatedAt: true },
     });
 
-    // Hot path: established user with unchanged email — no write needed.
-    if (existing && existing.email === payload.email) {
-      return existing;
+    if (existing) {
+      const { updatedAt, ...user } = existing;
+      // Hot path: established user with unchanged email — no write needed.
+      if (user.email === payload.email) return user;
+      // A token issued before our last write to the row carries the email
+      // from before a lab-side email change: don't let it revert the change.
+      if (payload.iat * 1000 < updatedAt.getTime()) return user;
     }
 
     // New user or email changed in Supabase Auth.

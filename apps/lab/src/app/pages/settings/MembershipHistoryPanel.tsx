@@ -83,6 +83,23 @@ export function MembershipHistoryPanel({
           from: signerRoles(e.details?.previousRoles),
           to: signerRoles(e.details?.newRoles),
         });
+      case 'EMAIL_CHANGED':
+        return t('team.history.events.EMAIL_CHANGED', {
+          from: e.details?.previousEmail ?? '—',
+          to: e.details?.newEmail ?? '—',
+        });
+      case 'PROFILE_CHANGED':
+        return t('team.history.events.PROFILE_CHANGED', {
+          changes: Object.entries(e.details?.changes ?? {})
+            .map(([field, c]) =>
+              t('team.history.field_change', {
+                field: t(`team.history.fields.${field}`),
+                from: c?.from || '—',
+                to: c?.to || '—',
+              })
+            )
+            .join('; '),
+        });
       default:
         return t(`team.history.events.${e.eventType}`);
     }
