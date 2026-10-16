@@ -65,6 +65,8 @@ Out of PR 1's scope (not cross-lab, or need a product decision):
   an Admin can demote or remove the Owner (fixed, 48b1371); no audit log of
   role changes (fixed — see "Membership audit log" below) → PR 2.
 - `PATCH lab/users/:userId` edits the global user row (shared with other tenants).
+  Name/phone still do; the login email no longer can for someone in another tenant
+  (see "Team page email edits" below).
 - Vet verification approve/revoke and "verification required" toggles act on
   clinics shared with other labs (status is per clinic, not per lab).
 - Shared clinic profile: suspend/reactivate and pickup settings apply to every
@@ -105,10 +107,12 @@ lab membership change, written by `recordMembershipEvent()`
 | `ROLE_CHANGED`              | `updateRole`                                                                       | required |
 | `PICKUP_CAPABILITY_CHANGED` | `updateUser` when `canPerformPickups` actually flips                               | optional |
 | `REMOVED`                   | `removeMember`                                                                     | required |
+| `EMAIL_CHANGED`             | `updateUser` when the login email changes (`details`: previous/new email)          | optional |
+| `PROFILE_CHANGED`           | `updateUser` when first/last name or phone change (`details.changes`)              | optional |
 
 - Stores actor, target, lab, previous/new role, status and pickup flag, reason, source,
   timestamp, plus a snapshot of names/emails. No FK to users, so history survives removal.
-- No-ops log nothing: same-role requests, unchanged pickup flag, schedule/profile edits,
+- No-ops log nothing: same-role requests, unchanged pickup flag or profile fields, schedule edits,
   rejected (owner protection, 404, conflict) or rolled-back changes. The target membership
   row is locked (`FOR UPDATE`) before it is read, so a concurrent duplicate or a retry sees
   the first change and becomes a no-op (integration-tested).
@@ -120,6 +124,35 @@ lab membership change, written by `recordMembershipEvent()`
   lab staff have no invite or deactivate flow yet (staff invitations are clinic-only).
   Clinic memberships (`tenants.service`, `onboarding` invite/accept, vet-verification
   status changes) are not logged yet.
+
+## Team page email edits (2026-10-16)
+
+Before, `PATCH lab/users/:userId` changed only `users.email`: the person kept
+logging in with the old address, and the next request with their old token
+wrote the old email back. Now (`LabUsersService.updateUser`):
+
+1. Owner protection: only an OWNER can edit an OWNER (any field). Checked
+   before anything is written and again under the membership row lock.
+2. Email change (compared lowercased, Supabase stores lowercase): refused if the
+   address is taken in our DB, or if the person belongs to any other tenant
+   (otherwise this lab could redirect another clinic's/lab's login to an address
+   it controls, then reset the password).
+3. Supabase first (`AuthService.updateSupabaseUserEmail`, Admin API,
+   `email_confirm: true`): a refusal is returned as 409 (address in use), 400
+   (other refusals, Supabase's message) or 502 (Supabase down); nothing is written.
+4. Then one transaction: user row (locked), membership flags, and the
+   `EMAIL_CHANGED` / `PROFILE_CHANGED` / flag events. If it fails, the Supabase
+   email is set back to the old one (a failed rollback is logged).
+5. `upsertUserFromJwt` no longer lets a token issued before the row's last
+   update overwrite the email, so sessions from before the change can't revert it.
+
+Existing sessions are not revoked: the person stays signed in until their token
+expires, then signs in with the new email. The Team page shows the API's error
+message and disables Edit on owners for non-owners.
+
+Tests: `lab-users.service.spec.ts`, `auth.service.spec.ts`,
+`lab-users.email.int.spec.ts` (real Postgres: order, rollback on unique
+conflict, owner protection, other-tenant refusal, duplicate edit logged once).
 
 ## Signers linked to the team (2026-10-15)
 

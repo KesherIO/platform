@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Pencil, Trash2, MoreVertical, History, UserCog } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
-import { labApi } from '../../shared/api/labApi';
+import { labApi, apiErrorMessage } from '../../shared/api/labApi';
 import {
   WeeklyScheduleEditor,
   makeEmptySchedule,
@@ -83,6 +83,7 @@ function RowActionsMenu({
   onEdit,
   onHistory,
   onRemove,
+  disableEdit,
   disableRemove,
   editLabel,
   historyLabel,
@@ -91,6 +92,7 @@ function RowActionsMenu({
   onEdit: () => void;
   onHistory: () => void;
   onRemove: () => void;
+  disableEdit: boolean;
   disableRemove: boolean;
   editLabel: string;
   historyLabel: string;
@@ -125,10 +127,17 @@ function RowActionsMenu({
           <button
             type="button"
             onClick={() => {
-              onEdit();
-              setOpen(false);
+              if (!disableEdit) {
+                onEdit();
+                setOpen(false);
+              }
             }}
-            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-white"
+            disabled={disableEdit}
+            className={`flex w-full items-center gap-2 px-3 py-2.5 text-sm transition ${
+              disableEdit
+                ? 'cursor-not-allowed text-gray-600'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            }`}
           >
             <Pencil size={15} strokeWidth={2} />
             {editLabel}
@@ -177,6 +186,9 @@ export function TeamPage() {
     isAdmin &&
     member.userId !== user?.id &&
     (member.role !== 'OWNER' || labRole === 'OWNER');
+  // Editing details (yourself included) has the same owner rule.
+  const canEdit = (member: LabMember) =>
+    isAdmin && (member.role !== 'OWNER' || labRole === 'OWNER');
   const queryClient = useQueryClient();
 
   const {
@@ -254,7 +266,7 @@ export function TeamPage() {
       setForm(EMPTY_FORM);
       invalidateUsers();
     } catch (err) {
-      setFormError(`${t('team.errors.create')} ${(err as Error).message}`);
+      setFormError(`${t('team.errors.create')} ${apiErrorMessage(err)}`);
     } finally {
       setSubmitting(false);
     }
@@ -332,7 +344,7 @@ export function TeamPage() {
       setEditOriginal(null);
       invalidateUsers();
     } catch (err) {
-      setActionError(`${t('team.errors.update')} ${(err as Error).message}`);
+      setActionError(`${t('team.errors.update')} ${apiErrorMessage(err)}`);
     } finally {
       setSaving(false);
     }
@@ -869,6 +881,7 @@ export function TeamPage() {
                             })
                           }
                           onRemove={() => handleRemove(member)}
+                          disableEdit={!canEdit(member)}
                           disableRemove={!canManage(member)}
                           editLabel={t('team.actions.edit')}
                           historyLabel={t('team.actions.history')}

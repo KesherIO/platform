@@ -24,6 +24,16 @@ const canHavePickupFlag = (role: string) =>
 const canHaveInProgressFlag = (role: string) =>
   role === TenantRole.RESULTS_VIEWER;
 
+/** Only an owner may edit an owner (name, email, phone, access flags). */
+function assertCanEditMember(
+  targetRole: TenantRole,
+  requestingRole: TenantRole
+) {
+  if (targetRole === TenantRole.OWNER && requestingRole !== TenantRole.OWNER) {
+    throw new ForbiddenException('Only an owner can edit another owner.');
+  }
+}
+
 @Injectable()
 export class LabUsersService {
   constructor(
@@ -217,117 +227,213 @@ export class LabUsersService {
     labTenantId: string,
     userId: string,
     dto: UpdateLabUserDto,
-    requestingUserId: string
+    requestingUserId: string,
+    requestingRole: TenantRole
   ) {
     const membership = await this.prisma.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId, tenantId: labTenantId } },
     });
     if (!membership)
       throw new NotFoundException('User is not a member of this lab.');
+    assertCanEditMember(membership.role, requestingRole);
 
-    if (dto.email) {
-      const existing = await this.prisma.user.findFirst({
-        where: { email: dto.email, NOT: { id: userId } },
-      });
-      if (existing)
-        throw new ConflictException('A user with this email already exists.');
+    const current = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true },
+    });
+    // Supabase stores emails lowercased; keep our row identical to the JWT's.
+    const newEmail = dto.email?.trim().toLowerCase();
+    const emailChanged =
+      newEmail !== undefined && newEmail !== current.email.toLowerCase();
+
+    // The login email lives in Supabase: change it there first, so a refusal
+    // (address taken, invalid) stops the edit before anything is written here.
+    if (emailChanged) {
+      await this.assertEmailCanChange(labTenantId, userId, newEmail);
+      await this.auth.updateSupabaseUserEmail(userId, newEmail);
     }
 
-    const updated = await this.prisma.user.update({
+    try {
+      return await this.prisma.$transaction((tx) =>
+        this.applyUserUpdate(tx, labTenantId, userId, dto, {
+          email: emailChanged ? newEmail : undefined,
+          requestingUserId,
+          requestingRole,
+        })
+      );
+    } catch (err) {
+      if (emailChanged) {
+        // Put the login back so it matches our row again.
+        await this.auth
+          .updateSupabaseUserEmail(userId, current.email)
+          .catch((e) =>
+            console.error(
+              'Supabase email rollback failed (login and DB email differ):',
+              userId,
+              (e as Error).message
+            )
+          );
+      }
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException('A user with this email already exists.');
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * An email change moves the person's login, so it may only be done by the
+   * lab that is their sole tenant: from here, another clinic's or lab's
+   * account could otherwise be redirected to an address this lab controls.
+   */
+  private async assertEmailCanChange(
+    labTenantId: string,
+    userId: string,
+    email: string
+  ) {
+    const taken = await this.prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+        NOT: { id: userId },
+      },
+    });
+    if (taken)
+      throw new ConflictException('A user with this email already exists.');
+
+    const otherTenants = await this.prisma.userTenantMembership.count({
+      where: { userId, tenantId: { not: labTenantId } },
+    });
+    if (otherTenants > 0) {
+      throw new ForbiddenException(
+        'This person also belongs to another clinic or lab, so their login email cannot be changed from this lab.'
+      );
+    }
+  }
+
+  /** The DB half of updateUser: user row, membership flags and their events. */
+  private async applyUserUpdate(
+    tx: Prisma.TransactionClient,
+    labTenantId: string,
+    userId: string,
+    dto: UpdateLabUserDto,
+    opts: {
+      email: string | undefined;
+      requestingUserId: string;
+      requestingRole: TenantRole;
+    }
+  ) {
+    // Locked so concurrent edits (or a retry) serialize: the second one sees
+    // the first's result and logs nothing instead of the same change twice.
+    const membership = await this.lockMember(tx, labTenantId, userId);
+    // Re-checked under the lock: the role may have changed since the pre-check.
+    assertCanEditMember(membership.role, opts.requestingRole);
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+
+    const profileSelect = {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+    } as const;
+    const before = await tx.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: profileSelect,
+    });
+    const updated = await tx.user.update({
       where: { id: userId },
       data: {
         ...(dto.firstName !== undefined && { firstName: dto.firstName }),
         ...(dto.lastName !== undefined && { lastName: dto.lastName }),
-        ...(dto.email !== undefined && { email: dto.email }),
+        ...(opts.email !== undefined && { email: opts.email }),
         ...(dto.phone !== undefined && { phone: dto.phone }),
       },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-      },
+      select: profileSelect,
     });
+
+    const event = {
+      tenantId: labTenantId,
+      targetUserId: userId,
+      actorUserId: opts.requestingUserId,
+      source: 'lab_users' as const,
+      reason: dto.reason,
+    };
+
+    if (updated.email !== before.email) {
+      await recordMembershipEvent(tx, {
+        ...event,
+        eventType: MembershipEventType.EMAIL_CHANGED,
+        details: { previousEmail: before.email, newEmail: updated.email },
+      });
+    }
+
+    const changes: Record<string, { from: string | null; to: string | null }> =
+      {};
+    for (const field of ['firstName', 'lastName', 'phone'] as const) {
+      const from = before[field] || null;
+      const to = updated[field] || null;
+      if (from !== to) changes[field] = { from, to };
+    }
+    if (Object.keys(changes).length) {
+      await recordMembershipEvent(tx, {
+        ...event,
+        eventType: MembershipEventType.PROFILE_CHANGED,
+        details: { changes },
+      });
+    }
 
     let schedule = membership.schedule as WeeklySchedule | null;
     let { canPerformPickups, canViewInProgress } = membership;
+    const membershipUpdates: Record<string, unknown> = {};
 
-    if (
-      dto.schedule !== undefined ||
-      dto.canPerformPickups !== undefined ||
-      dto.canViewInProgress !== undefined
-    ) {
-      // Re-read under a row lock so concurrent edits (or a retry) can't both
-      // see the old value and log the same change twice.
-      ({ schedule, canPerformPickups, canViewInProgress } =
-        await this.prisma.$transaction(async (tx) => {
-          const current = await this.lockMember(tx, labTenantId, userId);
-          let nextSchedule = current.schedule as WeeklySchedule | null;
-          let nextPickups = current.canPerformPickups;
-          let nextInProgress = current.canViewInProgress;
-          const membershipUpdates: Record<string, unknown> = {};
+    if (dto.schedule !== undefined) {
+      schedule =
+        dto.schedule === null ? null : validateWeeklySchedule(dto.schedule);
+      membershipUpdates.schedule = schedule
+        ? (schedule as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull;
+    }
 
-          if (dto.schedule !== undefined) {
-            nextSchedule =
-              dto.schedule === null
-                ? null
-                : validateWeeklySchedule(dto.schedule);
-            membershipUpdates.schedule = nextSchedule
-              ? (nextSchedule as unknown as Prisma.InputJsonValue)
-              : Prisma.DbNull;
-          }
+    if (dto.canPerformPickups !== undefined) {
+      canPerformPickups = canHavePickupFlag(membership.role)
+        ? dto.canPerformPickups
+        : false;
+      membershipUpdates.canPerformPickups = canPerformPickups;
+    }
 
-          if (dto.canPerformPickups !== undefined) {
-            nextPickups = canHavePickupFlag(current.role)
-              ? dto.canPerformPickups
-              : false;
-            membershipUpdates.canPerformPickups = nextPickups;
-          }
+    if (dto.canViewInProgress !== undefined) {
+      canViewInProgress = canHaveInProgressFlag(membership.role)
+        ? dto.canViewInProgress
+        : false;
+      membershipUpdates.canViewInProgress = canViewInProgress;
+    }
 
-          if (dto.canViewInProgress !== undefined) {
-            nextInProgress = canHaveInProgressFlag(current.role)
-              ? dto.canViewInProgress
-              : false;
-            membershipUpdates.canViewInProgress = nextInProgress;
-          }
+    if (Object.keys(membershipUpdates).length) {
+      await tx.userTenantMembership.update({
+        where: { userId_tenantId: { userId, tenantId: labTenantId } },
+        data: membershipUpdates,
+      });
+    }
 
-          await tx.userTenantMembership.update({
-            where: { userId_tenantId: { userId, tenantId: labTenantId } },
-            data: membershipUpdates,
-          });
-
-          // The schedule is informational; only the access flags are audited.
-          if (nextPickups !== current.canPerformPickups) {
-            await recordMembershipEvent(tx, {
-              tenantId: labTenantId,
-              eventType: MembershipEventType.PICKUP_CAPABILITY_CHANGED,
-              targetUserId: userId,
-              actorUserId: requestingUserId,
-              source: 'lab_users',
-              previousCanPerformPickups: current.canPerformPickups,
-              newCanPerformPickups: nextPickups,
-              reason: dto.reason,
-            });
-          }
-          if (nextInProgress !== current.canViewInProgress) {
-            await recordMembershipEvent(tx, {
-              tenantId: labTenantId,
-              eventType: MembershipEventType.IN_PROGRESS_ACCESS_CHANGED,
-              targetUserId: userId,
-              actorUserId: requestingUserId,
-              source: 'lab_users',
-              previousCanViewInProgress: current.canViewInProgress,
-              newCanViewInProgress: nextInProgress,
-              reason: dto.reason,
-            });
-          }
-
-          return {
-            schedule: nextSchedule,
-            canPerformPickups: nextPickups,
-            canViewInProgress: nextInProgress,
-          };
-        }));
+    // The schedule is informational; only the access flags are audited.
+    if (canPerformPickups !== membership.canPerformPickups) {
+      await recordMembershipEvent(tx, {
+        ...event,
+        eventType: MembershipEventType.PICKUP_CAPABILITY_CHANGED,
+        previousCanPerformPickups: membership.canPerformPickups,
+        newCanPerformPickups: canPerformPickups,
+      });
+    }
+    if (canViewInProgress !== membership.canViewInProgress) {
+      await recordMembershipEvent(tx, {
+        ...event,
+        eventType: MembershipEventType.IN_PROGRESS_ACCESS_CHANGED,
+        previousCanViewInProgress: membership.canViewInProgress,
+        newCanViewInProgress: canViewInProgress,
+      });
     }
 
     return {

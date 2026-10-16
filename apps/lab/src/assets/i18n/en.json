@@ -977,6 +977,12 @@
       "by": "By {{name}}",
       "by_system": "By the system",
       "unknown_user": "unknown user",
+      "field_change": "{{field}} {{from}} → {{to}}",
+      "fields": {
+        "firstName": "first name",
+        "lastName": "last name",
+        "phone": "phone"
+      },
       "events": {
         "MEMBER_ADDED": "Added as {{role}}",
         "INVITED": "Invited",
@@ -993,7 +999,9 @@
         "SIGNER_ROLES_CHANGED": "Signer {{signer}}: roles changed from {{from}} to {{to}}",
         "SIGNATURE_REPLACED": "Signature image replaced for signer {{signer}}",
         "IN_PROGRESS_GRANTED": "Access to orders in progress granted",
-        "IN_PROGRESS_REVOKED": "Access to orders in progress removed"
+        "IN_PROGRESS_REVOKED": "Access to orders in progress removed",
+        "EMAIL_CHANGED": "Login email changed from {{from}} to {{to}}",
+        "PROFILE_CHANGED": "Details changed: {{changes}}"
       }
     },
     "signer_badge": "Signer",
