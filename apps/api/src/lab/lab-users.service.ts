@@ -4,7 +4,7 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { TenantRole, Prisma } from '@prisma/client';
+import { TenantRole, Prisma, MembershipEventType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import type { CreateLabUserDto } from './dto/create-lab-user.dto';
@@ -14,6 +14,7 @@ import {
   isWithinSchedule,
   type WeeklySchedule,
 } from './messenger-schedule.util';
+import { recordMembershipEvent } from './membership-events';
 
 @Injectable()
 export class LabUsersService {
@@ -38,7 +39,12 @@ export class LabUsersService {
         'A lab admin already exists. Use the user management screen to add more users.'
       );
     }
-    return this.createLabUser(labTenantId, { ...dto, role: 'ADMIN' });
+    return this.createLabUser(
+      labTenantId,
+      { ...dto, role: 'ADMIN' },
+      null,
+      'lab_setup'
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -88,7 +94,12 @@ export class LabUsersService {
   // Create user + add to lab tenant
   // ---------------------------------------------------------------------------
 
-  async createLabUser(labTenantId: string, dto: CreateLabUserDto) {
+  async createLabUser(
+    labTenantId: string,
+    dto: CreateLabUserDto,
+    requestingUserId: string | null,
+    source: 'lab_users' | 'lab_setup' = 'lab_users'
+  ) {
     const schedule =
       dto.schedule !== undefined ? validateWeeklySchedule(dto.schedule) : null;
 
@@ -144,6 +155,18 @@ export class LabUsersService {
           },
         });
 
+        await recordMembershipEvent(tx, {
+          tenantId: labTenantId,
+          eventType: MembershipEventType.MEMBER_ADDED,
+          targetUserId: user.id,
+          actorUserId: requestingUserId,
+          source,
+          newRole: membership.role,
+          newStatus: membership.status,
+          newCanPerformPickups: membership.canPerformPickups,
+          reason: dto.reason,
+        });
+
         return { user, membership };
       });
 
@@ -167,7 +190,12 @@ export class LabUsersService {
   // Update user info
   // ---------------------------------------------------------------------------
 
-  async updateUser(labTenantId: string, userId: string, dto: UpdateLabUserDto) {
+  async updateUser(
+    labTenantId: string,
+    userId: string,
+    dto: UpdateLabUserDto,
+    requestingUserId: string
+  ) {
     const membership = await this.prisma.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId, tenantId: labTenantId } },
     });
@@ -201,29 +229,57 @@ export class LabUsersService {
     let schedule = membership.schedule as WeeklySchedule | null;
     let { canPerformPickups } = membership;
 
-    const membershipUpdates: Record<string, unknown> = {};
+    if (dto.schedule !== undefined || dto.canPerformPickups !== undefined) {
+      // Re-read under a row lock so concurrent edits (or a retry) can't both
+      // see the old value and log the same change twice.
+      ({ schedule, canPerformPickups } = await this.prisma.$transaction(
+        async (tx) => {
+          const current = await this.lockMember(tx, labTenantId, userId);
+          let nextSchedule = current.schedule as WeeklySchedule | null;
+          let nextPickups = current.canPerformPickups;
+          const membershipUpdates: Record<string, unknown> = {};
 
-    if (dto.schedule !== undefined) {
-      schedule =
-        dto.schedule === null ? null : validateWeeklySchedule(dto.schedule);
-      membershipUpdates.schedule = schedule
-        ? (schedule as unknown as Prisma.InputJsonValue)
-        : Prisma.DbNull;
-    }
+          if (dto.schedule !== undefined) {
+            nextSchedule =
+              dto.schedule === null
+                ? null
+                : validateWeeklySchedule(dto.schedule);
+            membershipUpdates.schedule = nextSchedule
+              ? (nextSchedule as unknown as Prisma.InputJsonValue)
+              : Prisma.DbNull;
+          }
 
-    if (dto.canPerformPickups !== undefined) {
-      canPerformPickups =
-        membership.role === TenantRole.MESSENGER
-          ? false
-          : dto.canPerformPickups;
-      membershipUpdates.canPerformPickups = canPerformPickups;
-    }
+          if (dto.canPerformPickups !== undefined) {
+            nextPickups =
+              current.role === TenantRole.MESSENGER
+                ? false
+                : dto.canPerformPickups;
+            membershipUpdates.canPerformPickups = nextPickups;
+          }
 
-    if (Object.keys(membershipUpdates).length > 0) {
-      await this.prisma.userTenantMembership.update({
-        where: { userId_tenantId: { userId, tenantId: labTenantId } },
-        data: membershipUpdates,
-      });
+          await tx.userTenantMembership.update({
+            where: { userId_tenantId: { userId, tenantId: labTenantId } },
+            data: membershipUpdates,
+          });
+
+          // The schedule is informational; only the pickup capability grants
+          // access, so only that is audited.
+          if (nextPickups !== current.canPerformPickups) {
+            await recordMembershipEvent(tx, {
+              tenantId: labTenantId,
+              eventType: MembershipEventType.PICKUP_CAPABILITY_CHANGED,
+              targetUserId: userId,
+              actorUserId: requestingUserId,
+              source: 'lab_users',
+              previousCanPerformPickups: current.canPerformPickups,
+              newCanPerformPickups: nextPickups,
+              reason: dto.reason,
+            });
+          }
+
+          return { schedule: nextSchedule, canPerformPickups: nextPickups };
+        }
+      ));
     }
 
     return {
@@ -245,6 +301,7 @@ export class LabUsersService {
     labTenantId: string,
     userId: string,
     role: string,
+    reason: string,
     requestingUserId: string,
     requestingRole: TenantRole
   ) {
@@ -261,8 +318,10 @@ export class LabUsersService {
       if (membership.role === TenantRole.OWNER && role !== TenantRole.OWNER) {
         await this.assertCanActOnOwner(tx, labTenantId, userId, requestingRole);
       }
+      // Same role (e.g. a retried request): nothing changes, nothing is logged.
+      if (membership.role === role) return membership;
 
-      return tx.userTenantMembership.update({
+      const updated = await tx.userTenantMembership.update({
         where: { userId_tenantId: { userId, tenantId: labTenantId } },
         data: {
           role: role as TenantRole,
@@ -271,6 +330,21 @@ export class LabUsersService {
             : {}),
         },
       });
+
+      await recordMembershipEvent(tx, {
+        tenantId: labTenantId,
+        eventType: MembershipEventType.ROLE_CHANGED,
+        targetUserId: userId,
+        actorUserId: requestingUserId,
+        source: 'lab_users',
+        previousRole: membership.role,
+        newRole: updated.role,
+        previousCanPerformPickups: membership.canPerformPickups,
+        newCanPerformPickups: updated.canPerformPickups,
+        reason,
+      });
+
+      return updated;
     });
   }
 
@@ -284,6 +358,20 @@ export class LabUsersService {
     userId: string
   ) {
     await tx.$queryRaw`SELECT "userId" FROM user_tenant_memberships WHERE "tenantId" = ${labTenantId} AND role = 'OWNER' FOR UPDATE`;
+    return this.lockMember(tx, labTenantId, userId);
+  }
+
+  /**
+   * Locks and returns the target membership, so two concurrent changes (or a
+   * retry racing the original) serialize: the second one sees the first's
+   * result and becomes a no-op instead of logging the same change twice.
+   */
+  private async lockMember(
+    tx: Prisma.TransactionClient,
+    labTenantId: string,
+    userId: string
+  ) {
+    await tx.$queryRaw`SELECT "userId" FROM user_tenant_memberships WHERE "tenantId" = ${labTenantId} AND "userId" = ${userId} FOR UPDATE`;
     const membership = await tx.userTenantMembership.findUnique({
       where: { userId_tenantId: { userId, tenantId: labTenantId } },
     });
@@ -326,6 +414,7 @@ export class LabUsersService {
   async removeMember(
     labTenantId: string,
     userId: string,
+    reason: string,
     requestingUserId: string,
     requestingRole: TenantRole
   ) {
@@ -345,6 +434,97 @@ export class LabUsersService {
       await tx.userTenantMembership.delete({
         where: { userId_tenantId: { userId, tenantId: labTenantId } },
       });
+      await recordMembershipEvent(tx, {
+        tenantId: labTenantId,
+        eventType: MembershipEventType.REMOVED,
+        targetUserId: userId,
+        actorUserId: requestingUserId,
+        source: 'lab_users',
+        previousRole: membership.role,
+        previousStatus: membership.status,
+        previousCanPerformPickups: membership.canPerformPickups,
+        reason,
+      });
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Membership history (read-only — events are never edited or deleted)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Newest first. Scoped by lab only — not by current membership — so a
+   * removed member's history stays reachable.
+   */
+  async getMembershipHistory(
+    labTenantId: string,
+    query: { userId?: string; cursor?: string; limit?: number }
+  ) {
+    const limit = query.limit ?? 50;
+    const events = await this.prisma.membershipEvent.findMany({
+      where: {
+        tenantId: labTenantId,
+        ...(query.userId && { targetUserId: query.userId }),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(query.cursor && { cursor: { id: query.cursor }, skip: 1 }),
+    });
+    const hasMore = events.length > limit;
+    const items = hasMore ? events.slice(0, limit) : events;
+    return {
+      items: items.map((e) => ({
+        id: e.id,
+        eventType: e.eventType,
+        targetUserId: e.targetUserId,
+        targetName: e.targetName,
+        targetEmail: e.targetEmail,
+        actorUserId: e.actorUserId,
+        actorName: e.actorName,
+        previousRole: e.previousRole,
+        newRole: e.newRole,
+        previousStatus: e.previousStatus,
+        newStatus: e.newStatus,
+        previousCanPerformPickups: e.previousCanPerformPickups,
+        newCanPerformPickups: e.newCanPerformPickups,
+        reason: e.reason,
+        source: e.source,
+        createdAt: e.createdAt,
+      })),
+      nextCursor: hasMore ? items[items.length - 1].id : null,
+    };
+  }
+
+  /**
+   * People removed from this lab who are not members again, latest removal
+   * first — the entry point to their history once they leave the team list.
+   */
+  async getRemovedMembers(labTenantId: string) {
+    const [removals, members] = await Promise.all([
+      this.prisma.membershipEvent.findMany({
+        where: {
+          tenantId: labTenantId,
+          eventType: MembershipEventType.REMOVED,
+        },
+        orderBy: [{ targetUserId: 'asc' }, { createdAt: 'desc' }],
+        distinct: ['targetUserId'],
+      }),
+      this.prisma.userTenantMembership.findMany({
+        where: { tenantId: labTenantId },
+        select: { userId: true },
+      }),
+    ]);
+    const current = new Set(members.map((m) => m.userId));
+    return removals
+      .filter((r) => !current.has(r.targetUserId))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map((r) => ({
+        userId: r.targetUserId,
+        name: r.targetName,
+        email: r.targetEmail,
+        lastRole: r.previousRole,
+        removedAt: r.createdAt,
+        removedByName: r.actorName,
+      }));
   }
 }

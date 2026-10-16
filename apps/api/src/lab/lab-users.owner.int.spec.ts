@@ -70,8 +70,8 @@ describeWithDb('Owner protection against Postgres', () => {
     const b = await member('OWNER');
 
     const results = await Promise.allSettled([
-      service.updateRole(labId, b, 'ADMIN', a, TenantRole.OWNER),
-      service.updateRole(labId, a, 'ADMIN', b, TenantRole.OWNER),
+      service.updateRole(labId, b, 'ADMIN', 'r', a, TenantRole.OWNER),
+      service.updateRole(labId, a, 'ADMIN', 'r', b, TenantRole.OWNER),
     ]);
 
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
@@ -83,8 +83,8 @@ describeWithDb('Owner protection against Postgres', () => {
     const b = await member('OWNER');
 
     const results = await Promise.allSettled([
-      service.removeMember(labId, b, a, TenantRole.OWNER),
-      service.removeMember(labId, a, b, TenantRole.OWNER),
+      service.removeMember(labId, b, 'r', a, TenantRole.OWNER),
+      service.removeMember(labId, a, 'r', b, TenantRole.OWNER),
     ]);
 
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
@@ -96,7 +96,7 @@ describeWithDb('Owner protection against Postgres', () => {
     const admin = await member('ADMIN');
 
     await expect(
-      service.updateRole(labId, owner, 'ADMIN', admin, TenantRole.ADMIN)
+      service.updateRole(labId, owner, 'ADMIN', 'r', admin, TenantRole.ADMIN)
     ).rejects.toThrow('Only an owner');
     expect(await owners()).toBe(1);
   });

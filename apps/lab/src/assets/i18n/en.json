@@ -925,7 +925,8 @@
     "saving": "Saving...",
     "actions": {
       "edit": "Edit user",
-      "remove": "Remove user"
+      "remove": "Remove user",
+      "history": "View history"
     },
     "remove": {
       "title": "Remove team member?",
@@ -936,6 +937,45 @@
       "create": "Error adding user:",
       "update": "Error updating user:",
       "remove": "Error removing user:"
+    },
+    "reason": {
+      "label": "Reason (required)",
+      "label_optional": "Reason (optional)",
+      "placeholder": "Why is this change being made?"
+    },
+    "role_change": {
+      "title": "Change role?",
+      "confirm": "Change {{name}} from {{from}} to {{to}}?",
+      "submit": "Change role"
+    },
+    "removed": {
+      "title": "Former members",
+      "removed_on": "Removed {{date}}"
+    },
+    "history": {
+      "open": "History",
+      "title": "Team history",
+      "title_for": "History — {{name}}",
+      "subtitle": "Membership changes recorded since this log was enabled. Entries cannot be edited or deleted.",
+      "empty": "No changes recorded yet.",
+      "error": "Error loading history.",
+      "more": "Load more",
+      "reason": "Reason",
+      "by": "By {{name}}",
+      "by_system": "By the system",
+      "unknown_user": "unknown user",
+      "events": {
+        "MEMBER_ADDED": "Added as {{role}}",
+        "INVITED": "Invited",
+        "INVITATION_ACCEPTED": "Accepted the invitation",
+        "ROLE_CHANGED": "Role changed from {{from}} to {{to}}",
+        "PICKUP_GRANTED": "Pickup access granted",
+        "PICKUP_REVOKED": "Pickup access removed",
+        "PICKUP_CAPABILITY_CHANGED": "Pickup access changed",
+        "DEACTIVATED": "Deactivated",
+        "REACTIVATED": "Reactivated",
+        "REMOVED": "Removed from the lab (was {{role}})"
+      }
     }
   },
   "collections": {

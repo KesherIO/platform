@@ -292,6 +292,58 @@ export interface LabMember {
   isCurrentlyScheduled: boolean;
 }
 
+export type MembershipEventType =
+  | 'MEMBER_ADDED'
+  | 'INVITED'
+  | 'INVITATION_ACCEPTED'
+  | 'ROLE_CHANGED'
+  | 'PICKUP_CAPABILITY_CHANGED'
+  | 'DEACTIVATED'
+  | 'REACTIVATED'
+  | 'REMOVED';
+
+/** One row of the membership audit log (GET lab/users/history). */
+export interface MembershipEvent {
+  id: string;
+  eventType: MembershipEventType;
+  targetUserId: string;
+  targetName: string | null;
+  targetEmail: string | null;
+  /** null = system action (lab setup / onboarding) */
+  actorUserId: string | null;
+  actorName: string | null;
+  previousRole: LabRole | null;
+  newRole: LabRole | null;
+  previousStatus: string | null;
+  newStatus: string | null;
+  previousCanPerformPickups: boolean | null;
+  newCanPerformPickups: boolean | null;
+  reason: string | null;
+  source: string;
+  createdAt: string;
+}
+
+export interface MembershipHistoryPage {
+  items: MembershipEvent[];
+  nextCursor: string | null;
+}
+
+export interface MembershipHistoryQuery {
+  userId?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+/** Someone removed from the lab (GET lab/users/removed). */
+export interface RemovedLabMember {
+  userId: string;
+  name: string | null;
+  email: string | null;
+  lastRole: LabRole | null;
+  removedAt: string;
+  removedByName: string | null;
+}
+
 export interface LaboratoryProfile {
   accreditationNumber: string | null;
   directorName: string | null;

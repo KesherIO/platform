@@ -13,6 +13,7 @@ import { AuthService } from '../auth/auth.service';
 const LAB_ID = 'lab-1';
 const USER_ID = 'user-1';
 const ADMIN_ID = 'admin-1';
+const REASON = 'Covers the night shift';
 
 const mockMembership = {
   userId: USER_ID,
@@ -33,6 +34,7 @@ describe('LabUsersService', () => {
       user: {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         upsert: jest.fn(),
         update: jest.fn(),
       },
@@ -44,6 +46,10 @@ describe('LabUsersService', () => {
         update: jest.fn(),
         delete: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
+      },
+      membershipEvent: {
+        create: jest.fn().mockResolvedValue({}),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       $queryRaw: jest.fn().mockResolvedValue([]),
       tenant: {
@@ -140,7 +146,14 @@ describe('LabUsersService', () => {
   describe('updateRole', () => {
     it('throws ForbiddenException when changing own role', async () => {
       await expect(
-        service.updateRole(LAB_ID, USER_ID, 'ADMIN', USER_ID, TenantRole.ADMIN)
+        service.updateRole(
+          LAB_ID,
+          USER_ID,
+          'ADMIN',
+          REASON,
+          USER_ID,
+          TenantRole.ADMIN
+        )
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -148,7 +161,14 @@ describe('LabUsersService', () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.updateRole(LAB_ID, USER_ID, 'ADMIN', ADMIN_ID, TenantRole.ADMIN)
+        service.updateRole(
+          LAB_ID,
+          USER_ID,
+          'ADMIN',
+          REASON,
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -163,6 +183,7 @@ describe('LabUsersService', () => {
         LAB_ID,
         USER_ID,
         'ADMIN',
+        REASON,
         ADMIN_ID,
         TenantRole.ADMIN
       );
@@ -189,6 +210,7 @@ describe('LabUsersService', () => {
         LAB_ID,
         USER_ID,
         'MESSENGER',
+        REASON,
         ADMIN_ID,
         TenantRole.ADMIN
       );
@@ -214,6 +236,7 @@ describe('LabUsersService', () => {
         LAB_ID,
         USER_ID,
         'TECHNICIAN',
+        REASON,
         ADMIN_ID,
         TenantRole.ADMIN
       );
@@ -231,7 +254,7 @@ describe('LabUsersService', () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.updateUser(LAB_ID, USER_ID, { firstName: 'Updated' })
+        service.updateUser(LAB_ID, USER_ID, { firstName: 'Updated' }, ADMIN_ID)
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -240,7 +263,12 @@ describe('LabUsersService', () => {
       prisma.user.findFirst.mockResolvedValue({ id: 'other-user' });
 
       await expect(
-        service.updateUser(LAB_ID, USER_ID, { email: 'taken@lab.com' })
+        service.updateUser(
+          LAB_ID,
+          USER_ID,
+          { email: 'taken@lab.com' },
+          ADMIN_ID
+        )
       ).rejects.toThrow(ConflictException);
     });
 
@@ -254,11 +282,16 @@ describe('LabUsersService', () => {
         lastName: 'Name',
       });
 
-      const result = await service.updateUser(LAB_ID, USER_ID, {
-        firstName: 'Updated',
-        lastName: 'Name',
-        email: 'new@lab.com',
-      });
+      const result = await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        {
+          firstName: 'Updated',
+          lastName: 'Name',
+          email: 'new@lab.com',
+        },
+        ADMIN_ID
+      );
 
       expect(result.userId).toBe(USER_ID);
       expect(result.firstName).toBe('Updated');
@@ -285,7 +318,12 @@ describe('LabUsersService', () => {
         lastName: null,
       });
 
-      await service.updateUser(LAB_ID, USER_ID, { firstName: 'Updated' });
+      await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        { firstName: 'Updated' },
+        ADMIN_ID
+      );
 
       expect(prisma.user.findFirst).not.toHaveBeenCalled();
     });
@@ -309,7 +347,12 @@ describe('LabUsersService', () => {
         SUNDAY: null,
       };
 
-      const result = await service.updateUser(LAB_ID, USER_ID, { schedule });
+      const result = await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        { schedule },
+        ADMIN_ID
+      );
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
         where: { userId_tenantId: { userId: USER_ID, tenantId: LAB_ID } },
@@ -328,9 +371,14 @@ describe('LabUsersService', () => {
       });
 
       await expect(
-        service.updateUser(LAB_ID, USER_ID, {
-          schedule: { MONDAY: { start: '25:00', end: '17:00' } } as any,
-        })
+        service.updateUser(
+          LAB_ID,
+          USER_ID,
+          {
+            schedule: { MONDAY: { start: '25:00', end: '17:00' } } as any,
+          },
+          ADMIN_ID
+        )
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -343,9 +391,14 @@ describe('LabUsersService', () => {
         lastName: 'Doe',
       });
 
-      const result = await service.updateUser(LAB_ID, USER_ID, {
-        canPerformPickups: true,
-      } as any);
+      const result = await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        {
+          canPerformPickups: true,
+        } as any,
+        ADMIN_ID
+      );
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
         where: { userId_tenantId: { userId: USER_ID, tenantId: LAB_ID } },
@@ -366,9 +419,14 @@ describe('LabUsersService', () => {
         lastName: 'Courier',
       });
 
-      const result = await service.updateUser(LAB_ID, USER_ID, {
-        canPerformPickups: true,
-      } as any);
+      const result = await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        {
+          canPerformPickups: true,
+        } as any,
+        ADMIN_ID
+      );
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
         where: { userId_tenantId: { userId: USER_ID, tenantId: LAB_ID } },
@@ -381,7 +439,7 @@ describe('LabUsersService', () => {
   describe('removeMember', () => {
     it('throws ForbiddenException when removing self', async () => {
       await expect(
-        service.removeMember(LAB_ID, USER_ID, USER_ID, TenantRole.ADMIN)
+        service.removeMember(LAB_ID, USER_ID, REASON, USER_ID, TenantRole.ADMIN)
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -389,7 +447,13 @@ describe('LabUsersService', () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.removeMember(LAB_ID, USER_ID, ADMIN_ID, TenantRole.ADMIN)
+        service.removeMember(
+          LAB_ID,
+          USER_ID,
+          REASON,
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -397,7 +461,13 @@ describe('LabUsersService', () => {
       prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
       prisma.userTenantMembership.delete.mockResolvedValue({});
 
-      await service.removeMember(LAB_ID, USER_ID, ADMIN_ID, TenantRole.ADMIN);
+      await service.removeMember(
+        LAB_ID,
+        USER_ID,
+        REASON,
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
 
       expect(prisma.userTenantMembership.delete).toHaveBeenCalledWith({
         where: { userId_tenantId: { userId: USER_ID, tenantId: LAB_ID } },
@@ -418,7 +488,14 @@ describe('LabUsersService', () => {
       prisma.userTenantMembership.count.mockResolvedValue(1);
 
       await expect(
-        service.updateRole(LAB_ID, USER_ID, 'ADMIN', ADMIN_ID, TenantRole.ADMIN)
+        service.updateRole(
+          LAB_ID,
+          USER_ID,
+          'ADMIN',
+          REASON,
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
       ).rejects.toThrow(ForbiddenException);
       expect(prisma.userTenantMembership.update).not.toHaveBeenCalled();
     });
@@ -427,7 +504,13 @@ describe('LabUsersService', () => {
       prisma.userTenantMembership.count.mockResolvedValue(1);
 
       await expect(
-        service.removeMember(LAB_ID, USER_ID, ADMIN_ID, TenantRole.ADMIN)
+        service.removeMember(
+          LAB_ID,
+          USER_ID,
+          REASON,
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
       ).rejects.toThrow(ForbiddenException);
       expect(prisma.userTenantMembership.delete).not.toHaveBeenCalled();
     });
@@ -436,7 +519,14 @@ describe('LabUsersService', () => {
       prisma.userTenantMembership.count.mockResolvedValue(0);
 
       await expect(
-        service.updateRole(LAB_ID, USER_ID, 'ADMIN', ADMIN_ID, TenantRole.OWNER)
+        service.updateRole(
+          LAB_ID,
+          USER_ID,
+          'ADMIN',
+          REASON,
+          ADMIN_ID,
+          TenantRole.OWNER
+        )
       ).rejects.toThrow(ForbiddenException);
       expect(prisma.userTenantMembership.update).not.toHaveBeenCalled();
     });
@@ -445,7 +535,13 @@ describe('LabUsersService', () => {
       prisma.userTenantMembership.count.mockResolvedValue(0);
 
       await expect(
-        service.removeMember(LAB_ID, USER_ID, ADMIN_ID, TenantRole.OWNER)
+        service.removeMember(
+          LAB_ID,
+          USER_ID,
+          REASON,
+          ADMIN_ID,
+          TenantRole.OWNER
+        )
       ).rejects.toThrow(ForbiddenException);
       expect(prisma.userTenantMembership.delete).not.toHaveBeenCalled();
     });
@@ -457,6 +553,7 @@ describe('LabUsersService', () => {
         LAB_ID,
         USER_ID,
         'ADMIN',
+        REASON,
         ADMIN_ID,
         TenantRole.OWNER
       );
@@ -474,7 +571,13 @@ describe('LabUsersService', () => {
     it('locks the owner memberships before counting', async () => {
       prisma.userTenantMembership.count.mockResolvedValue(1);
 
-      await service.removeMember(LAB_ID, USER_ID, ADMIN_ID, TenantRole.OWNER);
+      await service.removeMember(
+        LAB_ID,
+        USER_ID,
+        REASON,
+        ADMIN_ID,
+        TenantRole.OWNER
+      );
 
       expect(prisma.$queryRaw).toHaveBeenCalled();
       expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
@@ -488,10 +591,383 @@ describe('LabUsersService', () => {
         role: 'TECHNICIAN',
       });
 
-      await service.removeMember(LAB_ID, USER_ID, ADMIN_ID, TenantRole.ADMIN);
+      await service.removeMember(
+        LAB_ID,
+        USER_ID,
+        REASON,
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
 
       expect(prisma.userTenantMembership.count).not.toHaveBeenCalled();
       expect(prisma.userTenantMembership.delete).toHaveBeenCalled();
+    });
+  });
+
+  describe('membership audit log', () => {
+    const event = () => prisma.membershipEvent.create.mock.calls[0][0].data;
+
+    beforeEach(() => {
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: USER_ID,
+          email: 'tech@lab.com',
+          firstName: 'Jane',
+          lastName: 'Doe',
+        },
+        {
+          id: ADMIN_ID,
+          email: 'admin@lab.com',
+          firstName: null,
+          lastName: null,
+        },
+      ]);
+    });
+
+    it('logs MEMBER_ADDED with the actor when a user is created', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      auth.createSupabaseUser.mockResolvedValue(USER_ID);
+      prisma.user.upsert.mockResolvedValue({
+        id: USER_ID,
+        email: 'tech@lab.com',
+      });
+      prisma.userTenantMembership.create.mockResolvedValue({
+        ...mockMembership,
+        status: 'ACTIVE',
+      });
+
+      await service.createLabUser(
+        LAB_ID,
+        {
+          email: 'tech@lab.com',
+          password: 'long-password',
+          firstName: 'Jane',
+          lastName: 'Doe',
+          role: 'TECHNICIAN',
+        },
+        ADMIN_ID
+      );
+
+      expect(event()).toEqual({
+        tenantId: LAB_ID,
+        eventType: 'MEMBER_ADDED',
+        targetUserId: USER_ID,
+        targetName: 'Jane Doe',
+        targetEmail: 'tech@lab.com',
+        actorUserId: ADMIN_ID,
+        actorName: 'admin@lab.com',
+        source: 'lab_users',
+        newRole: 'TECHNICIAN',
+        newStatus: 'ACTIVE',
+        newCanPerformPickups: false,
+        reason: null,
+      });
+    });
+
+    it('bootstrap logs MEMBER_ADDED as a system action', async () => {
+      prisma.userTenantMembership.findFirst.mockResolvedValue(null);
+      prisma.user.findUnique.mockResolvedValue(null);
+      auth.createSupabaseUser.mockResolvedValue(USER_ID);
+      prisma.user.upsert.mockResolvedValue({ id: USER_ID });
+      prisma.userTenantMembership.create.mockResolvedValue({
+        ...mockMembership,
+        role: 'ADMIN',
+      });
+
+      await service.bootstrapAdmin(LAB_ID, {
+        email: 'a@lab.com',
+        password: 'long-password',
+        firstName: 'A',
+        lastName: 'B',
+        role: 'ADMIN',
+      });
+
+      expect(event()).toMatchObject({
+        actorUserId: null,
+        actorName: null,
+        source: 'lab_setup',
+        newRole: 'ADMIN',
+      });
+    });
+
+    it('logs no event when the user already belongs to the lab (retry)', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: USER_ID });
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+
+      await expect(
+        service.createLabUser(
+          LAB_ID,
+          {
+            email: 'tech@lab.com',
+            password: 'long-password',
+            firstName: 'Jane',
+            lastName: 'Doe',
+            role: 'TECHNICIAN',
+          },
+          ADMIN_ID
+        )
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('logs ROLE_CHANGED with previous/new role, pickups and reason', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        ...mockMembership,
+        canPerformPickups: true,
+      });
+      prisma.userTenantMembership.update.mockResolvedValue({
+        ...mockMembership,
+        role: 'MESSENGER',
+        canPerformPickups: false,
+      });
+
+      await service.updateRole(
+        LAB_ID,
+        USER_ID,
+        'MESSENGER',
+        `  ${REASON}  `,
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
+
+      expect(event()).toMatchObject({
+        eventType: 'ROLE_CHANGED',
+        actorUserId: ADMIN_ID,
+        previousRole: 'TECHNICIAN',
+        newRole: 'MESSENGER',
+        previousCanPerformPickups: true,
+        newCanPerformPickups: false,
+        reason: REASON,
+      });
+    });
+
+    it('a same-role request changes nothing and logs nothing', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+
+      await service.updateRole(
+        LAB_ID,
+        USER_ID,
+        'TECHNICIAN',
+        REASON,
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
+
+      expect(prisma.userTenantMembership.update).not.toHaveBeenCalled();
+      expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('locks the target membership before reading it', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+      prisma.userTenantMembership.update.mockResolvedValue({
+        ...mockMembership,
+        role: 'ADMIN',
+      });
+
+      await service.updateRole(
+        LAB_ID,
+        USER_ID,
+        'ADMIN',
+        REASON,
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
+
+      const lockSql = prisma.$queryRaw.mock.calls
+        .map((c: [TemplateStringsArray]) => c[0].join('?'))
+        .find((sql: string) => sql.includes('"userId" = ?'));
+      expect(lockSql).toContain('FOR UPDATE');
+      expect(prisma.$queryRaw.mock.invocationCallOrder[1]).toBeLessThan(
+        prisma.userTenantMembership.findUnique.mock.invocationCallOrder[0]
+      );
+    });
+
+    it('a rejected role change (owner protection) logs nothing', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        ...mockMembership,
+        role: 'OWNER',
+      });
+
+      await expect(
+        service.updateRole(
+          LAB_ID,
+          USER_ID,
+          'ADMIN',
+          REASON,
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('logs REMOVED with the last role/status and the reason', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        ...mockMembership,
+        status: 'ACTIVE',
+      });
+
+      await service.removeMember(
+        LAB_ID,
+        USER_ID,
+        REASON,
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
+
+      expect(event()).toMatchObject({
+        eventType: 'REMOVED',
+        targetName: 'Jane Doe',
+        previousRole: 'TECHNICIAN',
+        previousStatus: 'ACTIVE',
+        previousCanPerformPickups: false,
+        reason: REASON,
+      });
+    });
+
+    it('removing someone already removed (retry) logs nothing', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.removeMember(
+          LAB_ID,
+          USER_ID,
+          REASON,
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('logs PICKUP_CAPABILITY_CHANGED when the flag flips', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+      prisma.user.update.mockResolvedValue({ id: USER_ID });
+
+      await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        { canPerformPickups: true, reason: 'Backup driver' },
+        ADMIN_ID
+      );
+
+      expect(event()).toMatchObject({
+        eventType: 'PICKUP_CAPABILITY_CHANGED',
+        previousCanPerformPickups: false,
+        newCanPerformPickups: true,
+        reason: 'Backup driver',
+      });
+    });
+
+    it('does not log unchanged pickups, schedule edits or profile edits', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        ...mockMembership,
+        role: 'MESSENGER',
+      });
+      prisma.user.update.mockResolvedValue({ id: USER_ID });
+
+      await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        {
+          firstName: 'New',
+          canPerformPickups: true, // ignored for messengers → still false
+          schedule: { MONDAY: { start: '09:00', end: '17:00' } } as any,
+        },
+        ADMIN_ID
+      );
+
+      expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getMembershipHistory', () => {
+    const row = (id: string) => ({
+      id,
+      tenantId: LAB_ID,
+      eventType: 'ROLE_CHANGED',
+      targetUserId: USER_ID,
+      createdAt: new Date('2026-10-15'),
+    });
+
+    it('is scoped to the lab and the person, not to current membership', async () => {
+      await service.getMembershipHistory(LAB_ID, { userId: USER_ID });
+
+      expect(prisma.membershipEvent.findMany).toHaveBeenCalledWith({
+        where: { tenantId: LAB_ID, targetUserId: USER_ID },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 51,
+      });
+      expect(prisma.userTenantMembership.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('pages with a cursor', async () => {
+      prisma.membershipEvent.findMany.mockResolvedValue([
+        row('e3'),
+        row('e2'),
+        row('e1'),
+      ]);
+
+      const result = await service.getMembershipHistory(LAB_ID, {
+        cursor: 'e4',
+        limit: 2,
+      });
+
+      expect(prisma.membershipEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: { id: 'e4' }, skip: 1, take: 3 })
+      );
+      expect(result.items.map((e) => e.id)).toEqual(['e3', 'e2']);
+      expect(result.nextCursor).toBe('e2');
+    });
+
+    it('returns no cursor on the last page', async () => {
+      prisma.membershipEvent.findMany.mockResolvedValue([row('e1')]);
+
+      const result = await service.getMembershipHistory(LAB_ID, {});
+
+      expect(result.nextCursor).toBeNull();
+    });
+  });
+
+  describe('getRemovedMembers', () => {
+    it('lists removed people who are not members again, newest first', async () => {
+      prisma.membershipEvent.findMany.mockResolvedValue([
+        {
+          targetUserId: 'old-1',
+          targetName: 'Old One',
+          targetEmail: 'old1@lab.com',
+          previousRole: 'TECHNICIAN',
+          actorName: 'Admin',
+          createdAt: new Date('2026-10-01'),
+        },
+        {
+          targetUserId: 'back-again',
+          createdAt: new Date('2026-10-02'),
+        },
+        {
+          targetUserId: 'old-2',
+          targetName: 'Old Two',
+          createdAt: new Date('2026-10-03'),
+        },
+      ]);
+      prisma.userTenantMembership.findMany.mockResolvedValue([
+        { userId: 'back-again' },
+      ]);
+
+      const result = await service.getRemovedMembers(LAB_ID);
+
+      expect(prisma.membershipEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tenantId: LAB_ID, eventType: 'REMOVED' },
+          distinct: ['targetUserId'],
+        })
+      );
+      expect(result.map((r) => r.userId)).toEqual(['old-2', 'old-1']);
+      expect(result[1]).toMatchObject({
+        name: 'Old One',
+        lastRole: 'TECHNICIAN',
+        removedByName: 'Admin',
+      });
     });
   });
 });

@@ -925,7 +925,8 @@
     "saving": "Guardando...",
     "actions": {
       "edit": "Editar usuario",
-      "remove": "Eliminar usuario"
+      "remove": "Eliminar usuario",
+      "history": "Ver historial"
     },
     "remove": {
       "title": "¿Eliminar miembro del equipo?",
@@ -936,6 +937,45 @@
       "create": "Error al agregar el usuario:",
       "update": "Error al actualizar el usuario:",
       "remove": "Error al eliminar el usuario:"
+    },
+    "reason": {
+      "label": "Motivo (obligatorio)",
+      "label_optional": "Motivo (opcional)",
+      "placeholder": "¿Por qué se hace este cambio?"
+    },
+    "role_change": {
+      "title": "¿Cambiar rol?",
+      "confirm": "¿Cambiar a {{name}} de {{from}} a {{to}}?",
+      "submit": "Cambiar rol"
+    },
+    "removed": {
+      "title": "Miembros anteriores",
+      "removed_on": "Eliminado el {{date}}"
+    },
+    "history": {
+      "open": "Historial",
+      "title": "Historial del equipo",
+      "title_for": "Historial — {{name}}",
+      "subtitle": "Cambios de membresía registrados desde que se activó este registro. Las entradas no se pueden editar ni eliminar.",
+      "empty": "Aún no hay cambios registrados.",
+      "error": "Error al cargar el historial.",
+      "more": "Cargar más",
+      "reason": "Motivo",
+      "by": "Por {{name}}",
+      "by_system": "Por el sistema",
+      "unknown_user": "usuario desconocido",
+      "events": {
+        "MEMBER_ADDED": "Agregado como {{role}}",
+        "INVITED": "Invitado",
+        "INVITATION_ACCEPTED": "Aceptó la invitación",
+        "ROLE_CHANGED": "Rol cambiado de {{from}} a {{to}}",
+        "PICKUP_GRANTED": "Acceso a recolecciones otorgado",
+        "PICKUP_REVOKED": "Acceso a recolecciones retirado",
+        "PICKUP_CAPABILITY_CHANGED": "Acceso a recolecciones modificado",
+        "DEACTIVATED": "Desactivado",
+        "REACTIVATED": "Reactivado",
+        "REMOVED": "Eliminado del laboratorio (era {{role}})"
+      }
     }
   },
   "collections": {

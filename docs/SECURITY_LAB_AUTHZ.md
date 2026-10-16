@@ -62,7 +62,8 @@ Out of PR 1's scope (not cross-lab, or need a product decision):
   integrity risk — next priority.
 - **Within-lab roles**: identical permissions for Personal/Analista/Revisor/
   Digitador; any staff can set an assignee (bypassing the admin-only reassign);
-  an Admin can demote or remove the Owner; no audit log of role changes → PR 2.
+  an Admin can demote or remove the Owner (fixed, 48b1371); no audit log of
+  role changes (fixed — see "Membership audit log" below) → PR 2.
 - `PATCH lab/users/:userId` edits the global user row (shared with other tenants).
 - Vet verification approve/revoke and "verification required" toggles act on
   clinics shared with other labs (status is per clinic, not per lab).
@@ -91,3 +92,31 @@ Out of PR 1's scope (not cross-lab, or need a product decision):
 Results on this branch: API **49 suites passed, 1096 tests** (2 integration
 suites skipped, they need a database); lab **50 tests** passed; API and lab type
 checks clean; ESLint no errors; Prettier clean.
+
+## Membership audit log (2026-10-15)
+
+`membership_events` (migration `20261015000001_membership_events`) records every
+lab membership change, written by `recordMembershipEvent()`
+(`apps/api/src/lab/membership-events.ts`) **inside the same transaction** as the change:
+
+| Event                       | Written by                                                                         | Reason   |
+| --------------------------- | ---------------------------------------------------------------------------------- | -------- |
+| `MEMBER_ADDED`              | `createLabUser` (lab UI), `bootstrapAdmin` (system), lab onboarding OWNER (system) | optional |
+| `ROLE_CHANGED`              | `updateRole`                                                                       | required |
+| `PICKUP_CAPABILITY_CHANGED` | `updateUser` when `canPerformPickups` actually flips                               | optional |
+| `REMOVED`                   | `removeMember`                                                                     | required |
+
+- Stores actor, target, lab, previous/new role, status and pickup flag, reason, source,
+  timestamp, plus a snapshot of names/emails. No FK to users, so history survives removal.
+- No-ops log nothing: same-role requests, unchanged pickup flag, schedule/profile edits,
+  rejected (owner protection, 404, conflict) or rolled-back changes. The target membership
+  row is locked (`FOR UPDATE`) before it is read, so a concurrent duplicate or a retry sees
+  the first change and becomes a no-op (integration-tested).
+- Read-only: `GET lab/users/history` (per lab, optional `userId`, cursor paging) and
+  `GET lab/users/removed`, ADMIN/OWNER only. History is scoped to the lab, not to a
+  current membership, so removed members stay reachable. No edit/delete endpoints; a DB
+  trigger rejects UPDATE.
+- `INVITED`, `INVITATION_ACCEPTED`, `DEACTIVATED`, `REACTIVATED` are reserved in the enum:
+  lab staff have no invite or deactivate flow yet (staff invitations are clinic-only).
+  Clinic memberships (`tenants.service`, `onboarding` invite/accept, vet-verification
+  status changes) are not logged yet.

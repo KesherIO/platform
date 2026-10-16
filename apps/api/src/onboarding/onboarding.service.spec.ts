@@ -1427,8 +1427,18 @@ describe('OnboardingService', () => {
           findFirst: jest.fn().mockResolvedValue(null),
         },
         laboratoryProfile: { create: jest.fn().mockResolvedValue({}) },
-        user: { create: jest.fn().mockResolvedValue({}) },
-        userTenantMembership: { create: jest.fn().mockResolvedValue({}) },
+        user: {
+          create: jest.fn().mockResolvedValue({}),
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        userTenantMembership: {
+          create: jest.fn().mockResolvedValue({
+            role: 'OWNER',
+            status: 'ACTIVE',
+            canPerformPickups: false,
+          }),
+        },
+        membershipEvent: { create: jest.fn().mockResolvedValue({}) },
       };
       prisma.$transaction.mockImplementation(
         (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
@@ -1568,8 +1578,18 @@ describe('OnboardingService', () => {
           findFirst: jest.fn().mockResolvedValue({ id: 'existing-tenant' }),
         },
         laboratoryProfile: { create: jest.fn().mockResolvedValue({}) },
-        user: { create: jest.fn().mockResolvedValue({}) },
-        userTenantMembership: { create: jest.fn().mockResolvedValue({}) },
+        user: {
+          create: jest.fn().mockResolvedValue({}),
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+        userTenantMembership: {
+          create: jest.fn().mockResolvedValue({
+            role: 'OWNER',
+            status: 'ACTIVE',
+            canPerformPickups: false,
+          }),
+        },
+        membershipEvent: { create: jest.fn().mockResolvedValue({}) },
       };
       prisma.$transaction.mockImplementation(
         (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
