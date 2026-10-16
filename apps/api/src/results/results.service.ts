@@ -721,10 +721,9 @@ export class ResultsService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Returns the stored AI interpretation for a report, or generates, saves,
-   * and returns a new one if none exists yet.
-   * Structured so the inner generation logic can later be called from an
-   * async event handler (e.g. on report release) without changing this method.
+   * Returns the stored AI interpretation for a report, or null when there is
+   * none or an amendment has made it stale — the clinic then gets the
+   * Interpret button again (each run is a paid AI call, so never automatic).
    */
   async findInterpretation(
     reportId: string,
@@ -735,9 +734,18 @@ export class ResultsService {
       where: { reportId_lang: { reportId, lang } },
     });
     if (!existing || existing.tenantId !== tenantId) return null;
+    if (await this.isInterpretationStale(existing)) return null;
     return this.formatInterpretation(existing);
   }
 
+  /**
+   * Returns the stored AI interpretation for a report, or generates, saves,
+   * and returns a new one if none exists yet or the stored one is stale.
+   * Built from each test's latest release snapshot — the same values the
+   * clinic sees — so an approved amendment is reflected.
+   * Structured so the inner generation logic can later be called from an
+   * async event handler (e.g. on report release) without changing this method.
+   */
   async getOrCreateInterpretation(
     reportId: string,
     tenantId: string,
@@ -747,18 +755,18 @@ export class ResultsService {
     const existing = await this.prisma.aiInterpretation.findUnique({
       where: { reportId_lang: { reportId, lang } },
     });
-    if (existing && existing.tenantId === tenantId) {
+    if (
+      existing &&
+      existing.tenantId === tenantId &&
+      !(await this.isInterpretationStale(existing))
+    ) {
       return this.formatInterpretation(existing);
     }
 
     const report = await this.prisma.resultReport.findUnique({
       where: { id: reportId },
       include: {
-        tests: {
-          include: {
-            analytes: { orderBy: { sortOrder: 'asc' } },
-          },
-        },
+        tests: { select: { id: true, status: true, latestReleaseId: true } },
       },
     });
     if (!report) throw new NotFoundException('Result report not found.');
@@ -770,7 +778,17 @@ export class ResultsService {
       );
     }
 
-    const allAnalytes = report.tests.flatMap((t) => t.analytes);
+    // Read before the snapshots: if an amendment lands in between, the row is
+    // recorded as older than it is and just goes stale again (never the reverse)
+    const builtFromReleaseSequence = report.currentReleaseSequence;
+    const latestByTest = await this.findLatestReleaseSnapshots(
+      report.tests.filter((t) => t.status === 'RELEASED'),
+      { analytes: { orderBy: { sortOrder: 'asc' } } }
+    );
+    // Values only — no release type, so a silent amendment is never mentioned
+    const allAnalytes = Array.from(latestByTest.values())
+      .sort((a, b) => a.catalogItemName.localeCompare(b.catalogItemName))
+      .flatMap((st) => st.analytes);
 
     const caseRow = await this.prisma.case.findUnique({
       where: { id: report.caseId },
@@ -866,27 +884,56 @@ export class ResultsService {
 
     const parsed = await this.callInterpretationAi(userMessage);
 
-    const saved = await this.prisma.aiInterpretation.create({
-      data: {
-        reportId,
-        lang,
-        caseId: report.caseId,
-        tenantId,
-        model: AI_INTERPRETATION_MODEL,
-        promptVersion: AI_INTERPRETATION_PROMPT_VERSION,
-        summary: parsed.summary ?? '',
-        flaggedAnalytes: (parsed.flaggedAnalytes ??
-          []) as unknown as Prisma.InputJsonValue,
-        risks: (parsed.risks ?? []) as unknown as Prisma.InputJsonValue,
-        suggestedNextSteps: (parsed.suggestedNextSteps ??
-          []) as unknown as Prisma.InputJsonValue,
-        disclaimer: parsed.disclaimer ?? '',
-        generatedByUserId: userId ?? null,
-        retrievedChunkIds: retrievedChunks.map((c) => c.id),
-      },
+    // Replaces a stale interpretation in place (one row per report + lang)
+    const data = {
+      caseId: report.caseId,
+      tenantId,
+      model: AI_INTERPRETATION_MODEL,
+      promptVersion: AI_INTERPRETATION_PROMPT_VERSION,
+      summary: parsed.summary ?? '',
+      flaggedAnalytes: (parsed.flaggedAnalytes ??
+        []) as unknown as Prisma.InputJsonValue,
+      risks: (parsed.risks ?? []) as unknown as Prisma.InputJsonValue,
+      suggestedNextSteps: (parsed.suggestedNextSteps ??
+        []) as unknown as Prisma.InputJsonValue,
+      disclaimer: parsed.disclaimer ?? '',
+      generatedByUserId: userId ?? null,
+      retrievedChunkIds: retrievedChunks.map((c) => c.id),
+      builtFromReleaseSequence,
+    };
+    const saved = await this.prisma.aiInterpretation.upsert({
+      where: { reportId_lang: { reportId, lang } },
+      create: { reportId, lang, ...data },
+      update: { ...data, createdAt: new Date() },
     });
 
     return this.formatInterpretation(saved);
+  }
+
+  /**
+   * Stale when a release came after the one it was built from. Rows from
+   * before builtFromReleaseSequence existed were built from the live analytes,
+   * which hold the original values — stale once the report has an amendment.
+   */
+  private async isInterpretationStale(interpretation: {
+    reportId: string;
+    builtFromReleaseSequence: number | null;
+  }): Promise<boolean> {
+    if (interpretation.builtFromReleaseSequence == null) {
+      const amendment = await this.prisma.resultReportRelease.findFirst({
+        where: { reportId: interpretation.reportId, releaseType: 'AMENDMENT' },
+        select: { id: true },
+      });
+      return amendment !== null;
+    }
+    const report = await this.prisma.resultReport.findUnique({
+      where: { id: interpretation.reportId },
+      select: { currentReleaseSequence: true },
+    });
+    return (
+      !!report &&
+      interpretation.builtFromReleaseSequence < report.currentReleaseSequence
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -1067,6 +1114,47 @@ export class ResultsService {
   // Clinic-facing released results — only RELEASED data from immutable snapshots
   // ---------------------------------------------------------------------------
 
+  /**
+   * Each test's current snapshot (its latestReleaseId, so an approved
+   * amendment replaces the original), keyed by report test id. The clinic
+   * results screen and the AI interpretation both read from here.
+   */
+  private async findLatestReleaseSnapshots<
+    I extends Prisma.ResultReportReleaseTestInclude
+  >(
+    reportTests: { id: string; latestReleaseId: string | null }[],
+    include: I
+  ): Promise<
+    Map<string, Prisma.ResultReportReleaseTestGetPayload<{ include: I }>>
+  > {
+    const latestReleaseId = new Map<string, string>();
+    for (const rt of reportTests) {
+      if (rt.latestReleaseId) latestReleaseId.set(rt.id, rt.latestReleaseId);
+    }
+    const byTest = new Map<
+      string,
+      Prisma.ResultReportReleaseTestGetPayload<{ include: I }>
+    >();
+    if (latestReleaseId.size === 0) return byTest;
+
+    const snapshots = (await this.prisma.resultReportReleaseTest.findMany({
+      where: {
+        sourceReportTestId: { in: Array.from(latestReleaseId.keys()) },
+        releaseId: { in: Array.from(latestReleaseId.values()) },
+      },
+      include,
+    })) as Prisma.ResultReportReleaseTestGetPayload<{ include: I }>[];
+
+    // The IN/IN pair also matches a test's older snapshot when that release
+    // is still another test's latest — keep only the exact pair
+    for (const st of snapshots) {
+      if (latestReleaseId.get(st.sourceReportTestId) === st.releaseId) {
+        byTest.set(st.sourceReportTestId, st);
+      }
+    }
+    return byTest;
+  }
+
   /** Lab setting; orders without a lab (or a lab profile) show amendments. */
   async clinicSeesAmendments(labTenantId: string | null): Promise<boolean> {
     if (!labTenantId) return true;
@@ -1128,50 +1216,32 @@ export class ResultsService {
       };
     }
 
-    const releaseTestMap = new Map<string, string>();
-    for (const rt of releasedTests) {
-      releaseTestMap.set(rt.id, rt.latestReleaseId!);
-    }
-
-    const snapshotTests = await this.prisma.resultReportReleaseTest.findMany({
-      where: {
-        sourceReportTestId: { in: releasedTests.map((rt) => rt.id) },
-        releaseId: { in: Array.from(releaseTestMap.values()) },
-      },
-      include: {
-        analytes: { orderBy: { sortOrder: 'asc' } },
-        release: {
-          select: {
-            releaseType: true,
-            releasedAt: true,
-            signerName: true,
-            signerTitle: true,
-            signerSpecialty: true,
-            signerUniversity: true,
-            signerRegistrationNumber: true,
-            signerSignatureUrl: true,
-            analystName: true,
-            analystTitle: true,
-            analystSpecialty: true,
-            analystUniversity: true,
-            analystRegistrationNumber: true,
-            analystSignatureUrl: true,
-            reportDisclaimer: true,
-            orderingVetId: true,
-            orderingVetName: true,
-            orderingVetLicenseNumber: true,
-            orderingVetIssuingAuthority: true,
-          },
+    const latestByTest = await this.findLatestReleaseSnapshots(releasedTests, {
+      analytes: { orderBy: { sortOrder: 'asc' } },
+      release: {
+        select: {
+          releaseType: true,
+          releasedAt: true,
+          signerName: true,
+          signerTitle: true,
+          signerSpecialty: true,
+          signerUniversity: true,
+          signerRegistrationNumber: true,
+          signerSignatureUrl: true,
+          analystName: true,
+          analystTitle: true,
+          analystSpecialty: true,
+          analystUniversity: true,
+          analystRegistrationNumber: true,
+          analystSignatureUrl: true,
+          reportDisclaimer: true,
+          orderingVetId: true,
+          orderingVetName: true,
+          orderingVetLicenseNumber: true,
+          orderingVetIssuingAuthority: true,
         },
       },
     });
-
-    const latestByTest = new Map<string, (typeof snapshotTests)[0]>();
-    for (const st of snapshotTests) {
-      if (releaseTestMap.get(st.sourceReportTestId) === st.releaseId) {
-        latestByTest.set(st.sourceReportTestId, st);
-      }
-    }
 
     // Silent amendments: an amended test keeps the date the clinic first got
     // it, and the release type is left out

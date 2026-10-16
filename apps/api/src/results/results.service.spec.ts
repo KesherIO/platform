@@ -202,9 +202,11 @@ function makePrismaMock() {
     },
     order: { findUnique: jest.fn(), findFirst: jest.fn() },
     resultReportReleaseTest: { findMany: jest.fn() },
+    resultReportRelease: { findFirst: jest.fn() },
+    aiInterpretation: { findUnique: jest.fn(), upsert: jest.fn() },
     laboratoryProfile: { findUnique: jest.fn() },
     labTestConfiguration: { findMany: jest.fn().mockResolvedValue([]) },
-    case: { update: jest.fn() },
+    case: { update: jest.fn(), findUnique: jest.fn() },
     catalogItemComposition: { findMany: jest.fn() },
     $transaction: jest
       .fn()
@@ -805,6 +807,236 @@ describe('ResultsService', () => {
       expect(prisma.laboratoryProfile.findUnique).toHaveBeenCalledWith({
         where: { tenantId: 'lab-1' },
         select: { showAmendmentsToClinic: true },
+      });
+    });
+  });
+
+  // ── AI interpretation (clinic view) ──────────────────────────────────────
+
+  describe('AI interpretation', () => {
+    const AI_RESPONSE = {
+      summary: 'Azotemia.',
+      flaggedAnalytes: [],
+      risks: [],
+      suggestedNextSteps: [],
+      disclaimer: 'Decision support only.',
+    };
+
+    function creatinine(numericValue: number, flag: string) {
+      return {
+        code: 'CREA',
+        name: 'Creatinina',
+        isHeader: false,
+        valueType: 'NUMERIC',
+        numericValue,
+        textValue: null,
+        booleanValue: null,
+        selectValue: null,
+        unit: 'mg/dL',
+        flag,
+        referenceSnapshot: { min: 0.5, max: 1.8, displayText: '0.5 – 1.8' },
+      };
+    }
+
+    function storedInterpretation(builtFromReleaseSequence: number | null) {
+      return {
+        id: 'ai-1',
+        reportId: 'report-1',
+        lang: 'en',
+        caseId: 'case-1',
+        tenantId: 'tenant-1',
+        summary: 'Old summary.',
+        flaggedAnalytes: [],
+        risks: [],
+        suggestedNextSteps: [],
+        disclaimer: 'Decision support only.',
+        builtFromReleaseSequence,
+      };
+    }
+
+    let callAi: jest.SpyInstance;
+
+    /** Chemistry released as #1 (creatinine 1.2), amended as #2 (3.4). */
+    beforeEach(() => {
+      prisma.resultReport.findUnique.mockResolvedValue({
+        id: 'report-1',
+        tenantId: 'tenant-1',
+        caseId: 'case-1',
+        status: 'RELEASED',
+        currentReleaseSequence: 2,
+        tests: [{ id: 'rt-1', status: 'RELEASED', latestReleaseId: 'rel-2' }],
+      });
+      prisma.resultReportReleaseTest.findMany.mockResolvedValue([
+        {
+          sourceReportTestId: 'rt-1',
+          releaseId: 'rel-1',
+          catalogItemName: 'Química',
+          analytes: [creatinine(1.2, 'N')],
+        },
+        {
+          sourceReportTestId: 'rt-1',
+          releaseId: 'rel-2',
+          catalogItemName: 'Química',
+          analytes: [creatinine(3.4, 'H')],
+        },
+      ]);
+      prisma.case.findUnique.mockResolvedValue({
+        patientName: 'Firulais',
+        patientSpecies: 'DOG',
+        patientSex: null,
+        patientBreed: null,
+        patientAge: null,
+        patientAgeUnit: null,
+        patientWeight: null,
+        symptoms: null,
+      });
+      prisma.aiInterpretation.upsert.mockImplementation(
+        ({ create }: { create: Record<string, unknown> }) => ({
+          id: 'ai-2',
+          ...create,
+        })
+      );
+      callAi = jest
+        .spyOn(
+          service as unknown as {
+            callInterpretationAi: (msg: string) => Promise<unknown>;
+          },
+          'callInterpretationAi'
+        )
+        .mockResolvedValue(AI_RESPONSE);
+    });
+
+    it('builds the prompt from the latest release snapshot, not the original values', async () => {
+      prisma.aiInterpretation.findUnique.mockResolvedValue(null);
+
+      await service.getOrCreateInterpretation(
+        'report-1',
+        'tenant-1',
+        'user-1',
+        'en'
+      );
+
+      const prompt = callAi.mock.calls[0][0] as string;
+      expect(prompt).toContain('CREA | Creatinina: 3.4 mg/dL [H]');
+      expect(prompt).not.toContain('1.2 mg/dL');
+      expect(prisma.resultReportReleaseTest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            sourceReportTestId: { in: ['rt-1'] },
+            releaseId: { in: ['rel-2'] },
+          },
+        })
+      );
+    });
+
+    it('never mentions the amendment in the prompt (silent mode stays silent)', async () => {
+      prisma.aiInterpretation.findUnique.mockResolvedValue(null);
+
+      await service.getOrCreateInterpretation('report-1', 'tenant-1');
+
+      const prompt = callAi.mock.calls[0][0] as string;
+      expect(prompt).not.toMatch(/amend|enmienda|correct|release/i);
+    });
+
+    it('records the release sequence it was built from', async () => {
+      prisma.aiInterpretation.findUnique.mockResolvedValue(null);
+
+      await service.getOrCreateInterpretation(
+        'report-1',
+        'tenant-1',
+        'user-1',
+        'es'
+      );
+
+      expect(prisma.aiInterpretation.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { reportId_lang: { reportId: 'report-1', lang: 'es' } },
+          create: expect.objectContaining({
+            reportId: 'report-1',
+            lang: 'es',
+            builtFromReleaseSequence: 2,
+          }),
+          update: expect.objectContaining({ builtFromReleaseSequence: 2 }),
+        })
+      );
+    });
+
+    it('returns the stored interpretation without an AI call when it is current', async () => {
+      prisma.aiInterpretation.findUnique.mockResolvedValue(
+        storedInterpretation(2)
+      );
+
+      const result = await service.getOrCreateInterpretation(
+        'report-1',
+        'tenant-1'
+      );
+
+      expect(result.summary).toBe('Old summary.');
+      expect(callAi).not.toHaveBeenCalled();
+      expect(prisma.aiInterpretation.upsert).not.toHaveBeenCalled();
+    });
+
+    it('regenerates in place when an amendment came after it', async () => {
+      prisma.aiInterpretation.findUnique.mockResolvedValue(
+        storedInterpretation(1)
+      );
+
+      const result = await service.getOrCreateInterpretation(
+        'report-1',
+        'tenant-1'
+      );
+
+      expect(callAi).toHaveBeenCalledTimes(1);
+      expect(prisma.aiInterpretation.upsert).toHaveBeenCalledTimes(1);
+      expect(result.summary).toBe('Azotemia.');
+    });
+
+    describe('findInterpretation', () => {
+      it('returns the stored interpretation when it is current', async () => {
+        prisma.aiInterpretation.findUnique.mockResolvedValue(
+          storedInterpretation(2)
+        );
+
+        const result = await service.findInterpretation('report-1', 'tenant-1');
+
+        expect(result?.summary).toBe('Old summary.');
+      });
+
+      it('returns null when an amendment made it stale, so the clinic can re-run it', async () => {
+        prisma.aiInterpretation.findUnique.mockResolvedValue(
+          storedInterpretation(1)
+        );
+
+        expect(
+          await service.findInterpretation('report-1', 'tenant-1')
+        ).toBeNull();
+        expect(callAi).not.toHaveBeenCalled();
+      });
+
+      it('treats a row from before the column existed as stale once the report has an amendment', async () => {
+        prisma.aiInterpretation.findUnique.mockResolvedValue(
+          storedInterpretation(null)
+        );
+        prisma.resultReportRelease.findFirst.mockResolvedValue({ id: 'rel-2' });
+
+        expect(
+          await service.findInterpretation('report-1', 'tenant-1')
+        ).toBeNull();
+        expect(prisma.resultReportRelease.findFirst).toHaveBeenCalledWith({
+          where: { reportId: 'report-1', releaseType: 'AMENDMENT' },
+          select: { id: true },
+        });
+      });
+
+      it('keeps a row from before the column existed when the report was never amended', async () => {
+        prisma.aiInterpretation.findUnique.mockResolvedValue(
+          storedInterpretation(null)
+        );
+        prisma.resultReportRelease.findFirst.mockResolvedValue(null);
+
+        const result = await service.findInterpretation('report-1', 'tenant-1');
+
+        expect(result?.summary).toBe('Old summary.');
       });
     });
   });
