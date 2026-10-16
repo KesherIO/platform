@@ -1,7 +1,7 @@
 /**
  * Catalog import against a real Postgres: the batched create/update (raw
  * UPDATE … FROM VALUES with enum casts) and package wiring, using the real
- * platform catalog (src/assets/catalog.json, 136 items).
+ * platform catalog (src/assets/catalog.json).
  *
  * Skipped unless INTEGRATION_DATABASE_URL is set (throwaway database only,
  * see lab/result-entry.batch.int.spec.ts).
@@ -31,7 +31,7 @@ describeWithDb('Catalog import against Postgres', () => {
       componentCodes?: string[];
     }[];
   };
-  // catalog.json lists HBA1C twice: the second row updates the first
+  // A key listed twice in one import updates the first row
   const uniqueItems = new Set(
     platform.items.map((i) => (i.code ? `c:${i.code}` : `n:${i.name}`))
   ).size;
