@@ -16,6 +16,10 @@ import {
   CLINIC_REPORT_PDF_ARTIFACT,
   RELEASE_PDF_ARTIFACT,
 } from './current-report.util';
+import {
+  analystSnapshotFields,
+  findActiveAnalyst,
+} from './analyst-signer.util';
 import type { ReferenceRangeSnapshot } from '@vet-ai/shared-types';
 
 type TxClient = Prisma.TransactionClient;
@@ -81,6 +85,7 @@ interface ApproveAmendmentInput {
   labTenantId: string;
   amendmentId: string;
   signerId: string;
+  analystId?: string;
   reviewNotes?: string;
   observations?: string;
   actorId: string;
@@ -478,6 +483,7 @@ export class AmendmentService {
       labTenantId,
       amendmentId,
       signerId,
+      analystId,
       reviewNotes,
       observations,
       actorId,
@@ -565,6 +571,12 @@ export class AmendmentService {
     });
     if (!signer) throw new NotFoundException('Signer not found.');
 
+    const analyst = await findActiveAnalyst(
+      this.prisma,
+      labTenantId,
+      analystId
+    );
+
     const priorReleaseTestId = await this.findPriorReleaseTestId(amendment);
 
     const releaseId = randomUUID();
@@ -579,7 +591,7 @@ export class AmendmentService {
       {
         logoUrl: clinicTenant?.logoUrl ?? null,
         signerSignatureUrl: signer.signatureUrl ?? null,
-        analystSignatureUrl: null,
+        analystSignatureUrl: analyst?.signatureUrl ?? null,
       }
     );
 
@@ -639,6 +651,7 @@ export class AmendmentService {
             signerUniversity: signer.university || null,
             signerRegistrationNumber: signer.registrationNumber || null,
             signerSignatureUrl: signer.signatureUrl ?? null,
+            ...analystSnapshotFields(analyst),
             releasedByUserId: actorId,
             releasedByName: actorName,
             reviewNotes: reviewNotes ?? null,
@@ -744,6 +757,8 @@ export class AmendmentService {
               logoStoragePath: imageStoragePaths.logoStoragePath,
               signerSignatureStoragePath:
                 imageStoragePaths.signerSignatureStoragePath,
+              analystSignatureStoragePath:
+                imageStoragePaths.analystSignatureStoragePath,
             },
           });
         }

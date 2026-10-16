@@ -59,7 +59,7 @@ describe('AmendmentService', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
       resultReportReleaseArtifact: { create: jest.fn() },
-      labSigner: { findUnique: jest.fn() },
+      labSigner: { findUnique: jest.fn(), findFirst: jest.fn() },
       timelineEvent: { create: jest.fn() },
       case: { findUniqueOrThrow: jest.fn() },
       tenant: { findUniqueOrThrow: jest.fn(), findUnique: jest.fn() },
@@ -526,7 +526,8 @@ describe('AmendmentService', () => {
   });
 
   describe('approveAmendment', () => {
-    it('scenario 16: amendment does not reopen test/order — OrderedTest stays COMPLETED', async () => {
+    /** An IN_REVIEW amendment that approves cleanly; returns the last transaction mock. */
+    function arrangeApprovableAmendment() {
       let lastTx: ReturnType<typeof buildPrismaMock> = buildPrismaMock();
       prisma.order.findFirst.mockResolvedValue({
         id: 'order-1',
@@ -647,6 +648,11 @@ describe('AmendmentService', () => {
       });
 
       prisma.resultReportAmendment.findMany.mockResolvedValue([]);
+      return () => lastTx;
+    }
+
+    it('scenario 16: amendment does not reopen test/order — OrderedTest stays COMPLETED', async () => {
+      const getTx = arrangeApprovableAmendment();
 
       const result = await service.approveAmendment({
         orderId: 'order-1',
@@ -662,7 +668,7 @@ describe('AmendmentService', () => {
       expect(result.amendsReleaseTestId).toBe('rlt-1');
       expect(result.aggregateReportStatus).toBe('ALL_RELEASED');
       // The lab's report note is printed before the signatures, as on regular releases
-      expect(lastTx.resultReportRelease.create).toHaveBeenCalledWith({
+      expect(getTx().resultReportRelease.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           reportDisclaimer:
             'Resultados válidos solo para la muestra analizada.',
@@ -677,10 +683,100 @@ describe('AmendmentService', () => {
       );
       // Amendment PDF for the lab, and the clinic's current report
       for (const artifactType of ['PDF', 'CLINIC_REPORT_PDF']) {
-        expect(lastTx.resultReportReleaseArtifact.create).toHaveBeenCalledWith({
-          data: expect.objectContaining({ releaseId: 'rel-2', artifactType }),
-        });
+        expect(getTx().resultReportReleaseArtifact.create).toHaveBeenCalledWith(
+          {
+            data: expect.objectContaining({ releaseId: 'rel-2', artifactType }),
+          }
+        );
       }
+      // No analyst picked: the release and its PDF have none
+      expect(getTx().resultReportRelease.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ analystId: null, analystName: null }),
+      });
+    });
+
+    it('snapshots the picked analyst on the amendment release and its PDF', async () => {
+      const getTx = arrangeApprovableAmendment();
+      const analyst = {
+        id: 'analyst-1',
+        name: 'Ana Analyst',
+        title: 'Bacterióloga',
+        specialty: '',
+        university: 'UdeA',
+        registrationNumber: 'RN-9',
+        signatureUrl: 'https://cdn/analyst-sig.png',
+      };
+      prisma.labSigner.findFirst.mockResolvedValue(analyst);
+      storage.snapshotReleaseImages.mockResolvedValue({
+        logoStoragePath: null,
+        signerSignatureStoragePath: null,
+        analystSignatureStoragePath: 'releases/x/analyst.png',
+      });
+
+      await service.approveAmendment({
+        orderId: 'order-1',
+        labTenantId: 'lab-1',
+        amendmentId: 'amend-1',
+        signerId: 'signer-1',
+        analystId: 'analyst-1',
+        actorId: 'user-1',
+        actorName: 'User',
+      });
+
+      expect(storage.snapshotReleaseImages).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          analystSignatureUrl: 'https://cdn/analyst-sig.png',
+        })
+      );
+      expect(getTx().resultReportRelease.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          analystId: 'analyst-1',
+          analystName: 'Ana Analyst',
+          analystTitle: 'Bacterióloga',
+          analystSpecialty: null,
+          analystUniversity: 'UdeA',
+          analystRegistrationNumber: 'RN-9',
+          analystSignatureUrl: 'https://cdn/analyst-sig.png',
+        }),
+      });
+      expect(getTx().resultReportReleaseArtifact.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          analystSignatureStoragePath: 'releases/x/analyst.png',
+        }),
+      });
+    });
+
+    it('rejects an analyst signer from another lab, without the ANALYST role or not on the team', async () => {
+      arrangeApprovableAmendment();
+      prisma.labSigner.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.approveAmendment({
+          orderId: 'order-1',
+          labTenantId: 'lab-1',
+          amendmentId: 'amend-1',
+          signerId: 'signer-1',
+          analystId: 'analyst-of-lab-b',
+          actorId: 'user-1',
+          actorName: 'User',
+        })
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.labSigner.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 'analyst-of-lab-b',
+            laboratoryProfile: { tenantId: 'lab-1' },
+            roles: { has: 'ANALYST' },
+            user: {
+              memberships: {
+                some: { tenantId: 'lab-1', status: 'ACTIVE' },
+              },
+            },
+          },
+        })
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('scenario 17: report status unaffected by pending amendment', async () => {

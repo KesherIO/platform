@@ -16,6 +16,10 @@ import {
   CLINIC_REPORT_PDF_ARTIFACT,
   RELEASE_PDF_ARTIFACT,
 } from './current-report.util';
+import {
+  analystSnapshotFields,
+  findActiveAnalyst,
+} from './analyst-signer.util';
 import type { ReferenceRangeSnapshot } from '@vet-ai/shared-types';
 
 type TxClient = Prisma.TransactionClient;
@@ -166,42 +170,11 @@ export class ReleaseService {
     });
     if (!signer) throw new NotFoundException('Signer not found.');
 
-    let analyst: {
-      id: string;
-      name: string;
-      title: string;
-      specialty: string;
-      university: string;
-      registrationNumber: string;
-      signatureUrl: string | null;
-    } | null = null;
-
-    if (analystId) {
-      // This lab's signer with the ANALYST role, linked to a current team
-      // member (same rule as the analyst dropdown, getAnalystSigners)
-      analyst = await this.prisma.labSigner.findFirst({
-        where: {
-          id: analystId,
-          laboratoryProfile: { tenantId: labTenantId },
-          roles: { has: 'ANALYST' },
-          user: {
-            memberships: {
-              some: { tenantId: labTenantId, status: 'ACTIVE' },
-            },
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-          title: true,
-          specialty: true,
-          university: true,
-          registrationNumber: true,
-          signatureUrl: true,
-        },
-      });
-      if (!analyst) throw new NotFoundException('Analyst not found.');
-    }
+    const analyst = await findActiveAnalyst(
+      this.prisma,
+      labTenantId,
+      analystId
+    );
 
     const releaseId = randomUUID();
 
@@ -311,13 +284,7 @@ export class ReleaseService {
             signerUniversity: signer.university || null,
             signerRegistrationNumber: signer.registrationNumber || null,
             signerSignatureUrl: signer.signatureUrl ?? null,
-            analystId: analyst?.id ?? null,
-            analystName: analyst?.name ?? null,
-            analystTitle: analyst?.title || null,
-            analystSpecialty: analyst?.specialty || null,
-            analystUniversity: analyst?.university || null,
-            analystRegistrationNumber: analyst?.registrationNumber || null,
-            analystSignatureUrl: analyst?.signatureUrl ?? null,
+            ...analystSnapshotFields(analyst),
             releasedByUserId: actorId,
             releasedByName: actorName,
             reviewNotes: reviewNotes ?? null,

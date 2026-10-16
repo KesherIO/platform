@@ -588,7 +588,12 @@ export const labApi = {
     approve: (
       orderId: string,
       amendmentId: string,
-      data: { signerId: string; reviewNotes?: string; observations?: string }
+      data: {
+        signerId: string;
+        analystId?: string;
+        reviewNotes?: string;
+        observations?: string;
+      }
     ) =>
       post<unknown>(
         `lab/orders/${orderId}/amendments/${amendmentId}/approve`,
