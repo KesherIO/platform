@@ -139,8 +139,8 @@
             <p class="mt-2 text-xs italic text-gray-400">
               {{ 'REPORT.PDF_GENERATING' | translate }}
             </p>
-            } } @else if (releases().length === 1) { @let only = releases()[0]; @if
-            (only.pdfStatus === 'COMPLETED') {
+            } } @else if (releases().length === 1) { @let only = releases()[0];
+            @if (only.pdfStatus === 'COMPLETED') {
             <button
               type="button"
               (click)="downloadPdf(only)"
