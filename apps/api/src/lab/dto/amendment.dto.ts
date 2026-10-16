@@ -53,6 +53,10 @@ export class ApproveAmendmentDto {
 
   @IsString()
   @IsOptional()
+  analystId?: string;
+
+  @IsString()
+  @IsOptional()
   reviewNotes?: string;
 
   @IsString()

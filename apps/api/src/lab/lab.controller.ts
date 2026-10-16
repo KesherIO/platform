@@ -748,6 +748,7 @@ export class LabController {
       labTenantId: tenant.tenantId,
       amendmentId,
       signerId: dto.signerId,
+      analystId: dto.analystId,
       reviewNotes: dto.reviewNotes,
       observations: dto.observations,
       actorId: user.id,

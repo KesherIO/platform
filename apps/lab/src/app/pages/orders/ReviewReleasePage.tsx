@@ -194,6 +194,50 @@ function TestResultSection({
   );
 }
 
+/** Optional analyst for a release (normal or amendment); hidden when the lab has none. */
+function AnalystSelect({
+  analysts,
+  value,
+  onChange,
+}: {
+  analysts: LabSigner[] | undefined;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { t } = useTranslation();
+  if (!analysts?.length) return null;
+
+  const selected = analysts.find((a) => a.id === value);
+
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-gray-400">
+        {t('review.select_analyst')}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
+      >
+        <option value="">{t('review.select_analyst_placeholder')}</option>
+        {analysts.map((analyst) => (
+          <option key={analyst.id} value={analyst.id}>
+            {analyst.name} — {analyst.title}
+            {analyst.registrationNumber
+              ? ` (${analyst.registrationNumber})`
+              : ''}
+          </option>
+        ))}
+      </select>
+      {selected && !selected.signatureUrl && (
+        <p className="mt-1 text-xs text-yellow-400">
+          {t('review.analyst_missing_signature')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ReviewerPanel({
   selectedSignerId,
   setSelectedSignerId,
@@ -248,9 +292,6 @@ function ReviewerPanel({
   const selectedSigner = signers.find(
     (s: LabSigner) => s.id === selectedSignerId
   );
-  const selectedAnalyst = analysts?.find(
-    (a: LabSigner) => a.id === selectedAnalystId
-  );
 
   return (
     <div
@@ -297,34 +338,11 @@ function ReviewerPanel({
         )}
       </div>
 
-      {/* Analyst dropdown */}
-      {analysts && analysts.length > 0 && (
-        <div>
-          <label className="mb-1 block text-xs text-gray-400">
-            {t('review.select_analyst')}
-          </label>
-          <select
-            value={selectedAnalystId}
-            onChange={(e) => setSelectedAnalystId(e.target.value)}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white focus:border-cyan focus:outline-none"
-          >
-            <option value="">{t('review.select_analyst_placeholder')}</option>
-            {analysts.map((analyst: LabSigner) => (
-              <option key={analyst.id} value={analyst.id}>
-                {analyst.name} — {analyst.title}
-                {analyst.registrationNumber
-                  ? ` (${analyst.registrationNumber})`
-                  : ''}
-              </option>
-            ))}
-          </select>
-          {selectedAnalyst && !selectedAnalyst.signatureUrl && (
-            <p className="mt-1 text-xs text-yellow-400">
-              {t('review.analyst_missing_signature')}
-            </p>
-          )}
-        </div>
-      )}
+      <AnalystSelect
+        analysts={analysts}
+        value={selectedAnalystId}
+        onChange={setSelectedAnalystId}
+      />
 
       {/* Review notes */}
       <div>
@@ -526,10 +544,16 @@ function AmendmentPanel({
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [approverId, setApproverId] = useState('');
+  const [analystId, setAnalystId] = useState('');
 
   const { data: reviewerSigners } = useQuery({
     queryKey: ['reviewer-signers'],
     queryFn: () => labApi.review.getReviewerSigners(),
+    enabled: canRelease,
+  });
+  const { data: analystSigners } = useQuery({
+    queryKey: ['analyst-signers'],
+    queryFn: () => labApi.review.getAnalystSigners(),
     enabled: canRelease,
   });
   const approver = reviewerSigners?.find((s) => s.id === approverId);
@@ -681,6 +705,7 @@ function AmendmentPanel({
     try {
       await labApi.amendment.approve(orderId, amendmentId, {
         signerId: approverId,
+        analystId: analystId || undefined,
       });
       toast.success(t('review.amendment_approved'));
       refreshActiveAmendments();
@@ -863,6 +888,11 @@ function AmendmentPanel({
                 )}
               </div>
             )}
+            <AnalystSelect
+              analysts={analystSigners}
+              value={analystId}
+              onChange={setAnalystId}
+            />
             <div className="flex gap-2">
               <button
                 onClick={handleApprove}
