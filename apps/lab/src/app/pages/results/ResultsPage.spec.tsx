@@ -14,15 +14,22 @@ vi.mock('../../shared/api/labApi', () => ({
 }));
 
 import { labApi } from '../../shared/api/labApi';
+import type {
+  InProgressResultRow,
+  ReleasedResultRow,
+  ResultsSearchQuery,
+  ResultsSearchResponse,
+  ResultsView,
+} from '../../types/lab.types';
 import { ResultsPage } from './ResultsPage';
 
 const search = vi.mocked(labApi.results.search);
 
-const released = {
+const released: ReleasedResultRow = {
   id: 'rt-1',
   releaseId: 'rel-2',
   releaseSequence: 2,
-  releaseType: 'AMENDMENT' as const,
+  releaseType: 'AMENDMENT',
   releasedAt: '2026-10-14T10:00:00Z',
   amended: true,
   orderId: 'order-1',
@@ -37,9 +44,9 @@ const released = {
   analyte: null,
 };
 
-const inProgress = {
+const inProgress: InProgressResultRow = {
   id: 't-9',
-  status: 'IN_REVIEW' as const,
+  status: 'IN_REVIEW',
   orderId: 'order-9',
   requisitionNumber: 'REQ-9',
   orderedAt: '2026-10-15T10:00:00Z',
@@ -52,7 +59,12 @@ const inProgress = {
   testCode: 'CBC',
 };
 
-const response = (view: string, data: unknown[]) => ({
+type Row = ReleasedResultRow | InProgressResultRow;
+
+const response = (
+  view: ResultsView,
+  data: Row[]
+): ResultsSearchResponse<Row> => ({
   data,
   total: data.length,
   page: 1,
@@ -85,7 +97,7 @@ describe('ResultsPage', () => {
     vi.mocked(labApi.results.clinics).mockResolvedValue([
       { id: 'c-1', name: 'Clínica Norte' },
     ]);
-    search.mockImplementation(async (q: { view: string }) =>
+    search.mockImplementation(async (q: ResultsSearchQuery) =>
       q.view === 'released'
         ? response('released', [released])
         : response('in_progress', [inProgress])
