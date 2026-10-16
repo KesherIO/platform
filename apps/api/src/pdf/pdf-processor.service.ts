@@ -6,18 +6,42 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { PdfRendererService } from './pdf-renderer.service';
 import type { ReleaseForPdf } from './pdf-renderer.service';
 import { phoneLabelForPdf } from '../lab/lab-contact.util';
+import {
+  CLINIC_REPORT_PDF_ARTIFACT,
+  RELEASE_PDF_ARTIFACT,
+  currentTests,
+  latestNonAmendment,
+} from '../lab/current-report.util';
+
+const RELEASE_INCLUDE = {
+  tests: {
+    include: { analytes: { orderBy: { sortOrder: 'asc' as const } } },
+  },
+} satisfies Prisma.ResultReportReleaseInclude;
+
+type ReleaseWithTests = Prisma.ResultReportReleaseGetPayload<{
+  include: typeof RELEASE_INCLUDE;
+}>;
 
 const STALE_THRESHOLD_MS = 10 * 60 * 1000;
 const POLL_INTERVAL_MS = 5_000;
 // Stale recovery runs every STALE_CHECK_EVERY poll cycles (~60 s at 5 s/cycle).
 const STALE_CHECK_EVERY = 12;
 const MAX_RETRIES = 3;
+const RETRY_RESET = {
+  status: 'PENDING',
+  retryCount: 0,
+  errorMessage: null,
+  claimedAt: null,
+  claimToken: null,
+  nextRetryAt: null,
+} satisfies Prisma.ResultReportReleaseArtifactUpdateManyMutationInput;
 
 @Injectable()
 export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
@@ -99,6 +123,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
       Array<{
         id: string;
         release_id: string;
+        artifact_type: string;
         claim_token: string;
         logo_storage_path: string | null;
         signer_signature_storage_path: string | null;
@@ -115,7 +140,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
         SELECT id
         FROM   result_report_release_artifacts
         WHERE  status           = 'PENDING'
-          AND  "artifactType"   = 'PDF'
+          AND  "artifactType"   IN (${RELEASE_PDF_ARTIFACT}, ${CLINIC_REPORT_PDF_ARTIFACT})
           AND  "retryCount"     < ${MAX_RETRIES}
           AND  (next_retry_at IS NULL OR next_retry_at <= NOW())
         ORDER BY "createdAt" ASC
@@ -125,6 +150,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
       RETURNING
         id,
         "releaseId"                    AS release_id,
+        "artifactType"                 AS artifact_type,
         claim_token,
         logo_storage_path,
         signer_signature_storage_path,
@@ -138,6 +164,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
     const artifact = {
       id: row.id,
       releaseId: row.release_id,
+      artifactType: row.artifact_type,
       claimToken: row.claim_token,
       logoStoragePath: row.logo_storage_path,
       signerSignatureStoragePath: row.signer_signature_storage_path,
@@ -176,6 +203,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
   private async generateAndStore(artifact: {
     id: string;
     releaseId: string;
+    artifactType: string;
     claimToken: string | null;
     logoStoragePath: string | null;
     signerSignatureStoragePath: string | null;
@@ -184,12 +212,9 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
   }): Promise<void> {
     const release = await this.prisma.resultReportRelease.findUniqueOrThrow({
       where: { id: artifact.releaseId },
-      include: {
-        tests: {
-          include: { analytes: { orderBy: { sortOrder: 'asc' } } },
-        },
-      },
+      include: RELEASE_INCLUDE,
     });
+    const isClinicReport = artifact.artifactType === CLINIC_REPORT_PDF_ARTIFACT;
 
     let logoBuffer: Buffer | null = null;
     let signerSigBuffer: Buffer | null = null;
@@ -224,11 +249,17 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
+    // Current report: identity, signer and analyst from this (newest)
+    // release; tests, type and date as the clinic would know them
+    const report = isClinicReport
+      ? await this.clinicReportContent(release)
+      : null;
+
     const pdfData: ReleaseForPdf = {
       id: release.id,
-      releaseSequence: release.releaseSequence,
-      releaseType: release.releaseType,
-      releasedAt: release.releasedAt,
+      releaseSequence: report ? null : release.releaseSequence,
+      releaseType: report ? report.releaseType : release.releaseType,
+      releasedAt: report ? report.releasedAt : release.releasedAt,
       requisitionNumber: release.requisitionNumber,
       orderId: release.orderId,
       labName: release.labName,
@@ -264,12 +295,13 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
       analystUniversity: release.analystUniversity,
       orderingVetName: release.orderingVetName,
       orderingVetLicenseNumber: release.orderingVetLicenseNumber,
-      observations: release.observations,
+      observations: report ? report.observations : release.observations,
       reviewNotes: release.reviewNotes,
+      pendingTestNames: report?.pendingTestNames ?? [],
       logoBuffer,
       signerSignatureBuffer: signerSigBuffer,
       analystSignatureBuffer: analystSigBuffer,
-      tests: release.tests.map((t) => ({
+      tests: (report ? report.tests : release.tests).map((t) => ({
         catalogItemName: t.catalogItemName,
         catalogItemCode: t.catalogItemCode,
         department: t.department,
@@ -298,7 +330,9 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
     };
 
     const pdfBuffer = await this.renderer.render(pdfData);
-    const storagePath = `${release.labTenantId}/${release.orderId}/${release.id}.pdf`;
+    const storagePath = `${release.labTenantId}/${release.orderId}/${
+      release.id
+    }${isClinicReport ? '-clinic' : ''}.pdf`;
 
     const exists = await this.storage.headObject('lab-reports', storagePath);
     if (!exists) {
@@ -342,6 +376,46 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Content of the clinic's current report as of `release`: the latest
+   * snapshot of every test released up to it, headed by the newest
+   * PARTIAL/FINAL release so an amendment never shows (type, date, note).
+   */
+  private async clinicReportContent(release: ReleaseWithTests) {
+    const releases = await this.prisma.resultReportRelease.findMany({
+      where: {
+        reportId: release.reportId,
+        releaseSequence: { lte: release.releaseSequence },
+      },
+      include: RELEASE_INCLUDE,
+    });
+    const tests = currentTests(releases);
+    const head = latestNonAmendment(releases) ?? release;
+
+    const released = new Set(tests.map((t) => t.sourceReportTestId));
+    const reportTests = await this.prisma.resultReportTest.findMany({
+      where: { reportId: release.reportId },
+      select: {
+        id: true,
+        orderedTest: { select: { catalogItemName: true, status: true } },
+      },
+    });
+    const pendingTestNames = reportTests
+      .filter(
+        (rt) => !released.has(rt.id) && rt.orderedTest?.status !== 'CANCELLED'
+      )
+      .map((rt) => rt.orderedTest?.catalogItemName ?? '')
+      .filter(Boolean);
+
+    return {
+      tests,
+      releaseType: head.releaseType,
+      releasedAt: head.releasedAt,
+      observations: head.observations,
+      pendingTestNames,
+    };
+  }
+
   private async recoverStale(): Promise<void> {
     const staleThreshold = new Date(Date.now() - STALE_THRESHOLD_MS);
     const reset = await this.prisma.resultReportReleaseArtifact.updateMany({
@@ -364,17 +438,27 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
   async retryArtifact(artifactId: string): Promise<void> {
     const { count } = await this.prisma.resultReportReleaseArtifact.updateMany({
       where: { id: artifactId, status: 'FAILED' },
-      data: {
-        status: 'PENDING',
-        retryCount: 0,
-        errorMessage: null,
-        claimedAt: null,
-        claimToken: null,
-        nextRetryAt: null,
-      },
+      data: RETRY_RESET,
     });
     if (count === 0) {
       throw new ConflictException('Only a failed PDF can be retried.');
+    }
+
+    // The clinic's current report of the same release usually failed with it
+    // and has no retry button of its own
+    const artifact = await this.prisma.resultReportReleaseArtifact.findUnique({
+      where: { id: artifactId },
+      select: { releaseId: true },
+    });
+    if (artifact) {
+      await this.prisma.resultReportReleaseArtifact.updateMany({
+        where: {
+          releaseId: artifact.releaseId,
+          artifactType: CLINIC_REPORT_PDF_ARTIFACT,
+          status: 'FAILED',
+        },
+        data: RETRY_RESET,
+      });
     }
   }
 }

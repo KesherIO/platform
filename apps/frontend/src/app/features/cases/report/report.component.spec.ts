@@ -45,6 +45,8 @@ const mockReleased: ClinicReleasedResultsModel = {
 
 const mockReleases: ClinicOrderReleasesModel = {
   requisitionNumber: 'REQ-2026-000002',
+  showAmendments: true,
+  currentReport: null,
   releases: [
     {
       id: 'rel-1',
@@ -71,9 +73,11 @@ describe('ReportComponent', () => {
   let fixture: ComponentFixture<ReportComponent>;
   let component: ReportComponent;
   let downloadReleasePdf: ReturnType<typeof vi.fn>;
+  let downloadCurrentReportPdf: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     downloadReleasePdf = vi.fn(() => of(undefined));
+    downloadCurrentReportPdf = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
       imports: [ReportComponent, TranslateModule.forRoot()],
       providers: [
@@ -89,6 +93,7 @@ describe('ReportComponent', () => {
             getExistingInterpretation: () => of(null),
             getOrderReleases: () => of(mockReleases),
             downloadReleasePdf,
+            downloadCurrentReportPdf,
           },
         },
         {
@@ -182,5 +187,76 @@ describe('ReportComponent', () => {
     service.getOrderReleases = () => throwError(() => new Error('404'));
     component.ngOnInit();
     expect(component.releasesLoadError()).toBe(true);
+  });
+
+  it('shows release PDFs, not the current report, when the lab shows amendments', () => {
+    expect(component.showAmendments()).toBe(true);
+    expect(component.silentReport()).toBeNull();
+  });
+
+  describe('when the lab keeps amendments silent', () => {
+    function loadSilent(pdfStatus: 'COMPLETED' | 'GENERATING') {
+      const service = TestBed.inject(CasesService) as unknown as {
+        getOrderReleases: () => unknown;
+      };
+      service.getOrderReleases = () =>
+        of({
+          requisitionNumber: 'REQ-2026-000002',
+          showAmendments: false,
+          releases: [],
+          currentReport: { pdfStatus },
+        } satisfies ClinicOrderReleasesModel);
+      component.ngOnInit();
+      fixture.detectChanges();
+    }
+
+    it('offers only the current report', () => {
+      loadSilent('COMPLETED');
+      expect(component.releases()).toEqual([]);
+      expect(component.silentReport()).toEqual({ pdfStatus: 'COMPLETED' });
+    });
+
+    it('downloadCurrentReport saves it under the requisition number', () => {
+      loadSilent('COMPLETED');
+      component.downloadCurrentReport();
+      expect(downloadCurrentReportPdf).toHaveBeenCalledWith(
+        'ORD-0002',
+        'REQ-2026-000002.pdf'
+      );
+      expect(downloadReleasePdf).not.toHaveBeenCalled();
+      expect(component.downloadingCurrentReport()).toBe(false);
+    });
+
+    it('downloadCurrentReport shows an error when the download fails', () => {
+      loadSilent('COMPLETED');
+      downloadCurrentReportPdf.mockReturnValueOnce(
+        throwError(() => new Error('404'))
+      );
+      component.downloadCurrentReport();
+      expect(component.pdfDownloadError()).toBe(true);
+    });
+
+    it('polls again while the current report is generating', () => {
+      vi.useFakeTimers();
+      try {
+        loadSilent('GENERATING');
+        const service = TestBed.inject(CasesService) as unknown as {
+          getOrderReleases: ReturnType<typeof vi.fn>;
+        };
+        service.getOrderReleases = vi.fn(() =>
+          of({
+            requisitionNumber: 'REQ-2026-000002',
+            showAmendments: false,
+            releases: [],
+            currentReport: { pdfStatus: 'COMPLETED' },
+          })
+        );
+        vi.advanceTimersByTime(5_000);
+        expect(service.getOrderReleases).toHaveBeenCalled();
+        expect(component.silentReport()).toEqual({ pdfStatus: 'COMPLETED' });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

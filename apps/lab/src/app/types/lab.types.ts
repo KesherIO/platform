@@ -402,6 +402,8 @@ export interface LaboratoryProfile {
   defaultObservations: string | null;
   reportDisclaimer: string | null;
   vetVerificationRequired?: boolean;
+  /** Off = clinics only get the current report, never amendments */
+  showAmendmentsToClinic?: boolean;
   signers?: LabSigner[];
 }
 

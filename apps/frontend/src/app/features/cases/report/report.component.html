@@ -114,9 +114,33 @@
             </p>
             }
 
-            <!-- Download PDF: direct action for one release, dropdown for several -->
-            @if (releases().length === 1) { @let only = releases()[0]; @if
-            (only.pdfStatus === 'COMPLETED') {
+            <!-- Download PDF: the current report when the lab keeps amendments
+            silent; otherwise direct action for one release, dropdown for several -->
+            @if (silentReport(); as current) { @if (current.pdfStatus ===
+            'COMPLETED') {
+            <button
+              type="button"
+              (click)="downloadCurrentReport()"
+              [disabled]="downloadingCurrentReport()"
+              class="mt-2 inline-flex items-center rounded-lg bg-black px-3 py-1.5 text-xs font-medium text-cyan shadow-sm transition-colors hover:bg-gray-900 disabled:opacity-50"
+            >
+              {{
+                (downloadingCurrentReport()
+                  ? 'COMMON.LOADING'
+                  : 'REPORT.DOWNLOAD_PDF'
+                ) | translate
+              }}
+            </button>
+            } @else if (current.pdfStatus === 'FAILED') {
+            <p class="mt-2 text-xs text-red-500">
+              {{ 'REPORT.PDF_FAILED' | translate }}
+            </p>
+            } @else {
+            <p class="mt-2 text-xs italic text-gray-400">
+              {{ 'REPORT.PDF_GENERATING' | translate }}
+            </p>
+            } } @else if (releases().length === 1) { @let only = releases()[0];
+            @if (only.pdfStatus === 'COMPLETED') {
             <button
               type="button"
               (click)="downloadPdf(only)"

@@ -416,6 +416,11 @@
     "vet_verification_required_label": "Requerir verificación antes de enviar órdenes",
     "vet_verification_description": "Cuando está activo, los veterinarios deben ser revisados y aprobados antes de hacer pedidos a través de clínicas conectadas.",
     "vet_verification_warning_on": "Los veterinarios ya aprobados seguirán activos. Los nuevos requerirán revisión.",
+    "amendments_title": "Enmiendas",
+    "amendments_subtitle": "Elige si las clínicas ven cuando se corrige un resultado ya liberado.",
+    "show_amendments_label": "Mostrar enmiendas a las clínicas",
+    "show_amendments_on": "Las clínicas ven cada liberación, y las correcciones se marcan como enmiendas.",
+    "show_amendments_off": "Las clínicas solo reciben el reporte actual, con los valores más recientes y las fechas de liberación originales. Las enmiendas solo se ven en el laboratorio. Los PDF que una clínica ya descargó no se actualizan.",
     "catalog_setup": {
       "title": "Configuración del catálogo",
       "subtitle": "Importa el catálogo estándar de la plataforma como punto de partida. Esto agrega todas las pruebas y paquetes estándar con códigos de plataforma. Luego puedes personalizarlos en la página de Catálogo.",

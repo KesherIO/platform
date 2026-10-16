@@ -1075,6 +1075,9 @@ model LaboratoryProfile {
   defaultObservations String? // default footer text pre-filled in result reports
   reportDisclaimer        String? // legal disclaimer shown at bottom of released reports
   vetVerificationRequired Boolean  @default(false)
+  /// Off = amendments are silent for clinics: they get one current report
+  /// (latest values, original dates) and never see amendment releases
+  showAmendmentsToClinic  Boolean  @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

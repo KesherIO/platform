@@ -895,6 +895,7 @@ export class LabService {
       defaultObservations?: string;
       reportDisclaimer?: string;
       vetVerificationRequired?: boolean;
+      showAmendmentsToClinic?: boolean;
       signers?: SignerInput[];
     },
     actorUserId: string

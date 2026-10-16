@@ -18,6 +18,7 @@ import {
   ClinicReleasedResultsModel,
   ClinicReleaseStatus,
   ClinicReleaseSummaryModel,
+  ClinicCurrentReportModel,
   ReleasedTestResult,
 } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
@@ -50,6 +51,15 @@ export class ReportComponent implements OnInit {
   downloadingReleaseId = signal<string | null>(null);
   pdfDownloadError = signal(false);
   releasesLoadError = signal(false);
+  /** Lab setting — false: one current report instead of the release list */
+  showAmendments = signal(true);
+  currentReport = signal<ClinicCurrentReportModel | null>(null);
+  downloadingCurrentReport = signal(false);
+
+  /** The current report, when the lab keeps amendments silent. */
+  silentReport = computed(() =>
+    this.showAmendments() ? null : this.currentReport()
+  );
 
   /** Newest release first — the dropdown lists every release PDF. */
   releasesNewestFirst = computed(() =>
@@ -304,7 +314,12 @@ export class ReportComponent implements OnInit {
           this.releasesLoadError.set(false);
           this.releases.set(resp.releases);
           this.requisitionNumber.set(resp.requisitionNumber);
-          const hasPending = resp.releases.some(
+          this.showAmendments.set(resp.showAmendments);
+          this.currentReport.set(resp.currentReport);
+          const hasPending = [
+            ...resp.releases,
+            ...(resp.currentReport ? [resp.currentReport] : []),
+          ].some(
             (r) => r.pdfStatus === 'PENDING' || r.pdfStatus === 'GENERATING'
           );
           if (hasPending) {
@@ -356,6 +371,24 @@ export class ReportComponent implements OnInit {
         },
         error: () => {
           this.downloadingReleaseId.set(null);
+          this.pdfDownloadError.set(true);
+        },
+      });
+  }
+
+  downloadCurrentReport(): void {
+    const orderId = this.case()?.order?.orderId;
+    if (!orderId || this.downloadingCurrentReport()) return;
+    const filename = `${this.requisitionNumber() ?? 'report'}.pdf`;
+    this.downloadingCurrentReport.set(true);
+    this.pdfDownloadError.set(false);
+    this.casesService
+      .downloadCurrentReportPdf(orderId, filename)
+      .pipe(take(1))
+      .subscribe({
+        next: () => this.downloadingCurrentReport.set(false),
+        error: () => {
+          this.downloadingCurrentReport.set(false);
           this.pdfDownloadError.set(true);
         },
       });

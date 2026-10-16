@@ -27,7 +27,11 @@ import { TenantGuard } from '../auth/guards/tenant.guard';
 import { Public } from '../auth/decorators/public.decorator';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import type { TenantContext, AuthenticatedUser } from '@vet-ai/shared-types';
+import type {
+  TenantContext,
+  AuthenticatedUser,
+  ClinicOrderReleasesModel,
+} from '@vet-ai/shared-types';
 import {
   ImportTemplateDto,
   CreateReportDto,
@@ -36,6 +40,10 @@ import {
 } from './dto/results.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import {
+  CLINIC_REPORT_PDF_ARTIFACT,
+  RELEASE_PDF_ARTIFACT,
+} from '../lab/current-report.util';
 
 @ApiTags('results')
 @Controller('results')
@@ -289,19 +297,41 @@ export class ResultsController {
   async getOrderReleases(
     @CurrentTenant() tenant: TenantContext,
     @Param('orderId') orderId: string
-  ) {
-    // Clinic-facing :orderId is the requisition number (same as /released).
-    const order = await this.prisma.order.findFirst({
-      where: { requisitionNumber: orderId, tenantId: tenant.tenantId },
-      select: {
-        id: true,
-        requisitionNumber: true,
-        resultReport: { select: { id: true } },
-      },
-    });
-    if (!order) throw new NotFoundException('Order not found.');
+  ): Promise<ClinicOrderReleasesModel> {
+    const order = await this.findClinicOrder(tenant.tenantId, orderId);
+    const showAmendments = await this.resultsService.clinicSeesAmendments(
+      order.labTenantId
+    );
     if (!order.resultReport) {
-      return { requisitionNumber: order.requisitionNumber, releases: [] };
+      return {
+        requisitionNumber: order.requisitionNumber,
+        showAmendments,
+        releases: [],
+        currentReport: null,
+      };
+    }
+
+    // Silent amendments: no release history, just the current report
+    if (!showAmendments) {
+      const newest = await this.prisma.resultReportRelease.findFirst({
+        where: { reportId: order.resultReport.id },
+        orderBy: { releaseSequence: 'desc' },
+        select: {
+          artifacts: {
+            where: { artifactType: CLINIC_REPORT_PDF_ARTIFACT },
+            select: { status: true },
+            take: 1,
+          },
+        },
+      });
+      return {
+        requisitionNumber: order.requisitionNumber,
+        showAmendments,
+        releases: [],
+        currentReport: newest
+          ? { pdfStatus: newest.artifacts[0]?.status ?? 'PENDING' }
+          : null,
+      };
     }
 
     const releases = await this.prisma.resultReportRelease.findMany({
@@ -309,7 +339,7 @@ export class ResultsController {
       include: {
         tests: { select: { catalogItemName: true } },
         artifacts: {
-          where: { artifactType: 'PDF' },
+          where: { artifactType: RELEASE_PDF_ARTIFACT },
           select: { status: true },
           take: 1,
         },
@@ -319,6 +349,7 @@ export class ResultsController {
 
     return {
       requisitionNumber: order.requisitionNumber,
+      showAmendments,
       releases: releases.map((r) => ({
         id: r.id,
         releaseSequence: r.releaseSequence,
@@ -328,6 +359,7 @@ export class ResultsController {
         pdfStatus: r.artifacts[0]?.status ?? 'PENDING',
         testNames: r.tests.map((t) => t.catalogItemName),
       })),
+      currentReport: null,
     };
   }
 
@@ -352,13 +384,13 @@ export class ResultsController {
       throw new BadRequestException('Invalid releaseSequence.');
     }
 
-    // Clinic-facing :orderId is the requisition number (same as /released).
-    const order = await this.prisma.order.findFirst({
-      where: { requisitionNumber: orderId, tenantId: tenant.tenantId },
-      select: { id: true, resultReport: { select: { id: true } } },
-    });
-    if (!order || !order.resultReport) {
+    const order = await this.findClinicOrder(tenant.tenantId, orderId);
+    if (!order.resultReport) {
       throw new NotFoundException('Order or report not found.');
+    }
+    // Silent amendments: older releases (and their values) stay with the lab
+    if (!(await this.resultsService.clinicSeesAmendments(order.labTenantId))) {
+      throw new NotFoundException('Release not found.');
     }
 
     const release = await this.prisma.resultReportRelease.findUnique({
@@ -372,8 +404,71 @@ export class ResultsController {
     });
     if (!release) throw new NotFoundException('Release not found.');
 
+    await this.sendPdf(
+      res,
+      release.id,
+      RELEASE_PDF_ARTIFACT,
+      `release-${releaseSequence}.pdf`
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // GET /results/by-order/:orderId/current-report/pdf
+  // Clinic downloads the current report: every released test at its latest
+  // values (what labs that keep amendments silent hand out).
+  // ---------------------------------------------------------------------------
+
+  @Get('by-order/:orderId/current-report/pdf')
+  @ApiBearerAuth()
+  @ApiSecurity('x-tenant-id')
+  @UseGuards(TenantGuard)
+  @ApiOperation({ summary: 'Download the current report PDF (clinic view)' })
+  async downloadCurrentReportPdf(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('orderId') orderId: string,
+    @Res() res: Response
+  ) {
+    const order = await this.findClinicOrder(tenant.tenantId, orderId);
+    const newest = order.resultReport
+      ? await this.prisma.resultReportRelease.findFirst({
+          where: { reportId: order.resultReport.id },
+          orderBy: { releaseSequence: 'desc' },
+          select: { id: true },
+        })
+      : null;
+    if (!newest) throw new NotFoundException('Report not found.');
+
+    await this.sendPdf(
+      res,
+      newest.id,
+      CLINIC_REPORT_PDF_ARTIFACT,
+      `${order.requisitionNumber}.pdf`
+    );
+  }
+
+  /** Clinic-facing :orderId is the requisition number (same as /released). */
+  private async findClinicOrder(tenantId: string, requisitionNumber: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { requisitionNumber, tenantId },
+      select: {
+        id: true,
+        requisitionNumber: true,
+        labTenantId: true,
+        resultReport: { select: { id: true } },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+    return order;
+  }
+
+  private async sendPdf(
+    res: Response,
+    releaseId: string,
+    artifactType: string,
+    filename: string
+  ) {
     const artifact = await this.prisma.resultReportReleaseArtifact.findFirst({
-      where: { releaseId: release.id, artifactType: 'PDF' },
+      where: { releaseId, artifactType },
       select: { status: true, storageUrl: true },
     });
     if (!artifact || artifact.status !== 'COMPLETED' || !artifact.storageUrl) {
@@ -386,7 +481,7 @@ export class ResultsController {
     );
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="release-${releaseSequence}.pdf"`,
+      'Content-Disposition': `attachment; filename="${filename}"`,
       'Content-Length': buffer.length.toString(),
     });
     res.end(buffer);

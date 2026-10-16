@@ -30,6 +30,7 @@ const EMPTY_PROFILE: LaboratoryProfile = {
   defaultObservations: '',
   reportDisclaimer: '',
   vetVerificationRequired: false,
+  showAmendmentsToClinic: true,
 };
 
 const EMPTY_CONTACT: LabContactInfo = {
@@ -1030,7 +1031,42 @@ export function LaboratorySettingsPage() {
           </label>
         </section>
 
-        {/* ─── Section 4: Lab Signers ─── */}
+        {/* ─── Section 4: Amendments shown to clinics ─── */}
+        <section className="rounded-xl border border-gray-800 bg-gray-900 p-5">
+          <h2 className="mb-1 text-lg font-semibold text-white">
+            {t('settings.amendments_title')}
+          </h2>
+          <p className="mb-5 text-sm text-gray-400">
+            {t('settings.amendments_subtitle')}
+          </p>
+
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-700 bg-gray-800 accent-cyan disabled:cursor-not-allowed disabled:opacity-50"
+              checked={profile.showAmendmentsToClinic ?? true}
+              disabled={!isAdmin}
+              onChange={(e) =>
+                setProfile({
+                  ...profile,
+                  showAmendmentsToClinic: e.target.checked,
+                })
+              }
+            />
+            <div>
+              <p className="text-sm font-medium text-white">
+                {t('settings.show_amendments_label')}
+              </p>
+              <p className="mt-0.5 text-xs text-gray-400">
+                {profile.showAmendmentsToClinic ?? true
+                  ? t('settings.show_amendments_on')
+                  : t('settings.show_amendments_off')}
+              </p>
+            </div>
+          </label>
+        </section>
+
+        {/* ─── Section 5: Lab Signers ─── */}
         <section className="rounded-xl border border-gray-800 bg-gray-900 p-5">
           <h2 className="text-lg font-semibold text-white">
             {t('settings.signers_title')}

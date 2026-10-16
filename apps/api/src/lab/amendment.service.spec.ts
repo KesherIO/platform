@@ -681,6 +681,14 @@ describe('AmendmentService', () => {
           analystSignatureUrl: null,
         })
       );
+      // Amendment PDF for the lab, and the clinic's current report
+      for (const artifactType of ['PDF', 'CLINIC_REPORT_PDF']) {
+        expect(getTx().resultReportReleaseArtifact.create).toHaveBeenCalledWith(
+          {
+            data: expect.objectContaining({ releaseId: 'rel-2', artifactType }),
+          }
+        );
+      }
       // No analyst picked: the release and its PDF have none
       expect(getTx().resultReportRelease.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ analystId: null, analystName: null }),

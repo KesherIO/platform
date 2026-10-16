@@ -79,4 +79,8 @@ export class UpsertLaboratoryProfileDto {
   @IsBoolean()
   @IsOptional()
   vetVerificationRequired?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  showAmendmentsToClinic?: boolean;
 }

@@ -1067,6 +1067,16 @@ export class ResultsService {
   // Clinic-facing released results — only RELEASED data from immutable snapshots
   // ---------------------------------------------------------------------------
 
+  /** Lab setting; orders without a lab (or a lab profile) show amendments. */
+  async clinicSeesAmendments(labTenantId: string | null): Promise<boolean> {
+    if (!labTenantId) return true;
+    const profile = await this.prisma.laboratoryProfile.findUnique({
+      where: { tenantId: labTenantId },
+      select: { showAmendmentsToClinic: true },
+    });
+    return profile?.showAmendmentsToClinic ?? true;
+  }
+
   async findReleasedResultsByOrder(
     tenantId: string,
     requisitionNumber: string
@@ -1163,6 +1173,26 @@ export class ResultsService {
       }
     }
 
+    // Silent amendments: an amended test keeps the date the clinic first got
+    // it, and the release type is left out
+    const showAmendments = await this.clinicSeesAmendments(order.labTenantId);
+    const firstReleasedAt = new Map<string, Date>();
+    if (!showAmendments) {
+      const allSnapshots = await this.prisma.resultReportReleaseTest.findMany({
+        where: { sourceReportTestId: { in: [...latestByTest.keys()] } },
+        select: {
+          sourceReportTestId: true,
+          release: { select: { releasedAt: true } },
+        },
+      });
+      for (const st of allSnapshots) {
+        const prev = firstReleasedAt.get(st.sourceReportTestId);
+        if (!prev || st.release.releasedAt < prev) {
+          firstReleasedAt.set(st.sourceReportTestId, st.release.releasedAt);
+        }
+      }
+    }
+
     // Fallback department: OrderedTest.department → LabTestConfiguration.department
     const catalogItemIds = [
       ...new Set(
@@ -1203,8 +1233,10 @@ export class ResultsService {
         catalogItemCode: rt.catalogItemCode,
         department:
           rt.department ?? deptFallback.get(rt.sourceReportTestId) ?? null,
-        releaseType: rt.release.releaseType,
-        releasedAt: rt.release.releasedAt.toISOString(),
+        releaseType: showAmendments ? rt.release.releaseType : undefined,
+        releasedAt: (
+          firstReleasedAt.get(rt.sourceReportTestId) ?? rt.release.releasedAt
+        ).toISOString(),
         signerName: rt.release.signerName,
         signerTitle: rt.release.signerTitle ?? undefined,
         signerSpecialty: rt.release.signerSpecialty ?? undefined,

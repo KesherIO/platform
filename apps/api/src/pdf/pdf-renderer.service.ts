@@ -5,7 +5,8 @@ const PDFDocument: typeof import('pdfkit') = _pdfkit.default ?? _pdfkit;
 
 export interface ReleaseForPdf {
   id: string;
-  releaseSequence: number;
+  /** null for the clinic's current report — it has no "Informe #N" */
+  releaseSequence: number | null;
   releaseType: string;
   releasedAt: Date;
   requisitionNumber: string;
@@ -45,6 +46,8 @@ export interface ReleaseForPdf {
   orderingVetLicenseNumber: string | null;
   observations: string | null;
   reviewNotes: string | null;
+  /** Tests still to come, listed under the results (current report only) */
+  pendingTestNames?: string[];
   logoBuffer: Buffer | null;
   signerSignatureBuffer: Buffer | null;
   analystSignatureBuffer: Buffer | null;
@@ -151,7 +154,10 @@ export class PdfRendererService {
         },
         bufferPages: true,
         info: {
-          Title: `Lab Report - ${data.requisitionNumber} - Release #${data.releaseSequence}`,
+          Title:
+            data.releaseSequence === null
+              ? `Lab Report - ${data.requisitionNumber}`
+              : `Lab Report - ${data.requisitionNumber} - Release #${data.releaseSequence}`,
           Author: data.labName,
         },
       });
@@ -189,6 +195,24 @@ export class PdfRendererService {
         this.drawTest(doc, test, LEFT, PAGE_WIDTH, ensureSpace);
         doc.y += 6;
         rule(RULE, 0.3);
+        doc.y += 8;
+      }
+
+      // ── Pending tests (current report while results are partial) ─────────
+      if (data.pendingTestNames?.length) {
+        const pending = data.pendingTestNames.join(', ');
+        doc.font('Helvetica').fontSize(8);
+        ensureSpace(14 + doc.heightOfString(pending, { width: PAGE_WIDTH }));
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(7)
+          .fillColor(GRAY)
+          .text('PRUEBAS PENDIENTES:', LEFT, doc.y);
+        doc
+          .font('Helvetica')
+          .fontSize(8)
+          .fillColor(DARK)
+          .text(pending, LEFT, doc.y + 2, { width: PAGE_WIDTH });
         doc.y += 8;
       }
 
@@ -332,24 +356,23 @@ export class PdfRendererService {
       .fontSize(9)
       .fillColor(badgeColor)
       .text(badgeText, rightX, headerY, { width: RIGHT_W, align: 'right' });
-    doc
-      .font('Helvetica')
-      .fontSize(8)
-      .fillColor(GRAY)
-      .text(`Informe #${data.releaseSequence}`, rightX, doc.y + 1, {
+    doc.font('Helvetica').fontSize(8).fillColor(GRAY);
+    if (data.releaseSequence !== null) {
+      doc.text(`Informe #${data.releaseSequence}`, rightX, doc.y + 1, {
         width: RIGHT_W,
         align: 'right',
-      })
-      .text(
-        new Date(data.releasedAt).toLocaleDateString('es-CO', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        }),
-        rightX,
-        doc.y + 1,
-        { width: RIGHT_W, align: 'right' }
-      );
+      });
+    }
+    doc.text(
+      new Date(data.releasedAt).toLocaleDateString('es-CO', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+      rightX,
+      doc.y + 1,
+      { width: RIGHT_W, align: 'right' }
+    );
 
     doc.y = Math.max(doc.y, leftBottom) + 8;
     doc

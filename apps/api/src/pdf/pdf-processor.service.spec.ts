@@ -13,6 +13,7 @@ describe('PdfProcessorService', () => {
   const fakeRow = (overrides: Record<string, unknown> = {}) => ({
     id: 'art-1',
     release_id: 'rel-1',
+    artifact_type: 'PDF',
     claim_token: 'tok-1',
     logo_storage_path: null,
     signer_signature_storage_path: null,
@@ -73,10 +74,13 @@ describe('PdfProcessorService', () => {
     return {
       resultReportRelease: {
         findUniqueOrThrow: jest.fn().mockResolvedValue(fakeRelease()),
+        findMany: jest.fn().mockResolvedValue([]),
       },
+      resultReportTest: { findMany: jest.fn().mockResolvedValue([]) },
       resultReportReleaseArtifact: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         update: jest.fn().mockResolvedValue({}),
+        findUnique: jest.fn().mockResolvedValue({ releaseId: 'rel-1' }),
       },
       $queryRaw: jest.fn().mockResolvedValue([]),
     };
@@ -179,6 +183,135 @@ describe('PdfProcessorService', () => {
         { label: 'Comercial', number: '+57 601 555 0000' },
         { label: 'Recepción (WhatsApp)', number: '+57 601 555 0001' },
       ]);
+    });
+
+    describe('clinic current report (CLINIC_REPORT_PDF)', () => {
+      const snapshot = (
+        sourceReportTestId: string,
+        name: string,
+        value: number
+      ) => ({
+        sourceReportTestId,
+        catalogItemName: name,
+        catalogItemCode: null,
+        department: null,
+        specimenTypes: [],
+        specimenAccessionNumbers: [],
+        observations: null,
+        analytes: [
+          {
+            name: 'Valor',
+            sectionName: null,
+            sortOrder: 1,
+            isHeader: false,
+            valueType: 'NUMERIC',
+            numericValue: value,
+            textValue: null,
+            booleanValue: null,
+            selectValue: null,
+            unit: null,
+            flag: null,
+            referenceSnapshot: null,
+          },
+        ],
+      });
+
+      // 1: CBC partial (12th) · 2: amendment of the CBC (16th, newest)
+      const partial = fakeRelease({
+        id: 'rel-1',
+        reportId: 'report-1',
+        releaseSequence: 1,
+        releaseType: 'PARTIAL',
+        releasedAt: new Date('2026-10-12T10:00:00Z'),
+        observations: 'Muestra lipémica',
+        tests: [snapshot('rt-cbc', 'Hemograma', 1)],
+      });
+      const amendment = fakeRelease({
+        id: 'rel-2',
+        reportId: 'report-1',
+        releaseSequence: 2,
+        releaseType: 'AMENDMENT',
+        releasedAt: new Date('2026-10-16T09:00:00Z'),
+        signerName: 'Dr. Amends',
+        observations: null,
+        tests: [snapshot('rt-cbc', 'Hemograma', 2)],
+      });
+
+      beforeEach(() => {
+        prisma.$queryRaw.mockResolvedValue([
+          fakeRow({ release_id: 'rel-2', artifact_type: 'CLINIC_REPORT_PDF' }),
+        ]);
+        prisma.resultReportRelease.findUniqueOrThrow.mockResolvedValue(
+          amendment
+        );
+        prisma.resultReportRelease.findMany.mockResolvedValue([
+          amendment,
+          partial,
+        ]);
+        prisma.resultReportTest.findMany.mockResolvedValue([
+          {
+            id: 'rt-cbc',
+            orderedTest: { catalogItemName: 'Hemograma', status: 'COMPLETED' },
+          },
+          {
+            id: 'rt-chem',
+            orderedTest: { catalogItemName: 'Química', status: 'IN_PROGRESS' },
+          },
+          {
+            id: 'rt-urine',
+            orderedTest: {
+              catalogItemName: 'Uroanálisis',
+              status: 'CANCELLED',
+            },
+          },
+        ]);
+      });
+
+      it('renders the latest values headed like the last non-amendment release', async () => {
+        await (service as any).claimAndProcess();
+
+        expect(prisma.resultReportRelease.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { reportId: 'report-1', releaseSequence: { lte: 2 } },
+          })
+        );
+        const data = renderer.render.mock.calls[0][0];
+        expect(data.tests.map((t: any) => t.analytes[0].numericValue)).toEqual([
+          2,
+        ]);
+        expect(data.releaseType).toBe('PARTIAL');
+        expect(data.releasedAt).toEqual(new Date('2026-10-12T10:00:00Z'));
+        expect(data.releaseSequence).toBeNull();
+        expect(data.observations).toBe('Muestra lipémica');
+        // Signer of the newest release
+        expect(data.signerName).toBe('Dr. Amends');
+        // Pending, not cancelled
+        expect(data.pendingTestNames).toEqual(['Química']);
+      });
+
+      it('stores it next to the release PDF, not over it', async () => {
+        storage.headObject
+          .mockResolvedValueOnce(false)
+          .mockResolvedValueOnce(true);
+
+        await (service as any).claimAndProcess();
+
+        expect(storage.uploadPdf).toHaveBeenCalledWith(
+          'lab-1/order-1/rel-2-clinic.pdf',
+          expect.any(Buffer)
+        );
+      });
+    });
+
+    it('a release PDF is rendered from its own release only', async () => {
+      prisma.$queryRaw.mockResolvedValue([fakeRow()]);
+
+      await (service as any).claimAndProcess();
+
+      expect(prisma.resultReportRelease.findMany).not.toHaveBeenCalled();
+      const data = renderer.render.mock.calls[0][0];
+      expect(data.releaseSequence).toBe(1);
+      expect(data.pendingTestNames).toEqual([]);
     });
 
     it('uploads directly when PDF does not yet exist in storage', async () => {
@@ -428,6 +561,21 @@ describe('PdfProcessorService', () => {
           claimToken: null,
           nextRetryAt: null,
         },
+      });
+    });
+
+    it("also re-queues the same release's failed clinic current report", async () => {
+      await service.retryArtifact('art-99');
+
+      expect(
+        prisma.resultReportReleaseArtifact.updateMany
+      ).toHaveBeenLastCalledWith({
+        where: {
+          releaseId: 'rel-1',
+          artifactType: 'CLINIC_REPORT_PDF',
+          status: 'FAILED',
+        },
+        data: expect.objectContaining({ status: 'PENDING', retryCount: 0 }),
       });
     });
 

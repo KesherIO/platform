@@ -13,6 +13,10 @@ import { OrderStatusService } from './order-status.service';
 import { labPhoneNumbersSnapshot } from './lab-contact.util';
 import { evaluateAllFormulas } from './formula.util';
 import {
+  CLINIC_REPORT_PDF_ARTIFACT,
+  RELEASE_PDF_ARTIFACT,
+} from './current-report.util';
+import {
   analystSnapshotFields,
   findActiveAnalyst,
 } from './analyst-signer.util';
@@ -451,17 +455,24 @@ export class ReleaseService {
           },
         });
 
-        await tx.resultReportReleaseArtifact.create({
-          data: {
-            releaseId: release.id,
-            artifactType: 'PDF',
-            logoStoragePath: imageStoragePaths.logoStoragePath,
-            signerSignatureStoragePath:
-              imageStoragePaths.signerSignatureStoragePath,
-            analystSignatureStoragePath:
-              imageStoragePaths.analystSignatureStoragePath,
-          },
-        });
+        // The release's own PDF, and the clinic's current report as of this
+        // release (served instead when the lab keeps amendments silent)
+        for (const artifactType of [
+          RELEASE_PDF_ARTIFACT,
+          CLINIC_REPORT_PDF_ARTIFACT,
+        ]) {
+          await tx.resultReportReleaseArtifact.create({
+            data: {
+              releaseId: release.id,
+              artifactType,
+              logoStoragePath: imageStoragePaths.logoStoragePath,
+              signerSignatureStoragePath:
+                imageStoragePaths.signerSignatureStoragePath,
+              analystSignatureStoragePath:
+                imageStoragePaths.analystSignatureStoragePath,
+            },
+          });
+        }
 
         await tx.timelineEvent.create({
           data: {
