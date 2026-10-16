@@ -435,6 +435,7 @@ describe('LabController', () => {
     it('approveAmendment delegates to amendmentService', async () => {
       await controller.approveAmendment(tenant, user, 'order-1', 'amend-1', {
         signerId: 'signer-1',
+        analystId: 'analyst-1',
       });
 
       expect(amendmentService.approveAmendment).toHaveBeenCalledWith(
@@ -442,6 +443,7 @@ describe('LabController', () => {
           orderId: 'order-1',
           amendmentId: 'amend-1',
           signerId: 'signer-1',
+          analystId: 'analyst-1',
         })
       );
     });
