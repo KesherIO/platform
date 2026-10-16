@@ -63,6 +63,10 @@ export function MembershipHistoryPanel({
         return e.newCanPerformPickups
           ? t('team.history.events.PICKUP_GRANTED')
           : t('team.history.events.PICKUP_REVOKED');
+      case 'IN_PROGRESS_ACCESS_CHANGED':
+        return e.newCanViewInProgress
+          ? t('team.history.events.IN_PROGRESS_GRANTED')
+          : t('team.history.events.IN_PROGRESS_REVOKED');
       case 'REMOVED':
         return t('team.history.events.REMOVED', {
           role: role(e.previousRole),

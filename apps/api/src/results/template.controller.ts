@@ -16,7 +16,6 @@ import { LabTenantGuard } from '../lab/lab-tenant.guard';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 import { LAB_STAFF_ROLES } from '../lab/lab-roles';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { TenantRole } from '@vet-ai/shared-types';
 import type { TenantContext } from '@vet-ai/shared-types';
 import { TemplateVersionService } from './template-version.service';
 import {
@@ -52,14 +51,7 @@ export class TemplateController {
   }
 
   @Post('templates')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   createDefinition(
     @CurrentTenant() tenant: TenantContext,
     @Body() dto: CreateTemplateDefinitionDto
@@ -68,14 +60,7 @@ export class TemplateController {
   }
 
   @Post('templates/:id/clone')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @HttpCode(HttpStatus.OK)
   cloneFromPlatform(
     @CurrentTenant() tenant: TenantContext,
@@ -85,14 +70,7 @@ export class TemplateController {
   }
 
   @Post('templates/:id/draft')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   createDraftVersion(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string
@@ -101,14 +79,7 @@ export class TemplateController {
   }
 
   @Patch('template-versions/:id')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   updateDraftVersion(
     @CurrentTenant() tenant: TenantContext,
     @Param('id') id: string,
@@ -118,14 +89,7 @@ export class TemplateController {
   }
 
   @Post('template-versions/:id/publish')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @HttpCode(HttpStatus.OK)
   publishVersion(
     @CurrentTenant() tenant: TenantContext,
@@ -135,14 +99,7 @@ export class TemplateController {
   }
 
   @Post('template-versions/:id/archive')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @HttpCode(HttpStatus.OK)
   archiveVersion(
     @CurrentTenant() tenant: TenantContext,
@@ -152,14 +109,7 @@ export class TemplateController {
   }
 
   @Delete('templates/:id')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteDefinition(
     @CurrentTenant() tenant: TenantContext,

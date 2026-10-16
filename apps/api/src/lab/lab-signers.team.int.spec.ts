@@ -83,7 +83,7 @@ describeWithDb('Signer team link against Postgres', () => {
 
   it('a linked analyst leaves the analyst list when removed from the team', async () => {
     const admin = await member('ADMIN', 'Admin');
-    const tech = await member('TECHNICIAN', 'Juan');
+    const tech = await member('ANALYST', 'Juan');
 
     await save(admin, [
       { id: 'temp-1', userId: tech, name: 'Juan', roles: ['ANALYST'] },
@@ -130,7 +130,7 @@ describeWithDb('Signer team link against Postgres', () => {
 
   it('records link changes in the team history', async () => {
     const admin = await member('ADMIN', 'Admin');
-    const a = await member('TECHNICIAN', 'Ana');
+    const a = await member('ANALYST', 'Ana');
     const b = await member('REVIEWER', 'Beto');
 
     const first = await save(admin, [

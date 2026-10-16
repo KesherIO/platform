@@ -36,6 +36,11 @@ export class UpdateLabUserDto {
   @IsOptional()
   canPerformPickups?: boolean;
 
+  /** RESULTS_VIEWER only — may also list orders in progress (status only) */
+  @IsBoolean()
+  @IsOptional()
+  canViewInProgress?: boolean;
+
   /** Optional — stored in the membership audit log. */
   @IsString()
   @IsOptional()

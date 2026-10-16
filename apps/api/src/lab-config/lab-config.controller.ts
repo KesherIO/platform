@@ -93,14 +93,7 @@ export class LabConfigController {
   }
 
   @Post('test-configs')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   upsertTestConfig(
     @CurrentTenant() tenant: TenantContext,
     @Body() dto: UpsertLabTestConfigDto
@@ -109,28 +102,14 @@ export class LabConfigController {
   }
 
   @Post('test-configs/generate')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @HttpCode(HttpStatus.OK)
   generateTestConfigs(@CurrentTenant() tenant: TenantContext) {
     return this.labTestConfigService.generateConfigs(tenant.tenantId);
   }
 
   @Delete('test-configs/:id')
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteTestConfig(
     @CurrentTenant() tenant: TenantContext,

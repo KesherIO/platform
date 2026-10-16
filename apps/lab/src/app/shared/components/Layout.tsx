@@ -16,6 +16,7 @@ import {
   FileText,
   Microscope,
   ShieldCheck,
+  Search,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
@@ -26,6 +27,7 @@ const ICON_SIZE = 18;
 const ICON_STROKE_WIDTH = 2;
 const POLL_MS = 60_000;
 const MESSENGER_HOME = '/my-pickups';
+const RESULTS_VIEWER_HOME = '/results';
 
 export function Layout() {
   const {
@@ -36,6 +38,7 @@ export function Layout() {
     labRole,
     canPerformPickups,
     vetVerificationRequired,
+    isResultsViewer,
     signOut,
   } = useAuth();
   const { t } = useTranslation();
@@ -45,12 +48,14 @@ export function Layout() {
   useDocumentTitle();
 
   const isMessenger = labRole === 'MESSENGER';
+  // Messengers and results viewers have a single page; no lab-wide badges
+  const isRestricted = isMessenger || isResultsViewer;
 
   const { data: unassignedData } = useQuery({
     queryKey: ['unassigned-count'],
     queryFn: () => labApi.pickups.unassignedCount(),
     refetchInterval: POLL_MS,
-    enabled: !isMessenger,
+    enabled: !isRestricted,
   });
   const unassignedCount = unassignedData?.count ?? 0;
 
@@ -61,7 +66,7 @@ export function Layout() {
     queryFn: () => labApi.worklist.readyCount(),
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
-    enabled: !isMessenger && !onWorklistPage,
+    enabled: !isRestricted && !onWorklistPage,
   });
   const worklistReadyCount = readyCountData?.count ?? 0;
 
@@ -72,7 +77,7 @@ export function Layout() {
     queryFn: () => labApi.verifications.getPendingCount(),
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
-    enabled: !isMessenger && !onVerificationsPage && vetVerificationRequired,
+    enabled: !isRestricted && !onVerificationsPage && vetVerificationRequired,
   });
   const pendingVerificationsCount = pendingVerificationsData?.count ?? 0;
 
@@ -97,8 +102,14 @@ export function Layout() {
   if (isMessenger && location.pathname !== MESSENGER_HOME) {
     return <Navigate to={MESSENGER_HOME} replace />;
   }
+  // Same for "Consulta": released results only, nothing else in the lab
+  if (isResultsViewer && location.pathname !== RESULTS_VIEWER_HOME) {
+    return <Navigate to={RESULTS_VIEWER_HOME} replace />;
+  }
 
-  const NAV_ITEMS = isMessenger
+  const NAV_ITEMS = isResultsViewer
+    ? [{ to: RESULTS_VIEWER_HOME, label: t('nav.results'), icon: Search }]
+    : isMessenger
     ? [
         {
           to: '/my-pickups',
@@ -146,16 +157,12 @@ export function Layout() {
           label: t('nav.templates'),
           icon: FileText,
         },
-        ...(!['ANALYST', 'REVIEWER', 'DATA_ENTRY'].includes(labRole ?? '')
-          ? [
-              {
-                to: '/collections',
-                label: t('nav.collections'),
-                icon: Truck,
-                badge: unassignedCount > 0 ? unassignedCount : undefined,
-              },
-            ]
-          : []),
+        {
+          to: '/collections',
+          label: t('nav.collections'),
+          icon: Truck,
+          badge: unassignedCount > 0 ? unassignedCount : undefined,
+        },
         ...(canPerformPickups
           ? [
               {

@@ -22,7 +22,12 @@ import { LabTenantGuard } from './lab-tenant.guard';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
-import { LAB_STAFF_AND_MESSENGER_ROLES, LAB_STAFF_ROLES } from './lab-roles';
+import {
+  LAB_RELEASE_ROLES,
+  LAB_RESULTS_ROLES,
+  LAB_STAFF_AND_MESSENGER_ROLES,
+  LAB_STAFF_ROLES,
+} from './lab-roles';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApiSecurity } from '@nestjs/swagger';
 import { TenantRole } from '@vet-ai/shared-types';
@@ -139,7 +144,7 @@ export class LabController {
 
   // GET /api/lab/me
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(...LAB_STAFF_AND_MESSENGER_ROLES)
+  @Roles(...LAB_STAFF_AND_MESSENGER_ROLES, TenantRole.RESULTS_VIEWER)
   @Get('me')
   async getMe(@CurrentTenant() tenant: TenantContext) {
     const vetVerificationRequired =
@@ -150,6 +155,7 @@ export class LabController {
       tenantName: tenant.tenantName,
       logoUrl: tenant.tenantLogoUrl,
       canPerformPickups: tenant.canPerformPickups,
+      canViewInProgress: tenant.canViewInProgress,
       vetVerificationRequired,
     };
   }
@@ -178,15 +184,7 @@ export class LabController {
 
   // PATCH /api/lab/orders/:id/status
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.RECEPTIONIST,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES, TenantRole.RECEPTIONIST)
   @Patch('orders/:id/status')
   updateOrderStatus(
     @CurrentTenant() tenant: TenantContext,
@@ -198,15 +196,7 @@ export class LabController {
 
   // POST /api/lab/orders/:id/ordered-tests
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.RECEPTIONIST,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES, TenantRole.RECEPTIONIST)
   @Post('orders/:id/ordered-tests')
   initOrderedTests(
     @CurrentTenant() tenant: TenantContext,
@@ -217,14 +207,7 @@ export class LabController {
 
   // PATCH /api/lab/ordered-tests/:testId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Patch('ordered-tests/:testId')
   updateOrderedTest(
     @CurrentTenant() tenant: TenantContext,
@@ -243,15 +226,7 @@ export class LabController {
 
   // PATCH /api/lab/ordered-tests/:testId/receive
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.RECEPTIONIST,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES, TenantRole.RECEPTIONIST)
   @Patch('ordered-tests/:testId/receive')
   receiveOrderedTest(
     @CurrentTenant() tenant: TenantContext,
@@ -262,15 +237,7 @@ export class LabController {
 
   // POST /api/lab/orders/:id/receive-all
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.RECEPTIONIST,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES, TenantRole.RECEPTIONIST)
   @Post('orders/:id/receive-all')
   @HttpCode(HttpStatus.OK)
   receiveAllOrderedTests(
@@ -293,15 +260,7 @@ export class LabController {
 
   // POST /api/lab/orders/:id/accession
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.RECEPTIONIST,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES, TenantRole.RECEPTIONIST)
   @Post('orders/:id/accession')
   @HttpCode(HttpStatus.OK)
   accessionOrder(
@@ -323,15 +282,7 @@ export class LabController {
 
   // PATCH /api/lab/specimens/:specimenId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.RECEPTIONIST,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES, TenantRole.RECEPTIONIST)
   @Patch('specimens/:specimenId')
   updateSpecimen(
     @CurrentTenant() tenant: TenantContext,
@@ -352,15 +303,7 @@ export class LabController {
 
   // POST /api/lab/orders/:orderId/specimens/:specimenId/mark-missing
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.RECEPTIONIST,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES, TenantRole.RECEPTIONIST)
   @Post('orders/:orderId/specimens/:specimenId/mark-missing')
   @HttpCode(HttpStatus.OK)
   markSpecimenMissing(
@@ -543,14 +486,7 @@ export class LabController {
 
   // POST /api/lab/orders/:orderId/submit-for-review
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Post('orders/:orderId/submit-for-review')
   @HttpCode(HttpStatus.OK)
   submitForReview(
@@ -572,7 +508,7 @@ export class LabController {
 
   // POST /api/lab/orders/:orderId/approve-release
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(...LAB_RELEASE_ROLES)
   @Post('orders/:orderId/approve-release')
   @HttpCode(HttpStatus.OK)
   approveAndRelease(
@@ -598,7 +534,7 @@ export class LabController {
 
   // POST /api/lab/orders/:orderId/request-corrections
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(...LAB_RELEASE_ROLES)
   @Post('orders/:orderId/request-corrections')
   @HttpCode(HttpStatus.OK)
   requestCorrections(
@@ -641,14 +577,7 @@ export class LabController {
 
   // GET /api/lab/orders/:orderId/releases
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_RESULTS_ROLES)
   @Get('orders/:orderId/releases')
   getReleaseHistory(
     @CurrentTenant() tenant: TenantContext,
@@ -659,14 +588,7 @@ export class LabController {
 
   // GET /api/lab/orders/:orderId/current-results
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_RESULTS_ROLES)
   @Get('orders/:orderId/current-results')
   getCurrentResults(
     @CurrentTenant() tenant: TenantContext,
@@ -681,14 +603,7 @@ export class LabController {
 
   // POST /api/lab/orders/:orderId/amendments
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Post('orders/:orderId/amendments')
   initiateAmendment(
     @CurrentTenant() tenant: TenantContext,
@@ -710,14 +625,7 @@ export class LabController {
 
   // GET /api/lab/orders/:orderId/active-amendments
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Get('orders/:orderId/active-amendments')
   getActiveAmendments(
     @CurrentTenant() tenant: TenantContext,
@@ -728,14 +636,7 @@ export class LabController {
 
   // GET /api/lab/orders/:orderId/amendments/:amendmentId
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Get('orders/:orderId/amendments/:amendmentId')
   getAmendment(
     @CurrentTenant() tenant: TenantContext,
@@ -751,14 +652,7 @@ export class LabController {
 
   // PUT /api/lab/orders/:orderId/amendments/:amendmentId/analytes
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Put('orders/:orderId/amendments/:amendmentId/analytes')
   editAmendmentAnalytes(
     @CurrentTenant() tenant: TenantContext,
@@ -776,14 +670,7 @@ export class LabController {
 
   // POST /api/lab/orders/:orderId/amendments/:amendmentId/submit
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Post('orders/:orderId/amendments/:amendmentId/submit')
   @HttpCode(HttpStatus.OK)
   submitAmendmentForReview(
@@ -805,7 +692,7 @@ export class LabController {
 
   // POST /api/lab/orders/:orderId/amendments/:amendmentId/approve
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(...LAB_RELEASE_ROLES)
   @Post('orders/:orderId/amendments/:amendmentId/approve')
   @HttpCode(HttpStatus.OK)
   approveAmendment(
@@ -831,14 +718,7 @@ export class LabController {
 
   // POST /api/lab/orders/:orderId/amendments/:amendmentId/cancel
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Post('orders/:orderId/amendments/:amendmentId/cancel')
   @HttpCode(HttpStatus.OK)
   cancelAmendment(
@@ -940,14 +820,7 @@ export class LabController {
 
   // GET /api/lab/vet-verifications/:id/document
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.ADMIN,
-    TenantRole.OWNER,
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Get('vet-verifications/:id/document')
   getVetVerificationDocument(
     @CurrentTenant() tenant: TenantContext,
@@ -1529,28 +1402,14 @@ export class LabController {
   // ---------------------------------------------------------------------------
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Get('worklist/ready-count')
   getWorklistReadyCount(@CurrentTenant() tenant: TenantContext) {
     return this.worklistService.getReadyCount(tenant.tenantId);
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Get('worklist')
   getWorklist(
     @CurrentTenant() tenant: TenantContext,
@@ -1561,28 +1420,14 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Get('worklist/counts')
   getWorklistCounts(@CurrentTenant() tenant: TenantContext) {
     return this.worklistService.getWorklistCounts(tenant.tenantId);
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Post('ordered-tests/:testId/claim')
   @HttpCode(HttpStatus.OK)
   claimTest(
@@ -1600,14 +1445,7 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Post('ordered-tests/:testId/unclaim')
   @HttpCode(HttpStatus.OK)
   unclaimTest(
@@ -1624,14 +1462,7 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Post('ordered-tests/:testId/start')
   @HttpCode(HttpStatus.OK)
   startTest(
@@ -1660,14 +1491,7 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Post('ordered-tests/batch-claim')
   @HttpCode(HttpStatus.OK)
   batchClaimTests(
@@ -1683,14 +1507,7 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(
-    TenantRole.TECHNICIAN,
-    TenantRole.ANALYST,
-    TenantRole.REVIEWER,
-    TenantRole.DATA_ENTRY,
-    TenantRole.ADMIN,
-    TenantRole.OWNER
-  )
+  @Roles(...LAB_STAFF_ROLES)
   @Post('ordered-tests/batch-start')
   @HttpCode(HttpStatus.OK)
   batchStartTests(
@@ -1764,11 +1581,11 @@ export class LabController {
   // PDF artifacts
   // GET  lab/releases/:releaseId/artifacts/pdf          — status
   // GET  lab/releases/:releaseId/artifacts/pdf/download — binary download
-  // POST lab/releases/:releaseId/artifacts/pdf/retry    — admin retry
+  // POST lab/releases/:releaseId/artifacts/pdf/retry    — re-render a failed PDF
   // ---------------------------------------------------------------------------
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(...LAB_STAFF_ROLES)
+  @Roles(...LAB_RESULTS_ROLES)
   @Get('releases/:releaseId/artifacts/pdf')
   async getPdfArtifactStatus(
     @CurrentTenant() tenant: TenantContext,
@@ -1782,7 +1599,7 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(...LAB_STAFF_ROLES)
+  @Roles(...LAB_RESULTS_ROLES)
   @Get('releases/:releaseId/artifacts/pdf/download')
   async downloadPdf(
     @CurrentTenant() tenant: TenantContext,
@@ -1809,7 +1626,7 @@ export class LabController {
   }
 
   @UseGuards(JwtAuthGuard, LabTenantGuard)
-  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Roles(...LAB_RESULTS_ROLES)
   @Post('releases/:releaseId/artifacts/pdf/retry')
   @HttpCode(HttpStatus.OK)
   async retryPdf(

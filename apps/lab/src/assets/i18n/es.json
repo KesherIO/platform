@@ -70,7 +70,8 @@
     "test_config": "Config. Pruebas",
     "templates": "Plantillas",
     "worklist": "Worklist",
-    "verifications": "Verificaciones"
+    "verifications": "Verificaciones",
+    "results": "Resultados"
   },
   "status": {
     "PENDING": "Pendiente",
@@ -899,7 +900,8 @@
       "ANALYST": "Analista",
       "REVIEWER": "Revisor",
       "DATA_ENTRY": "Digitador",
-      "MESSENGER": "Mensajero"
+      "MESSENGER": "Mensajero",
+      "RESULTS_VIEWER": "Consulta"
     },
     "schedule": {
       "title": "Horario semanal",
@@ -927,7 +929,9 @@
       "cancel": "Cancelar",
       "submit": "Agregar miembro",
       "submitting": "Agregando...",
-      "can_perform_pickups": "Este miembro del equipo puede realizar recolecciones de muestras"
+      "can_perform_pickups": "Este miembro del equipo puede realizar recolecciones de muestras",
+      "can_view_in_progress": "Puede ver órdenes en proceso",
+      "can_view_in_progress_hint": "Para facturación: muestra el estado de cada prueba, nunca los valores de los resultados."
     },
     "can_perform_pickups_badge": "Acceso a recolecciones",
     "save": "Guardar",
@@ -987,10 +991,13 @@
         "SIGNER_LINKED": "Vinculado al firmante {{signer}}",
         "SIGNER_UNLINKED": "Desvinculado del firmante {{signer}}",
         "SIGNER_ROLES_CHANGED": "Firmante {{signer}}: roles cambiados de {{from}} a {{to}}",
-        "SIGNATURE_REPLACED": "Imagen de firma reemplazada para el firmante {{signer}}"
+        "SIGNATURE_REPLACED": "Imagen de firma reemplazada para el firmante {{signer}}",
+        "IN_PROGRESS_GRANTED": "Acceso a órdenes en proceso otorgado",
+        "IN_PROGRESS_REVOKED": "Acceso a órdenes en proceso retirado"
       }
     },
-    "signer_badge": "Firmante"
+    "signer_badge": "Firmante",
+    "can_view_in_progress_badge": "En proceso"
   },
   "collections": {
     "title": "Recolecciones",
@@ -1430,5 +1437,9 @@
     "error_revoked_title": "Enlace revocado",
     "error_revoked_body": "Este enlace de registro ha sido revocado.",
     "error_generic": "Algo salió mal. Por favor intenta de nuevo."
+  },
+  "results": {
+    "title": "Resultados",
+    "coming_soon": "La búsqueda de resultados estará disponible pronto."
   }
 }

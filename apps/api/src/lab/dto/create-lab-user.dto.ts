@@ -1,3 +1,4 @@
+import { LAB_ASSIGNABLE_ROLES } from '../lab-roles';
 import {
   IsBoolean,
   IsEmail,
@@ -23,14 +24,7 @@ export class CreateLabUserDto {
   @IsString()
   lastName!: string;
 
-  @IsEnum([
-    'ADMIN',
-    'TECHNICIAN',
-    'ANALYST',
-    'REVIEWER',
-    'DATA_ENTRY',
-    'MESSENGER',
-  ])
+  @IsEnum(LAB_ASSIGNABLE_ROLES)
   role!: string;
 
   /** MESSENGER only — recurring weekly availability. Shape validated in the service. */
@@ -41,6 +35,11 @@ export class CreateLabUserDto {
   @IsBoolean()
   @IsOptional()
   canPerformPickups?: boolean;
+
+  /** RESULTS_VIEWER only — may also list orders in progress (status only) */
+  @IsBoolean()
+  @IsOptional()
+  canViewInProgress?: boolean;
 
   /** Optional — stored in the membership audit log. */
   @IsString()

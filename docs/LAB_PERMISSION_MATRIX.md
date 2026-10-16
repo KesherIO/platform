@@ -1,8 +1,34 @@
-# Lab Permission Matrix — Proposal
+# Lab Permission Matrix
+
+## 0. Lab roles since 2026-10-15 (implemented)
+
+Decided with the lab on 2026-10-15: fewer roles, plus one per-person checkbox, instead of
+a role per variation. Code: `apps/api/src/lab/lab-roles.ts`, pinned by
+`lab-routes.authz.spec.ts`; `LabTenantGuard` denies any lab route without `@Roles`.
+
+| Role (Team page)           | Enum           | Can do                                                                             |
+| -------------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| Propietario, Administrador | OWNER, ADMIN   | Everything, as before                                                              |
+| Revisor                    | REVIEWER       | Analista work **plus** release, request corrections, approve amendments            |
+| Analista                   | ANALYST        | Receive, claim, enter results (incl. third-party pathology), templates; no release |
+| Consulta                   | RESULTS_VIEWER | Read-only released results and their PDFs (Resultados page)                        |
+| Mensajero                  | MESSENGER      | Pickups only                                                                       |
+
+- Checkbox **"Puede ver órdenes en proceso"** (`canViewInProgress`, Consulta only, for
+  Facturación): also lists orders in progress with each test's status, never the values.
+- Lab TECHNICIAN ("Personal") and DATA_ENTRY ("Digitador") members were moved to ANALYST by
+  migration `20261016000001_lab_roles_consolidation` (one ROLE_CHANGED history entry each).
+  The enum values stay for clinic staff and old history rows.
+- PDF retry is open to everyone who can read the release, and only re-renders a FAILED PDF.
+- Abbreviations used below since then: **Staff** = ANALYST, REVIEWER, ADMIN, OWNER;
+  **R/A/O** = REVIEWER, ADMIN, OWNER; **Results** = Staff plus RESULTS_VIEWER.
+
+Sections 1–7 below are the analysis that led here (2026-10-14); role tables in section 3
+show the current roles.
 
 ## 1. Purpose and status
 
-**Proposal — not implemented. Confirm with Biomet before PR 2.**
+**Analysis of 2026-10-14. Superseded by section 0 for the role model.**
 
 This document records who can do what in the lab portal today, and proposes moving from
 role lists on each endpoint to **named actions** checked against one central matrix.
@@ -62,7 +88,9 @@ changing those two roles affects no current Biomet user.
 
 Abbreviations:
 
-- **Staff** = TECHNICIAN, ANALYST, REVIEWER, DATA_ENTRY, ADMIN, OWNER
+- **Staff** = ANALYST, REVIEWER, ADMIN, OWNER (until 2026-10-15 it also included
+  TECHNICIAN and DATA_ENTRY)
+- **R/A/O** = REVIEWER, ADMIN, OWNER; **Results** = Staff plus RESULTS_VIEWER (section 0)
 - **Staff+R** = Staff plus RECEPTIONIST. RECEPTIONIST cannot reach these routes in practice
   (no lab membership has it), so in effect this is the same as Staff
 - **Staff+M** = Staff plus MESSENGER. The service also checks that the pickup is assigned to
@@ -85,18 +113,18 @@ Abbreviations:
 | results.submit ²          | `POST lab/ordered-tests/:testId/submit-results`, `POST lab/ordered-tests/batch-save-submit`                                                      | Staff         |
 | reports.view (draft)      | `GET lab/reports/by-order/:orderId`, `GET lab/reports/:reportId`                                                                                 | Staff         |
 | review.submit             | `POST lab/orders/:orderId/submit-for-review`                                                                                                     | Staff         |
-| review.requestCorrections | `POST lab/orders/:orderId/request-corrections`                                                                                                   | A/O           |
-| results.release           | `POST lab/orders/:orderId/approve-release`                                                                                                       | A/O           |
+| review.requestCorrections | `POST lab/orders/:orderId/request-corrections`                                                                                                   | R/A/O         |
+| results.release           | `POST lab/orders/:orderId/approve-release`                                                                                                       | R/A/O         |
 | signers.view              | `GET lab/signers/reviewers`, `GET lab/signers/analysts`                                                                                          | Staff         |
-| releases.view             | `GET lab/orders/:orderId/releases`, `GET lab/orders/:orderId/current-results`                                                                    | Staff         |
-| releases.pdf              | `GET lab/releases/:releaseId/artifacts/pdf`, `GET lab/releases/:releaseId/artifacts/pdf/download`                                                | Staff         |
-| releases.pdfRetry         | `POST lab/releases/:releaseId/artifacts/pdf/retry`                                                                                               | A/O           |
+| releases.view             | `GET lab/orders/:orderId/releases`, `GET lab/orders/:orderId/current-results`                                                                    | Results       |
+| releases.pdf              | `GET lab/releases/:releaseId/artifacts/pdf`, `GET lab/releases/:releaseId/artifacts/pdf/download`                                                | Results       |
+| releases.pdfRetry         | `POST lab/releases/:releaseId/artifacts/pdf/retry`                                                                                               | Results       |
 | amendments.view           | `GET lab/orders/:orderId/active-amendments`, `GET lab/orders/:orderId/amendments/:amendmentId`                                                   | Staff         |
 | amendments.create         | `POST lab/orders/:orderId/amendments`                                                                                                            | Staff         |
 | amendments.edit           | `PUT lab/orders/:orderId/amendments/:amendmentId/analytes`                                                                                       | Staff         |
 | amendments.submit         | `POST lab/orders/:orderId/amendments/:amendmentId/submit`                                                                                        | Staff         |
 | amendments.cancel         | `POST lab/orders/:orderId/amendments/:amendmentId/cancel`                                                                                        | Staff         |
-| amendments.approve        | `POST lab/orders/:orderId/amendments/:amendmentId/approve`                                                                                       | A/O           |
+| amendments.approve        | `POST lab/orders/:orderId/amendments/:amendmentId/approve`                                                                                       | R/A/O         |
 
 ¹ `PATCH lab/ordered-tests/:testId` accepts `status` (incl. COMPLETED / CANCELLED),
 `entryMethod`, `instrumentId` and **`assignedUserId`**. Any staff member can therefore

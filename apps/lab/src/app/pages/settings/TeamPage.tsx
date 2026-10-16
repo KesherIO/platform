@@ -17,24 +17,32 @@ import type {
 import { ReasonDialog } from './ReasonDialog';
 import { MembershipHistoryPanel } from './MembershipHistoryPanel';
 
-/** Roles an admin can assign (the API rejects OWNER; no ownership transfer yet). */
+/**
+ * Roles an admin can assign (the API rejects OWNER; no ownership transfer
+ * yet). Same as LAB_ASSIGNABLE_ROLES in the API.
+ */
 const ROLES: LabRole[] = [
   'ADMIN',
-  'TECHNICIAN',
-  'ANALYST',
   'REVIEWER',
-  'DATA_ENTRY',
+  'ANALYST',
+  'RESULTS_VIEWER',
   'MESSENGER',
 ];
+
+/** Pickups are intrinsic to MESSENGER and never for a results viewer. */
+const canHavePickups = (role: LabRole) =>
+  role !== 'MESSENGER' && role !== 'RESULTS_VIEWER';
 
 const ROLE_COLORS: Record<LabRole, string> = {
   OWNER: 'bg-amber-400/20 text-amber-300',
   ADMIN: 'bg-purple/20 text-purple',
-  TECHNICIAN: 'bg-cyan/20 text-cyan',
-  ANALYST: 'bg-blue-400/20 text-blue-300',
   REVIEWER: 'bg-emerald-400/20 text-emerald-300',
-  DATA_ENTRY: 'bg-indigo-400/20 text-indigo-300',
+  ANALYST: 'bg-cyan/20 text-cyan',
+  RESULTS_VIEWER: 'bg-blue-400/20 text-blue-300',
   MESSENGER: 'bg-orange-900/30 text-orange-300',
+  // Retired lab roles, only in old history entries
+  TECHNICIAN: 'bg-gray-700 text-gray-300',
+  DATA_ENTRY: 'bg-gray-700 text-gray-300',
 };
 
 interface CreateForm {
@@ -45,6 +53,7 @@ interface CreateForm {
   role: LabRole;
   schedule: WeeklySchedule;
   canPerformPickups: boolean;
+  canViewInProgress: boolean;
 }
 
 interface EditForm {
@@ -54,7 +63,8 @@ interface EditForm {
   role: LabRole;
   schedule: WeeklySchedule;
   canPerformPickups: boolean;
-  /** Audit-log reason: required for a role change, optional for pickups. */
+  canViewInProgress: boolean;
+  /** Audit-log reason: required for a role change, optional for the flags. */
   reason: string;
 }
 
@@ -63,9 +73,10 @@ const EMPTY_FORM: CreateForm = {
   lastName: '',
   email: '',
   password: '',
-  role: 'TECHNICIAN',
+  role: 'ANALYST',
   schedule: makeEmptySchedule(),
   canPerformPickups: false,
+  canViewInProgress: false,
 };
 
 function RowActionsMenu({
@@ -196,9 +207,10 @@ export function TeamPage() {
     firstName: '',
     lastName: '',
     email: '',
-    role: 'TECHNICIAN',
+    role: 'ANALYST',
     schedule: makeEmptySchedule(),
     canPerformPickups: false,
+    canViewInProgress: false,
     reason: '',
   });
   const [editOriginal, setEditOriginal] = useState<LabMember | null>(null);
@@ -230,10 +242,12 @@ export function TeamPage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      const { schedule, canPerformPickups, ...rest } = form;
+      const { schedule, canPerformPickups, canViewInProgress, ...rest } = form;
       const payload =
         form.role === 'MESSENGER'
           ? { ...rest, schedule }
+          : form.role === 'RESULTS_VIEWER'
+          ? { ...rest, ...(canViewInProgress && { canViewInProgress: true }) }
           : { ...rest, ...(canPerformPickups && { canPerformPickups: true }) };
       await labApi.users.create(payload as unknown as Record<string, unknown>);
       setShowForm(false);
@@ -261,6 +275,7 @@ export function TeamPage() {
       role: member.role,
       schedule: member.schedule ?? makeEmptySchedule(),
       canPerformPickups: member.canPerformPickups,
+      canViewInProgress: member.canViewInProgress,
       reason: '',
     });
     setEditOriginal(member);
@@ -271,8 +286,12 @@ export function TeamPage() {
   const editRoleChanged = !!editOriginal && editForm.role !== editOriginal.role;
   const editPickupsChanged =
     !!editOriginal &&
-    editForm.role !== 'MESSENGER' &&
+    canHavePickups(editForm.role) &&
     editForm.canPerformPickups !== editOriginal.canPerformPickups;
+  const editInProgressChanged =
+    !!editOriginal &&
+    editForm.role === 'RESULTS_VIEWER' &&
+    editForm.canViewInProgress !== editOriginal.canViewInProgress;
   const editReasonMissing = editRoleChanged && !editForm.reason.trim();
 
   const handleSaveEdit = async (originalRole: LabRole) => {
@@ -280,23 +299,34 @@ export function TeamPage() {
     try {
       setSaving(true);
       setActionError(null);
-      const { schedule, canPerformPickups, role, reason, ...rest } = editForm;
+      const {
+        schedule,
+        canPerformPickups,
+        canViewInProgress,
+        role,
+        reason,
+        ...rest
+      } = editForm;
       const trimmedReason = reason.trim();
       const payload =
         role === 'MESSENGER'
           ? { ...rest, schedule }
           : {
               ...rest,
-              canPerformPickups,
+              ...(role === 'RESULTS_VIEWER'
+                ? { canViewInProgress }
+                : { canPerformPickups }),
               ...(trimmedReason && { reason: trimmedReason }),
             };
+      // Role first: the flags only apply to the new role (e.g. in-progress
+      // access exists only for a results viewer).
+      if (role !== originalRole) {
+        await labApi.users.updateRole(editingId, role, trimmedReason);
+      }
       await labApi.users.update(
         editingId,
         payload as unknown as Record<string, unknown>
       );
-      if (role !== originalRole) {
-        await labApi.users.updateRole(editingId, role, trimmedReason);
-      }
       if (editingId === user?.id) await refreshTenant();
       setEditingId(null);
       setEditOriginal(null);
@@ -418,8 +448,11 @@ export function TeamPage() {
                   setForm({
                     ...form,
                     role: newRole,
-                    ...(newRole === 'MESSENGER' && {
+                    ...(!canHavePickups(newRole) && {
                       canPerformPickups: false,
+                    }),
+                    ...(newRole !== 'RESULTS_VIEWER' && {
+                      canViewInProgress: false,
                     }),
                   });
                 }}
@@ -445,7 +478,7 @@ export function TeamPage() {
               </div>
             )}
 
-            {form.role !== 'MESSENGER' && (
+            {canHavePickups(form.role) && (
               <label className="flex items-center gap-2 text-sm text-gray-300">
                 <input
                   type="checkbox"
@@ -456,6 +489,25 @@ export function TeamPage() {
                   className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-cyan accent-cyan"
                 />
                 {t('team.form.can_perform_pickups')}
+              </label>
+            )}
+
+            {form.role === 'RESULTS_VIEWER' && (
+              <label className="flex items-start gap-2 text-sm text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={form.canViewInProgress}
+                  onChange={(e) =>
+                    setForm({ ...form, canViewInProgress: e.target.checked })
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-cyan accent-cyan"
+                />
+                <span>
+                  {t('team.form.can_view_in_progress')}
+                  <span className="block text-xs text-gray-500">
+                    {t('team.form.can_view_in_progress_hint')}
+                  </span>
+                </span>
               </label>
             )}
 
@@ -631,7 +683,7 @@ export function TeamPage() {
                         />
                       </div>
                     )}
-                    {editForm.role !== 'MESSENGER' && (
+                    {canHavePickups(editForm.role) && (
                       <label className="flex items-center gap-2 text-sm text-gray-300">
                         <input
                           type="checkbox"
@@ -647,7 +699,30 @@ export function TeamPage() {
                         {t('team.form.can_perform_pickups')}
                       </label>
                     )}
-                    {(editRoleChanged || editPickupsChanged) && (
+                    {editForm.role === 'RESULTS_VIEWER' && (
+                      <label className="flex items-start gap-2 text-sm text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={editForm.canViewInProgress}
+                          onChange={(e) =>
+                            setEditForm((f) => ({
+                              ...f,
+                              canViewInProgress: e.target.checked,
+                            }))
+                          }
+                          className="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-cyan accent-cyan"
+                        />
+                        <span>
+                          {t('team.form.can_view_in_progress')}
+                          <span className="block text-xs text-gray-500">
+                            {t('team.form.can_view_in_progress_hint')}
+                          </span>
+                        </span>
+                      </label>
+                    )}
+                    {(editRoleChanged ||
+                      editPickupsChanged ||
+                      editInProgressChanged) && (
                       <div>
                         <label className="mb-1 block text-xs text-gray-500">
                           {editRoleChanged
@@ -741,6 +816,12 @@ export function TeamPage() {
                           member.role !== 'MESSENGER' && (
                             <span className="rounded-full bg-orange-900/30 px-2.5 py-0.5 text-xs font-medium text-orange-300">
                               {t('team.can_perform_pickups_badge')}
+                            </span>
+                          )}
+                        {member.canViewInProgress &&
+                          member.role === 'RESULTS_VIEWER' && (
+                            <span className="rounded-full bg-blue-900/30 px-2.5 py-0.5 text-xs font-medium text-blue-300">
+                              {t('team.can_view_in_progress_badge')}
                             </span>
                           )}
                       </div>

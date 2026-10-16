@@ -17,6 +17,12 @@ interface AuthContextValue {
   loading: boolean;
   labRole: LabRole | null;
   isAdmin: boolean;
+  /** Release, request corrections, approve amendments (LAB_RELEASE_ROLES) */
+  canRelease: boolean;
+  /** "Consulta": only the Resultados page, read-only */
+  isResultsViewer: boolean;
+  /** Results viewer with access to orders in progress (status only) */
+  canViewInProgress: boolean;
   canPerformPickups: boolean;
   vetVerificationRequired: boolean;
   /** The lab tenant's id, from /lab/me */
@@ -35,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [labRole, setLabRole] = useState<LabRole | null>(null);
   const [canPerformPickupsFlag, setCanPerformPickupsFlag] = useState(false);
+  const [canViewInProgressFlag, setCanViewInProgressFlag] = useState(false);
   const [vetVerificationRequired, setVetVerificationRequired] = useState(false);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [tenantName, setTenantName] = useState<string | null>(null);
@@ -73,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessDenied(false);
       setLabRole(data.role as LabRole);
       setCanPerformPickupsFlag(data.canPerformPickups ?? false);
+      setCanViewInProgressFlag(data.canViewInProgress ?? false);
       setVetVerificationRequired(data.vetVerificationRequired ?? false);
       setTenantName(data.tenantName ?? null);
       setLogoUrl(data.logoUrl ?? null);
@@ -143,6 +151,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         labRole,
         isAdmin: labRole === 'ADMIN' || labRole === 'OWNER',
+        canRelease:
+          labRole === 'REVIEWER' || labRole === 'ADMIN' || labRole === 'OWNER',
+        isResultsViewer: labRole === 'RESULTS_VIEWER',
+        canViewInProgress:
+          labRole === 'RESULTS_VIEWER' && canViewInProgressFlag,
         canPerformPickups: labRole === 'MESSENGER' || canPerformPickupsFlag,
         vetVerificationRequired,
         tenantId,

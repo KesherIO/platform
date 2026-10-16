@@ -20,6 +20,7 @@ const mockMembership = {
   tenantId: LAB_ID,
   role: 'TECHNICIAN',
   canPerformPickups: false,
+  canViewInProgress: false,
   schedule: null,
   createdAt: new Date('2026-07-01'),
 };
@@ -231,7 +232,7 @@ describe('LabUsersService', () => {
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { role: 'ADMIN' },
+          data: { role: 'ADMIN', canViewInProgress: false },
         })
       );
     });
@@ -258,7 +259,11 @@ describe('LabUsersService', () => {
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { role: 'MESSENGER', canPerformPickups: false },
+          data: {
+            role: 'MESSENGER',
+            canPerformPickups: false,
+            canViewInProgress: false,
+          },
         })
       );
     });
@@ -270,13 +275,13 @@ describe('LabUsersService', () => {
       });
       prisma.userTenantMembership.update.mockResolvedValue({
         ...mockMembership,
-        role: 'TECHNICIAN',
+        role: 'ANALYST',
       });
 
       await service.updateRole(
         LAB_ID,
         USER_ID,
-        'TECHNICIAN',
+        'ANALYST',
         REASON,
         ADMIN_ID,
         TenantRole.ADMIN
@@ -284,7 +289,11 @@ describe('LabUsersService', () => {
 
       expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { role: 'TECHNICIAN', canPerformPickups: false },
+          data: {
+            role: 'ANALYST',
+            canPerformPickups: false,
+            canViewInProgress: false,
+          },
         })
       );
     });
@@ -701,6 +710,7 @@ describe('LabUsersService', () => {
         newRole: 'TECHNICIAN',
         newStatus: 'ACTIVE',
         newCanPerformPickups: false,
+        newCanViewInProgress: false,
         reason: null,
       });
     });
@@ -919,6 +929,152 @@ describe('LabUsersService', () => {
       );
 
       expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('in-progress access (Consulta / Facturación)', () => {
+    const viewer = { ...mockMembership, role: 'RESULTS_VIEWER' };
+    const created = () =>
+      prisma.userTenantMembership.create.mock.calls[0][0].data;
+
+    beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      auth.createSupabaseUser.mockResolvedValue(USER_ID);
+      prisma.user.upsert.mockResolvedValue({ id: USER_ID });
+      prisma.userTenantMembership.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => ({
+          canPerformPickups: false,
+          canViewInProgress: false,
+          ...data,
+        })
+      );
+    });
+
+    const newUser = (role: string) => ({
+      email: 'x@lab.com',
+      password: 'long-password',
+      firstName: 'X',
+      lastName: 'Y',
+      role,
+      canViewInProgress: true,
+      canPerformPickups: true,
+    });
+
+    it('a new results viewer can get it, never pickups', async () => {
+      await service.createLabUser(LAB_ID, newUser('RESULTS_VIEWER'), ADMIN_ID);
+
+      expect(created()).toMatchObject({ canViewInProgress: true });
+      expect(created().canPerformPickups).toBeUndefined();
+    });
+
+    it('is ignored for any other role', async () => {
+      await service.createLabUser(LAB_ID, newUser('ANALYST'), ADMIN_ID);
+
+      expect(created().canViewInProgress).toBeUndefined();
+      expect(created()).toMatchObject({ canPerformPickups: true });
+    });
+
+    it('turning it on for a viewer is saved and logged', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(viewer);
+      prisma.user.update.mockResolvedValue({ id: USER_ID });
+
+      const result = await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        { canViewInProgress: true, reason: 'Facturación' },
+        ADMIN_ID
+      );
+
+      expect(prisma.userTenantMembership.update).toHaveBeenCalledWith({
+        where: { userId_tenantId: { userId: USER_ID, tenantId: LAB_ID } },
+        data: { canViewInProgress: true },
+      });
+      expect(result.canViewInProgress).toBe(true);
+      expect(prisma.membershipEvent.create.mock.calls[0][0].data).toMatchObject(
+        {
+          eventType: 'IN_PROGRESS_ACCESS_CHANGED',
+          previousCanViewInProgress: false,
+          newCanViewInProgress: true,
+          reason: 'Facturación',
+        }
+      );
+    });
+
+    it('stays off for a non-viewer and logs nothing', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+      prisma.user.update.mockResolvedValue({ id: USER_ID });
+
+      await service.updateUser(
+        LAB_ID,
+        USER_ID,
+        { canViewInProgress: true },
+        ADMIN_ID
+      );
+
+      expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { canViewInProgress: false } })
+      );
+      expect(prisma.membershipEvent.create).not.toHaveBeenCalled();
+    });
+
+    it('is cleared and recorded when the viewer gets another role', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        ...viewer,
+        canViewInProgress: true,
+      });
+      prisma.userTenantMembership.update.mockResolvedValue({
+        ...viewer,
+        role: 'ANALYST',
+        canViewInProgress: false,
+      });
+
+      await service.updateRole(
+        LAB_ID,
+        USER_ID,
+        'ANALYST',
+        REASON,
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
+
+      expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { role: 'ANALYST', canViewInProgress: false },
+        })
+      );
+      expect(prisma.membershipEvent.create.mock.calls[0][0].data).toMatchObject(
+        {
+          eventType: 'ROLE_CHANGED',
+          previousCanViewInProgress: true,
+          newCanViewInProgress: false,
+        }
+      );
+    });
+
+    it('a viewer loses pickups when the role changes to viewer', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        ...mockMembership,
+        canPerformPickups: true,
+      });
+      prisma.userTenantMembership.update.mockResolvedValue({
+        ...viewer,
+        canPerformPickups: false,
+      });
+
+      await service.updateRole(
+        LAB_ID,
+        USER_ID,
+        'RESULTS_VIEWER',
+        REASON,
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
+
+      expect(prisma.userTenantMembership.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { role: 'RESULTS_VIEWER', canPerformPickups: false },
+        })
+      );
     });
   });
 

@@ -409,11 +409,17 @@ describe('PdfProcessorService', () => {
   // ── Admin retry ──────────────────────────────────────────────────────────
 
   describe('retryArtifact', () => {
-    it('resets artifact to PENDING and clears retryCount, claimToken, nextRetryAt', async () => {
+    it('resets a FAILED artifact to PENDING and clears retryCount, claimToken, nextRetryAt', async () => {
+      prisma.resultReportReleaseArtifact.updateMany.mockResolvedValue({
+        count: 1,
+      });
+
       await service.retryArtifact('art-99');
 
-      expect(prisma.resultReportReleaseArtifact.update).toHaveBeenCalledWith({
-        where: { id: 'art-99' },
+      expect(
+        prisma.resultReportReleaseArtifact.updateMany
+      ).toHaveBeenCalledWith({
+        where: { id: 'art-99', status: 'FAILED' },
         data: {
           status: 'PENDING',
           retryCount: 0,
@@ -423,6 +429,16 @@ describe('PdfProcessorService', () => {
           nextRetryAt: null,
         },
       });
+    });
+
+    it('refuses a PDF that is not failed (pending, generating or done)', async () => {
+      prisma.resultReportReleaseArtifact.updateMany.mockResolvedValue({
+        count: 0,
+      });
+
+      await expect(service.retryArtifact('art-99')).rejects.toThrow(
+        'Only a failed PDF can be retried.'
+      );
     });
   });
 

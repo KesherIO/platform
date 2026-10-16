@@ -70,7 +70,8 @@
     "test_config": "Test Config",
     "templates": "Templates",
     "worklist": "Worklist",
-    "verifications": "Verifications"
+    "verifications": "Verifications",
+    "results": "Results"
   },
   "status": {
     "PENDING": "Pending",
@@ -899,7 +900,8 @@
       "ANALYST": "Analyst",
       "REVIEWER": "Reviewer",
       "DATA_ENTRY": "Data Entry",
-      "MESSENGER": "Messenger"
+      "MESSENGER": "Messenger",
+      "RESULTS_VIEWER": "Results viewer"
     },
     "schedule": {
       "title": "Weekly schedule",
@@ -927,7 +929,9 @@
       "cancel": "Cancel",
       "submit": "Add member",
       "submitting": "Adding...",
-      "can_perform_pickups": "This team member can perform sample pickups"
+      "can_perform_pickups": "This team member can perform sample pickups",
+      "can_view_in_progress": "Can see orders in progress",
+      "can_view_in_progress_hint": "For billing: shows the status of each test, never the result values."
     },
     "can_perform_pickups_badge": "Pickup access",
     "save": "Save",
@@ -987,10 +991,13 @@
         "SIGNER_LINKED": "Linked to signer {{signer}}",
         "SIGNER_UNLINKED": "Unlinked from signer {{signer}}",
         "SIGNER_ROLES_CHANGED": "Signer {{signer}}: roles changed from {{from}} to {{to}}",
-        "SIGNATURE_REPLACED": "Signature image replaced for signer {{signer}}"
+        "SIGNATURE_REPLACED": "Signature image replaced for signer {{signer}}",
+        "IN_PROGRESS_GRANTED": "Access to orders in progress granted",
+        "IN_PROGRESS_REVOKED": "Access to orders in progress removed"
       }
     },
-    "signer_badge": "Signer"
+    "signer_badge": "Signer",
+    "can_view_in_progress_badge": "In progress"
   },
   "collections": {
     "title": "Collections",
@@ -1430,5 +1437,9 @@
     "error_revoked_title": "Link revoked",
     "error_revoked_body": "This onboarding link has been revoked.",
     "error_generic": "Something went wrong. Please try again."
+  },
+  "results": {
+    "title": "Results",
+    "coming_soon": "Results search is coming soon."
   }
 }

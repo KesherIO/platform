@@ -255,13 +255,19 @@ export interface LabOrderDetail extends LabOrderSummary {
   specimens?: Specimen[];
 }
 
+/**
+ * Lab roles since 2026-10-15: OWNER, ADMIN, REVIEWER, ANALYST, RESULTS_VIEWER,
+ * MESSENGER. TECHNICIAN and DATA_ENTRY only appear in old history entries
+ * (lab members were moved to ANALYST).
+ */
 export type LabRole =
   | 'OWNER'
   | 'ADMIN'
-  | 'TECHNICIAN'
-  | 'MESSENGER'
-  | 'ANALYST'
   | 'REVIEWER'
+  | 'ANALYST'
+  | 'RESULTS_VIEWER'
+  | 'MESSENGER'
+  | 'TECHNICIAN'
   | 'DATA_ENTRY';
 
 export const WEEKDAYS = [
@@ -290,6 +296,8 @@ export interface LabMember {
   schedule: WeeklySchedule | null;
   canPerformPickups: boolean;
   isCurrentlyScheduled: boolean;
+  /** RESULTS_VIEWER only: may also list orders in progress (status, no values) */
+  canViewInProgress: boolean;
   /** Roles of the report-signer profile linked to this member, if any */
   signerRoles: LabSignerRole[] | null;
 }
@@ -306,7 +314,8 @@ export type MembershipEventType =
   | 'SIGNER_LINKED'
   | 'SIGNER_UNLINKED'
   | 'SIGNER_ROLES_CHANGED'
-  | 'SIGNATURE_REPLACED';
+  | 'SIGNATURE_REPLACED'
+  | 'IN_PROGRESS_ACCESS_CHANGED';
 
 /** `details` of the SIGNER_* / SIGNATURE_REPLACED events */
 export interface SignerEventDetails {
@@ -334,6 +343,8 @@ export interface MembershipEvent {
   newStatus: string | null;
   previousCanPerformPickups: boolean | null;
   newCanPerformPickups: boolean | null;
+  previousCanViewInProgress: boolean | null;
+  newCanViewInProgress: boolean | null;
   reason: string | null;
   details: SignerEventDetails | null;
   source: string;
