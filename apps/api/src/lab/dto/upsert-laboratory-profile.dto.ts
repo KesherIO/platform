@@ -12,6 +12,11 @@ class LabSignerDto {
   @IsOptional()
   id?: string;
 
+  /** Team member this signer is — required for ANALYST signers (service check) */
+  @IsString()
+  @IsOptional()
+  userId?: string | null;
+
   @IsString()
   name!: string;
 

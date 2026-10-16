@@ -153,8 +153,15 @@ Ireland has every migration up to `20261007000001` applied. `main` adds two:
 UPDATE trigger that makes rows immutable. New objects only, no change to existing rows,
 no backfill (history starts at deployment). The new lab code writes to this table on
 every add/role/pickup/remove change, so **apply it before that code goes live** —
-otherwise those requests fail. `migrate status` should then list three pending
-migrations.
+otherwise those requests fail.
+
+`20261015000002_signer_team_link` — links report signers to team members: new nullable
+`lab_signers.userId` (FK to users, `ON DELETE SET NULL`) with a unique index per lab
+profile, four new `MembershipEventType` values and a nullable `membership_events.details`
+column. Additive, no backfill: existing signers stay unlinked until an Owner/Admin links
+them (analyst signers must be linked before the next settings save). Apply it before the
+code: the settings and team pages read `userId`. `migrate status` should then list four
+pending migrations.
 
 **Decision (2026-10-12): one release.** Both migrations go to Ireland together with plain
 `prisma migrate deploy`, which applies them in name order, and then `main` is merged into

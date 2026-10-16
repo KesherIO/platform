@@ -45,6 +45,10 @@ export function MembershipHistoryPanel({
 
   const events = data?.pages.flatMap((p) => p.items) ?? [];
   const role = (r: string | null) => (r ? t(`team.roles.${r}`) : '—');
+  const signerRoles = (rs?: string[]) =>
+    rs?.length
+      ? rs.map((r) => t(`settings.role_${r.toLowerCase()}`)).join(', ')
+      : '—';
 
   const describe = (e: MembershipEvent) => {
     switch (e.eventType) {
@@ -62,6 +66,18 @@ export function MembershipHistoryPanel({
       case 'REMOVED':
         return t('team.history.events.REMOVED', {
           role: role(e.previousRole),
+        });
+      case 'SIGNER_LINKED':
+      case 'SIGNER_UNLINKED':
+      case 'SIGNATURE_REPLACED':
+        return t(`team.history.events.${e.eventType}`, {
+          signer: e.details?.signerName ?? '—',
+        });
+      case 'SIGNER_ROLES_CHANGED':
+        return t('team.history.events.SIGNER_ROLES_CHANGED', {
+          signer: e.details?.signerName ?? '—',
+          from: signerRoles(e.details?.previousRoles),
+          to: signerRoles(e.details?.newRoles),
         });
       default:
         return t(`team.history.events.${e.eventType}`);

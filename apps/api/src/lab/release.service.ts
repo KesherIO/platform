@@ -173,12 +173,18 @@ export class ReleaseService {
     } | null = null;
 
     if (analystId) {
-      // Same rule as the reviewer: this lab's signer, with the ANALYST role
+      // This lab's signer with the ANALYST role, linked to a current team
+      // member (same rule as the analyst dropdown, getAnalystSigners)
       analyst = await this.prisma.labSigner.findFirst({
         where: {
           id: analystId,
           laboratoryProfile: { tenantId: labTenantId },
           roles: { has: 'ANALYST' },
+          user: {
+            memberships: {
+              some: { tenantId: labTenantId, status: 'ACTIVE' },
+            },
+          },
         },
         select: {
           id: true,

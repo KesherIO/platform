@@ -290,6 +290,8 @@ export interface LabMember {
   schedule: WeeklySchedule | null;
   canPerformPickups: boolean;
   isCurrentlyScheduled: boolean;
+  /** Roles of the report-signer profile linked to this member, if any */
+  signerRoles: LabSignerRole[] | null;
 }
 
 export type MembershipEventType =
@@ -300,7 +302,21 @@ export type MembershipEventType =
   | 'PICKUP_CAPABILITY_CHANGED'
   | 'DEACTIVATED'
   | 'REACTIVATED'
-  | 'REMOVED';
+  | 'REMOVED'
+  | 'SIGNER_LINKED'
+  | 'SIGNER_UNLINKED'
+  | 'SIGNER_ROLES_CHANGED'
+  | 'SIGNATURE_REPLACED';
+
+/** `details` of the SIGNER_* / SIGNATURE_REPLACED events */
+export interface SignerEventDetails {
+  signerId: string;
+  signerName: string;
+  roles?: LabSignerRole[];
+  previousRoles?: LabSignerRole[];
+  newRoles?: LabSignerRole[];
+  signerRemoved?: boolean;
+}
 
 /** One row of the membership audit log (GET lab/users/history). */
 export interface MembershipEvent {
@@ -319,6 +335,7 @@ export interface MembershipEvent {
   previousCanPerformPickups: boolean | null;
   newCanPerformPickups: boolean | null;
   reason: string | null;
+  details: SignerEventDetails | null;
   source: string;
   createdAt: string;
 }
@@ -366,6 +383,8 @@ export type LabSignerRole = 'ANALYST' | 'REVIEWER' | 'DATA_ENTRY';
 
 export interface LabSigner {
   id: string;
+  /** Team member this signer is; required when roles include ANALYST */
+  userId: string | null;
   name: string;
   roles: LabSignerRole[];
   title: string;

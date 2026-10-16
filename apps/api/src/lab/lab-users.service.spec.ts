@@ -51,6 +51,9 @@ describe('LabUsersService', () => {
         create: jest.fn().mockResolvedValue({}),
         findMany: jest.fn().mockResolvedValue([]),
       },
+      labSigner: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       $queryRaw: jest.fn().mockResolvedValue([]),
       tenant: {
         findUniqueOrThrow: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
@@ -106,6 +109,44 @@ describe('LabUsersService', () => {
       expect(result[0].schedule).toBeNull();
       expect(result[0].canPerformPickups).toBe(false);
       expect(result[0].isCurrentlyScheduled).toBe(false);
+    });
+
+    it("adds the member's linked signer roles", async () => {
+      prisma.userTenantMembership.findMany.mockResolvedValue([
+        {
+          userId: USER_ID,
+          role: 'TECHNICIAN',
+          canPerformPickups: false,
+          createdAt: new Date('2026-07-01'),
+          schedule: null,
+          user: { id: USER_ID, email: 'tech@lab.com' },
+        },
+        {
+          userId: 'other',
+          role: 'ADMIN',
+          canPerformPickups: false,
+          createdAt: new Date('2026-07-01'),
+          schedule: null,
+          user: { id: 'other', email: 'admin@lab.com' },
+        },
+      ]);
+      prisma.labSigner.findMany.mockResolvedValue([
+        { userId: USER_ID, roles: ['ANALYST', 'REVIEWER'] },
+      ]);
+
+      const result = await service.getLabMembers(LAB_ID);
+
+      expect(prisma.labSigner.findMany).toHaveBeenCalledWith({
+        where: {
+          laboratoryProfile: { tenantId: LAB_ID },
+          userId: { not: null },
+        },
+        select: { userId: true, roles: true },
+      });
+      expect(result.map((m) => m.signerRoles)).toEqual([
+        ['ANALYST', 'REVIEWER'],
+        null,
+      ]);
     });
 
     it('marks a messenger as currently scheduled using the lab timezone', async () => {

@@ -219,7 +219,8 @@ enum MembershipStatus {
 
 /// Kinds of membership change recorded in membership_events. INVITED,
 /// INVITATION_ACCEPTED, DEACTIVATED and REACTIVATED are reserved: the lab has
-/// no invite or deactivate flow yet, so nothing writes them today.
+/// no invite or deactivate flow yet, so nothing writes them today. SIGNER_*
+/// and SIGNATURE_REPLACED track the member's linked report-signer profile.
 enum MembershipEventType {
   MEMBER_ADDED
   INVITED
@@ -229,6 +230,10 @@ enum MembershipEventType {
   DEACTIVATED
   REACTIVATED
   REMOVED
+  SIGNER_LINKED
+  SIGNER_UNLINKED
+  SIGNER_ROLES_CHANGED
+  SIGNATURE_REPLACED
 }
 
 enum VetVerificationStatus {
@@ -430,6 +435,7 @@ model User {
   veterinarianProfile      VeterinarianProfile?
   vetVerificationsReviewed VetLabVerification[] @relation("VetVerificationReviewedBy")
   vetVerificationsRevoked  VetLabVerification[] @relation("VetVerificationRevokedBy")
+  labSigners               LabSigner[]
 
   @@map("users")
 }
@@ -481,7 +487,9 @@ model MembershipEvent {
   previousCanPerformPickups Boolean?
   newCanPerformPickups      Boolean?
   reason                    String?
-  /// Where the change came from, e.g. "lab_users", "lab_setup", "lab_onboarding"
+  /// Event-specific facts, e.g. { signerId, signerName, previousRoles, newRoles }
+  details                   Json?
+  /// Where the change came from, e.g. "lab_users", "lab_setup", "lab_onboarding", "lab_settings"
   source                    String
   createdAt                 DateTime            @default(now())
 
@@ -1069,6 +1077,9 @@ model LabSigner {
   laboratoryProfileId String
   name                String
   roles               String[] // ANALYST, REVIEWER, DATA_ENTRY
+  /// Team member this signer is. Required for ANALYST signers (checked in
+  /// upsertLaboratoryProfile); reviewers may be people without an account.
+  userId              String?
   title               String   @default("")
   specialty           String   @default("")
   university          String   @default("")
@@ -1078,10 +1089,13 @@ model LabSigner {
   updatedAt           DateTime @updatedAt
 
   laboratoryProfile LaboratoryProfile     @relation(fields: [laboratoryProfileId], references: [id], onDelete: Cascade)
+  user              User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   reviewedReports   ResultReport[]
   releases          ResultReportRelease[] @relation("ReleaseSignerRef")
   analystReleases   ResultReportRelease[] @relation("ReleaseAnalystRef")
 
+  /// One signer profile per person per lab
+  @@unique([laboratoryProfileId, userId])
   @@map("lab_signers")
 }
 

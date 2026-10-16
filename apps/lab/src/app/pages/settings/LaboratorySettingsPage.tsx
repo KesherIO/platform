@@ -17,6 +17,7 @@ import {
 import type {
   LaboratoryProfile,
   LabContactInfo,
+  LabMember,
   LabSigner,
   LabSignerRole,
   LabPhoneNumber,
@@ -60,6 +61,7 @@ function makeTempId(): string {
 function makeEmptySigner(): LabSigner {
   return {
     id: makeTempId(),
+    userId: null,
     name: '',
     roles: [],
     title: '',
@@ -68,6 +70,17 @@ function makeEmptySigner(): LabSigner {
     registrationNumber: '',
     signatureUrl: null,
   };
+}
+
+/** The API's error message from an ApiError body ({ message }), else the raw text */
+function apiMessage(err: unknown): string {
+  const raw = (err as Error).message;
+  try {
+    const m = JSON.parse(raw).message;
+    return Array.isArray(m) ? m.join(' ') : String(m ?? raw);
+  } catch {
+    return raw;
+  }
 }
 
 export function LaboratorySettingsPage() {
@@ -178,8 +191,28 @@ export function LaboratorySettingsPage() {
     refetchOnReconnect: false,
   });
 
+  // Team members a signer can be linked to (analysts must be on the team)
+  const { data: members = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => labApi.users.list() as Promise<LabMember[]>,
+    enabled: isAdmin,
+  });
+  const memberName = (m: LabMember) =>
+    [m.firstName, m.lastName].filter(Boolean).join(' ') || m.email;
+  const analystWithoutMember = signers.find(
+    (s) => s.roles.includes('ANALYST') && !s.userId
+  );
+
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault();
+    if (analystWithoutMember) {
+      toast.error(
+        t('settings.signer_analyst_needs_member', {
+          name: analystWithoutMember.name || t('settings.signer_unnamed'),
+        })
+      );
+      return;
+    }
     setSaving(true);
     setSaved(false);
     try {
@@ -202,8 +235,8 @@ export function LaboratorySettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['settings-profile-contact'] });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch {
-      // TODO: show error toast
+    } catch (err) {
+      toast.error(`${t('settings.save_error')} ${apiMessage(err)}`);
     } finally {
       setSaving(false);
     }
@@ -282,6 +315,22 @@ export function LaboratorySettingsPage() {
   ) => {
     setSigners((prev) =>
       prev.map((s, i) => (i === index ? { ...s, [field]: value } : s))
+    );
+  };
+
+  /** Links a signer to a team member; fills the name when it's still empty */
+  const linkSigner = (index: number, userId: string | null) => {
+    const member = members.find((m) => m.userId === userId);
+    setSigners((prev) =>
+      prev.map((s, i) =>
+        i === index
+          ? {
+              ...s,
+              userId,
+              name: !s.name.trim() && member ? memberName(member) : s.name,
+            }
+          : s
+      )
     );
   };
 
@@ -1016,6 +1065,72 @@ export function LaboratorySettingsPage() {
                     className={inputClass}
                   />
                 </div>
+
+                {/* Team member — required for analysts */}
+                {(() => {
+                  const linkedElsewhere = new Set(
+                    signers
+                      .filter((s) => s.id !== signer.id && s.userId)
+                      .map((s) => s.userId)
+                  );
+                  const options = members.filter(
+                    (m) =>
+                      m.role !== 'MESSENGER' &&
+                      (m.userId === signer.userId ||
+                        !linkedElsewhere.has(m.userId))
+                  );
+                  const linkedToRemoved =
+                    !!signer.userId &&
+                    members.length > 0 &&
+                    !members.some((m) => m.userId === signer.userId);
+                  const needsLink =
+                    signer.roles.includes('ANALYST') && !signer.userId;
+                  return (
+                    <div>
+                      <label
+                        htmlFor={`signer-member-${signer.id}`}
+                        className={labelClass}
+                      >
+                        {signer.roles.includes('ANALYST')
+                          ? t('settings.signer_team_member_required')
+                          : t('settings.signer_team_member')}
+                      </label>
+                      <select
+                        id={`signer-member-${signer.id}`}
+                        value={signer.userId ?? ''}
+                        disabled={!isAdmin}
+                        onChange={(e) => linkSigner(i, e.target.value || null)}
+                        className={`${inputClass} ${
+                          needsLink ? 'border-red-500/60' : ''
+                        }`}
+                      >
+                        <option value="">
+                          {t('settings.signer_no_team_member')}
+                        </option>
+                        {linkedToRemoved && (
+                          <option value={signer.userId ?? ''}>
+                            {t('settings.signer_removed_member')}
+                          </option>
+                        )}
+                        {options.map((m) => (
+                          <option key={m.userId} value={m.userId}>
+                            {memberName(m)} · {t(`team.roles.${m.role}`)}
+                          </option>
+                        ))}
+                      </select>
+                      {needsLink && (
+                        <p className="mt-1 text-xs text-red-400">
+                          {t('settings.signer_analyst_needs_member_hint')}
+                        </p>
+                      )}
+                      {linkedToRemoved && (
+                        <p className="mt-1 text-xs text-yellow-400">
+                          {t('settings.signer_removed_member_hint')}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Roles */}
                 <div>

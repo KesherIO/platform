@@ -702,6 +702,18 @@ export function TeamPage() {
                               ({t('team.you')})
                             </span>
                           )}
+                          {member.signerRoles && (
+                            <span
+                              title={member.signerRoles
+                                .map((r) =>
+                                  t(`settings.role_${r.toLowerCase()}`)
+                                )
+                                .join(', ')}
+                              className="ml-2 rounded-full bg-purple/20 px-2 py-0.5 text-xs font-medium text-purple"
+                            >
+                              {t('team.signer_badge')}
+                            </span>
+                          )}
                         </p>
                         <p className="truncate text-xs text-gray-400">
                           {member.email}

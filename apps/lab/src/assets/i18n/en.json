@@ -423,7 +423,16 @@
     },
     "country": "Country",
     "country_placeholder": "Select country",
-    "country_hint": "Default country for the clients you import."
+    "country_hint": "Default country for the clients you import.",
+    "signer_team_member": "Team member",
+    "signer_team_member_required": "Team member (required for analysts)",
+    "signer_no_team_member": "Not on the team",
+    "signer_removed_member": "Removed team member",
+    "signer_analyst_needs_member_hint": "Analysts must be team members. Pick who this signer is.",
+    "signer_removed_member_hint": "This person is no longer on the team, so they no longer appear in the analyst list.",
+    "signer_analyst_needs_member": "Signer \"{{name}}\" has the Analyst role. Link them to a team member before saving.",
+    "signer_unnamed": "(no name)",
+    "save_error": "Couldn't save the settings:"
   },
   "catalog": {
     "title": "Catalog",
@@ -974,9 +983,14 @@
         "PICKUP_CAPABILITY_CHANGED": "Pickup access changed",
         "DEACTIVATED": "Deactivated",
         "REACTIVATED": "Reactivated",
-        "REMOVED": "Removed from the lab (was {{role}})"
+        "REMOVED": "Removed from the lab (was {{role}})",
+        "SIGNER_LINKED": "Linked to signer {{signer}}",
+        "SIGNER_UNLINKED": "Unlinked from signer {{signer}}",
+        "SIGNER_ROLES_CHANGED": "Signer {{signer}}: roles changed from {{from}} to {{to}}",
+        "SIGNATURE_REPLACED": "Signature image replaced for signer {{signer}}"
       }
-    }
+    },
+    "signer_badge": "Signer"
   },
   "collections": {
     "title": "Collections",
