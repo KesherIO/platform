@@ -528,127 +528,127 @@ describe('AmendmentService', () => {
   describe('approveAmendment', () => {
     /** An IN_REVIEW amendment that approves cleanly; returns the last transaction mock. */
     function arrangeApprovableAmendment() {
-    let lastTx: ReturnType<typeof buildPrismaMock> = buildPrismaMock();
-    prisma.order.findFirst.mockResolvedValue({
-      id: 'order-1',
-      caseId: 'case-1',
-      requisitionNumber: 'REQ-001',
-      priority: 'NORMAL',
-      clinicNotes: null,
-      createdAt: new Date(),
-      tenantId: 'clinic-1',
-      labTenantId: 'lab-1',
-      resultReport: { id: 'report-1', currentReleaseSequence: 1 },
-    });
+      let lastTx: ReturnType<typeof buildPrismaMock> = buildPrismaMock();
+      prisma.order.findFirst.mockResolvedValue({
+        id: 'order-1',
+        caseId: 'case-1',
+        requisitionNumber: 'REQ-001',
+        priority: 'NORMAL',
+        clinicNotes: null,
+        createdAt: new Date(),
+        tenantId: 'clinic-1',
+        labTenantId: 'lab-1',
+        resultReport: { id: 'report-1', currentReleaseSequence: 1 },
+      });
 
-    prisma.resultReportAmendment.findUnique.mockResolvedValue({
-      id: 'amend-1',
-      status: 'IN_REVIEW',
-      report: { orderId: 'order-1' },
-      reportTest: {
-        id: 'rt-1',
-        orderedTestId: 'ot-1',
-        latestReleaseId: 'rel-1',
-        templateDefinition: { id: 'td-1' },
-        templateVersion: { id: 'tv-1', title: 'Hemogram', version: 1 },
-        orderedTest: {
-          catalogItemCode: 'HMG',
-          catalogItemName: 'Hemogram',
-          department: 'Hematology',
-          processingMethod: 'AUTO',
-          entryMethod: 'MANUAL',
-          startedAt: new Date(),
-          completedAt: new Date(),
-          specimens: [
-            {
-              specimen: { accessionNumber: 'ACC-001', specimenType: 'BLOOD' },
-            },
-          ],
+      prisma.resultReportAmendment.findUnique.mockResolvedValue({
+        id: 'amend-1',
+        status: 'IN_REVIEW',
+        report: { orderId: 'order-1' },
+        reportTest: {
+          id: 'rt-1',
+          orderedTestId: 'ot-1',
+          latestReleaseId: 'rel-1',
+          templateDefinition: { id: 'td-1' },
+          templateVersion: { id: 'tv-1', title: 'Hemogram', version: 1 },
+          orderedTest: {
+            catalogItemCode: 'HMG',
+            catalogItemName: 'Hemogram',
+            department: 'Hematology',
+            processingMethod: 'AUTO',
+            entryMethod: 'MANUAL',
+            startedAt: new Date(),
+            completedAt: new Date(),
+            specimens: [
+              {
+                specimen: { accessionNumber: 'ACC-001', specimenType: 'BLOOD' },
+              },
+            ],
+          },
         },
-      },
-      analytes: [
-        {
-          id: 'ama-1',
-          code: 'WBC',
-          name: 'WBC',
-          sectionName: 'CBC',
-          sortOrder: 1,
-          isHeader: false,
-          valueType: 'NUMERIC',
-          numericValue: 15.0,
-          textValue: null,
-          booleanValue: null,
-          selectValue: null,
-          unit: 'K/uL',
-          technique: null,
-          formula: null,
-          flag: 'N',
-          referenceSnapshot: { min: 5.5, max: 16.9 },
-        },
-      ],
-    });
+        analytes: [
+          {
+            id: 'ama-1',
+            code: 'WBC',
+            name: 'WBC',
+            sectionName: 'CBC',
+            sortOrder: 1,
+            isHeader: false,
+            valueType: 'NUMERIC',
+            numericValue: 15.0,
+            textValue: null,
+            booleanValue: null,
+            selectValue: null,
+            unit: 'K/uL',
+            technique: null,
+            formula: null,
+            flag: 'N',
+            referenceSnapshot: { min: 5.5, max: 16.9 },
+          },
+        ],
+      });
 
-    prisma.labSigner.findUnique
-      .mockResolvedValueOnce(baseSigner)
-      .mockResolvedValueOnce(baseSigner);
-    prisma.resultReportReleaseTest.findFirst.mockResolvedValue({
-      id: 'rlt-1',
-    });
+      prisma.labSigner.findUnique
+        .mockResolvedValueOnce(baseSigner)
+        .mockResolvedValueOnce(baseSigner);
+      prisma.resultReportReleaseTest.findFirst.mockResolvedValue({
+        id: 'rlt-1',
+      });
 
-    prisma.$transaction.mockImplementation(async (fn) => {
-      const tx = buildPrismaMock();
-      tx.$queryRaw.mockResolvedValue([]);
-      tx.resultReport.findUniqueOrThrow.mockResolvedValue({
-        currentReleaseSequence: 1,
+      prisma.$transaction.mockImplementation(async (fn) => {
+        const tx = buildPrismaMock();
+        tx.$queryRaw.mockResolvedValue([]);
+        tx.resultReport.findUniqueOrThrow.mockResolvedValue({
+          currentReleaseSequence: 1,
+        });
+        tx.resultReportRelease.create.mockResolvedValue({ id: 'rel-2' });
+        tx.resultReportReleaseTest.create.mockResolvedValue({ id: 'rlt-2' });
+        tx.resultReportReleaseAnalyte.create.mockResolvedValue({});
+        tx.resultReportReleaseArtifact.create.mockResolvedValue({});
+        tx.resultReportTest.update.mockResolvedValue({});
+        tx.resultReportAmendment.update.mockResolvedValue({});
+        tx.resultReport.update.mockResolvedValue({});
+        tx.timelineEvent.create.mockResolvedValue({});
+        tx.case.findUniqueOrThrow.mockResolvedValue({
+          patientName: 'Rex',
+          patientSpecies: 'CANINE',
+          patientSex: 'MALE',
+          patientBreed: 'Labrador',
+          patientAge: 5,
+          patientAgeUnit: 'YEARS',
+          patientDateOfBirth: null,
+          patientWeight: 30,
+          ownerName: 'Smith',
+          ownerPhone: null,
+        });
+        tx.tenant.findUniqueOrThrow.mockResolvedValue({
+          name: 'PetClinic',
+          address: '123 Main',
+          phone: '555-0000',
+          logoUrl: null,
+        });
+        tx.tenant.findUnique.mockResolvedValue({
+          name: 'BioLab',
+          address: '456 Lab',
+          phone: '555-1111',
+          logoUrl: null,
+        });
+        tx.laboratoryProfile.findUnique.mockResolvedValue({
+          accreditationNumber: 'ACC-123',
+          directorName: 'Dr. Lab',
+          directorCredentials: 'PhD',
+          reportDisclaimer:
+            'Resultados válidos solo para la muestra analizada.',
+        });
+        (orderStatusService.deriveAndPersist as jest.Mock).mockResolvedValue({
+          changed: false,
+        });
+        lastTx = tx;
+        return fn(tx);
       });
-      tx.resultReportRelease.create.mockResolvedValue({ id: 'rel-2' });
-      tx.resultReportReleaseTest.create.mockResolvedValue({ id: 'rlt-2' });
-      tx.resultReportReleaseAnalyte.create.mockResolvedValue({});
-      tx.resultReportReleaseArtifact.create.mockResolvedValue({});
-      tx.resultReportTest.update.mockResolvedValue({});
-      tx.resultReportAmendment.update.mockResolvedValue({});
-      tx.resultReport.update.mockResolvedValue({});
-      tx.timelineEvent.create.mockResolvedValue({});
-      tx.case.findUniqueOrThrow.mockResolvedValue({
-        patientName: 'Rex',
-        patientSpecies: 'CANINE',
-        patientSex: 'MALE',
-        patientBreed: 'Labrador',
-        patientAge: 5,
-        patientAgeUnit: 'YEARS',
-        patientDateOfBirth: null,
-        patientWeight: 30,
-        ownerName: 'Smith',
-        ownerPhone: null,
-      });
-      tx.tenant.findUniqueOrThrow.mockResolvedValue({
-        name: 'PetClinic',
-        address: '123 Main',
-        phone: '555-0000',
-        logoUrl: null,
-      });
-      tx.tenant.findUnique.mockResolvedValue({
-        name: 'BioLab',
-        address: '456 Lab',
-        phone: '555-1111',
-        logoUrl: null,
-      });
-      tx.laboratoryProfile.findUnique.mockResolvedValue({
-        accreditationNumber: 'ACC-123',
-        directorName: 'Dr. Lab',
-        directorCredentials: 'PhD',
-        reportDisclaimer:
-          'Resultados válidos solo para la muestra analizada.',
-      });
-      (orderStatusService.deriveAndPersist as jest.Mock).mockResolvedValue({
-        changed: false,
-      });
-      lastTx = tx;
-      return fn(tx);
-    });
 
-    prisma.resultReportAmendment.findMany.mockResolvedValue([]);
-    return () => lastTx;
+      prisma.resultReportAmendment.findMany.mockResolvedValue([]);
+      return () => lastTx;
     }
 
     it('scenario 16: amendment does not reopen test/order — OrderedTest stays COMPLETED', async () => {
