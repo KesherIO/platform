@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsDateString,
   IsInt,
   IsOptional,
@@ -8,7 +9,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 const ORDER_STATUSES = [
   'PENDING',
@@ -30,6 +31,13 @@ export class ListLabOrdersDto {
   )
   @IsOptional()
   status?: string;
+
+  /** "Por revisar": orders with a test sent for review or an amendment
+   * awaiting approval, whatever their status (overrides `status`). */
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  forReview?: boolean;
 
   @IsString()
   @MaxLength(100)

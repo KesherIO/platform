@@ -138,6 +138,7 @@ export const labApi = {
     list: (params?: LabOrdersQuery) => {
       const sp = new URLSearchParams();
       if (params?.status) sp.set('status', params.status);
+      if (params?.forReview) sp.set('forReview', 'true');
       if (params?.search) sp.set('search', params.search);
       if (params?.dateFrom) sp.set('dateFrom', params.dateFrom);
       if (params?.dateTo) sp.set('dateTo', params.dateTo);
@@ -148,6 +149,8 @@ export const labApi = {
         `lab/orders${qs ? `?${qs}` : ''}`
       );
     },
+    /** Orders waiting for a reviewer (Reviewer/Admin/Owner only) */
+    reviewCount: () => get<{ count: number }>('lab/orders/review-count'),
     getById: (id: string) => get<unknown>(`lab/orders/${id}`),
     updateStatus: (id: string, status: string) =>
       patch<unknown>(`lab/orders/${id}/status`, { status }),

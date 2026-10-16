@@ -143,7 +143,9 @@
       "received": "Received",
       "processing": "Processing",
       "completed": "Completed",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "for_review": "For review",
+      "for_review_tooltip": "Tests sent for review and amendments waiting for approval"
     },
     "actions": {
       "mark_received": "Mark as received",
@@ -153,7 +155,15 @@
       "cancel_order": "Cancel order"
     },
     "created": "Created",
-    "received": "Received"
+    "received": "Received",
+    "tags": {
+      "for_review_one": "For review · {{count}} test",
+      "for_review_other": "For review · {{count}} tests",
+      "amendment_for_review_one": "Amendment to approve",
+      "amendment_for_review_other": "{{count}} amendments to approve",
+      "not_submitted_one": "Not sent to review · {{count}} test",
+      "not_submitted_other": "Not sent to review · {{count}} tests"
+    }
   },
   "workspace": {
     "back": "← Orders queue",

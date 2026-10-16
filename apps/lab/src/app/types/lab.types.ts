@@ -205,6 +205,8 @@ export interface LabOrderSummary {
   priority: Priority;
   deliveryMethod: DeliveryMethod | null;
   orderedTests: OrderedTest[];
+  /** Amendments waiting for a reviewer's approval */
+  amendmentsInReview: number;
   clinicNotes: string | null;
   labNotes: string | null;
   sampleType: string | null;
@@ -454,6 +456,8 @@ export interface PaginatedResponse<T> {
 
 export interface LabOrdersQuery {
   status?: string;
+  /** "Por revisar" — overrides status */
+  forReview?: boolean;
   search?: string;
   dateFrom?: string;
   dateTo?: string;

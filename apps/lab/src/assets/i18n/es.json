@@ -143,7 +143,9 @@
       "received": "Recibidos",
       "processing": "En proceso",
       "completed": "Completados",
-      "cancelled": "Cancelados"
+      "cancelled": "Cancelados",
+      "for_review": "Por revisar",
+      "for_review_tooltip": "Pruebas enviadas a revisión y enmiendas por aprobar"
     },
     "actions": {
       "mark_received": "Marcar como recibido",
@@ -153,7 +155,15 @@
       "cancel_order": "Cancelar orden"
     },
     "created": "Creada",
-    "received": "Recibida"
+    "received": "Recibida",
+    "tags": {
+      "for_review_one": "Por revisar · {{count}} prueba",
+      "for_review_other": "Por revisar · {{count}} pruebas",
+      "amendment_for_review_one": "Enmienda por aprobar",
+      "amendment_for_review_other": "{{count}} enmiendas por aprobar",
+      "not_submitted_one": "Sin enviar a revisión · {{count}} prueba",
+      "not_submitted_other": "Sin enviar a revisión · {{count}} pruebas"
+    }
   },
   "workspace": {
     "back": "← Ordenes",

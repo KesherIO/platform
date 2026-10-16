@@ -44,6 +44,7 @@ describe('LabController', () => {
   beforeEach(async () => {
     const serviceMock: Partial<jest.Mocked<LabService>> = {
       getLabOrders: jest.fn().mockResolvedValue([]),
+      getReviewCount: jest.fn().mockResolvedValue({ count: 2 }),
       getLabOrderById: jest.fn().mockResolvedValue({}),
       updateOrderStatus: jest.fn().mockResolvedValue({}),
       initOrderedTests: jest.fn().mockResolvedValue([]),
@@ -293,6 +294,13 @@ describe('LabController', () => {
       'lab-1',
       'RECEIVED_BY_LAB'
     );
+  });
+
+  it('getOrdersReviewCount returns the count for this lab', async () => {
+    await expect(controller.getOrdersReviewCount(tenant)).resolves.toEqual({
+      count: 2,
+    });
+    expect(service.getReviewCount).toHaveBeenCalledWith('lab-1');
   });
 
   it('updateOrderStatus delegates to service', async () => {

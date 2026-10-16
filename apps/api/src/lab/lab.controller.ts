@@ -174,6 +174,14 @@ export class LabController {
     return this.labService.getLabOrders(tenant.tenantId, query);
   }
 
+  // GET /api/lab/orders/review-count — before orders/:id so it isn't an id
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_RELEASE_ROLES)
+  @Get('orders/review-count')
+  getOrdersReviewCount(@CurrentTenant() tenant: TenantContext) {
+    return this.labService.getReviewCount(tenant.tenantId);
+  }
+
   // GET /api/lab/orders/:id
   @UseGuards(JwtAuthGuard, LabTenantGuard)
   @Roles(...LAB_STAFF_ROLES)

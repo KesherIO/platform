@@ -28,6 +28,21 @@ const ICON_STROKE_WIDTH = 2;
 const POLL_MS = 60_000;
 const MESSENGER_HOME = '/my-pickups';
 const RESULTS_VIEWER_HOME = '/results';
+/**
+ * Setup and admin pages. Analysts and reviewers work with what the admin set
+ * up (a small lab can make its analyst an admin), so they don't get these
+ * tabs or their URLs.
+ */
+const ADMIN_ONLY_PATHS = [
+  '/catalog',
+  '/clients',
+  '/collections',
+  '/templates',
+  '/settings',
+  '/verifications',
+];
+const isAdminOnlyPath = (pathname: string) =>
+  ADMIN_ONLY_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 export function Layout() {
   const {
@@ -35,6 +50,7 @@ export function Layout() {
     tenantName,
     logoUrl,
     isAdmin,
+    canRelease,
     labRole,
     canPerformPickups,
     vetVerificationRequired,
@@ -55,7 +71,7 @@ export function Layout() {
     queryKey: ['unassigned-count'],
     queryFn: () => labApi.pickups.unassignedCount(),
     refetchInterval: POLL_MS,
-    enabled: !isRestricted,
+    enabled: isAdmin,
   });
   const unassignedCount = unassignedData?.count ?? 0;
 
@@ -69,6 +85,16 @@ export function Layout() {
     enabled: !isRestricted && !onWorklistPage,
   });
   const worklistReadyCount = readyCountData?.count ?? 0;
+
+  // Orders waiting for whoever can release them
+  const { data: reviewCountData } = useQuery({
+    queryKey: ['orders-review-count'],
+    queryFn: () => labApi.orders.reviewCount(),
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
+    enabled: canRelease,
+  });
+  const reviewCount = reviewCountData?.count ?? 0;
 
   const onVerificationsPage = location.pathname === '/verifications';
 
@@ -106,6 +132,9 @@ export function Layout() {
   if (isResultsViewer && location.pathname !== RESULTS_VIEWER_HOME) {
     return <Navigate to={RESULTS_VIEWER_HOME} replace />;
   }
+  if (!isAdmin && isAdminOnlyPath(location.pathname)) {
+    return <Navigate to="/orders" replace />;
+  }
 
   const NAV_ITEMS = isResultsViewer
     ? [{ to: RESULTS_VIEWER_HOME, label: t('nav.results'), icon: Search }]
@@ -123,6 +152,7 @@ export function Layout() {
           to: '/orders',
           label: t('nav.orders_queue'),
           icon: ClipboardList,
+          badge: canRelease && reviewCount > 0 ? reviewCount : undefined,
         },
         {
           to: '/worklist',
@@ -148,22 +178,26 @@ export function Layout() {
               },
             ]
           : []),
-        {
-          to: '/settings/test-config',
-          label: t('nav.test_config'),
-          icon: Wrench,
-        },
-        {
-          to: '/templates',
-          label: t('nav.templates'),
-          icon: FileText,
-        },
-        {
-          to: '/collections',
-          label: t('nav.collections'),
-          icon: Truck,
-          badge: unassignedCount > 0 ? unassignedCount : undefined,
-        },
+        ...(isAdmin
+          ? [
+              {
+                to: '/settings/test-config',
+                label: t('nav.test_config'),
+                icon: Wrench,
+              },
+              {
+                to: '/templates',
+                label: t('nav.templates'),
+                icon: FileText,
+              },
+              {
+                to: '/collections',
+                label: t('nav.collections'),
+                icon: Truck,
+                badge: unassignedCount > 0 ? unassignedCount : undefined,
+              },
+            ]
+          : []),
         ...(canPerformPickups
           ? [
               {
@@ -187,9 +221,9 @@ export function Layout() {
               },
             ]
           : []),
-        { to: '/clients', label: t('nav.clients'), icon: Handshake },
         ...(isAdmin
           ? [
+              { to: '/clients', label: t('nav.clients'), icon: Handshake },
               { to: '/settings/users', label: t('nav.team'), icon: Users },
               {
                 to: '/settings/laboratory',

@@ -558,10 +558,12 @@ function AmendmentPanel({
   });
   const approver = reviewerSigners?.find((s) => s.id === approverId);
 
-  const refreshActiveAmendments = () =>
-    queryClient.invalidateQueries({
+  const refreshActiveAmendments = () => {
+    queryClient.invalidateQueries({ queryKey: ['orders-review-count'] });
+    return queryClient.invalidateQueries({
       queryKey: ['active-amendments', orderId],
     });
+  };
   const [amendmentId, setAmendmentId] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [analytes, setAnalytes] = useState<AmendmentAnalyteInfo[]>([]);
@@ -996,6 +998,7 @@ export function ReviewReleasePage() {
     queryClient.removeQueries({ queryKey: ['worklist'] });
     queryClient.removeQueries({ queryKey: ['worklist-counts'] });
     queryClient.invalidateQueries({ queryKey: ['worklist-ready-count'] });
+    queryClient.invalidateQueries({ queryKey: ['orders-review-count'] });
     queryClient.invalidateQueries({ queryKey: ['release-history', orderId] });
     queryClient.invalidateQueries({ queryKey: ['active-amendments', orderId] });
     queryClient.invalidateQueries({
