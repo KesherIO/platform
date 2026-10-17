@@ -182,21 +182,23 @@ export class AmendmentService {
       throw new BadRequestException('No release snapshot found for this test.');
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const amendment = await tx.resultReportAmendment.create({
-        data: {
-          reportId: order.resultReport!.id,
-          reportTestId,
-          sourceReleaseId: reportTest.latestReleaseId!,
-          status: 'DRAFT',
-          reason: reason.trim(),
-        },
-      });
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const amendment = await tx.resultReportAmendment.create({
+          data: {
+            reportId: order.resultReport!.id,
+            reportTestId,
+            sourceReleaseId: reportTest.latestReleaseId!,
+            status: 'DRAFT',
+            reason: reason.trim(),
+          },
+        });
 
-      const amendmentAnalytes = await Promise.all(
-        releaseTest.analytes.map((a) =>
-          tx.resultReportAmendmentAnalyte.create({
-            data: {
+        // One INSERT for the whole panel — a create per analyte made one round
+        // trip each and ran past the transaction timeout on large panels
+        const amendmentAnalytes = (
+          await tx.resultReportAmendmentAnalyte.createManyAndReturn({
+            data: releaseTest.analytes.map((a) => ({
               amendmentId: amendment.id,
               code: a.code,
               name: a.name,
@@ -213,30 +215,31 @@ export class AmendmentService {
               formula: a.formula,
               flag: a.flag,
               referenceSnapshot: a.referenceSnapshot ?? undefined,
-            },
+            })),
           })
-        )
-      );
+        ).sort((a, b) => a.sortOrder - b.sortOrder);
 
-      await tx.timelineEvent.create({
-        data: {
-          orderId,
-          eventType: 'AMENDMENT_INITIATED',
-          actorId,
-          actorName,
-          description: `Amendment initiated for ${
-            releaseTest.catalogItemName
-          }: ${reason.trim()}`,
-          metadata: {
-            amendmentId: amendment.id,
-            reportTestId,
-            sourceReleaseId: reportTest.latestReleaseId,
+        await tx.timelineEvent.create({
+          data: {
+            orderId,
+            eventType: 'AMENDMENT_INITIATED',
+            actorId,
+            actorName,
+            description: `Amendment initiated for ${
+              releaseTest.catalogItemName
+            }: ${reason.trim()}`,
+            metadata: {
+              amendmentId: amendment.id,
+              reportTestId,
+              sourceReleaseId: reportTest.latestReleaseId,
+            },
           },
-        },
-      });
+        });
 
-      return { amendment, analytes: amendmentAnalytes };
-    });
+        return { amendment, analytes: amendmentAnalytes };
+      },
+      { timeout: 15000 }
+    );
 
     const options = await this.optionsByCode(reportTestId);
     return {
