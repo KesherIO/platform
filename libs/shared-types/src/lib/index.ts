@@ -20,3 +20,4 @@ export * from './ai-interpretation.model.js';
 export * from './lab.model.js';
 export * from './pickup.model.js';
 export * from './vet.model.js';
+export * from './notification.model.js';
