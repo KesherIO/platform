@@ -65,6 +65,10 @@ import { ReportPickupProblemDto } from './dto/report-pickup-problem.dto';
 import { SavePushSubscriptionDto } from './dto/save-push-subscription.dto';
 import { UpdateCollectionSettingsDto } from './dto/update-collection-settings.dto';
 import { AccessionOrderDto } from './dto/accession-order.dto';
+import {
+  ReceiveSpecimenDto,
+  RequestSampleDto,
+} from './dto/receive-specimen.dto';
 import { AssignTemplateDto } from './dto/assign-template.dto';
 import {
   MarkSpecimenMissingDto,
@@ -314,6 +318,50 @@ export class LabController {
       specimenId,
       tenant.tenantId,
       body as Parameters<typeof this.specimenService.updateSpecimen>[2],
+      user.id,
+      actorName
+    );
+  }
+
+  // POST /api/lab/specimens/:specimenId/receive — one awaited/missing tube arrives
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES, TenantRole.RECEPTIONIST)
+  @Post('specimens/:specimenId/receive')
+  @HttpCode(HttpStatus.OK)
+  receiveSpecimen(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('specimenId') specimenId: string,
+    @Body() dto: ReceiveSpecimenDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.specimenService.receiveSpecimen(
+      specimenId,
+      tenant.tenantId,
+      dto,
+      user.id,
+      actorName
+    );
+  }
+
+  // POST /api/lab/ordered-tests/:testId/request-sample — ask the clinic for another tube
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
+  @Post('ordered-tests/:testId/request-sample')
+  @HttpCode(HttpStatus.OK)
+  requestSample(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('testId') testId: string,
+    @Body() dto: RequestSampleDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.specimenService.requestAnotherSample(
+      testId,
+      tenant.tenantId,
+      dto,
       user.id,
       actorName
     );

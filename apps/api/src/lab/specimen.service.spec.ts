@@ -4,6 +4,17 @@ import { SpecimenService } from './specimen.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TemplateVersionService } from '../results/template-version.service';
 import { OrderStatusService } from './order-status.service';
+import { NotificationService } from '../notifications/notification.service';
+import { clinicOrderRecipients } from '../notifications/clinic-recipients';
+
+jest.mock('../notifications/clinic-recipients', () => ({
+  clinicOrderRecipients: jest.fn(),
+}));
+
+const notificationsMock = {
+  publish: jest.fn().mockResolvedValue(1),
+  deliverQueued: jest.fn(),
+};
 
 function makeTx() {
   return {
@@ -49,6 +60,7 @@ describe('SpecimenService — reverseMissing', () => {
         SpecimenService,
         { provide: PrismaService, useValue: prisma },
         { provide: TemplateVersionService, useValue: {} },
+        { provide: NotificationService, useValue: notificationsMock },
         { provide: OrderStatusService, useValue: orderStatusService },
       ],
     }).compile();
@@ -379,6 +391,7 @@ describe('SpecimenService — assignTemplateToBlockedTest', () => {
         SpecimenService,
         { provide: PrismaService, useValue: prisma },
         { provide: TemplateVersionService, useValue: {} },
+        { provide: NotificationService, useValue: notificationsMock },
         {
           provide: OrderStatusService,
           useValue: { deriveAndPersist: jest.fn().mockResolvedValue({}) },
@@ -482,6 +495,7 @@ describe('SpecimenService — updateSpecimen (reject after the fact)', () => {
         SpecimenService,
         { provide: PrismaService, useValue: prisma },
         { provide: TemplateVersionService, useValue: {} },
+        { provide: NotificationService, useValue: notificationsMock },
         { provide: OrderStatusService, useValue: orderStatusService },
       ],
     }).compile();
@@ -601,6 +615,7 @@ describe('SpecimenService — accessionOrder (accessioning again)', () => {
         SpecimenService,
         { provide: PrismaService, useValue: prisma },
         { provide: TemplateVersionService, useValue: {} },
+        { provide: NotificationService, useValue: notificationsMock },
         {
           provide: OrderStatusService,
           useValue: {
@@ -681,5 +696,425 @@ describe('SpecimenService — accessionOrder (accessioning again)', () => {
         }),
       })
     );
+  });
+});
+
+describe('SpecimenService — receiveSpecimen', () => {
+  let service: SpecimenService;
+  let prisma: Record<string, any>;
+  let templates: { resolveTemplateForTest: jest.Mock };
+  let orderStatusService: { deriveAndPersist: jest.Mock };
+
+  const linked = (
+    id: string,
+    status: string,
+    blockReason: string | null = null
+  ) => ({
+    orderedTest: {
+      id,
+      status,
+      blockReason,
+      receivedAt: null,
+      catalogItemCode: 'T4',
+      catalogItemName: `Test ${id}`,
+      templateDefinitionId: null,
+      catalogItem: {
+        code: 'T4',
+        labTestConfigurations: [
+          {
+            department: 'ENDOCRINOLOGY',
+            defaultProcessingMethod: 'ANALYZER',
+            defaultAnalyzerId: null,
+          },
+        ],
+      },
+    },
+  });
+
+  function tube(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'sp-2',
+      orderId: 'order-1',
+      status: 'EXPECTED',
+      specimenType: 'SERUM',
+      accessionNumber: 'REQ-1-2',
+      order: {
+        status: 'PROCESSING',
+        case: {
+          patientSpecies: 'CANINE',
+          patientAge: null,
+          patientAgeUnit: null,
+        },
+      },
+      orderedTests: [
+        linked('ot-added', 'PENDING'),
+        // Already running on another tube — must not move
+        linked('ot-running', 'IN_PROGRESS'),
+      ],
+      ...overrides,
+    };
+  }
+
+  beforeEach(async () => {
+    templates = {
+      resolveTemplateForTest: jest
+        .fn()
+        .mockResolvedValue({ id: 'def-1', activeVersionId: 'ver-1' }),
+    };
+    orderStatusService = {
+      deriveAndPersist: jest
+        .fn()
+        .mockResolvedValue({ orderStatus: 'RECEIVED_BY_LAB' }),
+    };
+    prisma = {
+      specimen: {
+        findFirst: jest.fn().mockResolvedValue(tube()),
+        update: jest.fn().mockImplementation(({ data }) => ({
+          id: 'sp-2',
+          status: data.status,
+          accessionNumber: data.accessionNumber,
+        })),
+      },
+      orderedTest: { update: jest.fn() },
+      timelineEvent: { createMany: jest.fn() },
+    };
+    prisma.$transaction = jest.fn((fn: (tx: unknown) => unknown) => fn(prisma));
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SpecimenService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: TemplateVersionService, useValue: templates },
+        { provide: OrderStatusService, useValue: orderStatusService },
+        { provide: NotificationService, useValue: notificationsMock },
+      ],
+    }).compile();
+    service = module.get(SpecimenService);
+  });
+
+  it('accepting moves only the tests waiting for this tube to READY', async () => {
+    const result = await service.receiveSpecimen(
+      'sp-2',
+      'lab-1',
+      { accepted: true },
+      'user-1',
+      'Ana'
+    );
+
+    expect(prisma.specimen.update).toHaveBeenCalledWith({
+      where: { id: 'sp-2' },
+      data: expect.objectContaining({
+        status: 'ACCEPTED',
+        accessionNumber: 'REQ-1-2',
+        receivedAt: expect.any(Date),
+        receivedById: 'user-1',
+      }),
+    });
+    expect(prisma.orderedTest.update).toHaveBeenCalledTimes(1);
+    expect(prisma.orderedTest.update).toHaveBeenCalledWith({
+      where: { id: 'ot-added' },
+      data: expect.objectContaining({
+        status: 'READY',
+        department: 'ENDOCRINOLOGY',
+      }),
+    });
+    expect(result.tests).toEqual([{ id: 'ot-added', status: 'READY' }]);
+    expect(orderStatusService.deriveAndPersist).toHaveBeenCalledWith(
+      'order-1',
+      prisma
+    );
+  });
+
+  it('blocks a waiting test when no result template matches', async () => {
+    templates.resolveTemplateForTest.mockResolvedValue(null);
+
+    await service.receiveSpecimen(
+      'sp-2',
+      'lab-1',
+      { accepted: true },
+      'u',
+      'A'
+    );
+
+    expect(prisma.orderedTest.update).toHaveBeenCalledWith({
+      where: { id: 'ot-added' },
+      data: expect.objectContaining({
+        status: 'BLOCKED',
+        blockReason: 'MISSING_RESULT_TEMPLATE',
+      }),
+    });
+  });
+
+  it('rejecting blocks the waiting tests and records the reason', async () => {
+    await service.receiveSpecimen(
+      'sp-2',
+      'lab-1',
+      { accepted: false, rejectionReason: 'Coagulated', isHemolyzed: true },
+      'u',
+      'A'
+    );
+
+    expect(prisma.specimen.update).toHaveBeenCalledWith({
+      where: { id: 'sp-2' },
+      data: expect.objectContaining({
+        status: 'REJECTED',
+        rejectionReason: 'Coagulated',
+        isHemolyzed: true,
+      }),
+    });
+    expect(prisma.orderedTest.update).toHaveBeenCalledWith({
+      where: { id: 'ot-added' },
+      data: expect.objectContaining({
+        status: 'BLOCKED',
+        blockReason: 'REJECTED_SPECIMEN',
+      }),
+    });
+    expect(templates.resolveTemplateForTest).not.toHaveBeenCalled();
+  });
+
+  it('a missing tube that turns up unblocks its tests', async () => {
+    prisma.specimen.findFirst.mockResolvedValue(
+      tube({
+        status: 'MISSING',
+        orderedTests: [linked('ot-1', 'BLOCKED', 'MISSING_SPECIMEN')],
+      })
+    );
+
+    const result = await service.receiveSpecimen(
+      'sp-2',
+      'lab-1',
+      { accepted: true },
+      'u',
+      'A'
+    );
+    expect(result.tests).toEqual([{ id: 'ot-1', status: 'READY' }]);
+  });
+
+  it('refuses a tube that is not awaited, and a rejection without a reason', async () => {
+    prisma.specimen.findFirst.mockResolvedValueOnce(
+      tube({ status: 'ACCEPTED' })
+    );
+    await expect(
+      service.receiveSpecimen('sp-2', 'lab-1', { accepted: true }, 'u', 'A')
+    ).rejects.toThrow(BadRequestException);
+
+    await expect(
+      service.receiveSpecimen('sp-2', 'lab-1', { accepted: false }, 'u', 'A')
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.specimen.update).not.toHaveBeenCalled();
+  });
+
+  it("404s on another lab's tube", async () => {
+    prisma.specimen.findFirst.mockResolvedValue(null);
+    await expect(
+      service.receiveSpecimen('sp-x', 'lab-1', { accepted: true }, 'u', 'A')
+    ).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('SpecimenService — requestAnotherSample', () => {
+  let service: SpecimenService;
+  let prisma: Record<string, any>;
+
+  const blockedTest = (overrides: Record<string, unknown> = {}) => ({
+    id: 'ot-1',
+    status: 'BLOCKED',
+    blockReason: 'REJECTED_SPECIMEN',
+    catalogItemName: 'T4',
+    order: { id: 'order-1', status: 'PROCESSING', requisitionNumber: 'REQ-1' },
+    catalogItem: {
+      labTestConfigurations: [
+        {
+          specimenRequirements: [
+            {
+              specimenType: 'SERUM',
+              containerType: 'SST_TUBE',
+              isAlternativeWithinGroup: false,
+            },
+          ],
+        },
+      ],
+    },
+    ...overrides,
+  });
+
+  beforeEach(async () => {
+    notificationsMock.publish.mockClear();
+    notificationsMock.deliverQueued.mockClear();
+    (clinicOrderRecipients as jest.Mock).mockReset().mockResolvedValue({
+      tenantId: 'clinic-1',
+      userIds: ['vet-1', 'owner-1'],
+      requisitionNumber: 'REQ-1',
+      caseId: 'case-1',
+    });
+    prisma = {
+      orderedTest: {
+        findFirst: jest.fn().mockResolvedValue(blockedTest()),
+        update: jest.fn(),
+      },
+      specimen: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest
+          .fn()
+          // tubes of the order, then accession numbers already used
+          .mockResolvedValueOnce([
+            { specimenType: 'SERUM', containerType: 'SST_TUBE', tubeIndex: 1 },
+          ])
+          .mockResolvedValueOnce([{ accessionNumber: 'REQ-1-2' }]),
+        create: jest
+          .fn()
+          .mockResolvedValue({ id: 'sp-new', accessionNumber: 'REQ-1-3' }),
+      },
+      orderedTestSpecimen: { upsert: jest.fn() },
+      timelineEvent: { create: jest.fn() },
+    };
+    prisma.$transaction = jest.fn((fn: (tx: unknown) => unknown) => fn(prisma));
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SpecimenService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: TemplateVersionService, useValue: {} },
+        {
+          provide: OrderStatusService,
+          useValue: {
+            deriveAndPersist: jest
+              .fn()
+              .mockResolvedValue({ orderStatus: 'RECEIVED_BY_LAB' }),
+          },
+        },
+        { provide: NotificationService, useValue: notificationsMock },
+      ],
+    }).compile();
+    service = module.get(SpecimenService);
+  });
+
+  it('creates an awaited tube, puts the test back to waiting and tells the clinic', async () => {
+    const result = await service.requestAnotherSample(
+      'ot-1',
+      'lab-1',
+      { note: 'Vet will bring it tomorrow' },
+      'user-1',
+      'Ana'
+    );
+
+    expect(prisma.specimen.create).toHaveBeenCalledWith({
+      data: {
+        orderId: 'order-1',
+        labTenantId: 'lab-1',
+        accessionNumber: 'REQ-1-3',
+        specimenType: 'SERUM',
+        containerType: 'SST_TUBE',
+        tubeIndex: 2,
+        status: 'EXPECTED',
+      },
+      select: { id: true, accessionNumber: true },
+    });
+    expect(prisma.orderedTest.update).toHaveBeenCalledWith({
+      where: { id: 'ot-1' },
+      data: expect.objectContaining({ status: 'PENDING', blockReason: null }),
+    });
+    expect(prisma.timelineEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        eventType: 'SAMPLE_REQUESTED',
+        metadata: expect.objectContaining({
+          previousBlockReason: 'REJECTED_SPECIMEN',
+          note: 'Vet will bring it tomorrow',
+        }),
+      }),
+    });
+    expect(clinicOrderRecipients).toHaveBeenCalledWith(prisma, 'order-1', {
+      includeAdmins: true,
+    });
+    expect(notificationsMock.publish).toHaveBeenCalledWith(prisma, {
+      type: 'ADDITIONAL_SAMPLE_REQUIRED',
+      tenantId: 'clinic-1',
+      eventKey: 'specimen:sp-new:requested',
+      recipientUserIds: ['vet-1', 'owner-1'],
+      orderId: 'order-1',
+      params: {
+        requisitionNumber: 'REQ-1',
+        caseId: 'case-1',
+        testNames: ['T4'],
+      },
+    });
+    expect(notificationsMock.deliverQueued).toHaveBeenCalled();
+    expect(result.specimen).toEqual({
+      id: 'sp-new',
+      accessionNumber: 'REQ-1-3',
+    });
+  });
+
+  it('shares an already requested tube of the same kind', async () => {
+    prisma.specimen.findFirst.mockResolvedValue({
+      id: 'sp-awaited',
+      accessionNumber: 'REQ-1-2',
+    });
+
+    await service.requestAnotherSample('ot-1', 'lab-1', {}, 'u', 'A');
+
+    expect(prisma.specimen.create).not.toHaveBeenCalled();
+    expect(prisma.orderedTestSpecimen.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: { orderedTestId: 'ot-1', specimenId: 'sp-awaited' },
+      })
+    );
+    // Same tube → same notification key: the clinic is told once
+    expect(notificationsMock.publish.mock.calls[0][1].eventKey).toBe(
+      'specimen:sp-awaited:requested'
+    );
+  });
+
+  it('needs the sample spelled out when the test has no configured requirement', async () => {
+    prisma.orderedTest.findFirst.mockResolvedValue(
+      blockedTest({ catalogItem: { labTestConfigurations: [] } })
+    );
+    await expect(
+      service.requestAnotherSample('ot-1', 'lab-1', {}, 'u', 'A')
+    ).rejects.toThrow(BadRequestException);
+
+    prisma.orderedTest.findFirst.mockResolvedValue(
+      blockedTest({ catalogItem: { labTestConfigurations: [] } })
+    );
+    await service.requestAnotherSample(
+      'ot-1',
+      'lab-1',
+      { specimenType: 'URINE', containerType: 'URINE_CUP' },
+      'u',
+      'A'
+    );
+    expect(prisma.specimen.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          specimenType: 'URINE',
+          containerType: 'URINE_CUP',
+          tubeIndex: 1,
+        }),
+      })
+    );
+  });
+
+  it.each([
+    ['a test not blocked', { status: 'READY', blockReason: null }],
+    [
+      'a test blocked for another reason',
+      { blockReason: 'ANALYZER_UNAVAILABLE' },
+    ],
+    [
+      'a cancelled order',
+      {
+        order: {
+          id: 'order-1',
+          status: 'CANCELLED',
+          requisitionNumber: 'REQ-1',
+        },
+      },
+    ],
+  ])('refuses %s', async (_label, overrides) => {
+    prisma.orderedTest.findFirst.mockResolvedValue(blockedTest(overrides));
+    await expect(
+      service.requestAnotherSample('ot-1', 'lab-1', {}, 'u', 'A')
+    ).rejects.toThrow(BadRequestException);
+    expect(notificationsMock.publish).not.toHaveBeenCalled();
   });
 });

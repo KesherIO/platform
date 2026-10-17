@@ -42,12 +42,18 @@ function formatTimestamp(iso: string): string {
 function reviewTags(order: LabOrderSummary) {
   const count = (status: string) =>
     order.orderedTests.filter((test) => test.status === status).length;
+  const outstanding = order.outstandingSpecimens;
   return {
     inReview: count('IN_REVIEW'),
     notSubmitted: count('RESULTS_ENTERED'),
     amendments: order.amendmentsInReview ?? 0,
+    awaitingTubes: outstanding?.awaiting ?? 0,
+    missingTubes: outstanding?.missing ?? 0,
+    rejectedTubes: outstanding?.rejected ?? 0,
   };
 }
+
+const AWAITING_SPECIMENS = 'awaiting-specimens';
 
 export function OrdersQueuePage() {
   const { t } = useTranslation();
@@ -68,8 +74,12 @@ export function OrdersQueuePage() {
     ],
     queryFn: () =>
       labApi.orders.list({
-        status: activeFilter === FOR_REVIEW ? undefined : activeFilter,
+        status:
+          activeFilter === FOR_REVIEW || activeFilter === AWAITING_SPECIMENS
+            ? undefined
+            : activeFilter,
         forReview: activeFilter === FOR_REVIEW,
+        awaitingSpecimens: activeFilter === AWAITING_SPECIMENS,
         search: search || undefined,
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
@@ -117,6 +127,11 @@ export function OrdersQueuePage() {
     {
       label: t('orders.filter.awaiting_sample'),
       value: 'PENDING,READY_FOR_PICKUP',
+    },
+    {
+      label: t('orders.filter.awaiting_additional_sample'),
+      value: AWAITING_SPECIMENS,
+      tooltip: t('orders.filter.awaiting_additional_sample_tooltip'),
     },
     { label: t('orders.filter.in_transit'), value: 'COLLECTED' },
     { label: t('orders.filter.received'), value: 'RECEIVED_BY_LAB' },
@@ -258,7 +273,10 @@ export function OrdersQueuePage() {
                     <p className="text-xs text-gray-500">{order.clinicName}</p>
                     {((canRelease &&
                       (tags.inReview > 0 || tags.amendments > 0)) ||
-                      tags.notSubmitted > 0) && (
+                      tags.notSubmitted > 0 ||
+                      tags.awaitingTubes > 0 ||
+                      tags.missingTubes > 0 ||
+                      tags.rejectedTubes > 0) && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {canRelease && tags.inReview > 0 && (
                           <span className={`${TAG} bg-purple/15 text-purple`}>
@@ -271,6 +289,29 @@ export function OrdersQueuePage() {
                           <span className={`${TAG} bg-purple/15 text-purple`}>
                             {t('orders.tags.amendment_for_review', {
                               count: tags.amendments,
+                            })}
+                          </span>
+                        )}
+                        {tags.awaitingTubes > 0 && (
+                          <span
+                            className={`${TAG} bg-amber-900/40 text-amber-300`}
+                          >
+                            {t('orders.tags.awaiting_tube', {
+                              count: tags.awaitingTubes,
+                            })}
+                          </span>
+                        )}
+                        {tags.missingTubes > 0 && (
+                          <span className={`${TAG} bg-red-900/40 text-red-300`}>
+                            {t('orders.tags.missing_tube', {
+                              count: tags.missingTubes,
+                            })}
+                          </span>
+                        )}
+                        {tags.rejectedTubes > 0 && (
+                          <span className={`${TAG} bg-red-900/40 text-red-300`}>
+                            {t('orders.tags.rejected_tube', {
+                              count: tags.rejectedTubes,
                             })}
                           </span>
                         )}

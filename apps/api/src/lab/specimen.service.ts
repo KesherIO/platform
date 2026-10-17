@@ -7,6 +7,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TemplateVersionService } from '../results/template-version.service';
 import { OrderStatusService } from './order-status.service';
 import type { AccessionOrderDto } from './dto/accession-order.dto';
+import type {
+  ReceiveSpecimenDto,
+  RequestSampleDto,
+} from './dto/receive-specimen.dto';
+import { NotificationService } from '../notifications/notification.service';
+import { clinicOrderRecipients } from '../notifications/clinic-recipients';
 import type { AgeUnit, PatientSpecies, Prisma } from '@prisma/client';
 
 const CONDITION_FLAG_LABELS: Record<string, string> = {
@@ -66,6 +72,14 @@ function ageToWeeks(age: number, unit: AgeUnit): number {
   }
 }
 
+/** Block reasons for which the clinic can be asked for another tube. */
+const SAMPLE_BLOCK_REASONS = [
+  'MISSING_SPECIMEN',
+  'REJECTED_SPECIMEN',
+  'INSUFFICIENT_VOLUME',
+  'REQUIRES_RECOLLECTION',
+] as const;
+
 /** Ordered tests accessioning may (re)link to a tube and move to READY/BLOCKED. */
 const ACCESSIONABLE_TESTS = {
   OR: [
@@ -90,12 +104,473 @@ export class SpecimenService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly templateVersionService: TemplateVersionService,
-    private readonly orderStatusService: OrderStatusService
+    private readonly orderStatusService: OrderStatusService,
+    private readonly notifications: NotificationService
   ) {}
 
   // ---------------------------------------------------------------------------
   // Derive expected specimens from LabTestSpecimenRequirement
   // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // Receive one awaited (or missing) tube — never touches other tubes or tests
+  // ---------------------------------------------------------------------------
+
+  async receiveSpecimen(
+    specimenId: string,
+    labTenantId: string,
+    dto: ReceiveSpecimenDto,
+    actorId: string,
+    actorName: string
+  ) {
+    const specimen = await this.prisma.specimen.findFirst({
+      where: { id: specimenId, labTenantId },
+      select: {
+        id: true,
+        orderId: true,
+        status: true,
+        specimenType: true,
+        accessionNumber: true,
+        order: {
+          select: {
+            status: true,
+            case: {
+              select: {
+                patientSpecies: true,
+                patientAge: true,
+                patientAgeUnit: true,
+              },
+            },
+          },
+        },
+        orderedTests: {
+          select: {
+            orderedTest: {
+              select: {
+                id: true,
+                status: true,
+                blockReason: true,
+                receivedAt: true,
+                catalogItemCode: true,
+                catalogItemName: true,
+                templateDefinitionId: true,
+                catalogItem: {
+                  select: {
+                    code: true,
+                    labTestConfigurations: {
+                      where: { labTenantId },
+                      select: {
+                        department: true,
+                        defaultProcessingMethod: true,
+                        defaultAnalyzerId: true,
+                      },
+                      take: 1,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!specimen) throw new NotFoundException('Specimen not found.');
+    if (specimen.status !== 'EXPECTED' && specimen.status !== 'MISSING') {
+      throw new BadRequestException(
+        `Only a tube still awaited or missing can be received (this one is ${specimen.status}).`
+      );
+    }
+    if (['COMPLETED', 'CANCELLED'].includes(specimen.order.status)) {
+      throw new BadRequestException(
+        `The order is ${specimen.order.status}; nothing is waiting for this tube.`
+      );
+    }
+    if (
+      !dto.accepted &&
+      !dto.rejectionReason &&
+      buildConditionFlags(dto).length === 0
+    ) {
+      throw new BadRequestException(
+        'A reason or a condition is required to reject a tube.'
+      );
+    }
+
+    // Only the tests waiting for this tube move
+    const waiting = specimen.orderedTests
+      .map((l) => l.orderedTest)
+      .filter(
+        (t) =>
+          t.status === 'PENDING' ||
+          (t.status === 'BLOCKED' && t.blockReason === 'MISSING_SPECIMEN')
+      );
+
+    const species = specimen.order.case.patientSpecies as PatientSpecies;
+    const { patientAge, patientAgeUnit } = specimen.order.case;
+    const ageWeeks =
+      patientAge && patientAgeUnit
+        ? ageToWeeks(patientAge, patientAgeUnit as AgeUnit)
+        : null;
+    const templates = dto.accepted
+      ? await Promise.all(
+          waiting.map((t) =>
+            this.templateVersionService.resolveTemplateForTest(
+              {
+                catalogItemCode: t.catalogItem?.code ?? t.catalogItemCode,
+                templateDefinitionId: t.templateDefinitionId,
+              },
+              labTenantId,
+              species,
+              ageWeeks
+            )
+          )
+        )
+      : [];
+
+    const now = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.specimen.update({
+        where: { id: specimenId },
+        data: {
+          status: dto.accepted ? 'ACCEPTED' : 'REJECTED',
+          accessionNumber: dto.accessionNumber ?? specimen.accessionNumber,
+          isHemolyzed: dto.isHemolyzed ?? false,
+          isLipemic: dto.isLipemic ?? false,
+          isIcteric: dto.isIcteric ?? false,
+          isInsufficient: dto.isInsufficient ?? false,
+          isContaminated: dto.isContaminated ?? false,
+          isWrongContainer: dto.isWrongContainer ?? false,
+          isLeaking: dto.isLeaking ?? false,
+          rejectionReason: dto.accepted ? null : dto.rejectionReason ?? null,
+          notes: dto.notes ?? null,
+          receivedAt: now,
+          receivedById: actorId,
+        },
+      });
+
+      const events: Prisma.TimelineEventCreateManyInput[] = [
+        {
+          orderId: specimen.orderId,
+          eventType: dto.accepted ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED',
+          actorId,
+          actorName,
+          description: dto.accepted
+            ? `Specimen ${updated.accessionNumber} (${specimen.specimenType}) accepted`
+            : `Specimen ${updated.accessionNumber} (${
+                specimen.specimenType
+              }) rejected: ${buildRejectionReason(dto)}`,
+          metadata: {
+            specimenId,
+            accessionNumber: updated.accessionNumber,
+            specimenType: specimen.specimenType,
+            reason: dto.rejectionReason,
+            conditions: buildConditionFlags(dto),
+          },
+        },
+      ];
+
+      const tests: { id: string; status: string }[] = [];
+      for (const [i, test] of waiting.entries()) {
+        const template = templates[i];
+        const config = test.catalogItem?.labTestConfigurations[0];
+        const receivedAt = test.receivedAt ? {} : { receivedAt: now };
+        if (!dto.accepted) {
+          await tx.orderedTest.update({
+            where: { id: test.id },
+            data: {
+              status: 'BLOCKED',
+              blockReason: 'REJECTED_SPECIMEN',
+              blockReasonDetail: `Specimen rejected: ${specimen.specimenType}`,
+              version: { increment: 1 },
+              ...receivedAt,
+            },
+          });
+          tests.push({ id: test.id, status: 'BLOCKED' });
+          events.push({
+            orderId: specimen.orderId,
+            eventType: 'TEST_BLOCKED',
+            actorId,
+            actorName,
+            description: `${test.catalogItemName} blocked: specimen rejected`,
+            metadata: {
+              orderedTestId: test.id,
+              blockReason: 'REJECTED_SPECIMEN',
+            },
+          });
+        } else if (template?.activeVersionId) {
+          await tx.orderedTest.update({
+            where: { id: test.id },
+            data: {
+              status: 'READY',
+              blockReason: null,
+              blockReasonDetail: null,
+              department: config?.department ?? null,
+              processingMethod: config?.defaultProcessingMethod ?? null,
+              analyzerId: config?.defaultAnalyzerId ?? null,
+              version: { increment: 1 },
+              ...receivedAt,
+            },
+          });
+          tests.push({ id: test.id, status: 'READY' });
+          events.push({
+            orderId: specimen.orderId,
+            eventType: 'TEMPLATE_RESOLVED',
+            actorId,
+            actorName,
+            description: `Template resolved for ${test.catalogItemName}`,
+            metadata: {
+              orderedTestId: test.id,
+              templateDefinitionId: template.id,
+              templateVersionId: template.activeVersionId,
+            },
+          });
+        } else {
+          const catalogCode =
+            test.catalogItem?.code ?? test.catalogItemCode ?? '';
+          await tx.orderedTest.update({
+            where: { id: test.id },
+            data: {
+              status: 'BLOCKED',
+              blockReason: 'MISSING_RESULT_TEMPLATE',
+              blockReasonDetail: `No published template for ${catalogCode} + ${species}`,
+              version: { increment: 1 },
+              ...receivedAt,
+            },
+          });
+          tests.push({ id: test.id, status: 'BLOCKED' });
+          events.push({
+            orderId: specimen.orderId,
+            eventType: 'TEST_BLOCKED',
+            actorId,
+            actorName,
+            description: `${test.catalogItemName} blocked: no result template`,
+            metadata: {
+              orderedTestId: test.id,
+              blockReason: 'MISSING_RESULT_TEMPLATE',
+              catalogCode,
+              species,
+            },
+          });
+        }
+      }
+      await tx.timelineEvent.createMany({ data: events });
+
+      const { orderStatus } = await this.orderStatusService.deriveAndPersist(
+        specimen.orderId,
+        tx
+      );
+      return {
+        specimen: { id: updated.id, status: updated.status },
+        tests,
+        order: { id: specimen.orderId, status: orderStatus },
+      };
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ask the clinic for another tube for a test blocked by its sample
+  // ---------------------------------------------------------------------------
+
+  async requestAnotherSample(
+    orderedTestId: string,
+    labTenantId: string,
+    dto: RequestSampleDto,
+    actorId: string,
+    actorName: string
+  ) {
+    const test = await this.prisma.orderedTest.findFirst({
+      where: { id: orderedTestId, order: { labTenantId } },
+      select: {
+        id: true,
+        status: true,
+        blockReason: true,
+        catalogItemName: true,
+        order: {
+          select: { id: true, status: true, requisitionNumber: true },
+        },
+        catalogItem: {
+          select: {
+            labTestConfigurations: {
+              where: { labTenantId },
+              select: {
+                specimenRequirements: { orderBy: { sortOrder: 'asc' } },
+              },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+    if (!test) throw new NotFoundException('Ordered test not found.');
+    if (
+      test.status !== 'BLOCKED' ||
+      !SAMPLE_BLOCK_REASONS.includes(
+        test.blockReason as (typeof SAMPLE_BLOCK_REASONS)[number]
+      )
+    ) {
+      throw new BadRequestException(
+        'Another sample can only be requested for a test blocked by its sample.'
+      );
+    }
+    if (['COMPLETED', 'CANCELLED'].includes(test.order.status)) {
+      throw new BadRequestException(`The order is ${test.order.status}.`);
+    }
+
+    const primaryReq =
+      test.catalogItem?.labTestConfigurations[0]?.specimenRequirements.find(
+        (r) => !r.isAlternativeWithinGroup
+      );
+    const specimenType = primaryReq?.specimenType ?? dto.specimenType;
+    const containerType = primaryReq?.containerType ?? dto.containerType;
+    if (!specimenType || !containerType) {
+      // No configured requirement: staff must say which sample is needed
+      throw new BadRequestException(
+        'This test has no configured specimen requirement — choose the specimen and container needed.'
+      );
+    }
+
+    const orderId = test.order.id;
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Tests needing the same kind of sample share one requested tube
+      const tube =
+        (await tx.specimen.findFirst({
+          where: { orderId, status: 'EXPECTED', specimenType, containerType },
+          select: { id: true, accessionNumber: true },
+        })) ??
+        (await this.createRequestedTube(
+          tx,
+          orderId,
+          labTenantId,
+          test.order.requisitionNumber,
+          specimenType,
+          containerType
+        ));
+
+      await tx.orderedTestSpecimen.upsert({
+        where: {
+          orderedTestId_specimenId: {
+            orderedTestId: test.id,
+            specimenId: tube.id,
+          },
+        },
+        create: { orderedTestId: test.id, specimenId: tube.id },
+        update: {},
+      });
+      await tx.orderedTest.update({
+        where: { id: test.id },
+        data: {
+          status: 'PENDING',
+          blockReason: null,
+          blockReasonDetail: null,
+          version: { increment: 1 },
+        },
+      });
+      await tx.timelineEvent.create({
+        data: {
+          orderId,
+          eventType: 'SAMPLE_REQUESTED',
+          actorId,
+          actorName,
+          description: `Another sample requested for ${test.catalogItemName} (${specimenType})`,
+          metadata: {
+            orderedTestId: test.id,
+            specimenId: tube.id,
+            accessionNumber: tube.accessionNumber,
+            previousBlockReason: test.blockReason,
+            note: dto.note ?? null,
+          },
+        },
+      });
+      const { orderStatus } = await this.orderStatusService.deriveAndPersist(
+        orderId,
+        tx
+      );
+
+      // The clinic arranges the new sample (no pickup is created): the vets,
+      // and Owner/Admin who usually handle logistics
+      const recipients = await clinicOrderRecipients(tx, orderId, {
+        includeAdmins: true,
+      });
+      if (recipients) {
+        await this.notifications.publish(tx, {
+          type: 'ADDITIONAL_SAMPLE_REQUIRED',
+          tenantId: recipients.tenantId,
+          // One notification per requested tube, however many tests share it
+          eventKey: `specimen:${tube.id}:requested`,
+          recipientUserIds: recipients.userIds,
+          orderId,
+          params: {
+            requisitionNumber: recipients.requisitionNumber,
+            caseId: recipients.caseId,
+            testNames: [test.catalogItemName],
+          },
+        });
+      }
+
+      return {
+        specimen: { id: tube.id, accessionNumber: tube.accessionNumber },
+        test: { id: test.id, status: 'PENDING' },
+        order: { id: orderId, status: orderStatus },
+      };
+    });
+    this.notifications.deliverQueued();
+    return result;
+  }
+
+  /**
+   * A new EXPECTED tube, numbered like the Accession dialog numbers extra
+   * tubes (<requisition>-<n>), skipping numbers this lab already used.
+   */
+  private async createRequestedTube(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+    labTenantId: string,
+    requisitionNumber: string,
+    specimenType: string,
+    containerType: string
+  ) {
+    const existing = await tx.specimen.findMany({
+      where: { orderId },
+      select: { specimenType: true, containerType: true, tubeIndex: true },
+    });
+    const tubeIndex =
+      Math.max(
+        0,
+        ...existing
+          .filter(
+            (sp) =>
+              sp.specimenType === specimenType &&
+              sp.containerType === containerType
+          )
+          .map((sp) => sp.tubeIndex)
+      ) + 1;
+
+    const used = new Set(
+      (
+        await tx.specimen.findMany({
+          where: {
+            labTenantId,
+            accessionNumber: { startsWith: requisitionNumber },
+          },
+          select: { accessionNumber: true },
+        })
+      ).map((sp) => sp.accessionNumber)
+    );
+    let n = existing.length + 1;
+    while (used.has(`${requisitionNumber}-${n}`)) n++;
+
+    return tx.specimen.create({
+      data: {
+        orderId,
+        labTenantId,
+        accessionNumber: `${requisitionNumber}-${n}`,
+        specimenType,
+        containerType,
+        tubeIndex,
+        status: 'EXPECTED',
+      },
+      select: { id: true, accessionNumber: true },
+    });
+  }
 
   async getExpectedSpecimens(orderId: string, labTenantId: string) {
     const order = await this.prisma.order.findFirst({

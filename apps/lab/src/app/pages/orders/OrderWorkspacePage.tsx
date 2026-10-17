@@ -7,11 +7,21 @@ import { StatusBadge } from '../../shared/components/StatusBadge';
 import { Skeleton } from '../../shared/components/Skeleton';
 import { ReleasePdfMenu } from '../../shared/components/ReleasePdfMenu';
 import { AccessionDialog } from './AccessionDialog';
+import { ReceiveSpecimenDialog } from './ReceiveSpecimenDialog';
+import { RequestSampleDialog } from './RequestSampleDialog';
 import { useToast } from '../../shared/components/ToastProvider';
 import { useAuth } from '../../auth/AuthContext';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { Trash2 } from 'lucide-react';
 import type { OrderedTest, Specimen } from '../../types/lab.types';
+
+/** Block reasons for which the clinic can be asked for another tube. */
+const SAMPLE_BLOCK_REASONS = [
+  'MISSING_SPECIMEN',
+  'REJECTED_SPECIMEN',
+  'INSUFFICIENT_VOLUME',
+  'REQUIRES_RECOLLECTION',
+];
 
 const TECHNICAL_EVENT_TYPES = new Set([
   'NOTIFICATION_SENT',
@@ -166,6 +176,11 @@ export function OrderWorkspacePage() {
   const [reversingMissingId, setReversingMissingId] = useState<string | null>(
     null
   );
+  const [receivingSpecimen, setReceivingSpecimen] = useState<Specimen | null>(
+    null
+  );
+  const [requestingSampleFor, setRequestingSampleFor] =
+    useState<OrderedTest | null>(null);
 
   const {
     data: order,
@@ -402,6 +417,7 @@ export function OrderWorkspacePage() {
   }
 
   const hasTests = order.orderedTests.length > 0;
+  const outstanding = order.outstandingSpecimens;
   const anyTestsPending = order.orderedTests.some(
     (t) => t.status === 'PENDING'
   );
@@ -437,6 +453,15 @@ export function OrderWorkspacePage() {
                 test.blockReasonDetail ?? test.blockReason ?? 'Blocked',
             })}
           </span>
+          {SAMPLE_BLOCK_REASONS.includes(test.blockReason ?? '') &&
+            order.status !== 'CANCELLED' && (
+              <button
+                onClick={() => setRequestingSampleFor(test)}
+                className="rounded-lg border border-amber-800/60 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-900/20"
+              >
+                {t('specimens.request_sample')}
+              </button>
+            )}
           {test.blockReason === 'MISSING_RESULT_TEMPLATE' && (
             <div className="flex gap-1.5">
               <button
@@ -751,6 +776,17 @@ export function OrderWorkspacePage() {
                     <div className="flex items-center gap-2">
                       <StatusBadge status={specimen.status} size="sm" />
                       {(specimen.status === 'EXPECTED' ||
+                        specimen.status === 'MISSING') &&
+                        order.status !== 'CANCELLED' &&
+                        order.status !== 'COMPLETED' && (
+                          <button
+                            onClick={() => setReceivingSpecimen(specimen)}
+                            className="rounded bg-cyan/15 px-2 py-1 text-xs font-medium text-cyan hover:bg-cyan/25"
+                          >
+                            {t('specimens.receive')}
+                          </button>
+                        )}
+                      {(specimen.status === 'EXPECTED' ||
                         specimen.status === 'RECEIVED') && (
                         <div className="flex items-center gap-1">
                           <input
@@ -877,6 +913,41 @@ export function OrderWorkspacePage() {
         </div>
 
         <div className="col-span-2">
+          {outstanding &&
+            outstanding.awaiting + outstanding.missing + outstanding.rejected >
+              0 && (
+              <div className="mb-3 rounded-xl border border-amber-900/50 bg-amber-900/20 px-4 py-3">
+                <p className="text-sm font-semibold text-amber-200">
+                  {t('specimens.outstanding_title')}
+                </p>
+                <ul className="mt-1 space-y-0.5 text-xs text-amber-100/90">
+                  {outstanding.awaiting > 0 && (
+                    <li>
+                      {t('specimens.outstanding_awaiting', {
+                        count: outstanding.awaiting,
+                      })}
+                    </li>
+                  )}
+                  {outstanding.missing > 0 && (
+                    <li>
+                      {t('specimens.outstanding_missing', {
+                        count: outstanding.missing,
+                      })}
+                    </li>
+                  )}
+                  {outstanding.rejected > 0 && (
+                    <li>
+                      {t('specimens.outstanding_rejected', {
+                        count: outstanding.rejected,
+                      })}
+                    </li>
+                  )}
+                </ul>
+                <p className="mt-1 text-xs text-amber-300/80">
+                  {t('specimens.no_auto_pickup')}
+                </p>
+              </div>
+            )}
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-300">
               {t('workspace.ordered_tests')}
@@ -1056,6 +1127,31 @@ export function OrderWorkspacePage() {
           </div>
         </div>
       </div>
+
+      {receivingSpecimen && (
+        <ReceiveSpecimenDialog
+          specimen={receivingSpecimen}
+          onClose={() => setReceivingSpecimen(null)}
+          onSuccess={() => {
+            setReceivingSpecimen(null);
+            toast.success(t('specimens.received_success'));
+            invalidateOrder();
+          }}
+        />
+      )}
+
+      {requestingSampleFor && orderId && (
+        <RequestSampleDialog
+          orderId={orderId}
+          test={requestingSampleFor}
+          onClose={() => setRequestingSampleFor(null)}
+          onSuccess={() => {
+            setRequestingSampleFor(null);
+            toast.success(t('specimens.requested_success'));
+            invalidateOrder();
+          }}
+        />
+      )}
 
       {showAccessionDialog && orderId && (
         <AccessionDialog

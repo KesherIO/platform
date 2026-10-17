@@ -83,6 +83,8 @@ enum TimelineEventType {
   AMENDMENT_CANCELLED
   TEST_CANCELLED
   ORDER_CANCELLED
+  // Another tube requested from the clinic (added tests, rejected/missing tube)
+  SAMPLE_REQUESTED
 }
 
 enum OnboardingTokenType {

@@ -51,6 +51,8 @@ import type {
   RemovedLabMember,
   NotificationListResponse,
   NotificationUnreadCount,
+  ReceiveSpecimenInput,
+  RequestSampleInput,
 } from '../../types/lab.types';
 
 /** Non-2xx response. `message` is the response body, as before. */
@@ -141,6 +143,7 @@ export const labApi = {
       const sp = new URLSearchParams();
       if (params?.status) sp.set('status', params.status);
       if (params?.forReview) sp.set('forReview', 'true');
+      if (params?.awaitingSpecimens) sp.set('awaitingSpecimens', 'true');
       if (params?.search) sp.set('search', params.search);
       if (params?.dateFrom) sp.set('dateFrom', params.dateFrom);
       if (params?.dateTo) sp.set('dateTo', params.dateTo);
@@ -357,6 +360,19 @@ export const labApi = {
       post<GenerateTestConfigsResult>('lab-config/test-configs/generate'),
   },
   specimens: {
+    /** One awaited (or missing) tube arrives — only its tests move */
+    receive: (specimenId: string, input: ReceiveSpecimenInput) =>
+      post<{
+        specimen: { id: string; status: string };
+        tests: { id: string; status: string }[];
+        order: { id: string; status: string };
+      }>(`lab/specimens/${specimenId}/receive`, input),
+    /** Ask the clinic for another tube for a test blocked by its sample */
+    requestSample: (orderedTestId: string, input: RequestSampleInput) =>
+      post<{ specimen: { id: string; accessionNumber: string } }>(
+        `lab/ordered-tests/${orderedTestId}/request-sample`,
+        input
+      ),
     getExpected: (orderId: string) =>
       get<ExpectedSpecimensResponse>(
         `lab/orders/${orderId}/expected-specimens`
