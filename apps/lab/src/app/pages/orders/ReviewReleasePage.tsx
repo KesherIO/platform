@@ -378,6 +378,48 @@ function CorrectionBanner({ notes }: { notes: string }) {
   );
 }
 
+/** Amendments waiting for a reviewer — the test itself still reads COMPLETED. */
+function PendingAmendmentsBanner({
+  amendments,
+  onReview,
+}: {
+  amendments: Array<{
+    orderedTestId: string;
+    testName: string;
+    reason: string;
+  }>;
+  onReview: (orderedTestId: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="mb-4 rounded-lg border border-purple/40 bg-purple/10 px-4 py-3">
+      <p className="text-sm font-semibold text-purple">
+        {t('review.pending_amendments_banner', { count: amendments.length })}
+      </p>
+      <ul className="mt-2 space-y-2">
+        {amendments.map((a) => (
+          <li
+            key={a.orderedTestId}
+            className="flex flex-wrap items-center justify-between gap-2"
+          >
+            <span className="text-sm text-gray-300">
+              <span className="font-medium text-white">{a.testName}</span>
+              {' · '}
+              {a.reason}
+            </span>
+            <button
+              onClick={() => onReview(a.orderedTestId)}
+              className="rounded-lg border border-purple/50 px-3 py-1.5 text-xs font-medium text-purple hover:bg-purple/20"
+            >
+              {t('review.pending_amendments_review')}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function PdfActions({
   release,
   orderId,
@@ -961,6 +1003,31 @@ export function ReviewReleasePage() {
   const activeAmendmentByTestId = new Map(
     (activeAmendments ?? []).map((a) => [a.orderedTestId, a])
   );
+  const amendmentsAwaitingReview = canRelease
+    ? (activeAmendments ?? []).filter((a) => a.status === 'IN_REVIEW')
+    : [];
+
+  // A reviewer opening the order lands on the amendment waiting for them —
+  // once per order, so closing it doesn't keep reopening it
+  const openedAwaitingFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      openedAwaitingFor.current === orderId ||
+      !amendmentsAwaitingReview.length
+    )
+      return;
+    openedAwaitingFor.current = orderId ?? null;
+    setAmendingTestId(amendmentsAwaitingReview[0].orderedTestId);
+  }, [orderId, amendmentsAwaitingReview]);
+
+  const reviewAmendment = (orderedTestId: string) => {
+    setAmendingTestId(orderedTestId);
+    requestAnimationFrame(() =>
+      document
+        .getElementById(`test-${orderedTestId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    );
+  };
 
   const { data: reviewerSigners } = useQuery({
     queryKey: ['reviewer-signers-check'],
@@ -1283,6 +1350,19 @@ export function ReviewReleasePage() {
         </div>
       )}
 
+      {amendmentsAwaitingReview.length > 0 && (
+        <PendingAmendmentsBanner
+          amendments={amendmentsAwaitingReview.map((a) => ({
+            orderedTestId: a.orderedTestId,
+            testName:
+              order.orderedTests.find((ot) => ot.id === a.orderedTestId)
+                ?.catalogItemName ?? '',
+            reason: a.reason,
+          }))}
+          onReview={reviewAmendment}
+        />
+      )}
+
       {/* Released: approver info */}
       {isFullyReleased && report?.approvedByName && report.reviewedAt && (
         <div className="mb-4 rounded-lg border border-green-800/40 bg-green-900/10 px-4 py-3">
@@ -1383,7 +1463,7 @@ export function ReviewReleasePage() {
           const readOnly = isTestInReview || isTestCompleted;
 
           return (
-            <div key={test.id}>
+            <div key={test.id} id={`test-${test.id}`}>
               {/* Checkbox / status row */}
               <div className="mb-1 flex items-center gap-2">
                 {isTestInReview && canRelease ? (
