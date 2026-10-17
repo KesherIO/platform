@@ -370,7 +370,6 @@ export class CasesService {
    * Allowed in: ORDERED.
    * Transition: ORDERED → COMPLETED (terminal).
    * Results are entered via the ResultReport flow — this is a pure status transition.
-   * Called by ResultsService.releaseReport() after the lab releases the structured result.
    */
   async completeCase(tenantId: string, id: string) {
     const c = await this.fetchCase(tenantId, id);

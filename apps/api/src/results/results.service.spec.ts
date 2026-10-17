@@ -14,7 +14,6 @@ import type {
   ImportTemplateDto,
   CreateReportDto,
   SaveAnalytesDto,
-  ReleaseReportDto,
 } from './dto/results.dto';
 
 // ---------------------------------------------------------------------------
@@ -194,6 +193,9 @@ function makePrismaMock() {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
+    },
+    orderedTest: {
+      findMany: jest.fn().mockResolvedValue([]),
     },
     resultReportAnalyte: {
       createMany: jest.fn(),
@@ -482,160 +484,6 @@ describe('ResultsService', () => {
     });
   });
 
-  // ── releaseReport ──────────────────────────────────────────────────────────
-
-  describe('releaseReport', () => {
-    const dto: ReleaseReportDto = {
-      processedByName: 'Luis Giraldo',
-      processedByRole: 'Analista',
-      approvedByName: 'Carlos Canaval',
-      approvedByRole: 'Jefe de Laboratorio',
-    };
-
-    beforeEach(() => {
-      prisma.resultReport.findUnique.mockResolvedValue(
-        makeReport({ status: 'DRAFT', caseId: 'case-1' })
-      );
-      prisma.resultReportTest.findMany.mockResolvedValue([
-        {
-          id: 'rt-1',
-          analytes: [makeAnalyte({ numericValue: 8.2 })],
-        },
-      ]);
-      prisma.resultReportAnalyte.update.mockResolvedValue({});
-      prisma.resultReport.update.mockResolvedValue({});
-      prisma.case.update.mockResolvedValue({});
-      prisma.resultReport.findUniqueOrThrow.mockResolvedValue(
-        makeReport({
-          status: 'RELEASED',
-          tests: [
-            {
-              id: 'rt-1',
-              analytes: [makeAnalyte({ numericValue: 8.2, flag: 'L' })],
-            },
-          ],
-        })
-      );
-    });
-
-    it('sets status to RELEASED', async () => {
-      await service.releaseReport('report-1', dto);
-
-      expect(prisma.resultReport.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ status: 'RELEASED' }),
-        })
-      );
-    });
-
-    it('computes flag L when value is below reference min', async () => {
-      await service.releaseReport('report-1', dto);
-
-      expect(prisma.resultReportAnalyte.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ flag: 'L' }),
-        })
-      );
-    });
-
-    it('computes flag H when value is above reference max', async () => {
-      prisma.resultReportTest.findMany.mockResolvedValue([
-        {
-          id: 'rt-1',
-          analytes: [makeAnalyte({ numericValue: 22.0 })],
-        },
-      ]);
-
-      await service.releaseReport('report-1', dto);
-
-      expect(prisma.resultReportAnalyte.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ flag: 'H' }),
-        })
-      );
-    });
-
-    it('computes flag N when value is within range', async () => {
-      prisma.resultReportTest.findMany.mockResolvedValue([
-        {
-          id: 'rt-1',
-          analytes: [makeAnalyte({ numericValue: 15.2 })],
-        },
-      ]);
-
-      await service.releaseReport('report-1', dto);
-
-      expect(prisma.resultReportAnalyte.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ flag: 'N' }),
-        })
-      );
-    });
-
-    it('sets null flag for non-numeric analytes', async () => {
-      prisma.resultReportTest.findMany.mockResolvedValue([
-        {
-          id: 'rt-1',
-          analytes: [
-            makeAnalyte({
-              valueType: 'TEXT',
-              textValue: 'Ligeramente turbio',
-              numericValue: null,
-            }),
-          ],
-        },
-      ]);
-
-      await service.releaseReport('report-1', dto);
-
-      expect(prisma.resultReportAnalyte.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ flag: null }),
-        })
-      );
-    });
-
-    it('advances the case to COMPLETED', async () => {
-      await service.releaseReport('report-1', dto);
-
-      expect(prisma.case.update).toHaveBeenCalledWith({
-        where: { id: 'case-1' },
-        data: { status: 'COMPLETED' },
-      });
-    });
-
-    it('stores professional footer on the report', async () => {
-      await service.releaseReport('report-1', dto);
-
-      expect(prisma.resultReport.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            processedByName: 'Luis Giraldo',
-            approvedByName: 'Carlos Canaval',
-          }),
-        })
-      );
-    });
-
-    it('throws BadRequestException when report is already RELEASED', async () => {
-      prisma.resultReport.findUnique.mockResolvedValue(
-        makeReport({ status: 'RELEASED' })
-      );
-
-      await expect(service.releaseReport('report-1', dto)).rejects.toThrow(
-        BadRequestException
-      );
-    });
-
-    it('throws NotFoundException when report does not exist', async () => {
-      prisma.resultReport.findUnique.mockResolvedValue(null);
-
-      await expect(service.releaseReport('nonexistent', dto)).rejects.toThrow(
-        NotFoundException
-      );
-    });
-  });
-
   // ── Lab-side lookups ───────────────────────────────────────────────────────
 
   describe('findLabReport / findLabReportByOrder', () => {
@@ -666,47 +514,6 @@ describe('ResultsService', () => {
     });
   });
 
-  // ── findReportByOrderId ────────────────────────────────────────────────────
-
-  describe('findReportByOrderId', () => {
-    it('returns the report for the correct tenant', async () => {
-      prisma.order.findFirst.mockResolvedValue({ id: 'order-1' });
-      prisma.resultReport.findFirst.mockResolvedValue(
-        makeReport({ status: 'RELEASED' })
-      );
-
-      const result = await service.findReportByOrderId('tenant-1', 'REQ-001');
-
-      expect(result.orderId).toBe('order-1');
-      expect(prisma.order.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { requisitionNumber: 'REQ-001', tenantId: 'tenant-1' },
-        })
-      );
-      expect(prisma.resultReport.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { orderId: 'order-1', tenantId: 'tenant-1' },
-        })
-      );
-    });
-
-    it('throws NotFoundException when order is not found', async () => {
-      prisma.order.findFirst.mockResolvedValue(null);
-
-      await expect(
-        service.findReportByOrderId('tenant-99', 'REQ-999')
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('throws NotFoundException for a different tenant', async () => {
-      prisma.order.findFirst.mockResolvedValue({ id: 'order-1' });
-      prisma.resultReport.findFirst.mockResolvedValue(null);
-
-      await expect(
-        service.findReportByOrderId('tenant-99', 'REQ-001')
-      ).rejects.toThrow(NotFoundException);
-    });
-  });
   // ── findReleasedResultsByOrder (clinic view) ─────────────────────────────
 
   describe('findReleasedResultsByOrder', () => {
@@ -826,6 +633,41 @@ describe('ResultsService', () => {
         where: { tenantId: 'lab-1' },
         select: { showAmendmentsToClinic: true },
       });
+    });
+
+    it('is partial while another ordered test has not even been started', async () => {
+      arrangeAmendedOrder(true);
+      prisma.orderedTest.findMany.mockResolvedValue([
+        { catalogItemName: 'Hemograma' },
+      ]);
+
+      const result = await service.findReleasedResultsByOrder(
+        'clinic-1',
+        'REQ-001'
+      );
+
+      expect(result.releaseStatus).toBe('PARTIAL_RESULTS');
+      expect(result.pendingTestNames).toEqual(['Hemograma']);
+      expect(prisma.orderedTest.findMany).toHaveBeenCalledWith({
+        where: {
+          orderId: 'order-1',
+          status: { notIn: ['COMPLETED', 'CANCELLED'] },
+        },
+        select: { catalogItemName: true },
+      });
+    });
+
+    it('is all released when the only other test was cancelled', async () => {
+      arrangeAmendedOrder(true);
+      prisma.orderedTest.findMany.mockResolvedValue([]);
+
+      const result = await service.findReleasedResultsByOrder(
+        'clinic-1',
+        'REQ-001'
+      );
+
+      expect(result.releaseStatus).toBe('ALL_RELEASED');
+      expect(result.pendingTestNames).toEqual([]);
     });
   });
 
