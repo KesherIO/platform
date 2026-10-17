@@ -53,6 +53,8 @@ import type {
   NotificationUnreadCount,
   ReceiveSpecimenInput,
   RequestSampleInput,
+  AddTestsPreview,
+  AddTestsResult,
 } from '../../types/lab.types';
 
 /** Non-2xx response. `message` is the response body, as before. */
@@ -377,6 +379,16 @@ export const labApi = {
         `lab/ordered-tests/${orderedTestId}/request-sample`,
         input
       ),
+    /** What adding these tests to an open order would do — saves nothing */
+    previewAddTests: (orderId: string, catalogItemIds: string[]) =>
+      post<AddTestsPreview>(`lab/orders/${orderId}/add-tests/preview`, {
+        catalogItemIds,
+      }),
+    addTests: (orderId: string, catalogItemIds: string[], note?: string) =>
+      post<AddTestsResult>(`lab/orders/${orderId}/add-tests`, {
+        catalogItemIds,
+        note,
+      }),
     getExpected: (orderId: string) =>
       get<ExpectedSpecimensResponse>(
         `lab/orders/${orderId}/expected-specimens`

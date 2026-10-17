@@ -15,6 +15,7 @@ import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import { TenantRole } from '@prisma/client';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
+import { AddTestsService } from './add-tests.service';
 import { CatalogService } from '../catalog/catalog.service';
 import { ResultEntryService } from './result-entry.service';
 import { ResultsService } from '../results/results.service';
@@ -127,6 +128,13 @@ describe('LabController', () => {
         { provide: LabClientsService, useValue: clientsServiceMock },
         { provide: PickupService, useValue: pickupServiceMock },
         { provide: SpecimenService, useValue: specimenServiceMock },
+        {
+          provide: AddTestsService,
+          useValue: {
+            preview: jest.fn().mockResolvedValue({}),
+            addTests: jest.fn().mockResolvedValue({}),
+          },
+        },
         {
           provide: CatalogService,
           useValue: { importPlatformCatalog: jest.fn() },
@@ -335,6 +343,31 @@ describe('LabController', () => {
       'ot-1',
       'lab-1',
       { note: 'n' },
+      'user-1',
+      'Ana Lab'
+    );
+  });
+
+  it('previewAddTests and addTests delegate with the lab and the actor', async () => {
+    const addTests = module.get(AddTestsService);
+    const user = {
+      id: 'user-1',
+      email: 'ana@lab.com',
+      firstName: 'Ana',
+      lastName: 'Lab',
+    } as AuthenticatedUser;
+
+    await controller.previewAddTests(tenant, 'o-1', {
+      catalogItemIds: ['c-1'],
+    });
+    expect(addTests.preview).toHaveBeenCalledWith('o-1', 'lab-1', ['c-1']);
+
+    const dto = { catalogItemIds: ['c-1'], note: 'n' };
+    await controller.addTests(tenant, user, 'o-1', dto);
+    expect(addTests.addTests).toHaveBeenCalledWith(
+      'o-1',
+      'lab-1',
+      dto,
       'user-1',
       'Ana Lab'
     );

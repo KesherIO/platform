@@ -26,6 +26,7 @@ import type {
   ReferenceRangeSnapshot,
   AiInterpretationModel,
   AiInterpretationFlaggedAnalyte,
+  ClinicLabAddedTestsModel,
   ClinicReleasedResultsModel,
 } from '@vet-ai/shared-types';
 import type {
@@ -1087,6 +1088,7 @@ export class ResultsService {
         releasedTests: [],
         pendingTestNames: pendingTests.map((t) => t.catalogItemName),
         latestReleasedAt: null,
+        labAdded: await this.findLabAddedTests(order.id),
         labServicesSuspended,
       };
     }
@@ -1245,7 +1247,53 @@ export class ResultsService {
       releasedTests: tests,
       pendingTestNames: pendingTests.map((t) => t.catalogItemName),
       latestReleasedAt: latestDate,
+      labAdded: await this.findLabAddedTests(order.id),
       labServicesSuspended,
+    };
+  }
+
+  /**
+   * Tests the lab added to the order (TESTS_ADDED timeline entries) that are
+   * still to come, and whether another sample is awaited for them.
+   */
+  private async findLabAddedTests(
+    orderId: string
+  ): Promise<ClinicLabAddedTestsModel | null> {
+    const events = await this.prisma.timelineEvent.findMany({
+      where: { orderId, eventType: 'TESTS_ADDED' },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, metadata: true },
+    });
+    if (events.length === 0) return null;
+
+    const addedIds = events.flatMap(
+      (e) =>
+        ((e.metadata as { orderedTestIds?: string[] } | null)?.orderedTestIds ??
+          []) as string[]
+    );
+    const pending = await this.prisma.orderedTest.findMany({
+      where: {
+        id: { in: addedIds },
+        status: { notIn: ['COMPLETED', 'CANCELLED'] },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, catalogItemName: true },
+    });
+    if (pending.length === 0) return null;
+
+    const awaitingTubes = await this.prisma.specimen.count({
+      where: {
+        orderId,
+        status: 'EXPECTED',
+        orderedTests: {
+          some: { orderedTestId: { in: pending.map((t) => t.id) } },
+        },
+      },
+    });
+    return {
+      testNames: pending.map((t) => t.catalogItemName),
+      addedAt: events[0].createdAt.toISOString(),
+      awaitingSample: awaitingTubes > 0,
     };
   }
 

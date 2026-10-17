@@ -6,6 +6,7 @@ import { LabClientsService } from './lab-clients.service';
 import { LabVetVerificationService } from './lab-vet-verification.service';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
+import { AddTestsService } from './add-tests.service';
 import { ResultEntryService } from './result-entry.service';
 import { ReviewService } from './review.service';
 import { WorklistService } from './worklist.service';
@@ -42,6 +43,7 @@ import { PdfModule } from '../pdf/pdf.module';
     LabVetVerificationService,
     PickupService,
     SpecimenService,
+    AddTestsService,
     ResultEntryService,
     ReviewService,
     WorklistService,
