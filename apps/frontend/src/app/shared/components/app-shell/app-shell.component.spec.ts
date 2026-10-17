@@ -31,6 +31,7 @@ function makeTenantService(overrides: Record<string, unknown> = {}) {
       () => clinics().find((m) => m.tenant.id === activeTenantId()) ?? null
     ),
     hasMultipleClinics: computed(() => clinics().length > 1),
+    labServicesSuspended: signal(false),
     selectClinic: vi.fn(),
     ...overrides,
   };
@@ -87,6 +88,23 @@ describe('AppShellComponent', () => {
   it('shows clinic name from active membership', () => {
     setup();
     expect(component.clinicName()).toBe('Clinic A');
+  });
+
+  it('"New case" is a normal link while lab services are active', () => {
+    setup();
+    const link = fixture.nativeElement.querySelector(
+      'aside a[href="/cases/new"]'
+    );
+    expect(link?.getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('disables "New case" while the lab has suspended services', () => {
+    setup({ labServicesSuspended: signal(true) });
+    const link = fixture.nativeElement.querySelector(
+      'aside a[href="/cases/new"]'
+    );
+    expect(link?.getAttribute('aria-disabled')).toBe('true');
+    expect(link?.getAttribute('tabindex')).toBe('-1');
   });
 
   it('hides clinic switcher chevron for single clinic', () => {

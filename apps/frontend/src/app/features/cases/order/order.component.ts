@@ -13,6 +13,10 @@ import {
 } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
 import { AuthService } from '../../../core/services/auth.service';
+import {
+  TenantService,
+  isLabServicesSuspendedError,
+} from '../../../core/services/tenant.service';
 import { CaseWizardLayoutComponent } from '../shared/components/case-wizard-layout/case-wizard-layout.component';
 import { ButtonComponent, ToggleComponent } from '../../../shared/components';
 import { SelectComponent } from '../../../shared/components';
@@ -39,6 +43,7 @@ export class OrderComponent implements OnInit {
   private router = inject(Router);
   private casesService = inject(CasesService);
   private auth = inject(AuthService);
+  private tenant = inject(TenantService);
   private translate = inject(TranslateService);
 
   loading = signal(true);
@@ -92,6 +97,8 @@ export class OrderComponent implements OnInit {
   );
 
   canSubmitOrder = computed(() => {
+    // The lab suspended services — the shell's banner explains why
+    if (this.tenant.labServicesSuspended()) return false;
     if (this.vets().length === 0) return true; // no vets loaded yet, don't block
     const vet = this.selectedVet();
     return !!vet && vet.status === 'ACTIVE';
@@ -203,7 +210,12 @@ export class OrderComponent implements OnInit {
             state: { ...result },
           });
         },
-        error: () => this.sending.set(false),
+        error: (err) => {
+          this.sending.set(false);
+          if (isLabServicesSuspendedError(err)) {
+            this.tenant.markLabServicesSuspended();
+          }
+        },
       });
   }
 

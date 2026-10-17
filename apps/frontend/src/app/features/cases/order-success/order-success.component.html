@@ -107,7 +107,9 @@
   </a>
   <a
     routerLink="/cases/new"
-    class="w-full py-3 rounded-full bg-white text-gray-700 border border-gray-300 font-medium text-sm text-center transition-colors hover:bg-gray-50"
+    [attr.aria-disabled]="tenant.labServicesSuspended() || null"
+    [attr.tabindex]="tenant.labServicesSuspended() ? -1 : null"
+    class="w-full py-3 rounded-full bg-white text-gray-700 border border-gray-300 font-medium text-sm text-center transition-colors hover:bg-gray-50 aria-disabled:pointer-events-none aria-disabled:opacity-40"
   >
     {{ 'CASES.ORDER_SUCCESS.NEW_CASE' | translate }}
   </a>

@@ -2,6 +2,7 @@ import { Component, input, output, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { CaseModel, CaseStatus } from '@vet-ai/shared-types';
+import { TenantService } from '../../../../../core/services/tenant.service';
 import { CaseStatusBadgeComponent } from '../../../shared/components/case-status-badge/case-status-badge.component';
 import { SpeciesIconComponent } from '../species-icon/species-icon.component';
 
@@ -27,6 +28,8 @@ export class CaseCardComponent {
   menuOpen = computed(() => this.menuOpenId() === this.case().id);
 
   private router = inject(Router);
+  // "New case" is disabled while the clinic's lab has suspended services
+  readonly tenant = inject(TenantService);
 
   toggleMenu(event: Event): void {
     event.preventDefault();

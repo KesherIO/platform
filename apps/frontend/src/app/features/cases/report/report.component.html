@@ -715,8 +715,20 @@
 
       <!-- Tab: AI Interpretation -->
       <div class="px-5 py-5">
+        <!-- Lab suspended services — no new analysis (see the shell banner) -->
+        @if (!interpretation() && !isInterpreting() && aiSuspended()) {
+        <div class="flex flex-col items-center gap-2 py-6 text-center">
+          <p class="text-sm font-semibold text-gray-800">
+            {{ 'REPORT.AI_INTERPRETATION.SUSPENDED_TITLE' | translate }}
+          </p>
+          <p class="max-w-sm text-xs text-gray-500">
+            {{ 'REPORT.AI_INTERPRETATION.SUSPENDED_BODY' | translate }}
+          </p>
+        </div>
+        }
+
         <!-- Button — no interpretation yet -->
-        @if (!interpretation() && !isInterpreting()) {
+        @if (!interpretation() && !isInterpreting() && !aiSuspended()) {
         <div class="flex flex-col items-center gap-3 py-6">
           <div
             class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-100 to-cyan-100 flex items-center justify-center"

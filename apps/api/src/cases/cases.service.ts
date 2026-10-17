@@ -7,6 +7,7 @@ import { CaseStatus, PatientSex, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CatalogItemModel } from '@vet-ai/shared-types';
 import { TriageService } from '../triage/triage.service';
+import { LabServicesSuspendedException } from '../tenants/lab-services.util';
 import {
   CreateCaseDto,
   UpdatePatientInfoDto,
@@ -122,6 +123,10 @@ export class CasesService {
   // ---------------------------------------------------------------------------
 
   async createCase(tenantId: string, userId: string, body: CreateCaseDto) {
+    // A new case can only lead to triage or an order through the clinic's
+    // lab — refused while that lab has suspended services
+    await this.assertLabServicesActive(tenantId);
+
     return this.prisma.case.create({
       data: {
         tenantId,
@@ -299,6 +304,10 @@ export class CasesService {
         'Cannot run AI triage without symptoms. Add symptoms first.'
       );
     }
+
+    // Triage suggests tests from the clinic's lab catalog — an AI service
+    // through that lab, refused while it has suspended services
+    await this.assertLabServicesActive(tenantId);
 
     const aiResult = await this.triageService.analyze(
       {
@@ -528,6 +537,18 @@ export class CasesService {
   ): void {
     if (!allowed.includes(c.status)) {
       throw new BadRequestException(message);
+    }
+  }
+
+  /** The clinic's lab (same pick as order creation) has not suspended services. */
+  private async assertLabServicesActive(tenantId: string): Promise<void> {
+    const labConnection = await this.prisma.clinicLabConnection.findFirst({
+      where: { clinicId: tenantId, isActive: true },
+      orderBy: { isDefault: 'desc' },
+      select: { status: true },
+    });
+    if (labConnection?.status === 'SUSPENDED') {
+      throw new LabServicesSuspendedException();
     }
   }
 }

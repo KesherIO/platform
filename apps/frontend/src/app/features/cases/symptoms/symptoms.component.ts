@@ -5,6 +5,10 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import { CaseModel } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
+import {
+  TenantService,
+  isLabServicesSuspendedError,
+} from '../../../core/services/tenant.service';
 import { CaseWizardLayoutComponent } from '../shared/components/case-wizard-layout/case-wizard-layout.component';
 import { ButtonComponent } from '../../../shared/components';
 
@@ -25,6 +29,7 @@ export class SymptomsComponent implements OnInit {
   private router = inject(Router);
   private casesService = inject(CasesService);
   private fb = inject(FormBuilder);
+  readonly tenant = inject(TenantService);
 
   loading = signal(true);
   saving = signal(false);
@@ -65,7 +70,8 @@ export class SymptomsComponent implements OnInit {
   }
 
   runAi(): void {
-    if (!this.hasSymptoms || this.isBusy) return;
+    if (!this.hasSymptoms || this.isBusy || this.tenant.labServicesSuspended())
+      return;
     const id = this.caseId;
     this.saving.set(true);
     this.casesService
@@ -80,7 +86,12 @@ export class SymptomsComponent implements OnInit {
             .pipe(take(1))
             .subscribe({
               next: () => this.router.navigate(['/cases', id, 'ai-results']),
-              error: () => this.runningAi.set(false),
+              error: (err) => {
+                this.runningAi.set(false);
+                if (isLabServicesSuspendedError(err)) {
+                  this.tenant.markLabServicesSuspended();
+                }
+              },
             });
         },
         error: () => this.saving.set(false),

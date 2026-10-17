@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { newCaseGuard } from '../../core/guards/new-case.guard';
 
 export const CASES_ROUTES: Routes = [
   {
@@ -10,6 +11,7 @@ export const CASES_ROUTES: Routes = [
   },
   {
     path: 'new',
+    canActivate: [newCaseGuard],
     loadComponent: () =>
       import('./new-case/new-case.component').then((m) => m.NewCaseComponent),
   },

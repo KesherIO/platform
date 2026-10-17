@@ -7,6 +7,7 @@ import { TenantService } from '../../../core/services/tenant.service';
 import { resolveLogoUrl } from '../../../core/services/onboarding.service';
 import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
 import { PwaInstallBannerComponent } from '../pwa-install-banner/pwa-install-banner.component';
+import { LabSuspendedBannerComponent } from '../lab-suspended-banner/lab-suspended-banner.component';
 
 @Component({
   selector: 'app-shell',
@@ -16,6 +17,7 @@ import { PwaInstallBannerComponent } from '../pwa-install-banner/pwa-install-ban
     TranslatePipe,
     BottomNavComponent,
     PwaInstallBannerComponent,
+    LabSuspendedBannerComponent,
   ],
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss',

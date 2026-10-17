@@ -184,6 +184,10 @@
     "ROLE_TECHNICIAN": "Técnico Veterinario",
     "ROLE_RECEPTIONIST": "Recepcionista"
   },
+  "LAB_SUSPENDED": {
+    "TITLE": "Servicios del laboratorio suspendidos",
+    "BODY": "Tu laboratorio suspendió los servicios para esta clínica: no puedes crear casos ni enviar órdenes nuevas, ni solicitar análisis con IA. Tus órdenes, resultados, reportes y análisis guardados siguen disponibles. Comunícate con el laboratorio para reactivarlos."
+  },
   "PWA": {
     "INSTALL_TITLE": "Agrega a tu pantalla de inicio",
     "INSTALL_BODY": "Instala la app para acceder rápidamente desde tu teléfono.",
@@ -546,6 +550,8 @@
       "BUTTON": "Interpretar con IA",
       "LOADING": "Generando interpretación con IA...",
       "RETRY": "Reintentar",
+      "SUSPENDED_TITLE": "Análisis con IA no disponible",
+      "SUSPENDED_BODY": "El laboratorio suspendió los servicios para tu clínica, así que no se pueden generar análisis nuevos. Los resultados y reportes siguen disponibles.",
       "ERROR": "No se pudo generar la interpretación. Por favor, intente de nuevo.",
       "TITLE": "Interpretación Clínica con IA",
       "BADGE": "Generado por IA",

@@ -920,10 +920,21 @@ export class OnboardingService {
             data: {
               ...profile,
               notificationMethod: dto.notificationMethod,
-              clientStatus: 'ACTIVE',
             },
           });
           resolvedTenantId = updated.id;
+          // The inviting lab's client becomes active — unless that lab has
+          // suspended it meanwhile: a suspension outlives onboarding
+          if (record.laboratoryId) {
+            await tx.clinicLabConnection.updateMany({
+              where: {
+                clinicId: record.clinicTenantId,
+                labId: record.laboratoryId,
+                status: 'PENDING',
+              },
+              data: { status: 'ACTIVE' },
+            });
+          }
         } else {
           // Platform invitation (no laboratoryId): create a brand-new tenant.
           // Lab invitations always reach the branch above —
@@ -936,7 +947,6 @@ export class OnboardingService {
               slug,
               notificationMethod: dto.notificationMethod,
               clientType: record.clientType ?? undefined,
-              clientStatus: 'ACTIVE',
             },
           });
           resolvedTenantId = tenant.id;

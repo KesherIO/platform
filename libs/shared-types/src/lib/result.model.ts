@@ -126,6 +126,9 @@ export interface ClinicReleasedResultsModel {
   releasedTests: ReleasedTestResult[];
   pendingTestNames: string[];
   latestReleasedAt: string | null;
+  /** The lab that ran this order has suspended services for the clinic:
+   * results stay readable, new AI analysis is refused. */
+  labServicesSuspended: boolean;
 }
 
 export type ClinicReleaseType = 'PARTIAL' | 'FINAL' | 'AMENDMENT';

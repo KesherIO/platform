@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { LAB_SERVICES_SUSPENDED } from '../tenants/lab-services.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { PickupService } from '../lab/pickup.service';
 import { ReadinessService } from '../lab/readiness.service';
@@ -92,14 +93,6 @@ function makePrismaMock() {
     timelineEvent: {
       create: jest.fn().mockResolvedValue({}),
     },
-    tenant: {
-      findUniqueOrThrow: jest.fn().mockResolvedValue({
-        pickupAddress: null,
-        pickupContactName: null,
-        pickupContactPhone: null,
-        pickupInstructions: null,
-      }),
-    },
     userTenantMembership: {
       findUnique: jest.fn().mockResolvedValue(null),
     },
@@ -158,6 +151,55 @@ describe('OrdersService', () => {
     expect(result.status).toBe('PENDING');
     expect(result.requisitionNumber).toBe('REQ-2026-000001');
     expect(result.requisitionUrl).toContain('/api/orders/');
+  });
+
+  describe('when the lab has suspended services for the clinic', () => {
+    beforeEach(() => {
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        labId: 'lab-tenant-1',
+        status: 'SUSPENDED',
+      });
+    });
+
+    it('refuses the order with the suspension code, creating nothing', async () => {
+      await expect(
+        service.createOrderForCase('tenant-1', 'case-1', {
+          deliveryMethod: 'LAB_PICKUP',
+        })
+      ).rejects.toMatchObject({
+        response: { code: LAB_SERVICES_SUSPENDED },
+      });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(pickupService.createPickup).not.toHaveBeenCalled();
+    });
+  });
+
+  it("snapshots this lab's collection settings onto the pickup", async () => {
+    prisma.clinicLabConnection.findFirst.mockResolvedValue({
+      labId: 'lab-tenant-1',
+      status: 'ACTIVE',
+      pickupAddress: 'Calle 10 #5-20',
+      pickupContactName: 'Recepción',
+      pickupContactPhone: '+57 300 111 2222',
+      pickupInstructions: 'Timbre 2',
+    });
+
+    await service.createOrderForCase('tenant-1', 'case-1', {
+      deliveryMethod: 'LAB_PICKUP',
+    });
+
+    expect(pickupService.createPickup).toHaveBeenCalledWith(
+      'order-1',
+      'lab-tenant-1',
+      'tenant-1',
+      {
+        pickupAddress: 'Calle 10 #5-20',
+        pickupContactName: 'Recepción',
+        pickupContactPhone: '+57 300 111 2222',
+        pickupInstructions: 'Timbre 2',
+      },
+      'ROUTINE'
+    );
   });
 
   it('throws NotFoundException when case does not exist', async () => {

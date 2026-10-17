@@ -277,6 +277,34 @@ describe('AuthService', () => {
       expect(result.onboardingCompleted).toBe(false);
     });
 
+    it("flags a clinic whose lab suspended services, and doesn't leak the connection", async () => {
+      const user = makeUser();
+      user.memberships[0].tenant.clinicConnections = [
+        { labId: 'lab-1', status: 'SUSPENDED' },
+      ] as never[];
+      prisma.user.findUniqueOrThrow.mockResolvedValue(user);
+
+      const result = await service.getMe('user-1');
+
+      expect(result.memberships[0].labServicesSuspended).toBe(true);
+      expect(result.memberships[0].tenant).not.toHaveProperty(
+        'clinicConnections'
+      );
+      // Same lab pick as order creation: the default connection first
+      expect(
+        prisma.user.findUniqueOrThrow.mock.calls[0][0].select.memberships.select
+          .tenant.select.clinicConnections
+      ).toMatchObject({ orderBy: { isDefault: 'desc' } });
+    });
+
+    it('is not suspended for an active lab or no lab at all', async () => {
+      prisma.user.findUniqueOrThrow.mockResolvedValue(makeUser());
+
+      const result = await service.getMe('user-1');
+
+      expect(result.memberships[0].labServicesSuspended).toBe(false);
+    });
+
     it('activeTenantId is the first tenant id', async () => {
       prisma.user.findUniqueOrThrow.mockResolvedValue(makeUser());
 

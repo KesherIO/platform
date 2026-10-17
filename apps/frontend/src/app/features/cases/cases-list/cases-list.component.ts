@@ -11,6 +11,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import { CaseModel, CaseStatus, PatientSpecies } from '@vet-ai/shared-types';
 import { CasesService } from '../shared/services/cases.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import { CaseCardComponent } from './components/case-card/case-card.component';
 import {
   CasesFilterBarComponent,
@@ -31,6 +32,8 @@ import {
 })
 export class CasesListComponent implements OnInit {
   private casesService = inject(CasesService);
+  // "New case" is disabled while the clinic's lab has suspended services
+  readonly tenant = inject(TenantService);
 
   @HostListener('document:click')
   onDocumentClick(): void {

@@ -177,9 +177,12 @@
       </a>
 
       <!-- New Case button -->
+      <!-- Disabled while the lab has suspended services (banner explains) -->
       <a
         routerLink="/cases/new"
-        class="flex items-center justify-center gap-2 mt-4 px-3 py-2.5 rounded-xl bg-black text-cyan text-sm font-semibold hover:bg-gray-900 transition-colors"
+        [attr.aria-disabled]="tenant.labServicesSuspended() || null"
+        [attr.tabindex]="tenant.labServicesSuspended() ? -1 : null"
+        class="flex items-center justify-center gap-2 mt-4 px-3 py-2.5 rounded-xl bg-black text-cyan text-sm font-semibold hover:bg-gray-900 transition-colors aria-disabled:pointer-events-none aria-disabled:opacity-40"
       >
         <svg
           class="w-5 h-5"
@@ -424,6 +427,7 @@
     <!-- ─── Page Content ──────────────────────────────────────────── -->
     <main class="flex-1 overflow-y-auto">
       <div class="lg:max-w-5xl lg:mx-auto">
+        <app-lab-suspended-banner />
         <router-outlet></router-outlet>
       </div>
     </main>

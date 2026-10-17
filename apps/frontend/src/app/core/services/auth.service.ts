@@ -36,6 +36,9 @@ export interface MeResponse {
     role: string;
     status: string;
     isOrderingVet: boolean;
+    /** The clinic's lab suspended services: history stays readable, but no
+     * new orders, pickups or AI analysis through that lab. */
+    labServicesSuspended?: boolean;
     vetVerification?: {
       status: string;
       rejectionReason?: string | null;

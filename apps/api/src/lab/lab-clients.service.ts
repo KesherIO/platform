@@ -99,9 +99,15 @@ export class LabClientsService {
   ) {
     const conditions: Record<string, unknown>[] = [
       {
-        clinicConnections: { some: { labId: labTenantId, isActive: true } },
+        // Status is this lab's relationship with the clinic, not the clinic's
+        clinicConnections: {
+          some: {
+            labId: labTenantId,
+            isActive: true,
+            ...(status && { status: status as ClientStatus }),
+          },
+        },
         type: 'CLINIC',
-        ...(status && { clientStatus: status as ClientStatus }),
       },
     ];
 
@@ -133,11 +139,10 @@ export class LabClientsService {
           id: true,
           ...CLINIC_PROFILE_SELECT,
           clientType: true,
-          clientStatus: true,
           createdAt: true,
           clinicConnections: {
             where: { labId: labTenantId },
-            select: { notes: true },
+            select: { notes: true, status: true },
             take: 1,
           },
           _count: {
@@ -156,7 +161,7 @@ export class LabClientsService {
         id: c.id,
         name: c.name,
         clientType: c.clientType,
-        status: c.clientStatus ?? 'PENDING',
+        status: c.clinicConnections[0]?.status ?? 'PENDING',
         primaryContactName: c.primaryContactName,
         primaryContactEmail: c.email,
         phone: c.phone,
@@ -201,14 +206,12 @@ export class LabClientsService {
         id: true,
         ...CLINIC_PROFILE_SELECT,
         clientType: true,
-        clientStatus: true,
-        ...(includeNotes && {
-          clinicConnections: {
-            where: { labId: labTenantId },
-            select: { notes: true },
-            take: 1,
-          },
-        }),
+        // Status always; notes only when asked for
+        clinicConnections: {
+          where: { labId: labTenantId },
+          select: { status: true, notes: includeNotes },
+          take: 1,
+        },
       },
     });
 
@@ -241,11 +244,9 @@ export class LabClientsService {
         clientType: c.clientType,
         taxIdType: c.taxIdType,
         taxId: c.taxId,
-        status: c.clientStatus ?? 'PENDING',
+        status: c.clinicConnections[0]?.status ?? 'PENDING',
         ...(includeNotes && {
-          notes:
-            (c as { clinicConnections?: { notes: string | null }[] })
-              .clinicConnections?.[0]?.notes ?? null,
+          notes: c.clinicConnections[0]?.notes ?? null,
         }),
       })),
     };
@@ -271,16 +272,8 @@ export class LabClientsService {
         id: true,
         ...CLINIC_PROFILE_SELECT,
         clientType: true,
-        clientStatus: true,
         createdAt: true,
         updatedAt: true,
-        pickupEnabled: true,
-        defaultDeliveryMethod: true,
-        pickupAddress: true,
-        pickupContactName: true,
-        pickupContactPhone: true,
-        collectionHours: true,
-        pickupInstructions: true,
         _count: { select: { orders: true } },
         memberships: {
           include: {
@@ -335,7 +328,8 @@ export class LabClientsService {
       id: client.id,
       name: client.name,
       clientType: client.clientType,
-      status: client.clientStatus ?? 'PENDING',
+      // This lab's status and collection settings for the clinic
+      status: connection.status,
       primaryContactName: client.primaryContactName,
       primaryContactEmail: client.email,
       phone: client.phone,
@@ -350,13 +344,13 @@ export class LabClientsService {
       updatedAt: client.updatedAt,
       orderCount: client._count.orders,
       laboratoryName: lab?.name ?? null,
-      pickupEnabled: client.pickupEnabled,
-      defaultDeliveryMethod: client.defaultDeliveryMethod,
-      pickupAddress: client.pickupAddress,
-      pickupContactName: client.pickupContactName,
-      pickupContactPhone: client.pickupContactPhone,
-      collectionHours: client.collectionHours,
-      pickupInstructions: client.pickupInstructions,
+      pickupEnabled: connection.pickupEnabled,
+      defaultDeliveryMethod: connection.defaultDeliveryMethod,
+      pickupAddress: connection.pickupAddress,
+      pickupContactName: connection.pickupContactName,
+      pickupContactPhone: connection.pickupContactPhone,
+      collectionHours: connection.collectionHours,
+      pickupInstructions: connection.pickupInstructions,
       users: client.memberships.map((m) => ({
         userId: m.userId,
         email: m.user.email,
@@ -587,7 +581,6 @@ export class LabClientsService {
           id: true,
           ...CLINIC_PROFILE_SELECT,
           clientType: true,
-          clientStatus: true,
         },
       });
 
@@ -610,44 +603,52 @@ export class LabClientsService {
         });
       }
 
-      return { ...updated, notes };
+      return { ...updated, status: connection.status, notes };
     });
   }
 
+  /**
+   * "Suspend services": this lab stops taking new orders, pickups and AI
+   * requests from the clinic. Only this lab's connection changes — the
+   * clinic's other labs and all existing records are untouched.
+   */
   async suspendClient(labTenantId: string, clientTenantId: string) {
-    await this.verifyLabClientConnection(labTenantId, clientTenantId);
-
-    const client = await this.prisma.tenant.findUniqueOrThrow({
-      where: { id: clientTenantId },
-      select: { clientStatus: true },
-    });
-    if (client.clientStatus === 'SUSPENDED') {
+    const connection = await this.verifyLabClientConnection(
+      labTenantId,
+      clientTenantId
+    );
+    if (connection.status === 'SUSPENDED') {
       throw new BadRequestException('Client is already suspended.');
     }
 
-    return this.prisma.tenant.update({
-      where: { id: clientTenantId },
-      data: { clientStatus: 'SUSPENDED' },
-      select: { id: true, clientStatus: true },
+    const updated = await this.prisma.clinicLabConnection.update({
+      where: { id: connection.id },
+      data: { status: 'SUSPENDED' },
+      select: { status: true },
     });
+    return { id: clientTenantId, status: updated.status };
   }
 
   async reactivateClient(labTenantId: string, clientTenantId: string) {
-    await this.verifyLabClientConnection(labTenantId, clientTenantId);
-
-    const client = await this.prisma.tenant.findUniqueOrThrow({
-      where: { id: clientTenantId },
-      select: { clientStatus: true },
-    });
-    if (client.clientStatus !== 'SUSPENDED') {
+    const connection = await this.verifyLabClientConnection(
+      labTenantId,
+      clientTenantId
+    );
+    if (connection.status !== 'SUSPENDED') {
       throw new BadRequestException('Client is not suspended.');
     }
 
-    return this.prisma.tenant.update({
-      where: { id: clientTenantId },
-      data: { clientStatus: 'ACTIVE' },
-      select: { id: true, clientStatus: true },
+    // Back to where it was: a clinic that never finished onboarding (no
+    // users yet) is still pending, not active
+    const memberCount = await this.prisma.userTenantMembership.count({
+      where: { tenantId: clientTenantId },
     });
+    const updated = await this.prisma.clinicLabConnection.update({
+      where: { id: connection.id },
+      data: { status: memberCount > 0 ? 'ACTIVE' : 'PENDING' },
+      select: { status: true },
+    });
+    return { id: clientTenantId, status: updated.status };
   }
 
   async regenerateInvitation(
@@ -782,10 +783,15 @@ export class LabClientsService {
       pickupInstructions?: string;
     }
   ) {
-    await this.verifyLabClientConnection(labTenantId, clientTenantId);
+    const connection = await this.verifyLabClientConnection(
+      labTenantId,
+      clientTenantId
+    );
 
-    return this.prisma.tenant.update({
-      where: { id: clientTenantId },
+    // This lab's settings — another lab collecting from the same clinic
+    // keeps its own
+    return this.prisma.clinicLabConnection.update({
+      where: { id: connection.id },
       data: {
         ...(dto.pickupEnabled !== undefined && {
           pickupEnabled: dto.pickupEnabled,
@@ -969,7 +975,6 @@ export class LabClientsService {
         slug: await this.newClinicSlug(tx, input.name, opts.forceSlugSuffix),
         type: 'CLINIC',
         clientType: input.clientType as ClientType,
-        clientStatus: 'PENDING',
       },
     });
 
@@ -979,6 +984,7 @@ export class LabClientsService {
         labId: labTenantId,
         isDefault: true,
         isActive: true,
+        status: 'PENDING',
         notes: input.notes ?? null,
         importBatchId: opts.importRow?.batchId ?? null,
         importRowNumber: opts.importRow?.rowNumber ?? null,

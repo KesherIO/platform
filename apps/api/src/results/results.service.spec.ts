@@ -9,6 +9,7 @@ import { ResultsService } from './results.service';
 import { TemplateVersionService } from './template-version.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagService } from '../rag/rag.service';
+import { LAB_SERVICES_SUSPENDED } from '../tenants/lab-services.util';
 import type {
   ImportTemplateDto,
   CreateReportDto,
@@ -205,6 +206,7 @@ function makePrismaMock() {
     resultReportRelease: { findFirst: jest.fn() },
     aiInterpretation: { findUnique: jest.fn(), upsert: jest.fn() },
     laboratoryProfile: { findUnique: jest.fn() },
+    clinicLabConnection: { findUnique: jest.fn().mockResolvedValue(null) },
     labTestConfiguration: { findMany: jest.fn().mockResolvedValue([]) },
     case: { update: jest.fn(), findUnique: jest.fn() },
     catalogItemComposition: { findMany: jest.fn() },
@@ -777,7 +779,23 @@ describe('ResultsService', () => {
 
       expect(result.releasedTests[0].releaseType).toBe('AMENDMENT');
       expect(result.releasedTests[0].releasedAt).toBe(amendedAt.toISOString());
+      expect(result.labServicesSuspended).toBe(false);
       expect(prisma.resultReportReleaseTest.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('flags that the lab suspended services, results still returned', async () => {
+      arrangeAmendedOrder(true);
+      prisma.clinicLabConnection.findUnique.mockResolvedValue({
+        status: 'SUSPENDED',
+      });
+
+      const result = await service.findReleasedResultsByOrder(
+        'clinic-1',
+        'REQ-001'
+      );
+
+      expect(result.labServicesSuspended).toBe(true);
+      expect(result.releasedTests).toHaveLength(1);
     });
 
     it('defaults to showing amendments when the lab has no profile', async () => {
@@ -865,6 +883,7 @@ describe('ResultsService', () => {
         status: 'RELEASED',
         currentReleaseSequence: 2,
         tests: [{ id: 'rt-1', status: 'RELEASED', latestReleaseId: 'rel-2' }],
+        order: { labTenantId: 'lab-1' },
       });
       prisma.resultReportReleaseTest.findMany.mockResolvedValue([
         {
@@ -989,6 +1008,57 @@ describe('ResultsService', () => {
       expect(callAi).toHaveBeenCalledTimes(1);
       expect(prisma.aiInterpretation.upsert).toHaveBeenCalledTimes(1);
       expect(result.summary).toBe('Azotemia.');
+    });
+
+    describe('when the lab has suspended services for the clinic', () => {
+      beforeEach(() => {
+        prisma.clinicLabConnection.findUnique.mockResolvedValue({
+          status: 'SUSPENDED',
+        });
+      });
+
+      it('refuses a new interpretation without calling the AI', async () => {
+        prisma.aiInterpretation.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.getOrCreateInterpretation('report-1', 'tenant-1')
+        ).rejects.toMatchObject({
+          response: { code: LAB_SERVICES_SUSPENDED },
+        });
+        // Checked against the lab that ran this order
+        expect(prisma.clinicLabConnection.findUnique).toHaveBeenCalledWith({
+          where: { clinicId_labId: { clinicId: 'tenant-1', labId: 'lab-1' } },
+          select: { status: true },
+        });
+        expect(callAi).not.toHaveBeenCalled();
+        expect(prisma.aiInterpretation.upsert).not.toHaveBeenCalled();
+      });
+
+      it('refuses to regenerate a stale one', async () => {
+        prisma.aiInterpretation.findUnique.mockResolvedValue(
+          storedInterpretation(1)
+        );
+
+        await expect(
+          service.getOrCreateInterpretation('report-1', 'tenant-1')
+        ).rejects.toMatchObject({
+          response: { code: LAB_SERVICES_SUSPENDED },
+        });
+        expect(callAi).not.toHaveBeenCalled();
+      });
+
+      it('still returns a saved, current interpretation', async () => {
+        prisma.aiInterpretation.findUnique.mockResolvedValue(
+          storedInterpretation(2)
+        );
+
+        const result = await service.getOrCreateInterpretation(
+          'report-1',
+          'tenant-1'
+        );
+
+        expect(result.summary).toBe('Old summary.');
+      });
     });
 
     describe('findInterpretation', () => {
