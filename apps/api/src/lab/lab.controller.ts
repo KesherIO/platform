@@ -199,10 +199,17 @@ export class LabController {
   @Patch('orders/:id/status')
   updateOrderStatus(
     @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto
   ) {
-    return this.labService.updateOrderStatus(tenant.tenantId, id, dto);
+    return this.labService.updateOrderStatus(
+      tenant.tenantId,
+      id,
+      dto,
+      user.id,
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
+    );
   }
 
   // POST /api/lab/orders/:id/ordered-tests

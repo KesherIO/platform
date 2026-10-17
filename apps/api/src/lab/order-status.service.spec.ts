@@ -123,6 +123,55 @@ describe('OrderStatusService', () => {
       const result = await service.deriveOrderStatus('order-1');
       expect(result).toBe('RECEIVED_BY_LAB');
     });
+
+    it.each(['EXPECTED', 'MISSING', 'REJECTED'])(
+      'stays RECEIVED_BY_LAB with an accepted tube while another is %s (shown as outstanding)',
+      async (other) => {
+        prisma.order.findUniqueOrThrow.mockResolvedValue({
+          status: 'RECEIVED_BY_LAB',
+        });
+        prisma.orderedTest.findMany.mockResolvedValue([
+          { status: 'COMPLETED' },
+          { status: 'PENDING' },
+        ]);
+        prisma.specimen.findMany.mockResolvedValue([
+          { status: 'ACCEPTED' },
+          { status: other },
+        ]);
+
+        await expect(service.deriveOrderStatus('order-1')).resolves.toBe(
+          'RECEIVED_BY_LAB'
+        );
+      }
+    );
+
+    it('is PENDING while no tube has been accepted', async () => {
+      prisma.order.findUniqueOrThrow.mockResolvedValue({ status: 'PENDING' });
+      prisma.orderedTest.findMany.mockResolvedValue([{ status: 'PENDING' }]);
+      prisma.specimen.findMany.mockResolvedValue([{ status: 'EXPECTED' }]);
+
+      await expect(service.deriveOrderStatus('order-1')).resolves.toBe(
+        'PENDING'
+      );
+    });
+
+    it('an outstanding tube never holds back completion once every test is done', async () => {
+      prisma.order.findUniqueOrThrow.mockResolvedValue({
+        status: 'PROCESSING',
+      });
+      prisma.orderedTest.findMany.mockResolvedValue([
+        { status: 'COMPLETED' },
+        { status: 'CANCELLED' },
+      ]);
+      prisma.specimen.findMany.mockResolvedValue([
+        { status: 'ACCEPTED' },
+        { status: 'EXPECTED' },
+      ]);
+
+      await expect(service.deriveOrderStatus('order-1')).resolves.toBe(
+        'COMPLETED'
+      );
+    });
   });
 
   describe('deriveAndPersist', () => {
@@ -173,6 +222,31 @@ describe('OrderStatusService', () => {
       expect(prisma.case.update).not.toHaveBeenCalled();
     });
 
+    it('keeps the first receipt time when an order goes back to RECEIVED_BY_LAB', async () => {
+      const firstReceipt = new Date('2026-10-01T08:00:00Z');
+      prisma.order.findUniqueOrThrow
+        .mockResolvedValueOnce({ status: 'PROCESSING' })
+        .mockResolvedValueOnce({
+          status: 'PROCESSING',
+          caseId: 'case-1',
+          receivedByLabAt: firstReceipt,
+          processingStartedAt: firstReceipt,
+        });
+      // A test was added: nothing in progress, one READY
+      prisma.orderedTest.findMany.mockResolvedValue([
+        { status: 'COMPLETED' },
+        { status: 'READY' },
+      ]);
+      prisma.specimen.findMany.mockResolvedValue([{ status: 'ACCEPTED' }]);
+
+      await service.deriveAndPersist('order-1');
+
+      expect(prisma.order.update).toHaveBeenCalledWith({
+        where: { id: 'order-1' },
+        data: { status: 'RECEIVED_BY_LAB' },
+      });
+    });
+
     it('does not update order if status unchanged', async () => {
       prisma.order.findUniqueOrThrow
         .mockResolvedValueOnce({ status: 'PENDING' })
@@ -184,6 +258,74 @@ describe('OrderStatusService', () => {
 
       expect(result.changed).toBe(false);
       expect(prisma.order.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('outstandingSpecimens', () => {
+    const tube = (
+      orderId: string,
+      status: string,
+      tests: Array<{ status: string; blockReason?: string | null }>
+    ) => ({
+      orderId,
+      status,
+      orderedTests: tests.map((t) => ({
+        orderedTest: { status: t.status, blockReason: t.blockReason ?? null },
+      })),
+    });
+
+    beforeEach(() => {
+      (prisma as Record<string, any>).specimen.findMany = jest.fn();
+    });
+
+    it('counts only tubes an unfinished, non-cancelled test still needs', async () => {
+      prisma.specimen.findMany.mockResolvedValue([
+        // Awaited for an added test → counts
+        tube('o-1', 'EXPECTED', [{ status: 'PENDING' }]),
+        // Awaited, but its only test was cancelled → doesn't
+        tube('o-1', 'EXPECTED', [{ status: 'CANCELLED' }]),
+        // Missing, its test blocked on it → counts
+        tube('o-1', 'MISSING', [
+          { status: 'BLOCKED', blockReason: 'MISSING_SPECIMEN' },
+        ]),
+        // Rejected and already replaced (test waiting on the new tube) → doesn't
+        tube('o-2', 'REJECTED', [{ status: 'PENDING' }]),
+        // Rejected, test still blocked on it → counts
+        tube('o-2', 'REJECTED', [
+          { status: 'BLOCKED', blockReason: 'REJECTED_SPECIMEN' },
+        ]),
+        // Rejected long ago, test completed on another tube → doesn't
+        tube('o-3', 'REJECTED', [{ status: 'COMPLETED' }]),
+      ]);
+
+      const result = await service.outstandingSpecimens(['o-1', 'o-2', 'o-3']);
+
+      expect(result.get('o-1')).toEqual({
+        awaiting: 1,
+        missing: 1,
+        rejected: 0,
+      });
+      expect(result.get('o-2')).toEqual({
+        awaiting: 0,
+        missing: 0,
+        rejected: 1,
+      });
+      expect(result.has('o-3')).toBe(false);
+      expect(prisma.specimen.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            orderId: { in: ['o-1', 'o-2', 'o-3'] },
+            status: { in: ['EXPECTED', 'MISSING', 'REJECTED'] },
+          },
+        })
+      );
+    });
+
+    it('skips the query for no orders', async () => {
+      await expect(service.outstandingSpecimens([])).resolves.toEqual(
+        new Map()
+      );
+      expect(prisma.specimen.findMany).not.toHaveBeenCalled();
     });
   });
 });

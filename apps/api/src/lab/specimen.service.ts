@@ -66,6 +66,25 @@ function ageToWeeks(age: number, unit: AgeUnit): number {
   }
 }
 
+/** Ordered tests accessioning may (re)link to a tube and move to READY/BLOCKED. */
+const ACCESSIONABLE_TESTS = {
+  OR: [
+    { status: 'PENDING' },
+    {
+      status: 'BLOCKED',
+      blockReason: {
+        in: [
+          'MISSING_SPECIMEN',
+          'REJECTED_SPECIMEN',
+          'INSUFFICIENT_VOLUME',
+          'REQUIRES_RECOLLECTION',
+          'MISSING_RESULT_TEMPLATE',
+        ],
+      },
+    },
+  ],
+} satisfies Prisma.OrderedTestWhereInput;
+
 @Injectable()
 export class SpecimenService {
   constructor(
@@ -199,7 +218,10 @@ export class SpecimenService {
           },
         },
         orderedTests: {
-          where: { status: { not: 'CANCELLED' } },
+          // Only tests still waiting for a usable sample (or a template):
+          // re-accessioning must never send a test that is ready, in progress
+          // or completed back to READY
+          where: ACCESSIONABLE_TESTS,
           select: {
             id: true,
             catalogItemId: true,
@@ -232,6 +254,8 @@ export class SpecimenService {
             specimenType: true,
             containerType: true,
             tubeIndex: true,
+            receivedAt: true,
+            receivedById: true,
           },
         },
       },
@@ -334,8 +358,12 @@ export class SpecimenService {
                       ? null
                       : s.rejectionReason ?? null,
                     notes: s.notes ?? null,
-                    receivedAt: now,
-                    receivedById: actorId,
+                    // A tube keeps its original receipt when the order is
+                    // accessioned again
+                    receivedAt: existing.receivedAt ?? now,
+                    receivedById: existing.receivedAt
+                      ? existing.receivedById
+                      : actorId,
                   },
                 })
               : await tx.specimen.create({
@@ -619,6 +647,7 @@ export class SpecimenService {
       select: {
         id: true,
         orderId: true,
+        status: true,
         specimenType: true,
         accessionNumber: true,
       },
@@ -631,50 +660,105 @@ export class SpecimenService {
       );
     }
 
-    const updated = await this.prisma.specimen.update({
-      where: { id: specimenId },
-      data: {
-        ...(data.status && { status: data.status }),
-        ...(data.rejectionReason !== undefined && {
-          rejectionReason: data.rejectionReason,
-        }),
-        ...(data.notes !== undefined && { notes: data.notes }),
-        ...(data.isHemolyzed !== undefined && {
-          isHemolyzed: data.isHemolyzed,
-        }),
-        ...(data.isLipemic !== undefined && { isLipemic: data.isLipemic }),
-        ...(data.isIcteric !== undefined && { isIcteric: data.isIcteric }),
-        ...(data.isInsufficient !== undefined && {
-          isInsufficient: data.isInsufficient,
-        }),
-        ...(data.isContaminated !== undefined && {
-          isContaminated: data.isContaminated,
-        }),
-        ...(data.isWrongContainer !== undefined && {
-          isWrongContainer: data.isWrongContainer,
-        }),
-        ...(data.isLeaking !== undefined && { isLeaking: data.isLeaking }),
-      },
-    });
-
-    if (data.status) {
-      await this.prisma.timelineEvent.create({
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.specimen.update({
+        where: { id: specimenId },
         data: {
-          orderId: specimen.orderId,
-          eventType:
-            data.status === 'ACCEPTED' ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED',
-          actorId,
-          actorName,
-          description: `Specimen ${specimen.accessionNumber} (${
-            specimen.specimenType
-          }) ${data.status.toLowerCase()}`,
-          metadata: { specimenId, reason: data.rejectionReason },
+          ...(data.status && { status: data.status }),
+          ...(data.rejectionReason !== undefined && {
+            rejectionReason: data.rejectionReason,
+          }),
+          ...(data.notes !== undefined && { notes: data.notes }),
+          ...(data.isHemolyzed !== undefined && {
+            isHemolyzed: data.isHemolyzed,
+          }),
+          ...(data.isLipemic !== undefined && { isLipemic: data.isLipemic }),
+          ...(data.isIcteric !== undefined && { isIcteric: data.isIcteric }),
+          ...(data.isInsufficient !== undefined && {
+            isInsufficient: data.isInsufficient,
+          }),
+          ...(data.isContaminated !== undefined && {
+            isContaminated: data.isContaminated,
+          }),
+          ...(data.isWrongContainer !== undefined && {
+            isWrongContainer: data.isWrongContainer,
+          }),
+          ...(data.isLeaking !== undefined && { isLeaking: data.isLeaking }),
         },
       });
-    }
 
-    await this.orderStatusService.deriveAndPersist(specimen.orderId);
-    return updated;
+      if (data.status) {
+        await tx.timelineEvent.create({
+          data: {
+            orderId: specimen.orderId,
+            eventType:
+              data.status === 'ACCEPTED'
+                ? 'SAMPLE_ACCEPTED'
+                : 'SAMPLE_REJECTED',
+            actorId,
+            actorName,
+            description: `Specimen ${specimen.accessionNumber} (${
+              specimen.specimenType
+            }) ${data.status.toLowerCase()}`,
+            metadata: { specimenId, reason: data.rejectionReason },
+          },
+        });
+      }
+
+      // A tube rejected after the fact can't serve tests that haven't started
+      // on it — unless another accepted tube already serves them
+      if (data.status === 'REJECTED' && specimen.status !== 'REJECTED') {
+        const links = await tx.orderedTestSpecimen.findMany({
+          where: {
+            specimenId,
+            orderedTest: { status: { in: ['PENDING', 'READY'] } },
+          },
+          select: {
+            orderedTest: {
+              select: {
+                id: true,
+                specimens: {
+                  where: {
+                    specimenId: { not: specimenId },
+                    specimen: { status: 'ACCEPTED' },
+                  },
+                  select: { specimenId: true },
+                },
+              },
+            },
+          },
+        });
+        for (const { orderedTest } of links) {
+          if (orderedTest.specimens.length > 0) continue;
+          await tx.orderedTest.update({
+            where: { id: orderedTest.id },
+            data: {
+              status: 'BLOCKED',
+              blockReason: 'REJECTED_SPECIMEN',
+              blockReasonDetail: `Specimen ${specimen.accessionNumber} (${specimen.specimenType}) rejected: ${data.rejectionReason}`,
+              version: { increment: 1 },
+            },
+          });
+          await tx.timelineEvent.create({
+            data: {
+              orderId: specimen.orderId,
+              eventType: 'TEST_BLOCKED',
+              actorId,
+              actorName,
+              description: `Test blocked: specimen ${specimen.accessionNumber} rejected`,
+              metadata: {
+                orderedTestId: orderedTest.id,
+                blockReason: 'REJECTED_SPECIMEN',
+                specimenId,
+              },
+            },
+          });
+        }
+      }
+
+      await this.orderStatusService.deriveAndPersist(specimen.orderId, tx);
+      return updated;
+    });
   }
 
   // ---------------------------------------------------------------------------

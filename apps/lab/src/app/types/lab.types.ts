@@ -25,7 +25,8 @@ export type SpecimenStatus =
   | 'RECEIVED'
   | 'ACCEPTED'
   | 'REJECTED'
-  | 'MISSING';
+  | 'MISSING'
+  | 'CANCELLED';
 export type BlockReason =
   | 'MISSING_SPECIMEN'
   | 'REJECTED_SPECIMEN'
