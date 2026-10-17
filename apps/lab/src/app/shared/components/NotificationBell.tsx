@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Bell } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 import {
   useInfiniteQuery,
   useQuery,
@@ -83,6 +83,16 @@ export function NotificationBell() {
     refresh();
   };
 
+  const dismiss = async (n: LabNotification) => {
+    await labApi.notifications.dismiss(n.id).catch(() => undefined);
+    refresh();
+  };
+
+  const dismissAll = async () => {
+    await labApi.notifications.dismissAll().catch(() => undefined);
+    refresh();
+  };
+
   const describe = (n: LabNotification) =>
     t(`notifications.types.${n.type}`, {
       req: n.params.requisitionNumber ?? '',
@@ -119,15 +129,26 @@ export function NotificationBell() {
             <h2 className="text-sm font-semibold text-white">
               {t('notifications.title')}
             </h2>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={markAllRead}
-                className="text-xs text-cyan hover:underline"
-              >
-                {t('notifications.mark_all_read')}
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={markAllRead}
+                  className="text-xs text-cyan hover:underline"
+                >
+                  {t('notifications.mark_all_read')}
+                </button>
+              )}
+              {items.length > 0 && (
+                <button
+                  type="button"
+                  onClick={dismissAll}
+                  className="text-xs text-gray-400 hover:text-white hover:underline"
+                >
+                  {t('notifications.clear_all')}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-[calc(70vh-3rem)] overflow-y-auto">
@@ -144,11 +165,14 @@ export function NotificationBell() {
             ) : (
               <ul className="divide-y divide-gray-800">
                 {items.map((n) => (
-                  <li key={n.id}>
+                  <li
+                    key={n.id}
+                    className="group flex items-start transition hover:bg-gray-800"
+                  >
                     <button
                       type="button"
                       onClick={() => openNotification(n)}
-                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-gray-800"
+                      className="flex min-w-0 flex-1 gap-3 py-3 pl-4 pr-1 text-left"
                     >
                       <span
                         className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
@@ -180,6 +204,15 @@ export function NotificationBell() {
                           })}
                         </span>
                       </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => dismiss(n)}
+                      aria-label={t('notifications.clear')}
+                      title={t('notifications.clear')}
+                      className="mr-2 mt-2.5 rounded-full p-1.5 text-gray-500 hover:bg-gray-700 hover:text-white md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100"
+                    >
+                      <X size={14} />
                     </button>
                   </li>
                 ))}

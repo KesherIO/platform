@@ -28,6 +28,8 @@ vi.mock('../api/labApi', () => ({
       list: vi.fn(),
       markRead: vi.fn(),
       markAllRead: vi.fn(),
+      dismiss: vi.fn(),
+      dismissAll: vi.fn(),
     },
   },
 }));

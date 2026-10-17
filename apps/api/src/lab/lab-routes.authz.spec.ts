@@ -85,6 +85,8 @@ const INBOX_ROUTES = [
   'GET lab/notifications/unread-count',
   'POST lab/notifications/read-all',
   'POST lab/notifications/:id/read',
+  'POST lab/notifications/dismiss-all',
+  'POST lab/notifications/:id/dismiss',
 ];
 
 /** The messenger's pickup workflow (MyPickupsPage, push, session) + inbox. */

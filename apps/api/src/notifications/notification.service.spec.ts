@@ -13,6 +13,7 @@ function makePrisma() {
       count: jest.fn().mockResolvedValue(0),
       groupBy: jest.fn().mockResolvedValue([]),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      update: jest.fn(),
     },
     notificationDelivery: { createMany: jest.fn() },
     pushSubscription: { upsert: jest.fn(), deleteMany: jest.fn() },
@@ -132,7 +133,11 @@ describe('NotificationService', () => {
 
       expect(prisma.notification.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { recipientUserId: 'user-1', tenantId: 'clinic-1' },
+          where: {
+            recipientUserId: 'user-1',
+            tenantId: 'clinic-1',
+            dismissedAt: null,
+          },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: 21,
         })
@@ -205,6 +210,7 @@ describe('NotificationService', () => {
             recipientUserId: 'user-1',
             tenantId: { in: ['clinic-2'] },
             readAt: null,
+            dismissedAt: null,
           },
         })
       );
@@ -275,6 +281,88 @@ describe('NotificationService', () => {
           readAt: null,
         },
         data: { readAt: expect.any(Date) },
+      });
+    });
+  });
+
+  describe('dismiss / dismissAll', () => {
+    it('clears one of mine, counting it as read', async () => {
+      prisma.notification.findFirst.mockResolvedValue({
+        id: 'n-1',
+        readAt: null,
+        dismissedAt: null,
+      });
+
+      await expect(
+        service.dismiss('user-1', 'clinic-1', 'n-1')
+      ).resolves.toEqual({ dismissed: true });
+      expect(prisma.notification.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'n-1', recipientUserId: 'user-1', tenantId: 'clinic-1' },
+        })
+      );
+      expect(prisma.notification.update).toHaveBeenCalledWith({
+        where: { id: 'n-1' },
+        data: { dismissedAt: expect.any(Date), readAt: expect.any(Date) },
+      });
+    });
+
+    it('keeps the original read time', async () => {
+      const readAt = new Date('2026-10-18T09:00:00Z');
+      prisma.notification.findFirst.mockResolvedValue({
+        id: 'n-1',
+        readAt,
+        dismissedAt: null,
+      });
+
+      await service.dismiss('user-1', 'clinic-1', 'n-1');
+      expect(prisma.notification.update).toHaveBeenCalledWith({
+        where: { id: 'n-1' },
+        data: { dismissedAt: expect.any(Date), readAt },
+      });
+    });
+
+    it('is a no-op on one already cleared', async () => {
+      prisma.notification.findFirst.mockResolvedValue({
+        id: 'n-1',
+        readAt: new Date(),
+        dismissedAt: new Date(),
+      });
+      await service.dismiss('user-1', 'clinic-1', 'n-1');
+      expect(prisma.notification.update).not.toHaveBeenCalled();
+    });
+
+    it("404s on someone else's or another tenant's notification", async () => {
+      prisma.notification.findFirst.mockResolvedValue(null);
+      await expect(
+        service.dismiss('user-1', 'clinic-1', 'n-other')
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('clears all mine in this tenant, marking the unread ones read', async () => {
+      prisma.notification.updateMany
+        .mockResolvedValueOnce({ count: 2 })
+        .mockResolvedValueOnce({ count: 5 });
+
+      await expect(service.dismissAll('user-1', 'clinic-1')).resolves.toEqual({
+        dismissed: 5,
+      });
+      expect(prisma.notification.updateMany).toHaveBeenNthCalledWith(1, {
+        where: {
+          recipientUserId: 'user-1',
+          tenantId: 'clinic-1',
+          dismissedAt: null,
+          readAt: null,
+        },
+        data: { readAt: expect.any(Date) },
+      });
+      expect(prisma.notification.updateMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          recipientUserId: 'user-1',
+          tenantId: 'clinic-1',
+          dismissedAt: null,
+        },
+        data: { dismissedAt: expect.any(Date) },
       });
     });
   });

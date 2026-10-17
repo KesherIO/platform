@@ -1542,6 +1542,8 @@
     "empty": "No notifications yet.",
     "load_more": "Load more",
     "load_error": "Couldn't load notifications.",
+    "clear": "Clear",
+    "clear_all": "Clear all",
     "unread": "Unread",
     "types": {
       "PICKUP_ASSIGNED": "Pickup {{req}} was assigned to you",

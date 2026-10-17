@@ -124,6 +124,46 @@ describe('NotificationService', () => {
     httpMock.expectOne('/api/notifications/read-all').flush({ updated: 2 });
   });
 
+  it('dismiss removes one from the inbox at once and tells the API', () => {
+    service.unreadCount.set(2);
+    service.items.set([notification(), notification({ id: 'n-2' })]);
+
+    service.dismiss(service.items()[0]);
+
+    expect(service.items().map((n) => n.id)).toEqual(['n-2']);
+    expect(service.unreadCount()).toBe(1);
+    const req = httpMock.expectOne('/api/notifications/n-1/dismiss');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get('x-tenant-id')).toBe('t1');
+    req.flush({ dismissed: true });
+  });
+
+  it('dismissing a read one leaves the unread count alone', () => {
+    service.unreadCount.set(1);
+    const read = notification({ readAt: '2026-10-18T11:00:00.000Z' });
+    service.items.set([read]);
+
+    service.dismiss(read);
+
+    expect(service.unreadCount()).toBe(1);
+    httpMock.expectOne('/api/notifications/n-1/dismiss').flush({});
+  });
+
+  it('dismissAll empties the inbox', () => {
+    service.unreadCount.set(3);
+    service.items.set([notification(), notification({ id: 'n-2' })]);
+    service.nextCursor.set('n-2');
+
+    service.dismissAll();
+
+    expect(service.items()).toEqual([]);
+    expect(service.nextCursor()).toBeNull();
+    expect(service.unreadCount()).toBe(0);
+    httpMock
+      .expectOne('/api/notifications/dismiss-all')
+      .flush({ dismissed: 2 });
+  });
+
   it('switching clinic empties the inbox and refetches the count', () => {
     service.items.set([notification()]);
     service.unreadCount.set(4);

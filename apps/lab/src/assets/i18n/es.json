@@ -1542,6 +1542,8 @@
     "empty": "Aún no tienes notificaciones.",
     "load_more": "Cargar más",
     "load_error": "No se pudieron cargar las notificaciones.",
+    "clear": "Borrar",
+    "clear_all": "Borrar todas",
     "unread": "Sin leer",
     "types": {
       "PICKUP_ASSIGNED": "Se te asignó la recolección {{req}}",

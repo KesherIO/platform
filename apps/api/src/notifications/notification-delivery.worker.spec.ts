@@ -113,6 +113,20 @@ describe('NotificationDeliveryWorker', () => {
     );
   });
 
+  it('skips the push of a notification cleared before it went out', async () => {
+    queueOne();
+    prisma.notification.findUnique.mockResolvedValue(
+      notification({ dismissedAt: new Date() })
+    );
+
+    await worker.processBatch();
+
+    expect(push.sendToUserApp).not.toHaveBeenCalled();
+    expect(settledWith().data).toEqual(
+      expect.objectContaining({ status: 'SKIPPED', lastError: 'Dismissed' })
+    );
+  });
+
   it('expires a push too old to be useful without sending it', async () => {
     queueOne();
     prisma.notification.findUnique.mockResolvedValue(

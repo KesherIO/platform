@@ -151,6 +151,39 @@ export class NotificationService {
       .subscribe();
   }
 
+  /** Clears one from the inbox right away in the UI; the server catches up. */
+  dismiss(notification: NotificationModel): void {
+    this.items.update((items) => items.filter((n) => n.id !== notification.id));
+    if (!notification.readAt) {
+      this.unreadCount.update((c) => Math.max(0, c - 1));
+    }
+    this.http
+      .post(
+        `/api/notifications/${notification.id}/dismiss`,
+        {},
+        this.tenantHeaders
+      )
+      .pipe(
+        take(1),
+        catchError(() => EMPTY)
+      )
+      .subscribe();
+  }
+
+  /** Clears the whole inbox for the active clinic. */
+  dismissAll(): void {
+    this.items.set([]);
+    this.nextCursor.set(null);
+    this.unreadCount.set(0);
+    this.http
+      .post('/api/notifications/dismiss-all', {}, this.tenantHeaders)
+      .pipe(
+        take(1),
+        catchError(() => EMPTY)
+      )
+      .subscribe();
+  }
+
   private fetchUnread(): Observable<NotificationUnreadCountResponse> {
     return this.http.get<NotificationUnreadCountResponse>(
       '/api/notifications/unread-count',

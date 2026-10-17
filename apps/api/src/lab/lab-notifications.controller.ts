@@ -71,4 +71,25 @@ export class LabNotificationsController {
   ) {
     return this.notifications.markRead(user.id, tenant.tenantId, id);
   }
+
+  @Post('dismiss-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Clear all my lab notifications' })
+  dismissAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentTenant() tenant: TenantContext
+  ) {
+    return this.notifications.dismissAll(user.id, tenant.tenantId);
+  }
+
+  @Post(':id/dismiss')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Clear one of my lab notifications' })
+  dismiss(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string
+  ) {
+    return this.notifications.dismiss(user.id, tenant.tenantId, id);
+  }
 }

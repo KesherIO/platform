@@ -100,7 +100,7 @@ export class NotificationService {
   ): Promise<NotificationListResponse> {
     const limit = Math.min(Math.max(opts.limit ?? 20, 1), MAX_PAGE);
     const rows = await this.prisma.notification.findMany({
-      where: { recipientUserId: userId, tenantId },
+      where: { recipientUserId: userId, tenantId, dismissedAt: null },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
       ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
@@ -152,7 +152,12 @@ export class NotificationService {
 
     const [count, others] = await Promise.all([
       this.prisma.notification.count({
-        where: { recipientUserId: userId, tenantId, readAt: null },
+        where: {
+          recipientUserId: userId,
+          tenantId,
+          readAt: null,
+          dismissedAt: null,
+        },
       }),
       otherTenantIds.length
         ? this.prisma.notification.groupBy({
@@ -161,6 +166,7 @@ export class NotificationService {
               recipientUserId: userId,
               tenantId: { in: otherTenantIds },
               readAt: null,
+              dismissedAt: null,
             },
             _count: { _all: true },
           })
@@ -210,6 +216,53 @@ export class NotificationService {
       data: { readAt: new Date() },
     });
     return { updated: count };
+  }
+
+  /**
+   * Clears one notification from the recipient's inbox (it counts as read).
+   * The row stays as a record of what was sent; it's just no longer listed.
+   */
+  async dismiss(
+    userId: string,
+    tenantId: string,
+    notificationId: string
+  ): Promise<{ dismissed: true }> {
+    const existing = await this.prisma.notification.findFirst({
+      where: { id: notificationId, recipientUserId: userId, tenantId },
+      select: { id: true, readAt: true, dismissedAt: true },
+    });
+    if (!existing) throw new NotFoundException('Notification not found.');
+    if (!existing.dismissedAt) {
+      const now = new Date();
+      await this.prisma.notification.update({
+        where: { id: notificationId },
+        data: { dismissedAt: now, readAt: existing.readAt ?? now },
+      });
+    }
+    return { dismissed: true };
+  }
+
+  /** Clears every notification from the recipient's inbox in this tenant. */
+  async dismissAll(
+    userId: string,
+    tenantId: string
+  ): Promise<{ dismissed: number }> {
+    const now = new Date();
+    // Unread ones count as read too, so no unread badge points at nothing
+    await this.prisma.notification.updateMany({
+      where: {
+        recipientUserId: userId,
+        tenantId,
+        dismissedAt: null,
+        readAt: null,
+      },
+      data: { readAt: now },
+    });
+    const { count } = await this.prisma.notification.updateMany({
+      where: { recipientUserId: userId, tenantId, dismissedAt: null },
+      data: { dismissedAt: now },
+    });
+    return { dismissed: count };
   }
 
   async savePushSubscription(
