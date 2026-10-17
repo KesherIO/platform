@@ -1503,5 +1503,24 @@
       "original": "Original",
       "correction": "Corrección {{n}}"
     }
+  },
+  "notifications": {
+    "bell": "Notificaciones",
+    "bell_unread": "Notificaciones ({{count}} sin leer)",
+    "title": "Notificaciones",
+    "mark_all_read": "Marcar todas como leídas",
+    "empty": "Aún no tienes notificaciones.",
+    "load_more": "Cargar más",
+    "load_error": "No se pudieron cargar las notificaciones.",
+    "unread": "Sin leer",
+    "types": {
+      "PICKUP_ASSIGNED": "Se te asignó la recolección {{req}}",
+      "PICKUP_UNASSIGNED": "La recolección {{req}} ya no está asignada a ti",
+      "PICKUP_CANCELLED": "La recolección {{req}} fue cancelada",
+      "TESTS_ADDED": "Se agregaron pruebas a {{req}}",
+      "ADDITIONAL_SAMPLE_REQUIRED": "Se necesita otra muestra para {{req}}",
+      "RESULTS_RELEASED": "Resultados disponibles para {{req}}",
+      "RESULTS_AMENDED": "Resultados corregidos para {{req}}"
+    }
   }
 }

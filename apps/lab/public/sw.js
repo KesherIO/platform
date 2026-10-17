@@ -11,12 +11,19 @@ self.addEventListener('push', (event) => {
     return;
   }
 
+  // A tag (one per pickup) makes a newer or resent push replace the older one
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/icon-128x128.png',
+    data: { url: payload.url || '/my-pickups' },
+  };
+  if (payload.tag) {
+    options.tag = payload.tag;
+    options.renotify = true;
+  }
+
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'Vet AI Lab', {
-      body: payload.body || '',
-      icon: '/icon-128x128.png',
-      data: { url: payload.url || '/my-pickups' },
-    })
+    self.registration.showNotification(payload.title || 'Vet AI Lab', options)
   );
 });
 

@@ -7,11 +7,18 @@ import { switchMap, of, map, catchError } from 'rxjs';
 function resolveAccess(
   auth: AuthService,
   tenant: TenantService,
-  router: Router
+  router: Router,
+  requestedClinic: string | null
 ): boolean {
   if (!auth.me()?.memberships?.length) {
     router.navigate(['/no-clinic']);
     return false;
+  }
+
+  // A link that names its clinic (?clinic=…, e.g. from a notification) opens
+  // in that clinic when the user belongs to it; otherwise the active one stays
+  if (requestedClinic) {
+    tenant.switchContext(requestedClinic);
   }
 
   if (tenant.needsClinicSelection()) {
@@ -47,10 +54,11 @@ function resolveAccess(
  * preventing spurious redirects on hard refresh.
  * Also blocks PROFILE_REQUIRED and VERIFICATION_PENDING users from protected routes.
  */
-export const authGuard: CanActivateFn = (_route, state) => {
+export const authGuard: CanActivateFn = (route, state) => {
   const auth = inject(AuthService);
   const tenant = inject(TenantService);
   const router = inject(Router);
+  const requestedClinic = route.queryParamMap.get('clinic');
 
   return auth.sessionReady$.pipe(
     switchMap(() => {
@@ -66,7 +74,7 @@ export const authGuard: CanActivateFn = (_route, state) => {
       // If loadMe() fails (expired token), redirect to login.
       if (!auth.me()) {
         return auth.loadMe().pipe(
-          map(() => resolveAccess(auth, tenant, router)),
+          map(() => resolveAccess(auth, tenant, router, requestedClinic)),
           catchError(() => {
             auth.signOut().subscribe();
             router.navigate(['/auth/login'], {
@@ -77,7 +85,7 @@ export const authGuard: CanActivateFn = (_route, state) => {
         );
       }
 
-      return of(resolveAccess(auth, tenant, router));
+      return of(resolveAccess(auth, tenant, router, requestedClinic));
     })
   );
 };

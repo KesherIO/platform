@@ -3,6 +3,7 @@ import {
   ActivatedRouteSnapshot,
   RouterStateSnapshot,
   Router,
+  convertToParamMap,
 } from '@angular/router';
 import { of, firstValueFrom } from 'rxjs';
 import { Observable } from 'rxjs';
@@ -11,7 +12,11 @@ import { authGuard } from './auth.guard';
 import { AuthService, MeResponse } from '../services/auth.service';
 import { TenantService } from '../services/tenant.service';
 
-const mockRoute = {} as ActivatedRouteSnapshot;
+const mockRoute = {
+  queryParamMap: convertToParamMap({}),
+} as ActivatedRouteSnapshot;
+const routeTo = (params: Record<string, string>) =>
+  ({ queryParamMap: convertToParamMap(params) } as ActivatedRouteSnapshot);
 const mockState = { url: '/dashboard' } as RouterStateSnapshot;
 
 function makeMembership(
@@ -89,6 +94,33 @@ describe('authGuard — membership status routing', () => {
       ],
     });
   }
+
+  it('a ?clinic= link switches to that clinic before checking access', async () => {
+    const switchContext = vi.fn().mockReturnValue(true);
+    setup(makeMe([makeMembership('t1', 'VET', 'ACTIVE')]), { switchContext });
+
+    const result = await firstValueFrom(
+      TestBed.runInInjectionContext(() =>
+        authGuard(routeTo({ clinic: 't2' }), mockState)
+      ) as Observable<boolean>
+    );
+
+    expect(switchContext).toHaveBeenCalledWith('t2');
+    expect(result).toBe(true);
+  });
+
+  it('without ?clinic= the active clinic stays', async () => {
+    const switchContext = vi.fn();
+    setup(makeMe([makeMembership('t1', 'VET', 'ACTIVE')]), { switchContext });
+
+    await firstValueFrom(
+      TestBed.runInInjectionContext(() =>
+        authGuard(mockRoute, mockState)
+      ) as Observable<boolean>
+    );
+
+    expect(switchContext).not.toHaveBeenCalled();
+  });
 
   it('ACTIVE membership allows access', async () => {
     setup(makeMe([makeMembership('t1', 'VET', 'ACTIVE')]));

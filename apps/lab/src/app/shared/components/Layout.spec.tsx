@@ -23,6 +23,12 @@ vi.mock('../api/labApi', () => ({
     worklist: { readyCount: vi.fn() },
     verifications: { getPendingCount: vi.fn() },
     orders: { reviewCount: vi.fn() },
+    notifications: {
+      unreadCount: vi.fn(),
+      list: vi.fn(),
+      markRead: vi.fn(),
+      markAllRead: vi.fn(),
+    },
   },
 }));
 
@@ -71,6 +77,10 @@ describe('Layout', () => {
     vi.mocked(labApi.pickups.myPickups).mockResolvedValue([]);
     vi.mocked(labApi.worklist.readyCount).mockResolvedValue({ count: 0 });
     vi.mocked(labApi.orders.reviewCount).mockResolvedValue({ count: 4 });
+    vi.mocked(labApi.notifications.unreadCount).mockResolvedValue({
+      count: 0,
+      otherTenants: [],
+    });
     Object.assign(auth, {
       isAdmin: false,
       canRelease: false,
@@ -141,5 +151,13 @@ describe('Layout', () => {
     for (const label of ADMIN_TABS) {
       expect(tab(label)).toBeTruthy();
     }
+  });
+
+  it('has the notification bell (rendered for every role)', () => {
+    renderAt('/orders');
+
+    expect(
+      screen.getAllByRole('button', { name: 'notifications.bell' }).length
+    ).toBeGreaterThan(0);
   });
 });

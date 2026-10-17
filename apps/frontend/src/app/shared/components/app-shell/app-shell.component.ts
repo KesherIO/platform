@@ -8,6 +8,8 @@ import { resolveLogoUrl } from '../../../core/services/onboarding.service';
 import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
 import { PwaInstallBannerComponent } from '../pwa-install-banner/pwa-install-banner.component';
 import { LabSuspendedBannerComponent } from '../lab-suspended-banner/lab-suspended-banner.component';
+import { NotificationBellComponent } from '../notification-bell/notification-bell.component';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
   selector: 'app-shell',
@@ -18,6 +20,7 @@ import { LabSuspendedBannerComponent } from '../lab-suspended-banner/lab-suspend
     BottomNavComponent,
     PwaInstallBannerComponent,
     LabSuspendedBannerComponent,
+    NotificationBellComponent,
   ],
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss',
@@ -26,6 +29,12 @@ export class AppShellComponent {
   private readonly auth = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
   readonly tenant = inject(TenantService);
+  readonly notifications = inject(NotificationService);
+
+  constructor() {
+    // The shell lives for the whole signed-in session
+    this.notifications.startPolling(this.destroyRef);
+  }
 
   readonly clinicName = computed(() => {
     const membership = this.tenant.activeMembership();
@@ -47,6 +56,7 @@ export class AppShellComponent {
         name: m.tenant.name,
         logoUrl: resolveLogoUrl(m.tenant.logoUrl),
         role: m.role,
+        unread: this.notifications.otherClinicUnread()[m.tenant.id] ?? 0,
       }));
   });
 

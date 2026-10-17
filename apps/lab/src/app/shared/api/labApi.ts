@@ -49,6 +49,8 @@ import type {
   ResultsAnalyte,
   MembershipHistoryQuery,
   RemovedLabMember,
+  NotificationListResponse,
+  NotificationUnreadCount,
 } from '../../types/lab.types';
 
 /** Non-2xx response. `message` is the response body, as before. */
@@ -317,6 +319,20 @@ export const labApi = {
       ),
     removePushSubscription: (endpoint: string) =>
       del('lab/messengers/me/push-subscription', { endpoint }),
+  },
+  /** The signed-in member's own inbox in this lab */
+  notifications: {
+    list: (cursor?: string) =>
+      get<NotificationListResponse>(
+        `lab/notifications${
+          cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+        }`
+      ),
+    unreadCount: () =>
+      get<NotificationUnreadCount>('lab/notifications/unread-count'),
+    markRead: (id: string) =>
+      post<{ read: boolean }>(`lab/notifications/${id}/read`),
+    markAllRead: () => post<{ updated: number }>('lab/notifications/read-all'),
   },
   timeline: {
     forOrder: (orderId: string) =>

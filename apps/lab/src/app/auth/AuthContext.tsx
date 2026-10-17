@@ -9,6 +9,7 @@ import {
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { setActiveTenantId } from '../shared/api/labApi';
+import { removeBrowserPushSubscription } from '../pages/pickups/usePushSubscription';
 import type { LabRole } from '../types/lab.types';
 
 interface AuthContextValue {
@@ -134,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    await removeBrowserPushSubscription();
     await supabase.auth.signOut();
   };
 

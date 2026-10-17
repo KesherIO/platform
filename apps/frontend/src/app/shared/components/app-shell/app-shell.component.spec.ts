@@ -6,6 +6,27 @@ import { of } from 'rxjs';
 import { AppShellComponent } from './app-shell.component';
 import { AuthService } from '../../../core/services/auth.service';
 import { TenantService } from '../../../core/services/tenant.service';
+import { NotificationService } from '../../../core/services/notification.service';
+import { PushSubscriptionService } from '../../../core/services/push-subscription.service';
+
+function makeNotificationService(
+  otherClinicUnread: Record<string, number> = {}
+) {
+  return {
+    unreadCount: signal(0),
+    otherClinicUnread: signal(otherClinicUnread),
+    items: signal([]),
+    nextCursor: signal(null),
+    loading: signal(false),
+    loadError: signal(false),
+    startPolling: vi.fn(),
+    refreshUnread: vi.fn(),
+    loadFirstPage: vi.fn(),
+    loadMore: vi.fn(),
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+  };
+}
 
 function makeTenantService(overrides: Record<string, unknown> = {}) {
   const activeTenantId = signal('t1');
@@ -41,8 +62,14 @@ describe('AppShellComponent', () => {
   let fixture: ComponentFixture<AppShellComponent>;
   let component: AppShellComponent;
 
-  function setup(tenantOverrides: Record<string, unknown> = {}) {
+  let notificationService: ReturnType<typeof makeNotificationService>;
+
+  function setup(
+    tenantOverrides: Record<string, unknown> = {},
+    otherClinicUnread: Record<string, number> = {}
+  ) {
     const tenantService = makeTenantService(tenantOverrides);
+    notificationService = makeNotificationService(otherClinicUnread);
 
     TestBed.configureTestingModule({
       imports: [
@@ -71,6 +98,15 @@ describe('AppShellComponent', () => {
           },
         },
         { provide: TenantService, useValue: tenantService },
+        { provide: NotificationService, useValue: notificationService },
+        {
+          provide: PushSubscriptionService,
+          useValue: {
+            permission: signal('unsupported'),
+            subscribed: signal(false),
+            enable: vi.fn(),
+          },
+        },
       ],
     });
 
@@ -83,6 +119,59 @@ describe('AppShellComponent', () => {
   it('creates without error', () => {
     setup();
     expect(component).toBeTruthy();
+  });
+
+  it('keeps unread counts polling for the session', () => {
+    setup();
+    expect(notificationService.startPolling).toHaveBeenCalledTimes(1);
+  });
+
+  it('has the notification bell', () => {
+    setup();
+    expect(
+      fixture.nativeElement.querySelectorAll('app-notification-bell').length
+    ).toBeGreaterThan(0);
+  });
+
+  it("shows another clinic's unread count in the switcher", () => {
+    setup(
+      {
+        hasMultipleClinics: computed(() => true),
+        clinics: signal([
+          {
+            role: 'VET',
+            status: 'ACTIVE',
+            isOrderingVet: true,
+            createdAt: '',
+            tenant: {
+              id: 't1',
+              name: 'Clinic A',
+              slug: 'clinic-a',
+              logoUrl: null,
+              primaryColor: null,
+            },
+          },
+          {
+            role: 'VET',
+            status: 'ACTIVE',
+            isOrderingVet: true,
+            createdAt: '',
+            tenant: {
+              id: 't2',
+              name: 'Clinic B',
+              slug: 'clinic-b',
+              logoUrl: null,
+              primaryColor: null,
+            },
+          },
+        ]),
+      },
+      { t2: 3 }
+    );
+
+    expect(component.otherClinics()).toEqual([
+      expect.objectContaining({ id: 't2', unread: 3 }),
+    ]);
   });
 
   it('shows clinic name from active membership', () => {

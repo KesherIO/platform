@@ -1503,5 +1503,24 @@
       "original": "Original",
       "correction": "Correction {{n}}"
     }
+  },
+  "notifications": {
+    "bell": "Notifications",
+    "bell_unread": "Notifications ({{count}} unread)",
+    "title": "Notifications",
+    "mark_all_read": "Mark all as read",
+    "empty": "No notifications yet.",
+    "load_more": "Load more",
+    "load_error": "Couldn't load notifications.",
+    "unread": "Unread",
+    "types": {
+      "PICKUP_ASSIGNED": "Pickup {{req}} was assigned to you",
+      "PICKUP_UNASSIGNED": "Pickup {{req}} is no longer assigned to you",
+      "PICKUP_CANCELLED": "Pickup {{req}} was cancelled",
+      "TESTS_ADDED": "Tests were added to {{req}}",
+      "ADDITIONAL_SAMPLE_REQUIRED": "Another sample is needed for {{req}}",
+      "RESULTS_RELEASED": "Results available for {{req}}",
+      "RESULTS_AMENDED": "Results corrected for {{req}}"
+    }
   }
 }

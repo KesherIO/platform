@@ -666,5 +666,31 @@
     "CPF": "CPF (individual tax ID)",
     "RFC": "RFC (tax ID)",
     "OTHER": "Other"
+  },
+  "NOTIFICATIONS": {
+    "BELL": "Notifications",
+    "BELL_UNREAD": "Notifications ({{count}} unread)",
+    "TITLE": "Notifications",
+    "MARK_ALL_READ": "Mark all as read",
+    "EMPTY": "No notifications yet.",
+    "LOAD_MORE": "Load more",
+    "LOAD_ERROR": "Couldn't load notifications.",
+    "UNREAD": "Unread",
+    "OTHER_CLINIC_UNREAD": "{{count}} unread",
+    "ENABLE_PUSH": "Turn on browser notifications",
+    "PUSH_ENABLED": "Browser notifications are on for this device.",
+    "PUSH_BLOCKED": "Notifications are blocked in this browser's settings.",
+    "PUSH_ERROR": "Couldn't turn on browser notifications.",
+    "TYPES": {
+      "TESTS_ADDED": "The lab added tests to {{req}}",
+      "TESTS_ADDED_SAMPLE": "The lab added tests to {{req}} — another sample is needed",
+      "ADDITIONAL_SAMPLE_REQUIRED": "The lab needs another sample for {{req}}",
+      "RESULTS_RELEASED_PARTIAL": "Partial results available for {{req}}",
+      "RESULTS_RELEASED_FINAL": "All results available for {{req}}",
+      "RESULTS_AMENDED": "The lab corrected results for {{req}}",
+      "PICKUP_ASSIGNED": "Pickup {{req}} assigned",
+      "PICKUP_UNASSIGNED": "Pickup {{req}} reassigned",
+      "PICKUP_CANCELLED": "Pickup {{req}} cancelled"
+    }
   }
 }

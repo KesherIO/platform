@@ -88,9 +88,21 @@ export class TenantService {
   }
 
   selectClinic(tenantId: string): void {
+    if (this.switchContext(tenantId)) {
+      this.router.navigate(['/dashboard']);
+    }
+  }
+
+  /**
+   * Makes `tenantId` the active clinic without navigating — for links that
+   * name their clinic (?clinic=…, e.g. a notification). Returns false, and
+   * changes nothing, when the user isn't a member of it.
+   */
+  switchContext(tenantId: string): boolean {
     const clinics = this._clinics();
     const userId = this._userId();
-    if (!clinics.some((m) => m.tenant.id === tenantId)) return;
+    if (!clinics.some((m) => m.tenant.id === tenantId)) return false;
+    if (this._activeTenantId() === tenantId) return true;
 
     this._activeTenantId.set(tenantId);
     if (userId) {
@@ -98,7 +110,7 @@ export class TenantService {
     }
 
     this.cacheCleaners.forEach((fn) => fn());
-    this.router.navigate(['/dashboard']);
+    return true;
   }
 
   clearSelection(): void {

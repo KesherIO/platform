@@ -1413,3 +1413,48 @@ export interface CompleteLabOnboardingResponse {
   tenantId: string;
   userId: string;
 }
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'TESTS_ADDED'
+  | 'ADDITIONAL_SAMPLE_REQUIRED'
+  | 'RESULTS_RELEASED'
+  | 'RESULTS_AMENDED'
+  | 'PICKUP_ASSIGNED'
+  | 'PICKUP_UNASSIGNED'
+  | 'PICKUP_CANCELLED';
+
+export interface NotificationParams {
+  requisitionNumber?: string;
+  caseId?: string;
+  testNames?: string[];
+  sampleRequired?: boolean;
+  releaseType?: 'PARTIAL' | 'FINAL';
+  assignedAt?: string;
+}
+
+/** One entry in the user's own inbox (GET /lab/notifications). */
+export interface LabNotification {
+  id: string;
+  type: NotificationType;
+  tenantId: string;
+  orderId?: string;
+  pickupId?: string;
+  params: NotificationParams;
+  patientName?: string;
+  /** In-app path to open */
+  link: string;
+  readAt?: string;
+  createdAt: string;
+}
+
+export interface NotificationListResponse {
+  items: LabNotification[];
+  nextCursor: string | null;
+}
+
+export interface NotificationUnreadCount {
+  count: number;
+  otherTenants: { tenantId: string; count: number }[];
+}

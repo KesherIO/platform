@@ -22,6 +22,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../api/labApi';
 import { useDocumentTitle } from '../useDocumentTitle';
+import { NotificationBell } from './NotificationBell';
 
 const ICON_SIZE = 18;
 const ICON_STROKE_WIDTH = 2;
@@ -272,24 +273,27 @@ export function Layout() {
           </div>
         </div>
 
-        {isMessenger ? (
-          <button
-            onClick={signOut}
-            className="shrink-0 text-xs text-gray-400 hover:text-white transition"
-          >
-            {t('nav.sign_out')}
-          </button>
-        ) : (
-          <button
-            onClick={() => setMobileNavOpen((open) => !open)}
-            aria-label={
-              mobileNavOpen ? t('nav.close_menu') : t('nav.open_menu')
-            }
-            className="shrink-0 rounded-lg p-2 text-gray-300 hover:bg-gray-800 hover:text-white"
-          >
-            {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-1">
+          <NotificationBell />
+          {isMessenger ? (
+            <button
+              onClick={signOut}
+              className="shrink-0 text-xs text-gray-400 hover:text-white transition"
+            >
+              {t('nav.sign_out')}
+            </button>
+          ) : (
+            <button
+              onClick={() => setMobileNavOpen((open) => !open)}
+              aria-label={
+                mobileNavOpen ? t('nav.close_menu') : t('nav.open_menu')
+              }
+              className="shrink-0 rounded-lg p-2 text-gray-300 hover:bg-gray-800 hover:text-white"
+            >
+              {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Mobile nav drawer — only staff have more than one destination */}
@@ -337,11 +341,12 @@ export function Layout() {
             alt="Lab logo"
             className="h-9 w-9 shrink-0 rounded-lg object-contain"
           />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-white">
               {tenantName || t('nav.brand')}
             </p>
           </div>
+          <NotificationBell />
         </div>
 
         <nav className="flex-1 space-y-1 px-2 py-2">
