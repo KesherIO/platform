@@ -15,12 +15,15 @@ import {
 import { TenantGuard } from '../auth/guards/tenant.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
+import { AllowOnboardingMembership } from '../auth/decorators/allow-onboarding-membership.decorator';
 import type { AuthenticatedUser, TenantContext } from '@vet-ai/shared-types';
 import { VetVerificationService } from './vet-verification.service';
 
 @ApiTags('vet-verification')
 @ApiBearerAuth()
 @ApiSecurity('x-tenant-id')
+// Vets still onboarding check and submit their verification here
+@AllowOnboardingMembership()
 @UseGuards(TenantGuard)
 @Controller('vet-verification')
 export class VetVerificationController {
