@@ -11,7 +11,7 @@ const LAB_TENANT_TYPES = new Set(['LAB', 'PLATFORM']);
 
 /** Of `userIds`, those with an ACTIVE membership in `tenantId`. */
 export async function activeMemberIds(
-  db: Db,
+  db: Pick<Db, 'userTenantMembership'>,
   tenantId: string,
   userIds: string[]
 ): Promise<string[]> {

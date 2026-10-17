@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { PickupService } from './pickup.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { PushService } from '../notifications/push.service';
+import { NotificationService } from '../notifications/notification.service';
+import { NotificationDeliveryWorker } from '../notifications/notification-delivery.worker';
 
 const LAB_ID = 'lab-1';
 const CLINIC_ID = 'clinic-1';
@@ -51,13 +52,15 @@ function makePickup(overrides: Record<string, unknown> = {}) {
 describe('PickupService', () => {
   let service: PickupService;
   let prisma: Record<string, any>;
-  let pushService: Record<string, any>;
+  let notifications: { publish: jest.Mock; deliverQueued: jest.Mock };
+  let deliveryWorker: { onSettled: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
       pickup: {
         create: jest.fn(),
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
         count: jest.fn(),
@@ -79,16 +82,24 @@ describe('PickupService', () => {
         upsert: jest.fn(),
         deleteMany: jest.fn(),
       },
-      $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
+      // Array form (markCollected, confirmReceived) and interactive form
+      $transaction: jest.fn((arg: unknown) =>
+        typeof arg === 'function' ? arg(prisma) : Promise.all(arg as unknown[])
+      ),
     };
 
-    pushService = { sendToUser: jest.fn() };
+    notifications = {
+      publish: jest.fn().mockResolvedValue(1),
+      deliverQueued: jest.fn(),
+    };
+    deliveryWorker = { onSettled: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PickupService,
         { provide: PrismaService, useValue: prisma },
-        { provide: PushService, useValue: pushService },
+        { provide: NotificationService, useValue: notifications },
+        { provide: NotificationDeliveryWorker, useValue: deliveryWorker },
       ],
     }).compile();
 
@@ -97,6 +108,14 @@ describe('PickupService', () => {
 
   it('creates without error', () => {
     expect(service).toBeDefined();
+  });
+
+  it('records the outcome of assignment pushes', () => {
+    service.onModuleInit();
+    expect(deliveryWorker.onSettled).toHaveBeenCalledWith(
+      'PICKUP_ASSIGNED',
+      expect.any(Function)
+    );
   });
 
   describe('createPickup', () => {
@@ -141,7 +160,7 @@ describe('PickupService', () => {
   });
 
   describe('assignMessenger', () => {
-    it('assigns, transitions to NOTIFIED, and records a successful push', async () => {
+    it('assigns, transitions to NOTIFIED and notifies the messenger in the same transaction', async () => {
       prisma.pickup.findFirst.mockResolvedValue(makePickup());
       prisma.userTenantMembership.findUnique.mockResolvedValue({
         role: 'MESSENGER',
@@ -150,39 +169,53 @@ describe('PickupService', () => {
       prisma.order.findUnique.mockResolvedValue({
         requisitionNumber: 'REQ-2026-000001',
       });
-      pushService.sendToUser.mockResolvedValue(true);
       prisma.pickup.update.mockResolvedValue(
         makePickup({ status: 'NOTIFIED' })
       );
 
       await service.assignMessenger(LAB_ID, PICKUP_ID, MESSENGER_ID, ADMIN_ID);
 
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function));
       expect(prisma.pickup.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             messengerId: MESSENGER_ID,
             status: 'ASSIGNED',
+            notifiedAt: null,
+            notifyFailReason: null,
           }),
         })
       );
       expect(prisma.pickup.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { status: 'NOTIFIED' } })
       );
-      expect(pushService.sendToUser).toHaveBeenCalledWith(
-        MESSENGER_ID,
-        expect.objectContaining({ url: '/my-pickups' })
-      );
+      const assignedAt = (prisma.pickup.update as jest.Mock).mock.calls[0][0]
+        .data.assignedAt as Date;
+      expect(notifications.publish).toHaveBeenCalledTimes(1);
+      expect(notifications.publish).toHaveBeenCalledWith(prisma, {
+        type: 'PICKUP_ASSIGNED',
+        tenantId: LAB_ID,
+        eventKey: `pickup:${PICKUP_ID}:assigned:${assignedAt.toISOString()}`,
+        recipientUserIds: [MESSENGER_ID],
+        orderId: ORDER_ID,
+        pickupId: PICKUP_ID,
+        params: {
+          requisitionNumber: 'REQ-2026-000001',
+          assignedAt: assignedAt.toISOString(),
+        },
+      });
+      expect(notifications.deliverQueued).toHaveBeenCalledTimes(1);
+      // The push outcome is recorded later by the delivery worker's hook
       const timelineEventTypes = (
         prisma.timelineEvent.create as jest.Mock
       ).mock.calls.map((call) => call[0].data.eventType);
-      expect(timelineEventTypes).toEqual([
-        'PICKUP_ASSIGNED',
-        'NOTIFICATION_SENT',
-      ]);
+      expect(timelineEventTypes).toEqual(['PICKUP_ASSIGNED']);
     });
 
-    it('records NOTIFICATION_FAILED when the push send fails', async () => {
-      prisma.pickup.findFirst.mockResolvedValue(makePickup());
+    it('tells the previous messenger when a pickup is reassigned', async () => {
+      prisma.pickup.findFirst.mockResolvedValue(
+        makePickup({ status: 'NOTIFIED', messengerId: OTHER_USER_ID })
+      );
       prisma.userTenantMembership.findUnique.mockResolvedValue({
         role: 'MESSENGER',
         user: { firstName: 'Sam', lastName: 'Courier' },
@@ -190,20 +223,56 @@ describe('PickupService', () => {
       prisma.order.findUnique.mockResolvedValue({
         requisitionNumber: 'REQ-2026-000001',
       });
-      pushService.sendToUser.mockResolvedValue(false);
       prisma.pickup.update.mockResolvedValue(
         makePickup({ status: 'NOTIFIED' })
       );
 
       await service.assignMessenger(LAB_ID, PICKUP_ID, MESSENGER_ID, ADMIN_ID);
 
-      const timelineEventTypes = (
-        prisma.timelineEvent.create as jest.Mock
-      ).mock.calls.map((call) => call[0].data.eventType);
-      expect(timelineEventTypes).toEqual([
-        'PICKUP_ASSIGNED',
-        'NOTIFICATION_FAILED',
-      ]);
+      expect(notifications.publish).toHaveBeenCalledWith(
+        prisma,
+        expect.objectContaining({
+          type: 'PICKUP_UNASSIGNED',
+          recipientUserIds: [OTHER_USER_ID],
+          pickupId: PICKUP_ID,
+        })
+      );
+    });
+
+    it('does not tell a messenger the pickup was taken away when reassigned to them', async () => {
+      prisma.pickup.findFirst.mockResolvedValue(
+        makePickup({ status: 'NOTIFIED', messengerId: MESSENGER_ID })
+      );
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        role: 'MESSENGER',
+        user: { firstName: 'Sam', lastName: 'Courier' },
+      });
+      prisma.order.findUnique.mockResolvedValue({ requisitionNumber: 'R' });
+      prisma.pickup.update.mockResolvedValue(
+        makePickup({ status: 'NOTIFIED' })
+      );
+
+      await service.assignMessenger(LAB_ID, PICKUP_ID, MESSENGER_ID, ADMIN_ID);
+
+      expect(notifications.publish).toHaveBeenCalledTimes(1);
+      expect(notifications.publish.mock.calls[0][1].type).toBe(
+        'PICKUP_ASSIGNED'
+      );
+    });
+
+    it('nothing is queued when the assignment fails', async () => {
+      prisma.pickup.findFirst.mockResolvedValue(makePickup());
+      prisma.userTenantMembership.findUnique.mockResolvedValue({
+        role: 'MESSENGER',
+        user: { firstName: 'Sam', lastName: 'Courier' },
+      });
+      prisma.pickup.update.mockRejectedValue(new Error('db down'));
+
+      await expect(
+        service.assignMessenger(LAB_ID, PICKUP_ID, MESSENGER_ID, ADMIN_ID)
+      ).rejects.toThrow('db down');
+      expect(notifications.publish).not.toHaveBeenCalled();
+      expect(notifications.deliverQueued).not.toHaveBeenCalled();
     });
 
     it('rejects assignment when the pickup is not REQUESTED (optimistic concurrency)', async () => {
@@ -239,7 +308,6 @@ describe('PickupService', () => {
       prisma.order.findUnique.mockResolvedValue({
         requisitionNumber: 'REQ-2026-000002',
       });
-      pushService.sendToUser.mockResolvedValue(true);
       prisma.pickup.update.mockResolvedValue(
         makePickup({ status: 'NOTIFIED' })
       );
@@ -489,6 +557,115 @@ describe('PickupService', () => {
         })
       );
       expect(result.status).toBe('CANCELLED');
+      // Nobody was assigned, so nobody to tell
+      expect(notifications.publish).not.toHaveBeenCalled();
+    });
+
+    it('tells the assigned messenger the pickup was cancelled', async () => {
+      prisma.pickup.findFirst
+        .mockResolvedValueOnce(
+          makePickup({ status: 'NOTIFIED', messengerId: MESSENGER_ID })
+        )
+        .mockResolvedValueOnce(makePickup({ status: 'CANCELLED' }));
+      prisma.order.findUnique.mockResolvedValue({
+        requisitionNumber: 'REQ-2026-000001',
+      });
+
+      await service.cancelPickup(LAB_ID, PICKUP_ID, ADMIN_ID);
+
+      expect(notifications.publish).toHaveBeenCalledWith(prisma, {
+        type: 'PICKUP_CANCELLED',
+        tenantId: LAB_ID,
+        eventKey: `pickup:${PICKUP_ID}:cancelled`,
+        recipientUserIds: [MESSENGER_ID],
+        orderId: ORDER_ID,
+        pickupId: PICKUP_ID,
+        params: { requisitionNumber: 'REQ-2026-000001' },
+      });
+      expect(notifications.deliverQueued).toHaveBeenCalled();
+    });
+  });
+
+  describe('recordAssignmentPush (delivery hook)', () => {
+    const assignedAt = new Date('2026-10-18T08:00:00Z');
+    const notification = {
+      id: 'n-1',
+      recipientUserId: MESSENGER_ID,
+      tenantId: LAB_ID,
+      type: 'PICKUP_ASSIGNED',
+      dedupeKey: 'x',
+      orderId: ORDER_ID,
+      pickupId: PICKUP_ID,
+      params: { assignedAt: assignedAt.toISOString() },
+      readAt: null,
+      createdAt: assignedAt,
+    } as never;
+
+    beforeEach(() => {
+      prisma.pickup.findUnique.mockResolvedValue({
+        id: PICKUP_ID,
+        orderId: ORDER_ID,
+        assignedAt,
+        messengerId: MESSENGER_ID,
+      });
+    });
+
+    const eventTypes = () =>
+      (prisma.timelineEvent.create as jest.Mock).mock.calls.map(
+        (c) => c[0].data.eventType
+      );
+
+    it('a sent push sets notifiedAt and records NOTIFICATION_SENT', async () => {
+      await service.recordAssignmentPush(notification, 'SENT', null);
+
+      expect(prisma.pickup.update).toHaveBeenCalledWith({
+        where: { id: PICKUP_ID },
+        data: { notifiedAt: expect.any(Date), notifyFailReason: null },
+      });
+      expect(eventTypes()).toEqual(['NOTIFICATION_SENT']);
+    });
+
+    it('no subscription keeps the old reason and records NOTIFICATION_FAILED', async () => {
+      await service.recordAssignmentPush(
+        notification,
+        'SKIPPED',
+        'No active push subscription'
+      );
+
+      expect(prisma.pickup.update).toHaveBeenCalledWith({
+        where: { id: PICKUP_ID },
+        data: {
+          notifyFailReason: 'No active push subscription for messenger.',
+        },
+      });
+      expect(eventTypes()).toEqual(['NOTIFICATION_FAILED']);
+    });
+
+    it('gives the reason when push is off', async () => {
+      await service.recordAssignmentPush(
+        notification,
+        'SKIPPED',
+        'Web push is not configured'
+      );
+
+      expect(prisma.pickup.update).toHaveBeenCalledWith({
+        where: { id: PICKUP_ID },
+        data: { notifyFailReason: 'Web push is not configured.' },
+      });
+    });
+
+    it('ignores the outcome once the pickup was reassigned', async () => {
+      prisma.pickup.findUnique.mockResolvedValue({
+        id: PICKUP_ID,
+        orderId: ORDER_ID,
+        assignedAt: new Date('2026-10-18T09:00:00Z'),
+        messengerId: OTHER_USER_ID,
+      });
+
+      await service.recordAssignmentPush(notification, 'SENT', null);
+
+      expect(prisma.pickup.update).not.toHaveBeenCalled();
+      expect(prisma.timelineEvent.create).not.toHaveBeenCalled();
     });
   });
 

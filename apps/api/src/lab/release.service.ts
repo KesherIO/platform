@@ -10,6 +10,8 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { OrderStatusService } from './order-status.service';
+import { NotificationService } from '../notifications/notification.service';
+import { clinicOrderRecipients } from '../notifications/clinic-recipients';
 import { labPhoneNumbersSnapshot, logoLinkSnapshot } from './lab-contact.util';
 import { evaluateAllFormulas } from './formula.util';
 import {
@@ -41,7 +43,8 @@ export class ReleaseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orderStatusService: OrderStatusService,
-    private readonly storage: StorageService
+    private readonly storage: StorageService,
+    private readonly notifications: NotificationService
   ) {}
 
   async approveAndRelease(input: ApproveReleaseInput) {
@@ -506,6 +509,30 @@ export class ReleaseService {
 
         await this.orderStatusService.deriveAndPersist(orderId, tx);
 
+        // The clinic hears about it only once the release has committed —
+        // never about entered or reviewed values
+        const recipients = await clinicOrderRecipients(tx, orderId);
+        if (recipients) {
+          const releasedNames = new Set(
+            reportTests.map((rt) => rt.orderedTestId)
+          );
+          await this.notifications.publish(tx, {
+            type: 'RESULTS_RELEASED',
+            tenantId: recipients.tenantId,
+            eventKey: `release:${release.id}`,
+            recipientUserIds: recipients.userIds,
+            orderId,
+            params: {
+              requisitionNumber: recipients.requisitionNumber,
+              caseId: recipients.caseId,
+              releaseType: releaseType === 'FINAL' ? 'FINAL' : 'PARTIAL',
+              testNames: order.orderedTests
+                .filter((ot) => releasedNames.has(ot.id))
+                .map((ot) => ot.catalogItemName),
+            },
+          });
+        }
+
         const aggregateReportStatus = allReleased
           ? 'ALL_RELEASED'
           : 'PARTIAL_RESULTS';
@@ -523,6 +550,7 @@ export class ReleaseService {
       },
       { timeout: 30000 }
     );
+    this.notifications.deliverQueued();
 
     return result;
   }

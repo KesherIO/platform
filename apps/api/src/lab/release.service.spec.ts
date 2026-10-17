@@ -9,8 +9,15 @@ import { ReleaseService } from './release.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { OrderStatusService } from './order-status.service';
+import { NotificationService } from '../notifications/notification.service';
+import { clinicOrderRecipients } from '../notifications/clinic-recipients';
+
+jest.mock('../notifications/clinic-recipients', () => ({
+  clinicOrderRecipients: jest.fn(),
+}));
 
 describe('ReleaseService', () => {
+  const notifications = { publish: jest.fn(), deliverQueued: jest.fn() };
   let service: ReleaseService;
   let prisma: Record<string, any>;
   let orderStatusService: Record<string, any>;
@@ -148,10 +155,19 @@ describe('ReleaseService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: OrderStatusService, useValue: orderStatusService },
         { provide: StorageService, useValue: storage },
+        { provide: NotificationService, useValue: notifications },
       ],
     }).compile();
 
     service = module.get<ReleaseService>(ReleaseService);
+    notifications.publish.mockReset().mockResolvedValue(2);
+    notifications.deliverQueued.mockReset();
+    (clinicOrderRecipients as jest.Mock).mockReset().mockResolvedValue({
+      tenantId: 'clinic-1',
+      userIds: ['vet-1', 'vet-2'],
+      requisitionNumber: 'REQ-001',
+      caseId: 'case-1',
+    });
   });
 
   it('creates without error', () => {
@@ -424,6 +440,22 @@ describe('ReleaseService', () => {
       expect(result.releaseSequence).toBe(1);
       expect(result.releasedTests).toHaveLength(1);
       expect(result.releasedTests[0].reportTestId).toBe('rt-1');
+
+      // The clinic is told inside the release transaction, pushes after commit
+      expect(notifications.publish).toHaveBeenCalledWith(expect.anything(), {
+        type: 'RESULTS_RELEASED',
+        tenantId: 'clinic-1',
+        eventKey: 'release:release-1',
+        recipientUserIds: ['vet-1', 'vet-2'],
+        orderId: 'order-1',
+        params: {
+          requisitionNumber: 'REQ-001',
+          caseId: 'case-1',
+          releaseType: 'PARTIAL',
+          testNames: [baseOrder.orderedTests[0].catalogItemName],
+        },
+      });
+      expect(notifications.deliverQueued).toHaveBeenCalledTimes(1);
     });
 
     it('snapshots the clinic logo, lab logo and signer signature onto the PDF artifact', async () => {
@@ -598,6 +630,9 @@ describe('ReleaseService', () => {
 
       expect(result.releaseType).toBe('FINAL');
       expect(result.aggregateReportStatus).toBe('ALL_RELEASED');
+      expect(notifications.publish.mock.calls[0][1].params.releaseType).toBe(
+        'FINAL'
+      );
     });
 
     it('scenario 5: edit released test via saveAnalytes is blocked', () => {
@@ -651,6 +686,9 @@ describe('ReleaseService', () => {
           actorName: 'User',
         })
       ).rejects.toThrow(ConflictException);
+      // Nothing released, nothing to tell
+      expect(notifications.publish).not.toHaveBeenCalled();
+      expect(notifications.deliverQueued).not.toHaveBeenCalled();
     });
 
     it('scenario 12: cancelled tests treated as terminal — final release when remaining complete', async () => {

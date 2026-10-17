@@ -3,15 +3,22 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  OnModuleInit,
 } from '@nestjs/common';
 import {
   PickupStatus,
   TenantRole,
   TimelineEventType,
   Prisma,
+  type Notification,
 } from '@prisma/client';
+import type { NotificationParams } from '@vet-ai/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
-import { PushService } from '../notifications/push.service';
+import { NotificationService } from '../notifications/notification.service';
+import {
+  NotificationDeliveryWorker,
+  type DeliverySettlement,
+} from '../notifications/notification-delivery.worker';
 import {
   isWithinSchedule,
   type WeeklySchedule,
@@ -61,12 +68,29 @@ function assertTransition(from: PickupStatus, to: PickupStatus) {
   }
 }
 
+/** Pickup.notifyFailReason for a push that didn't reach the messenger. */
+const NOTIFY_FAIL_REASON: Record<
+  Exclude<DeliverySettlement, 'SENT'>,
+  string
+> = {
+  SKIPPED: 'No active push subscription for messenger.',
+  FAILED: 'Push delivery failed after several attempts.',
+  EXPIRED: 'Push expired before it could be delivered.',
+};
+
 @Injectable()
-export class PickupService {
+export class PickupService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pushService: PushService
+    private readonly notifications: NotificationService,
+    private readonly deliveryWorker: NotificationDeliveryWorker
   ) {}
+
+  onModuleInit() {
+    this.deliveryWorker.onSettled('PICKUP_ASSIGNED', (n, settlement, detail) =>
+      this.recordAssignmentPush(n, settlement, detail)
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Creation — called by OrdersService right after a LAB_PICKUP order is created
@@ -147,67 +171,88 @@ export class PickupService {
     }
 
     const now = new Date();
-    await this.prisma.pickup.update({
-      where: { id: pickupId },
-      data: { messengerId, assignedAt: now, status: 'ASSIGNED' },
-    });
-
     const messengerName =
       [membership.user.firstName, membership.user.lastName]
         .filter(Boolean)
         .join(' ') || 'messenger';
+    const previousMessengerId = pickup.messengerId;
 
-    await this.createTimelineEvent({
-      orderId: pickup.orderId,
-      pickupId: pickup.id,
-      eventType: 'PICKUP_ASSIGNED',
-      actorId: assignedByUserId,
-      description: `Assigned to ${messengerName}.`,
-      metadata: { messengerId, messengerName },
-    });
-
-    // Transition to NOTIFIED and attempt to push-notify the messenger.
-    await this.prisma.pickup.update({
-      where: { id: pickupId },
-      data: { status: 'NOTIFIED' },
-    });
-
-    const order = await this.prisma.order.findUnique({
-      where: { id: pickup.orderId },
-      select: { requisitionNumber: true, status: true },
-    });
-
-    // Order.status mirrors pickup progress so the Orders Queue (which filters/
-    // badges on Order.status, not Pickup.status) reflects it — only advance
-    // from PENDING, never override a status a lab staffer already changed.
-    if (order?.status === 'PENDING') {
-      await this.prisma.order.update({
-        where: { id: pickup.orderId },
-        data: { status: 'READY_FOR_PICKUP' },
+    // Assignment and its notifications commit together; the push itself goes
+    // out from the delivery worker (recordAssignmentPush records the outcome)
+    await this.prisma.$transaction(async (tx) => {
+      await tx.pickup.update({
+        where: { id: pickupId },
+        data: {
+          messengerId,
+          assignedAt: now,
+          status: 'ASSIGNED',
+          // A new assignment gets its own delivery outcome
+          notifiedAt: null,
+          notifyFailReason: null,
+        },
       });
-    }
 
-    const sent = await this.pushService.sendToUser(messengerId, {
-      title: 'New sample pickup assigned',
-      body: `${order?.requisitionNumber ?? ''} — tap to view details.`.trim(),
-      url: '/my-pickups',
-    });
+      await this.createTimelineEvent(
+        {
+          orderId: pickup.orderId,
+          pickupId: pickup.id,
+          eventType: 'PICKUP_ASSIGNED',
+          actorId: assignedByUserId,
+          description: `Assigned to ${messengerName}.`,
+          metadata: { messengerId, messengerName },
+        },
+        tx
+      );
 
-    await this.prisma.pickup.update({
-      where: { id: pickupId },
-      data: sent
-        ? { notifiedAt: now }
-        : { notifyFailReason: 'No active push subscription for messenger.' },
-    });
+      await tx.pickup.update({
+        where: { id: pickupId },
+        data: { status: 'NOTIFIED' },
+      });
 
-    await this.createTimelineEvent({
-      orderId: pickup.orderId,
-      pickupId: pickup.id,
-      eventType: sent ? 'NOTIFICATION_SENT' : 'NOTIFICATION_FAILED',
-      description: sent
-        ? 'Push notification sent to messenger.'
-        : 'Push notification could not be delivered — messenger will see it on next app open.',
+      const order = await tx.order.findUnique({
+        where: { id: pickup.orderId },
+        select: { requisitionNumber: true, status: true },
+      });
+
+      // Order.status mirrors pickup progress so the Orders Queue (which filters/
+      // badges on Order.status, not Pickup.status) reflects it — only advance
+      // from PENDING, never override a status a lab staffer already changed.
+      if (order?.status === 'PENDING') {
+        await tx.order.update({
+          where: { id: pickup.orderId },
+          data: { status: 'READY_FOR_PICKUP' },
+        });
+      }
+
+      // The persisted assignedAt identifies this assignment: publishing it
+      // again (a retried request) never notifies twice
+      const assignment = now.toISOString();
+      const params: NotificationParams = {
+        requisitionNumber: order?.requisitionNumber,
+        assignedAt: assignment,
+      };
+      await this.notifications.publish(tx, {
+        type: 'PICKUP_ASSIGNED',
+        tenantId: labTenantId,
+        eventKey: `pickup:${pickup.id}:assigned:${assignment}`,
+        recipientUserIds: [messengerId],
+        orderId: pickup.orderId,
+        pickupId: pickup.id,
+        params,
+      });
+      if (previousMessengerId && previousMessengerId !== messengerId) {
+        await this.notifications.publish(tx, {
+          type: 'PICKUP_UNASSIGNED',
+          tenantId: labTenantId,
+          eventKey: `pickup:${pickup.id}:unassigned:${assignment}`,
+          recipientUserIds: [previousMessengerId],
+          orderId: pickup.orderId,
+          pickupId: pickup.id,
+          params: { requisitionNumber: order?.requisitionNumber },
+        });
+      }
     });
+    this.notifications.deliverQueued();
 
     return this.getPickupById(labTenantId, pickupId);
   }
@@ -416,24 +461,47 @@ export class PickupService {
       );
     }
 
-    await this.prisma.pickup.update({
-      where: { id: pickupId },
-      data: {
-        status: 'CANCELLED',
-        cancelledAt: new Date(),
-        failReason: reason,
-      },
-    });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.pickup.update({
+        where: { id: pickupId },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+          failReason: reason,
+        },
+      });
 
-    await this.createTimelineEvent({
-      orderId: pickup.orderId,
-      pickupId: pickup.id,
-      eventType: 'PICKUP_CANCELLED',
-      actorId: userId,
-      description: reason
-        ? `Pickup cancelled: ${reason}.`
-        : 'Pickup cancelled.',
+      await this.createTimelineEvent(
+        {
+          orderId: pickup.orderId,
+          pickupId: pickup.id,
+          eventType: 'PICKUP_CANCELLED',
+          actorId: userId,
+          description: reason
+            ? `Pickup cancelled: ${reason}.`
+            : 'Pickup cancelled.',
+        },
+        tx
+      );
+
+      if (pickup.messengerId) {
+        const order = await tx.order.findUnique({
+          where: { id: pickup.orderId },
+          select: { requisitionNumber: true },
+        });
+        await this.notifications.publish(tx, {
+          type: 'PICKUP_CANCELLED',
+          tenantId: labTenantId,
+          // A pickup is cancelled at most once
+          eventKey: `pickup:${pickup.id}:cancelled`,
+          recipientUserIds: [pickup.messengerId],
+          orderId: pickup.orderId,
+          pickupId: pickup.id,
+          params: { requisitionNumber: order?.requisitionNumber },
+        });
+      }
     });
+    this.notifications.deliverQueued();
 
     return this.getPickupById(labTenantId, pickupId);
   }
@@ -619,6 +687,57 @@ export class PickupService {
     return { removed: true };
   }
 
+  /**
+   * Delivery-worker hook for PICKUP_ASSIGNED: records on the pickup, and in
+   * its timeline, whether the messenger got the push — what assignMessenger
+   * did inline before pushes went through the shared notifications. Ignored
+   * when the pickup has been reassigned since (that assignment records its own).
+   */
+  async recordAssignmentPush(
+    notification: Notification,
+    settlement: DeliverySettlement,
+    detail: string | null
+  ): Promise<void> {
+    if (!notification.pickupId) return;
+    const params = (notification.params ?? {}) as NotificationParams;
+    const pickup = await this.prisma.pickup.findUnique({
+      where: { id: notification.pickupId },
+      select: { id: true, orderId: true, assignedAt: true, messengerId: true },
+    });
+    if (
+      !pickup ||
+      pickup.messengerId !== notification.recipientUserId ||
+      pickup.assignedAt?.toISOString() !== params.assignedAt
+    ) {
+      return;
+    }
+
+    const sent = settlement === 'SENT';
+    await this.prisma.pickup.update({
+      where: { id: pickup.id },
+      data: sent
+        ? { notifiedAt: new Date(), notifyFailReason: null }
+        : {
+            notifyFailReason:
+              // Skipped for another reason (push off, messenger no longer allowed)
+              settlement === 'SKIPPED' &&
+              detail &&
+              detail !== 'No active push subscription'
+                ? `${detail}.`
+                : NOTIFY_FAIL_REASON[settlement],
+          },
+    });
+    await this.createTimelineEvent({
+      orderId: pickup.orderId,
+      pickupId: pickup.id,
+      eventType: sent ? 'NOTIFICATION_SENT' : 'NOTIFICATION_FAILED',
+      description: sent
+        ? 'Push notification sent to messenger.'
+        : 'Push notification could not be delivered — messenger will see it on next app open.',
+      metadata: { notificationId: notification.id, settlement },
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
@@ -676,16 +795,19 @@ export class PickupService {
     };
   }
 
-  private async createTimelineEvent(event: {
-    orderId: string;
-    pickupId?: string;
-    eventType: TimelineEventType;
-    actorId?: string;
-    actorName?: string;
-    description: string;
-    metadata?: Record<string, unknown>;
-  }) {
-    return this.prisma.timelineEvent.create({
+  private async createTimelineEvent(
+    event: {
+      orderId: string;
+      pickupId?: string;
+      eventType: TimelineEventType;
+      actorId?: string;
+      actorName?: string;
+      description: string;
+      metadata?: Record<string, unknown>;
+    },
+    db: Pick<Prisma.TransactionClient, 'timelineEvent'> = this.prisma
+  ) {
+    return db.timelineEvent.create({
       data: {
         orderId: event.orderId,
         pickupId: event.pickupId,
