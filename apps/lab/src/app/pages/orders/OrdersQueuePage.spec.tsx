@@ -37,10 +37,11 @@ const order = {
   amendmentsInReview: 1,
 } as unknown as LabOrderSummary;
 
-function renderPage() {
-  const queryClient = new QueryClient({
+function renderPage(
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
-  });
+  })
+) {
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
@@ -81,6 +82,30 @@ describe('OrdersQueuePage', () => {
       expect(list).toHaveBeenCalledWith(
         expect.objectContaining({ forReview: true, status: undefined })
       );
+    });
+
+    it('refetches a cached count on arrival, so it matches the list', async () => {
+      // Count cached a moment ago (e.g. before a release in another tab) —
+      // the app's default staleTime would still call it fresh
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false, staleTime: 2 * 60 * 1000 } },
+      });
+      queryClient.setQueryData(['orders-review-count'], { count: 1 });
+      reviewCount.mockResolvedValue({ count: 0 });
+      list.mockResolvedValue({
+        data: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+
+      renderPage(queryClient);
+
+      expect(
+        await screen.findByRole('button', { name: 'orders.filter.for_review' })
+      ).toBeTruthy();
+      expect(reviewCount).toHaveBeenCalled();
     });
 
     it('tags what is waiting for review, amendments and unsent results', async () => {
