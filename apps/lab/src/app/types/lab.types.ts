@@ -113,6 +113,34 @@ export interface OrderedTest {
   sources: OrderedTestSource[];
 }
 
+/** Tubes an order still waits on (only while an unfinished test needs them). */
+export interface OutstandingSpecimens {
+  awaiting: number;
+  missing: number;
+  rejected: number;
+}
+
+export interface ReceiveSpecimenInput {
+  accepted: boolean;
+  accessionNumber?: string;
+  rejectionReason?: string;
+  notes?: string;
+  isHemolyzed?: boolean;
+  isLipemic?: boolean;
+  isIcteric?: boolean;
+  isInsufficient?: boolean;
+  isContaminated?: boolean;
+  isWrongContainer?: boolean;
+  isLeaking?: boolean;
+}
+
+export interface RequestSampleInput {
+  /** Only for a test with no configured specimen requirement */
+  specimenType?: string;
+  containerType?: string;
+  note?: string;
+}
+
 export interface Specimen {
   id: string;
   orderId: string;
@@ -208,6 +236,8 @@ export interface LabOrderSummary {
   orderedTests: OrderedTest[];
   /** Amendments waiting for a reviewer's approval */
   amendmentsInReview: number;
+  /** Tubes still needed by an unfinished test */
+  outstandingSpecimens?: OutstandingSpecimens;
   clinicNotes: string | null;
   labNotes: string | null;
   sampleType: string | null;
@@ -256,6 +286,7 @@ export interface LabOrderDetail extends LabOrderSummary {
   resultReport: ResultReport | null;
   pickup: OrderPickupInfo | null;
   specimens?: Specimen[];
+  outstandingSpecimens?: OutstandingSpecimens;
 }
 
 /**
@@ -459,6 +490,8 @@ export interface LabOrdersQuery {
   status?: string;
   /** "Por revisar" — overrides status */
   forReview?: boolean;
+  /** Waiting on an additional, missing or rejected tube — overrides status */
+  awaitingSpecimens?: boolean;
   search?: string;
   dateFrom?: string;
   dateTo?: string;

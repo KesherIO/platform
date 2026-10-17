@@ -112,6 +112,8 @@ describe('LabController', () => {
       }),
       accessionOrder: jest.fn().mockResolvedValue({ specimens: [], order: {} }),
       updateSpecimen: jest.fn().mockResolvedValue({}),
+      receiveSpecimen: jest.fn().mockResolvedValue({}),
+      requestAnotherSample: jest.fn().mockResolvedValue({}),
       resolveTemplateForBlockedTest: jest
         .fn()
         .mockResolvedValue({ resolved: false }),
@@ -308,6 +310,34 @@ describe('LabController', () => {
       count: 2,
     });
     expect(service.getReviewCount).toHaveBeenCalledWith('lab-1');
+  });
+
+  it('receiveSpecimen and requestSample delegate with the actor', async () => {
+    const specimens = module.get(SpecimenService);
+    const user = {
+      id: 'user-1',
+      email: 'ana@lab.com',
+      firstName: 'Ana',
+      lastName: 'Lab',
+    } as AuthenticatedUser;
+
+    await controller.receiveSpecimen(tenant, user, 'sp-1', { accepted: true });
+    expect(specimens.receiveSpecimen).toHaveBeenCalledWith(
+      'sp-1',
+      'lab-1',
+      { accepted: true },
+      'user-1',
+      'Ana Lab'
+    );
+
+    await controller.requestSample(tenant, user, 'ot-1', { note: 'n' });
+    expect(specimens.requestAnotherSample).toHaveBeenCalledWith(
+      'ot-1',
+      'lab-1',
+      { note: 'n' },
+      'user-1',
+      'Ana Lab'
+    );
   });
 
   it('updateOrderStatus delegates to service with the actor', async () => {

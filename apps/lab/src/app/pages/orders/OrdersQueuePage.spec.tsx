@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
@@ -155,6 +155,54 @@ describe('OrdersQueuePage', () => {
       expect(screen.getByText('orders.tags.not_submitted')).toBeTruthy();
       expect(screen.queryByText('orders.tags.for_review')).toBeNull();
       expect(screen.queryByText('orders.tags.amendment_for_review')).toBeNull();
+    });
+  });
+
+  describe('outstanding tubes', () => {
+    beforeEach(() => {
+      auth.canRelease = false;
+      auth.labRole = 'ANALYST';
+    });
+
+    it('tags an order still waiting on tubes', async () => {
+      list.mockResolvedValue({
+        data: [
+          {
+            ...order,
+            orderedTests: [test('PENDING')],
+            amendmentsInReview: 0,
+            outstandingSpecimens: { awaiting: 1, missing: 0, rejected: 2 },
+          } as LabOrderSummary,
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1,
+      });
+      renderPage();
+
+      expect(await screen.findByText('orders.tags.awaiting_tube')).toBeTruthy();
+      expect(screen.getByText('orders.tags.rejected_tube')).toBeTruthy();
+      expect(screen.queryByText('orders.tags.missing_tube')).toBeNull();
+    });
+
+    it('"Awaiting another sample" asks for those orders whatever their status', async () => {
+      renderPage();
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: 'orders.filter.awaiting_additional_sample',
+        })
+      );
+
+      await waitFor(() =>
+        expect(list).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            awaitingSpecimens: true,
+            status: undefined,
+            forReview: false,
+          })
+        )
+      );
     });
   });
 });

@@ -291,6 +291,9 @@ export class LabService {
             };
           };
         };
+        specimens: {
+          orderBy: [{ createdAt: 'asc' }, { tubeIndex: 'asc' }];
+        };
       };
     }> & { outstandingSpecimens: OutstandingSpecimens }
   > {
@@ -341,6 +344,10 @@ export class LabService {
               select: { firstName: true, lastName: true, phone: true },
             },
           },
+        },
+        // The workspace lists the tubes: receive, mark missing, outstanding
+        specimens: {
+          orderBy: [{ createdAt: 'asc' }, { tubeIndex: 'asc' }],
         },
       },
     });
