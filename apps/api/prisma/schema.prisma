@@ -415,6 +415,7 @@ model Tenant {
   labVerifications       VetLabVerification[]       @relation("LabVerifications")
   clinicVerifications    VetLabVerification[]       @relation("ClinicVerifications")
   onboardingTokens       OnboardingToken[]          @relation("ClinicOnboardingTokens")
+  notifications          Notification[]
 
   @@index([country, taxIdType, taxIdNormalized])
   @@map("tenants")
@@ -439,6 +440,7 @@ model User {
   missingSpecimens         Specimen[]           @relation("SpecimensMarkedMissingBy")
   pickupsAsMessenger       Pickup[]             @relation("MessengerPickups")
   pushSubscriptions        PushSubscription[]
+  notifications            Notification[]
   veterinarianProfile      VeterinarianProfile?
   vetVerificationsReviewed VetLabVerification[] @relation("VetVerificationReviewedBy")
   vetVerificationsRevoked  VetLabVerification[] @relation("VetVerificationRevokedBy")
@@ -742,6 +744,7 @@ model Order {
   specimens      Specimen[]
   pickup         Pickup?
   timelineEvents TimelineEvent[]
+  notifications  Notification[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -1410,6 +1413,7 @@ model Pickup {
   clinicTenant   Tenant          @relation("ClinicPickups", fields: [clinicTenantId], references: [id])
   messenger      User?           @relation("MessengerPickups", fields: [messengerId], references: [id])
   timelineEvents TimelineEvent[]
+  notifications  Notification[]
 
   @@index([labTenantId, status])
   @@index([messengerId, status])
@@ -1442,6 +1446,8 @@ model TimelineEvent {
 model PushSubscription {
   id        String   @id @default(cuid())
   userId    String
+  /// Which web app subscribed: each has its own service worker and payload format
+  app       PushApp  @default(LAB)
   endpoint  String   @unique
   p256dh    String
   auth      String
@@ -1451,6 +1457,93 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications — one inbox row per recipient; delivery channels kept apart
+// ---------------------------------------------------------------------------
+
+enum PushApp {
+  LAB
+  CLINIC
+}
+
+enum NotificationType {
+  TESTS_ADDED // lab added tests to an open order (params.sampleRequired)
+  ADDITIONAL_SAMPLE_REQUIRED // another sample requested after a rejected/missing tube
+  RESULTS_RELEASED // PARTIAL or FINAL release (params.releaseType)
+  RESULTS_AMENDED // amendment approved; only when the lab shows amendments
+  PICKUP_ASSIGNED // to the messenger the pickup was (re)assigned to
+  PICKUP_UNASSIGNED // to the messenger a reassignment took it from
+  PICKUP_CANCELLED // to the assigned messenger
+}
+
+enum NotificationChannel {
+  WEB_PUSH
+}
+
+enum NotificationDeliveryStatus {
+  PENDING // waiting for the worker (or its next retry)
+  SENDING // claimed by a worker
+  SENT // at least one device accepted it
+  SKIPPED // nothing to send to: no subscription, push off, or recipient no longer authorized
+  FAILED // transient errors until attempts ran out
+  EXPIRED // too old to be useful by the time it could go out
+}
+
+/// One notification for one person, created in the same transaction as the
+/// business action that caused it. Text is rendered from type + params by
+/// each app (inbox) and by the delivery worker (push).
+model Notification {
+  id              String           @id @default(cuid())
+  recipientUserId String
+  /// The clinic or lab this belongs to — the inbox it shows in and the
+  /// context it opens in
+  tenantId        String
+  type            NotificationType
+  /// Persisted business event id (e.g. "release:<id>"); with the recipient it
+  /// makes publishing the same event twice a no-op
+  dedupeKey       String
+  orderId         String?
+  pickupId        String?
+  params          Json
+  readAt          DateTime?
+  createdAt       DateTime         @default(now())
+
+  recipient  User                   @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  tenant     Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order      Order?                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  pickup     Pickup?                @relation(fields: [pickupId], references: [id], onDelete: Cascade)
+  deliveries NotificationDelivery[]
+
+  @@unique([recipientUserId, dedupeKey])
+  @@index([recipientUserId, tenantId, createdAt])
+  @@index([recipientUserId, readAt])
+  @@map("notifications")
+}
+
+/// Outbox row for one delivery channel of a notification, worked by
+/// NotificationDeliveryWorker. A failed delivery never touches the
+/// notification itself.
+model NotificationDelivery {
+  id             String                     @id @default(cuid())
+  notificationId String
+  channel        NotificationChannel
+  status         NotificationDeliveryStatus @default(PENDING)
+  attempts       Int                        @default(0)
+  nextAttemptAt  DateTime?
+  claimedAt      DateTime?
+  claimToken     String?
+  lastError      String?
+  sentAt         DateTime?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, channel])
+  @@index([status, nextAttemptAt])
+  @@map("notification_deliveries")
 }
 
 // ---------------------------------------------------------------------------

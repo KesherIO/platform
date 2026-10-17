@@ -18,6 +18,7 @@ import { LabTenantGuard } from './lab-tenant.guard';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { LabNotificationsController } from './lab-notifications.controller';
 import { ResultsModule } from '../results/results.module';
 import { CatalogModule } from '../catalog/catalog.module';
 import { StorageModule } from '../storage/storage.module';
@@ -33,7 +34,7 @@ import { PdfModule } from '../pdf/pdf.module';
     StorageModule,
     PdfModule,
   ],
-  controllers: [LabController],
+  controllers: [LabController, LabNotificationsController],
   providers: [
     LabService,
     LabUsersService,

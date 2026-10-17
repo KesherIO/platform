@@ -56,3 +56,12 @@ export const LAB_STAFF_AND_MESSENGER_ROLES = [
   ...LAB_STAFF_ROLES,
   TenantRole.MESSENGER,
 ] as const;
+
+/**
+ * Every lab member, whatever the role — only for what belongs to the member
+ * themself: their notification inbox.
+ */
+export const LAB_ALL_ROLES = [
+  ...LAB_STAFF_AND_MESSENGER_ROLES,
+  TenantRole.RESULTS_VIEWER,
+] as const;

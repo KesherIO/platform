@@ -20,6 +20,7 @@ import { TenantRole } from '@vet-ai/shared-types';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator';
 import { LabTenantGuard } from './lab-tenant.guard';
 import { LabController } from './lab.controller';
+import { LabNotificationsController } from './lab-notifications.controller';
 import { LabConfigController } from '../lab-config/lab-config.controller';
 import { CatalogController } from '../catalog/catalog.controller';
 import { TemplateController } from '../results/template.controller';
@@ -34,6 +35,7 @@ type Route = {
 
 const CONTROLLERS = [
   LabController,
+  LabNotificationsController,
   LabConfigController,
   CatalogController,
   TemplateController,
@@ -77,8 +79,17 @@ const ADMIN = ['ADMIN', 'OWNER'];
 const RELEASE = ['ADMIN', 'OWNER', 'REVIEWER'];
 const RESULTS = [...STAFF, 'RESULTS_VIEWER'].sort();
 
-/** The messenger's pickup workflow (MyPickupsPage, push, session). */
+/** Every lab member's own notification inbox. */
+const INBOX_ROUTES = [
+  'GET lab/notifications/',
+  'GET lab/notifications/unread-count',
+  'POST lab/notifications/read-all',
+  'POST lab/notifications/:id/read',
+];
+
+/** The messenger's pickup workflow (MyPickupsPage, push, session) + inbox. */
 const MESSENGER_ROUTES = [
+  ...INBOX_ROUTES,
   'GET lab/me',
   'GET lab/my-pickups',
   'POST lab/pickups/:id/accept',
@@ -97,8 +108,9 @@ const RELEASE_ROUTES = [
   'GET lab/orders/review-count',
 ];
 
-/** What "Consulta" (RESULTS_VIEWER) reaches: its session and released results. */
+/** What "Consulta" (RESULTS_VIEWER) reaches: its session, inbox and released results. */
 const RESULTS_VIEWER_ROUTES = [
+  ...INBOX_ROUTES,
   'GET lab/me',
   'GET lab/results/search',
   'GET lab/results/clinics',
