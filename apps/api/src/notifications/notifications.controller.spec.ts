@@ -12,6 +12,8 @@ describe('NotificationsController', () => {
     unreadCount: jest.fn(),
     markRead: jest.fn(),
     markAllRead: jest.fn(),
+    dismiss: jest.fn(),
+    dismissAll: jest.fn(),
     savePushSubscription: jest.fn(),
     removePushSubscription: jest.fn(),
   };
@@ -70,6 +72,17 @@ describe('NotificationsController', () => {
       'user-1',
       'clinic-1'
     );
+  });
+
+  it('clears notifications scoped to me and the clinic', async () => {
+    await controller.dismiss(user, tenant, 'n-1');
+    expect(notifications.dismiss).toHaveBeenCalledWith(
+      'user-1',
+      'clinic-1',
+      'n-1'
+    );
+    await controller.dismissAll(user, tenant);
+    expect(notifications.dismissAll).toHaveBeenCalledWith('user-1', 'clinic-1');
   });
 
   it('returns the push public key', () => {

@@ -675,6 +675,8 @@
     "EMPTY": "Aún no tienes notificaciones.",
     "LOAD_MORE": "Cargar más",
     "LOAD_ERROR": "No se pudieron cargar las notificaciones.",
+    "CLEAR": "Borrar",
+    "CLEAR_ALL": "Borrar todas",
     "UNREAD": "Sin leer",
     "OTHER_CLINIC_UNREAD": "{{count}} sin leer",
     "ENABLE_PUSH": "Activar notificaciones del navegador",

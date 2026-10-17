@@ -12,6 +12,8 @@ describe('LabNotificationsController', () => {
     unreadCount: jest.fn(),
     markRead: jest.fn(),
     markAllRead: jest.fn(),
+    dismiss: jest.fn(),
+    dismissAll: jest.fn(),
   };
   const user = { id: 'messenger-1' } as AuthenticatedUser;
   const tenant = { tenantId: 'lab-1' } as TenantContext;
@@ -45,6 +47,20 @@ describe('LabNotificationsController', () => {
       'messenger-1',
       'lab-1',
       'LAB'
+    );
+  });
+
+  it('clears notifications scoped to me and the lab', async () => {
+    await controller.dismiss(user, tenant, 'n-1');
+    expect(notifications.dismiss).toHaveBeenCalledWith(
+      'messenger-1',
+      'lab-1',
+      'n-1'
+    );
+    await controller.dismissAll(user, tenant);
+    expect(notifications.dismissAll).toHaveBeenCalledWith(
+      'messenger-1',
+      'lab-1'
     );
   });
 

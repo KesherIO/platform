@@ -675,6 +675,8 @@
     "EMPTY": "No notifications yet.",
     "LOAD_MORE": "Load more",
     "LOAD_ERROR": "Couldn't load notifications.",
+    "CLEAR": "Clear",
+    "CLEAR_ALL": "Clear all",
     "UNREAD": "Unread",
     "OTHER_CLINIC_UNREAD": "{{count}} unread",
     "ENABLE_PUSH": "Turn on browser notifications",

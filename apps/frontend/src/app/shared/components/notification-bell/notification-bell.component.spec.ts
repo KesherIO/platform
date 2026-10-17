@@ -34,6 +34,8 @@ function makeNotifications(unread: number, items: NotificationModel[]) {
     loadMore: vi.fn(),
     markRead: vi.fn(),
     markAllRead: vi.fn(),
+    dismiss: vi.fn(),
+    dismissAll: vi.fn(),
   };
 }
 
@@ -129,6 +131,28 @@ describe('NotificationBellComponent', () => {
     expect(
       component.describe(notification({ type: 'RESULTS_AMENDED' })).key
     ).toBe('NOTIFICATIONS.TYPES.RESULTS_AMENDED');
+  });
+
+  it('clears one notification, or all of them', () => {
+    setup();
+    openPanel();
+
+    (
+      el().querySelector(
+        'button[aria-label="NOTIFICATIONS.CLEAR"]'
+      ) as HTMLButtonElement
+    ).click();
+    expect(notifications.dismiss).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'n-1' })
+    );
+    // Clearing doesn't open the notification
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+
+    const clearAll = Array.from(el().querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'NOTIFICATIONS.CLEAR_ALL'
+    ) as HTMLButtonElement;
+    clearAll.click();
+    expect(notifications.dismissAll).toHaveBeenCalled();
   });
 
   it('shows the empty state', () => {

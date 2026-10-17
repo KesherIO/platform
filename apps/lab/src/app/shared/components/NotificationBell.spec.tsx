@@ -10,6 +10,8 @@ vi.mock('../api/labApi', () => ({
       list: vi.fn(),
       markRead: vi.fn(),
       markAllRead: vi.fn(),
+      dismiss: vi.fn(),
+      dismissAll: vi.fn(),
     },
   },
 }));
@@ -126,6 +128,33 @@ describe('NotificationBell', () => {
 
     await waitFor(() =>
       expect(labApi.notifications.markAllRead).toHaveBeenCalledTimes(1)
+    );
+  });
+
+  it('clears one notification without opening it, or all of them', async () => {
+    vi.mocked(labApi.notifications.dismiss).mockResolvedValue({
+      dismissed: true,
+    });
+    vi.mocked(labApi.notifications.dismissAll).mockResolvedValue({
+      dismissed: 2,
+    });
+    renderBell();
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'notifications.bell_unread' })
+    );
+
+    const [clearFirst] = await screen.findAllByRole('button', {
+      name: 'notifications.clear',
+    });
+    fireEvent.click(clearFirst);
+    await waitFor(() =>
+      expect(labApi.notifications.dismiss).toHaveBeenCalledWith('n-1')
+    );
+    expect(screen.queryByText('my pickups page')).toBeNull();
+
+    fireEvent.click(screen.getByText('notifications.clear_all'));
+    await waitFor(() =>
+      expect(labApi.notifications.dismissAll).toHaveBeenCalledTimes(1)
     );
   });
 

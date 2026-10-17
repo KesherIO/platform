@@ -172,6 +172,10 @@ export class NotificationDeliveryWorker
     if (!notification) return; // cascade-deleted along with the delivery
 
     const params = (notification.params ?? {}) as NotificationParams;
+    if (notification.dismissedAt) {
+      // Cleared before its push could go out: nothing left to tell them
+      return this.settle(delivery, notification, 'SKIPPED', 'Dismissed');
+    }
     const age = Date.now() - notification.createdAt.getTime();
     if (age >= PUSH_EXPIRY_MS) {
       return this.settle(delivery, notification, 'EXPIRED', 'Too old to send');

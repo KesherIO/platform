@@ -336,6 +336,10 @@ export const labApi = {
     markRead: (id: string) =>
       post<{ read: boolean }>(`lab/notifications/${id}/read`),
     markAllRead: () => post<{ updated: number }>('lab/notifications/read-all'),
+    dismiss: (id: string) =>
+      post<{ dismissed: boolean }>(`lab/notifications/${id}/dismiss`),
+    dismissAll: () =>
+      post<{ dismissed: number }>('lab/notifications/dismiss-all'),
   },
   timeline: {
     forOrder: (orderId: string) =>
