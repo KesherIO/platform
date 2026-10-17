@@ -79,10 +79,12 @@ export function OrdersQueuePage() {
     staleTime: 0,
   });
 
-  // Same query as the sidebar badge, so both stay in step
+  // Same query as the sidebar badge, so both stay in step — and refetched
+  // whenever the list is (staleTime 0), so the count matches what it shows
   const { data: reviewCountData } = useQuery({
     queryKey: ['orders-review-count'],
     queryFn: () => labApi.orders.reviewCount(),
+    staleTime: 0,
     enabled: canRelease,
   });
   const reviewCount = reviewCountData?.count ?? 0;

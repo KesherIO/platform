@@ -86,10 +86,13 @@ export function Layout() {
   });
   const worklistReadyCount = readyCountData?.count ?? 0;
 
-  // Orders waiting for whoever can release them
+  // Orders waiting for whoever can release them. Always stale, like the
+  // orders list: a release in another tab must not leave a count behind that
+  // the "Por revisar" list no longer shows
   const { data: reviewCountData } = useQuery({
     queryKey: ['orders-review-count'],
     queryFn: () => labApi.orders.reviewCount(),
+    staleTime: 0,
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
     enabled: canRelease,

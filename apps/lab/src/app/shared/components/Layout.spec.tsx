@@ -39,10 +39,12 @@ const ADMIN_TABS = [
   'nav.settings',
 ];
 
-function renderAt(path: string) {
-  const queryClient = new QueryClient({
+function renderAt(
+  path: string,
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
-  });
+  })
+) {
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
@@ -114,6 +116,21 @@ describe('Layout', () => {
 
     expect((await screen.findAllByText('4')).length).toBeGreaterThan(0);
     expect(tab('nav.clients')).toBeNull();
+  });
+
+  it('refetches a cached review count instead of showing it', async () => {
+    auth.canRelease = true;
+    auth.labRole = 'REVIEWER';
+    // Cached a moment ago, before the last amendment was approved elsewhere
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 2 * 60 * 1000 } },
+    });
+    queryClient.setQueryData(['orders-review-count'], { count: 1 });
+
+    renderAt('/orders', queryClient);
+
+    expect((await screen.findAllByText('4')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('1')).toBeNull();
   });
 
   it('an admin gets the setup tabs and pages', () => {
