@@ -9,6 +9,14 @@ import { AmendmentService } from './amendment.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStatusService } from './order-status.service';
 import { StorageService } from '../storage/storage.service';
+import { NotificationService } from '../notifications/notification.service';
+import { clinicOrderRecipients } from '../notifications/clinic-recipients';
+
+jest.mock('../notifications/clinic-recipients', () => ({
+  clinicOrderRecipients: jest.fn(),
+}));
+
+const notifications = { publish: jest.fn(), deliverQueued: jest.fn() };
 
 describe('AmendmentService', () => {
   let service: AmendmentService;
@@ -90,8 +98,17 @@ describe('AmendmentService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: OrderStatusService, useValue: orderStatusService },
         { provide: StorageService, useValue: storage },
+        { provide: NotificationService, useValue: notifications },
       ],
     }).compile();
+    notifications.publish.mockReset().mockResolvedValue(1);
+    notifications.deliverQueued.mockReset();
+    (clinicOrderRecipients as jest.Mock).mockReset().mockResolvedValue({
+      tenantId: 'clinic-1',
+      userIds: ['vet-1'],
+      requisitionNumber: 'REQ-001',
+      caseId: 'case-1',
+    });
 
     service = module.get<AmendmentService>(AmendmentService);
   });
@@ -717,6 +734,54 @@ describe('AmendmentService', () => {
       expect(getTx().resultReportRelease.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ analystId: null, analystName: null }),
       });
+    });
+
+    const approve = () =>
+      service.approveAmendment({
+        orderId: 'order-1',
+        labTenantId: 'lab-1',
+        amendmentId: 'amend-1',
+        signerId: 'signer-1',
+        actorId: 'user-1',
+        actorName: 'User',
+      });
+
+    it('tells the clinic about the correction when the lab shows amendments', async () => {
+      arrangeApprovableAmendment();
+
+      await approve();
+
+      expect(notifications.publish).toHaveBeenCalledWith(expect.anything(), {
+        type: 'RESULTS_AMENDED',
+        tenantId: 'clinic-1',
+        eventKey: 'release:rel-2',
+        recipientUserIds: ['vet-1'],
+        orderId: 'order-1',
+        params: { requisitionNumber: 'REQ-001', caseId: 'case-1' },
+      });
+      expect(notifications.deliverQueued).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a silent amendment silent: no clinic notification, release still recorded', async () => {
+      const getTx = arrangeApprovableAmendment();
+      const arranged = prisma.$transaction.getMockImplementation();
+      prisma.$transaction.mockImplementation(
+        (fn: (tx: unknown) => unknown, opts: unknown) =>
+          arranged(async (tx: Record<string, any>) => {
+            tx.laboratoryProfile.findUnique.mockResolvedValue({
+              accreditationNumber: 'ACC-123',
+              showAmendmentsToClinic: false,
+            });
+            return fn(tx);
+          }, opts)
+      );
+
+      const result = await approve();
+
+      expect(result.releaseType).toBe('AMENDMENT');
+      expect(getTx().resultReportRelease.create).toHaveBeenCalled();
+      expect(clinicOrderRecipients).not.toHaveBeenCalled();
+      expect(notifications.publish).not.toHaveBeenCalled();
     });
 
     it('snapshots all analytes in one insert, with a 30 s transaction timeout', async () => {

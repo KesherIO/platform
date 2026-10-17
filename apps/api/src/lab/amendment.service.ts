@@ -10,6 +10,8 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { OrderStatusService } from './order-status.service';
+import { NotificationService } from '../notifications/notification.service';
+import { clinicOrderRecipients } from '../notifications/clinic-recipients';
 import { labPhoneNumbersSnapshot, logoLinkSnapshot } from './lab-contact.util';
 import { evaluateAllFormulas } from './formula.util';
 import {
@@ -105,7 +107,8 @@ export class AmendmentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly orderStatusService: OrderStatusService,
-    private readonly storage: StorageService
+    private readonly storage: StorageService,
+    private readonly notifications: NotificationService
   ) {}
 
   async initiateAmendment(input: InitiateAmendmentInput) {
@@ -803,6 +806,30 @@ export class AmendmentService {
 
         await this.orderStatusService.deriveAndPersist(orderId, tx);
 
+        // Labs that keep amendments silent: the clinic is not told (the
+        // release and timeline above are the audit trail either way)
+        const profile = await tx.laboratoryProfile.findUnique({
+          where: { tenantId: labTenantId },
+          select: { showAmendmentsToClinic: true },
+        });
+        const recipients =
+          profile?.showAmendmentsToClinic ?? true
+            ? await clinicOrderRecipients(tx, orderId)
+            : null;
+        if (recipients) {
+          await this.notifications.publish(tx, {
+            type: 'RESULTS_AMENDED',
+            tenantId: recipients.tenantId,
+            eventKey: `release:${release.id}`,
+            recipientUserIds: recipients.userIds,
+            orderId,
+            params: {
+              requisitionNumber: recipients.requisitionNumber,
+              caseId: recipients.caseId,
+            },
+          });
+        }
+
         return {
           releaseId: release.id,
           releaseSequence: newSequence,
@@ -812,6 +839,7 @@ export class AmendmentService {
       },
       { timeout: 30000 }
     );
+    this.notifications.deliverQueued();
 
     const amendments = await this.prisma.resultReportAmendment.findMany({
       where: {
