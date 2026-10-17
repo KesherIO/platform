@@ -64,6 +64,8 @@ function makePng(
 
 // Logo: 120×48 cyan solid (#06D6A0)
 const LOGO_PNG = makePng(120, 48, [6, 214, 160]);
+// Wide wordmark-style lab logo (purple) — header, right
+const LAB_LOGO_PNG = makePng(200, 60, [157, 78, 221]);
 // Signer sig: 140×45 dark-grey solid (simulates ink on white)
 const SIGNER_SIG_PNG = makePng(140, 45, [30, 30, 60]);
 // Analyst sig: 140×45 medium-grey
@@ -643,12 +645,13 @@ const MULTIPAGE: ReleaseForPdf = {
 const WITH_IMAGES: ReleaseForPdf = {
   ...BASE,
   logoBuffer: LOGO_PNG,
+  labLogoBuffer: LAB_LOGO_PNG,
   signerSignatureBuffer: SIGNER_SIG_PNG,
   analystSignatureBuffer: ANALYST_SIG_PNG,
   releaseType: 'FINAL',
   releaseSequence: 1,
   observations:
-    'Muestra con imágenes embebidas. Verificar: logotipo en cabecera, firma del analista a la izquierda, firma del revisor a la derecha.',
+    'Muestra con imágenes embebidas. Verificar: logotipo de la clínica a la izquierda y del laboratorio a la derecha en la cabecera, firma del analista a la izquierda, firma del revisor a la derecha.',
   tests: [
     {
       catalogItemName: 'Hemograma Completo',
@@ -687,6 +690,7 @@ const txt = (
 const CULTURE: ReleaseForPdf = {
   ...BASE,
   logoBuffer: LOGO_PNG,
+  labLogoBuffer: LAB_LOGO_PNG,
   releaseType: 'FINAL',
   releaseSequence: 1,
   observations: null,

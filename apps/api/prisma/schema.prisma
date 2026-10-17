@@ -1667,6 +1667,7 @@ model ResultReportReleaseArtifact {
   claimToken                  String?   @map("claim_token")
   nextRetryAt                 DateTime? @map("next_retry_at")
   logoStoragePath             String?   @map("logo_storage_path")
+  labLogoStoragePath          String?   @map("lab_logo_storage_path")
   signerSignatureStoragePath  String?   @map("signer_signature_storage_path")
   analystSignatureStoragePath String?   @map("analyst_signature_storage_path")
 

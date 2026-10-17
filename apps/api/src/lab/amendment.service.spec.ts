@@ -56,7 +56,7 @@ describe('AmendmentService', () => {
       },
       resultReportRelease: { create: jest.fn() },
       resultReportReleaseAnalyte: {
-        create: jest.fn(),
+        createMany: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
       },
       resultReportReleaseArtifact: { create: jest.fn() },
@@ -78,6 +78,7 @@ describe('AmendmentService', () => {
     storage = {
       snapshotReleaseImages: jest.fn().mockResolvedValue({
         logoStoragePath: null,
+        labLogoStoragePath: null,
         signerSignatureStoragePath: null,
         analystSignatureStoragePath: null,
       }),
@@ -624,7 +625,9 @@ describe('AmendmentService', () => {
         });
         tx.resultReportRelease.create.mockResolvedValue({ id: 'rel-2' });
         tx.resultReportReleaseTest.create.mockResolvedValue({ id: 'rlt-2' });
-        tx.resultReportReleaseAnalyte.create.mockResolvedValue({});
+        tx.resultReportReleaseAnalyte.createMany.mockResolvedValue({
+          count: 1,
+        });
         tx.resultReportReleaseArtifact.create.mockResolvedValue({});
         tx.resultReportTest.update.mockResolvedValue({});
         tx.resultReportAmendment.update.mockResolvedValue({});
@@ -716,6 +719,37 @@ describe('AmendmentService', () => {
       });
     });
 
+    it('snapshots all analytes in one insert, with a 30 s transaction timeout', async () => {
+      const getTx = arrangeApprovableAmendment();
+
+      await service.approveAmendment({
+        orderId: 'order-1',
+        labTenantId: 'lab-1',
+        amendmentId: 'amend-1',
+        signerId: 'signer-1',
+        actorId: 'user-1',
+        actorName: 'User',
+      });
+
+      expect(
+        getTx().resultReportReleaseAnalyte.createMany
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        getTx().resultReportReleaseAnalyte.createMany
+      ).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            releaseTestId: 'rlt-2',
+            numericValue: 15.0,
+            referenceSnapshot: { min: 5.5, max: 16.9 },
+          }),
+        ],
+      });
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        timeout: 30000,
+      });
+    });
+
     it('snapshots the picked analyst on the amendment release and its PDF', async () => {
       const getTx = arrangeApprovableAmendment();
       const analyst = {
@@ -730,6 +764,7 @@ describe('AmendmentService', () => {
       prisma.labSigner.findFirst.mockResolvedValue(analyst);
       storage.snapshotReleaseImages.mockResolvedValue({
         logoStoragePath: null,
+        labLogoStoragePath: null,
         signerSignatureStoragePath: null,
         analystSignatureStoragePath: 'releases/x/analyst.png',
       });

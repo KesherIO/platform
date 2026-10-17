@@ -126,6 +126,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
         artifact_type: string;
         claim_token: string;
         logo_storage_path: string | null;
+        lab_logo_storage_path: string | null;
         signer_signature_storage_path: string | null;
         analyst_signature_storage_path: string | null;
         retry_count: number;
@@ -153,6 +154,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
         "artifactType"                 AS artifact_type,
         claim_token,
         logo_storage_path,
+        lab_logo_storage_path,
         signer_signature_storage_path,
         analyst_signature_storage_path,
         "retryCount"                   AS retry_count
@@ -167,6 +169,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
       artifactType: row.artifact_type,
       claimToken: row.claim_token,
       logoStoragePath: row.logo_storage_path,
+      labLogoStoragePath: row.lab_logo_storage_path,
       signerSignatureStoragePath: row.signer_signature_storage_path,
       analystSignatureStoragePath: row.analyst_signature_storage_path,
       retryCount: Number(row.retry_count),
@@ -206,6 +209,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
     artifactType: string;
     claimToken: string | null;
     logoStoragePath: string | null;
+    labLogoStoragePath: string | null;
     signerSignatureStoragePath: string | null;
     analystSignatureStoragePath: string | null;
     retryCount: number;
@@ -217,6 +221,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
     const isClinicReport = artifact.artifactType === CLINIC_REPORT_PDF_ARTIFACT;
 
     let logoBuffer: Buffer | null = null;
+    let labLogoBuffer: Buffer | null = null;
     let signerSigBuffer: Buffer | null = null;
     let analystSigBuffer: Buffer | null = null;
 
@@ -228,6 +233,17 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
         );
       } catch {
         /* logo is optional */
+      }
+    }
+
+    if (artifact.labLogoStoragePath) {
+      try {
+        labLogoBuffer = await this.storage.downloadObject(
+          'release-assets',
+          artifact.labLogoStoragePath
+        );
+      } catch {
+        /* lab logo is optional */
       }
     }
 
@@ -299,6 +315,7 @@ export class PdfProcessorService implements OnModuleInit, OnModuleDestroy {
       reviewNotes: release.reviewNotes,
       pendingTestNames: report?.pendingTestNames ?? [],
       logoBuffer,
+      labLogoBuffer,
       signerSignatureBuffer: signerSigBuffer,
       analystSignatureBuffer: analystSigBuffer,
       tests: (report ? report.tests : release.tests).map((t) => ({

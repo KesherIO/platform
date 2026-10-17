@@ -136,6 +136,7 @@ describe('ReleaseService', () => {
     storage = {
       snapshotReleaseImages: jest.fn().mockResolvedValue({
         logoStoragePath: null,
+        labLogoStoragePath: null,
         signerSignatureStoragePath: null,
         analystSignatureStoragePath: null,
       }),
@@ -425,18 +426,25 @@ describe('ReleaseService', () => {
       expect(result.releasedTests[0].reportTestId).toBe('rt-1');
     });
 
-    it('snapshots the clinic logo and signer signature onto the PDF artifact', async () => {
+    it('snapshots the clinic logo, lab logo and signer signature onto the PDF artifact', async () => {
       const tx = buildTxMock();
       prisma.order.findFirst.mockResolvedValue(baseOrder);
       prisma.resultReportTest.findMany.mockResolvedValue([baseReportTest]);
       prisma.resultReportAmendment.findMany.mockResolvedValue([]);
       prisma.labSigner.findUnique.mockResolvedValue(baseSigner);
-      prisma.tenant.findUnique.mockResolvedValue({
-        logoUrl: 'https://supabase.test/logo.png',
-      });
+      prisma.tenant.findUnique.mockImplementation(
+        async ({ where }: { where: { id: string } }) => ({
+          // Lab Settings stores the lab logo as a base64 data URL
+          logoUrl:
+            where.id === 'lab-1'
+              ? 'data:image/png;base64,iVBORw0K'
+              : 'https://supabase.test/logo.png',
+        })
+      );
       prisma.$transaction.mockImplementation(async (fn) => fn(tx));
       storage.snapshotReleaseImages.mockResolvedValue({
         logoStoragePath: 'rel/logo.png',
+        labLogoStoragePath: 'rel/lab-logo.png',
         signerSignatureStoragePath: 'rel/signer-sig.png',
         analystSignatureStoragePath: null,
       });
@@ -454,23 +462,41 @@ describe('ReleaseService', () => {
         where: { id: 'clinic-1' },
         select: { logoUrl: true },
       });
+      expect(prisma.tenant.findUnique).toHaveBeenCalledWith({
+        where: { id: 'lab-1' },
+        select: { logoUrl: true },
+      });
       const releaseId = storage.snapshotReleaseImages.mock.calls[0][0];
       expect(storage.snapshotReleaseImages).toHaveBeenCalledWith(releaseId, {
         logoUrl: 'https://supabase.test/logo.png',
+        labLogoUrl: 'data:image/png;base64,iVBORw0K',
         signerSignatureUrl: '/assets/sig.png',
         analystSignatureUrl: null,
       });
+      // The release row keeps only links — the data URL lives in release-assets
       expect(tx.resultReportRelease.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ id: releaseId }),
+          data: expect.objectContaining({
+            id: releaseId,
+            clinicLogoUrl: 'https://supabase.test/logo.png',
+            labLogoUrl: null,
+          }),
         })
       );
+      // ...and the transaction never re-reads the (possibly multi-MB) logos
+      for (const call of [
+        ...tx.tenant.findUnique.mock.calls,
+        ...tx.tenant.findUniqueOrThrow.mock.calls,
+      ]) {
+        expect(call[0].select).not.toHaveProperty('logoUrl');
+      }
       // The release PDF and the clinic's current report, same images
       for (const artifactType of ['PDF', 'CLINIC_REPORT_PDF']) {
         expect(tx.resultReportReleaseArtifact.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
             artifactType,
             logoStoragePath: 'rel/logo.png',
+            labLogoStoragePath: 'rel/lab-logo.png',
             signerSignatureStoragePath: 'rel/signer-sig.png',
             analystSignatureStoragePath: null,
           }),

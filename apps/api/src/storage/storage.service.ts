@@ -212,11 +212,13 @@ export class StorageService {
     releaseId: string,
     urls: {
       logoUrl: string | null;
+      labLogoUrl: string | null;
       signerSignatureUrl: string | null;
       analystSignatureUrl: string | null;
     }
   ): Promise<{
     logoStoragePath: string | null;
+    labLogoStoragePath: string | null;
     signerSignatureStoragePath: string | null;
     analystSignatureStoragePath: string | null;
   }> {
@@ -241,15 +243,18 @@ export class StorageService {
 
     const [
       logoStoragePath,
+      labLogoStoragePath,
       signerSignatureStoragePath,
       analystSignatureStoragePath,
     ] = await Promise.all([
       snapshot('logo', urls.logoUrl),
+      snapshot('lab-logo', urls.labLogoUrl),
       snapshot('signer-sig', urls.signerSignatureUrl),
       snapshot('analyst-sig', urls.analystSignatureUrl),
     ]);
     return {
       logoStoragePath,
+      labLogoStoragePath,
       signerSignatureStoragePath,
       analystSignatureStoragePath,
     };

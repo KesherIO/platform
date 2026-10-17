@@ -10,7 +10,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { OrderStatusService } from './order-status.service';
-import { labPhoneNumbersSnapshot } from './lab-contact.util';
+import { labPhoneNumbersSnapshot, logoLinkSnapshot } from './lab-contact.util';
 import { evaluateAllFormulas } from './formula.util';
 import {
   CLINIC_REPORT_PDF_ARTIFACT,
@@ -178,15 +178,23 @@ export class ReleaseService {
 
     const releaseId = randomUUID();
 
-    // The PDF header is branded with the ordering clinic, so snapshot its logo
-    const clinicTenant = await this.prisma.tenant.findUnique({
-      where: { id: order.tenantId },
-      select: { logoUrl: true },
-    });
+    // The PDF header shows the ordering clinic's logo on the left and the
+    // lab's on the right, so snapshot both
+    const [clinicTenant, labTenant] = await Promise.all([
+      this.prisma.tenant.findUnique({
+        where: { id: order.tenantId },
+        select: { logoUrl: true },
+      }),
+      this.prisma.tenant.findUnique({
+        where: { id: labTenantId },
+        select: { logoUrl: true },
+      }),
+    ]);
     const imageStoragePaths = await this.storage.snapshotReleaseImages(
       releaseId,
       {
         logoUrl: clinicTenant?.logoUrl ?? null,
+        labLogoUrl: labTenant?.logoUrl ?? null,
         signerSignatureUrl: signer.signatureUrl ?? null,
         analystSignatureUrl: analyst?.signatureUrl ?? null,
       }
@@ -269,7 +277,10 @@ export class ReleaseService {
         const releaseType: ReleaseType =
           remainingNonTerminal.length === 0 ? 'FINAL' : 'PARTIAL';
 
-        const snapshots = await this.buildSnapshotFields(tx, order, signer);
+        const snapshots = await this.buildSnapshotFields(tx, order, signer, {
+          clinicLogoUrl: clinicTenant?.logoUrl ?? null,
+          labLogoUrl: labTenant?.logoUrl ?? null,
+        });
 
         const release = await tx.resultReportRelease.create({
           data: {
@@ -466,6 +477,7 @@ export class ReleaseService {
               releaseId: release.id,
               artifactType,
               logoStoragePath: imageStoragePaths.logoStoragePath,
+              labLogoStoragePath: imageStoragePaths.labLogoStoragePath,
               signerSignatureStoragePath:
                 imageStoragePaths.signerSignatureStoragePath,
               analystSignatureStoragePath:
@@ -734,7 +746,10 @@ export class ReleaseService {
       tenantId: string;
       labTenantId: string | null;
     },
-    _signer: { id: string }
+    _signer: { id: string },
+    // Read before the transaction (for the image snapshot) — never re-read a
+    // possibly multi-MB data URL inside it
+    logos: { clinicLogoUrl: string | null; labLogoUrl: string | null }
   ) {
     const caseData = await tx.case.findUniqueOrThrow({
       where: { id: order.caseId },
@@ -754,7 +769,7 @@ export class ReleaseService {
 
     const clinicTenant = await tx.tenant.findUniqueOrThrow({
       where: { id: order.tenantId },
-      select: { name: true, address: true, phone: true, logoUrl: true },
+      select: { name: true, address: true, phone: true },
     });
 
     let labSnapshot = {
@@ -784,7 +799,6 @@ export class ReleaseService {
           phone: true,
           phoneNumbers: true,
           email: true,
-          logoUrl: true,
         },
       });
       const labProfile = await tx.laboratoryProfile.findUnique({
@@ -802,7 +816,7 @@ export class ReleaseService {
         labAccreditationNumber: labProfile?.accreditationNumber ?? null,
         labDirectorName: labProfile?.directorName ?? null,
         labDirectorCredentials: labProfile?.directorCredentials ?? null,
-        labLogoUrl: labTenant?.logoUrl ?? null,
+        labLogoUrl: logoLinkSnapshot(logos.labLogoUrl),
         labAddress: labTenant?.address ?? null,
         labCity: labTenant?.city ?? null,
         labPhone: labTenant?.phone ?? null,
@@ -836,7 +850,7 @@ export class ReleaseService {
       clinicName: clinicTenant.name,
       clinicAddress: clinicTenant.address ?? null,
       clinicPhone: clinicTenant.phone ?? null,
-      clinicLogoUrl: clinicTenant.logoUrl ?? null,
+      clinicLogoUrl: logoLinkSnapshot(logos.clinicLogoUrl),
     };
   }
 
