@@ -43,6 +43,7 @@ const mockReleased: ClinicReleasedResultsModel = {
   releasedTests: [],
   pendingTestNames: [],
   latestReleasedAt: '2026-03-29T00:00:00.000Z',
+  labAdded: null,
   labServicesSuspended: false,
 };
 
@@ -196,6 +197,44 @@ describe('ReportComponent', () => {
   it('shows release PDFs, not the current report, when the lab shows amendments', () => {
     expect(component.showAmendments()).toBe(true);
     expect(component.silentReport()).toBeNull();
+  });
+
+  describe('when the lab added tests', () => {
+    const labAdded = {
+      testNames: ['Chemistry', 'Urinalysis'],
+      addedAt: '2026-03-30T00:00:00.000Z',
+      awaitingSample: true,
+    };
+
+    function banner(): HTMLElement | null {
+      fixture.detectChanges();
+      return (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="lab-added-banner"]'
+      );
+    }
+
+    it('shows no banner when the lab added nothing', () => {
+      expect(component.labAdded()).toBeNull();
+      expect(banner()).toBeNull();
+    });
+
+    it('lists the added tests', () => {
+      component.released.set({ ...mockReleased, labAdded });
+
+      expect(component.labAddedDisplay()).toBe('Chemistry, Urinalysis');
+      expect(banner()?.textContent).toContain('REPORT.LAB_ADDED_TITLE');
+    });
+
+    it('says a new sample is required, with no pickup, only while one is awaited', () => {
+      component.released.set({ ...mockReleased, labAdded });
+      expect(banner()?.textContent).toContain('REPORT.LAB_ADDED_SAMPLE');
+
+      component.released.set({
+        ...mockReleased,
+        labAdded: { ...labAdded, awaitingSample: false },
+      });
+      expect(banner()?.textContent).not.toContain('REPORT.LAB_ADDED_SAMPLE');
+    });
   });
 
   describe('when the lab has suspended services', () => {

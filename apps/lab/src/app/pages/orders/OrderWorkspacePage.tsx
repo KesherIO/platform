@@ -9,6 +9,7 @@ import { ReleasePdfMenu } from '../../shared/components/ReleasePdfMenu';
 import { AccessionDialog } from './AccessionDialog';
 import { ReceiveSpecimenDialog } from './ReceiveSpecimenDialog';
 import { RequestSampleDialog } from './RequestSampleDialog';
+import { AddTestsDialog } from './AddTestsDialog';
 import { useToast } from '../../shared/components/ToastProvider';
 import { useAuth } from '../../auth/AuthContext';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
@@ -179,6 +180,7 @@ export function OrderWorkspacePage() {
   const [receivingSpecimen, setReceivingSpecimen] = useState<Specimen | null>(
     null
   );
+  const [showAddTests, setShowAddTests] = useState(false);
   const [requestingSampleFor, setRequestingSampleFor] =
     useState<OrderedTest | null>(null);
 
@@ -628,6 +630,14 @@ export function OrderWorkspacePage() {
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={order.status} />
+          {order.status !== 'CANCELLED' && order.status !== 'COMPLETED' && (
+            <button
+              onClick={() => setShowAddTests(true)}
+              className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-gray-800"
+            >
+              {t('specimens.add_tests')}
+            </button>
+          )}
           {transitions.map((tr) => (
             <button
               key={tr.next}
@@ -1135,6 +1145,24 @@ export function OrderWorkspacePage() {
           onSuccess={() => {
             setReceivingSpecimen(null);
             toast.success(t('specimens.received_success'));
+            invalidateOrder();
+          }}
+        />
+      )}
+
+      {showAddTests && orderId && (
+        <AddTestsDialog
+          orderId={orderId}
+          onClose={() => setShowAddTests(false)}
+          onSuccess={(result) => {
+            setShowAddTests(false);
+            toast.success(
+              t(
+                result.sampleRequired
+                  ? 'specimens.add_tests_added_sample_success'
+                  : 'specimens.add_tests_added_success'
+              )
+            );
             invalidateOrder();
           }}
         />

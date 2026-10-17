@@ -118,6 +118,16 @@ export interface ReleasedTestResult {
   analytes: ResultReportAnalyteModel[];
 }
 
+/** Tests the lab added to the order that are still to come. */
+export interface ClinicLabAddedTestsModel {
+  testNames: string[];
+  /** When the lab last added tests (ISO) */
+  addedAt: string;
+  /** Another sample is awaited for some of them. The lab creates no pickup:
+   * the clinic arranges sending it. */
+  awaitingSample: boolean;
+}
+
 export interface ClinicReleasedResultsModel {
   reportId: string;
   orderId: string;
@@ -126,6 +136,8 @@ export interface ClinicReleasedResultsModel {
   releasedTests: ReleasedTestResult[];
   pendingTestNames: string[];
   latestReleasedAt: string | null;
+  /** Null when the lab added no tests, or all of them are done or cancelled */
+  labAdded: ClinicLabAddedTestsModel | null;
   /** The lab that ran this order has suspended services for the clinic:
    * results stay readable, new AI analysis is refused. */
   labServicesSuspended: boolean;

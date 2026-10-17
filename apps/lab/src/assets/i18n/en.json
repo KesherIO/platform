@@ -1364,6 +1364,27 @@
     }
   },
   "specimens": {
+    "add_tests": "Add tests",
+    "add_tests_title": "Add tests to this order",
+    "add_tests_search": "Search the catalog…",
+    "add_tests_none": "No matching tests.",
+    "add_tests_preview": "Preview",
+    "add_tests_confirm": "Add tests",
+    "add_tests_back": "Change selection",
+    "add_tests_note": "Note (optional)",
+    "add_tests_added_success": "Tests added.",
+    "add_tests_added_sample_success": "Tests added; the clinic was notified that another sample is needed.",
+    "add_tests_already": "Already on the order (left as is): {{names}}",
+    "add_tests_nothing_new": "Every selected test is already on this order.",
+    "add_tests_sample_required": "A new sample is required. The clinic is notified and arranges delivery — no pickup is created.",
+    "add_tests_tube_new": "New tube: {{specimen}} · {{container}} — for {{tests}}",
+    "add_tests_tube_existing": "Joins the tube already requested: {{specimen}} · {{container}} — for {{tests}}",
+    "add_tests_outcome": {
+      "READY": "Ready to process",
+      "AWAITING_TUBE": "Waits for a tube already requested",
+      "NEEDS_NEW_TUBE": "Needs a new sample",
+      "NO_TEMPLATE": "Blocked: no result template"
+    },
     "receive": "Receive",
     "receive_title": "Receive tube",
     "receive_confirm": "Receive tube",

@@ -197,6 +197,8 @@ function makePrismaMock() {
     orderedTest: {
       findMany: jest.fn().mockResolvedValue([]),
     },
+    timelineEvent: { findMany: jest.fn().mockResolvedValue([]) },
+    specimen: { count: jest.fn().mockResolvedValue(0) },
     resultReportAnalyte: {
       createMany: jest.fn(),
       findMany: jest.fn(),
@@ -588,6 +590,68 @@ describe('ResultsService', () => {
       expect(result.releasedTests[0].releasedAt).toBe(amendedAt.toISOString());
       expect(result.labServicesSuspended).toBe(false);
       expect(prisma.resultReportReleaseTest.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    describe('labAdded', () => {
+      const addedAt = new Date('2026-10-17T12:00:00Z');
+
+      function arrangeAdded() {
+        arrangeAmendedOrder(true);
+        prisma.timelineEvent.findMany.mockResolvedValue([
+          { createdAt: addedAt, metadata: { orderedTestIds: ['ot-9'] } },
+        ]);
+      }
+
+      it('is null when the lab added no tests', async () => {
+        arrangeAmendedOrder(true);
+
+        const result = await service.findReleasedResultsByOrder(
+          'clinic-1',
+          'REQ-001'
+        );
+
+        expect(result.labAdded).toBeNull();
+        expect(prisma.orderedTest.findMany).toHaveBeenCalledTimes(1);
+      });
+
+      it('lists the added tests still to come and that a sample is awaited', async () => {
+        arrangeAdded();
+        prisma.orderedTest.findMany.mockImplementation(
+          async ({ where }: { where: { id?: unknown } }) =>
+            where.id ? [{ id: 'ot-9', catalogItemName: 'Chemistry' }] : []
+        );
+        prisma.specimen.count.mockResolvedValue(1);
+
+        const result = await service.findReleasedResultsByOrder(
+          'clinic-1',
+          'REQ-001'
+        );
+
+        expect(result.labAdded).toEqual({
+          testNames: ['Chemistry'],
+          addedAt: addedAt.toISOString(),
+          awaitingSample: true,
+        });
+        expect(prisma.specimen.count).toHaveBeenCalledWith({
+          where: {
+            orderId: 'order-1',
+            status: 'EXPECTED',
+            orderedTests: { some: { orderedTestId: { in: ['ot-9'] } } },
+          },
+        });
+      });
+
+      it('is null once every added test is done or cancelled', async () => {
+        arrangeAdded();
+        prisma.orderedTest.findMany.mockResolvedValue([]);
+
+        const result = await service.findReleasedResultsByOrder(
+          'clinic-1',
+          'REQ-001'
+        );
+
+        expect(result.labAdded).toBeNull();
+      });
     });
 
     it('flags that the lab suspended services, results still returned', async () => {

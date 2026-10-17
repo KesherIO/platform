@@ -3,12 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import {
-  MembershipEventType,
-  OrderStatus,
-  OrderedTestSourceType,
-  Prisma,
-} from '@prisma/client';
+import { MembershipEventType, OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   buildDateRangeFilter,
@@ -18,6 +13,7 @@ import type { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import type { ListLabOrdersDto } from './dto/list-lab-orders.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
+import { expandOrderedItems } from './ordered-test-expansion.util';
 import {
   NONE_OUTSTANDING,
   OrderStatusService,
@@ -494,95 +490,9 @@ export class LabService {
     if (order.orderedTests.length > 0) return order.orderedTests;
 
     const items = order.orderedItems as unknown as OrderedItem[];
-
-    // Collect all package IDs so we can batch-query their components
-    const packageIds = items
-      .filter((i) => i.kind === 'PACKAGE')
-      .map((i) => i.catalogItemId);
-
-    const compositions =
-      packageIds.length > 0
-        ? await this.prisma.catalogItemComposition.findMany({
-            where: { packageId: { in: packageIds } },
-            include: {
-              component: { select: { id: true, code: true, name: true } },
-            },
-          })
-        : [];
-
-    // Map packageId → component catalog items
-    const componentsByPackage = new Map<
-      string,
-      Array<{ id: string; code: string | null; name: string }>
-    >();
-    for (const comp of compositions) {
-      const list = componentsByPackage.get(comp.packageId) ?? [];
-      list.push(comp.component);
-      componentsByPackage.set(comp.packageId, list);
-    }
-
-    // Build a deduplicated map: catalogItemId → { test data, sources[] }
-    const testMap = new Map<
-      string,
-      {
-        catalogItemId: string;
-        catalogItemCode: string | null;
-        catalogItemName: string;
-        sources: Prisma.OrderedTestSourceCreateWithoutOrderedTestInput[];
-      }
-    >();
-
-    const addSource = (
-      catalogItemId: string,
-      catalogItemCode: string | null,
-      catalogItemName: string,
-      source: Prisma.OrderedTestSourceCreateWithoutOrderedTestInput
-    ) => {
-      const existing = testMap.get(catalogItemId);
-      if (existing) {
-        existing.sources.push(source);
-      } else {
-        testMap.set(catalogItemId, {
-          catalogItemId,
-          catalogItemCode,
-          catalogItemName,
-          sources: [source],
-        });
-      }
-    };
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const lineKey = `line-${i}`;
-
-      if (item.kind === 'PACKAGE') {
-        const components = componentsByPackage.get(item.catalogItemId) ?? [];
-        for (const comp of components) {
-          addSource(comp.id, comp.code, comp.name, {
-            originCatalogItem: { connect: { id: item.catalogItemId } },
-            sourceType: OrderedTestSourceType.PACKAGE,
-            originalOrderItemKey: lineKey,
-            originalOrderItemIndex: i,
-            quantity: 1,
-            originCode: item.code ?? null,
-            originName: item.name,
-          });
-        }
-      } else {
-        addSource(item.catalogItemId, item.code, item.name, {
-          originCatalogItem: { connect: { id: item.catalogItemId } },
-          sourceType: OrderedTestSourceType.DIRECT,
-          originalOrderItemKey: lineKey,
-          originalOrderItemIndex: i,
-          quantity: 1,
-          originCode: item.code ?? null,
-          originName: item.name,
-        });
-      }
-    }
+    const entries = await expandOrderedItems(this.prisma, items);
 
     const now = new Date();
-    const entries = Array.from(testMap.values());
 
     return this.prisma.$transaction(async (tx) => {
       // Batch-create all ordered tests in one query
@@ -607,37 +517,11 @@ export class LabService {
       );
 
       // Batch-create all sources in one query
-      const allSources: Array<{
-        orderedTestId: string;
-        originCatalogItemId: string;
-        sourceType: OrderedTestSourceType;
-        originalOrderItemKey: string;
-        originalOrderItemIndex: number;
-        quantity: number;
-        originCode: string | null;
-        originName: string;
-      }> = [];
-
-      for (const entry of entries) {
+      const allSources = entries.flatMap((entry) => {
         const testId = testIdByCatalogItemId.get(entry.catalogItemId);
-        if (!testId) continue;
-        for (const src of entry.sources) {
-          const originId =
-            'connect' in src.originCatalogItem
-              ? src.originCatalogItem.connect!.id!
-              : '';
-          allSources.push({
-            orderedTestId: testId,
-            originCatalogItemId: originId,
-            sourceType: src.sourceType,
-            originalOrderItemKey: src.originalOrderItemKey,
-            originalOrderItemIndex: src.originalOrderItemIndex,
-            quantity: src.quantity ?? 1,
-            originCode: src.originCode ?? null,
-            originName: src.originName,
-          });
-        }
-      }
+        if (!testId) return [];
+        return entry.sources.map((src) => ({ orderedTestId: testId, ...src }));
+      });
 
       if (allSources.length > 0) {
         await tx.orderedTestSource.createMany({ data: allSources });

@@ -141,6 +141,40 @@ export interface RequestSampleInput {
   note?: string;
 }
 
+export type AddedTestOutcome =
+  | 'READY'
+  | 'AWAITING_TUBE'
+  | 'NEEDS_NEW_TUBE'
+  | 'NO_TEMPLATE';
+
+/** What adding tests to an open order would do (nothing is saved yet). */
+export interface AddTestsPreview {
+  tests: Array<{
+    catalogItemId: string;
+    code: string | null;
+    name: string;
+    origins: string[];
+    outcome: AddedTestOutcome;
+  }>;
+  alreadyOnOrder: Array<{ catalogItemId: string; name: string }>;
+  tubes: Array<{
+    specimenType: string;
+    containerType: string;
+    /** false → a new tube is requested from the clinic */
+    existing: boolean;
+    testNames: string[];
+  }>;
+  sampleRequired: boolean;
+}
+
+export interface AddTestsResult {
+  added: Array<{ id: string; name: string; status: string }>;
+  alreadyOnOrder: AddTestsPreview['alreadyOnOrder'];
+  sampleRequired: boolean;
+  tubes: AddTestsPreview['tubes'];
+  order: { id: string; status: string };
+}
+
 export interface Specimen {
   id: string;
   orderId: string;

@@ -38,6 +38,8 @@ import { LabClientsService } from './lab-clients.service';
 import { LabVetVerificationService } from './lab-vet-verification.service';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
+import { AddTestsService } from './add-tests.service';
+import { AddTestsDto, AddTestsPreviewDto } from './dto/add-tests.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import { UpsertLaboratoryProfileDto } from './dto/upsert-laboratory-profile.dto';
@@ -116,6 +118,7 @@ export class LabController {
     private readonly labVetVerificationService: LabVetVerificationService,
     private readonly pickupService: PickupService,
     private readonly specimenService: SpecimenService,
+    private readonly addTestsService: AddTestsService,
     private readonly catalogService: CatalogService,
     private readonly resultEntryService: ResultEntryService,
     private readonly resultsService: ResultsService,
@@ -278,6 +281,45 @@ export class LabController {
     @Param('id') id: string
   ) {
     return this.specimenService.getExpectedSpecimens(id, tenant.tenantId);
+  }
+
+  // POST /api/lab/orders/:id/add-tests/preview — what adding tests would do
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
+  @Post('orders/:id/add-tests/preview')
+  @HttpCode(HttpStatus.OK)
+  previewAddTests(
+    @CurrentTenant() tenant: TenantContext,
+    @Param('id') id: string,
+    @Body() dto: AddTestsPreviewDto
+  ) {
+    return this.addTestsService.preview(
+      id,
+      tenant.tenantId,
+      dto.catalogItemIds
+    );
+  }
+
+  // POST /api/lab/orders/:id/add-tests — add tests to an open order
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(...LAB_STAFF_ROLES)
+  @Post('orders/:id/add-tests')
+  @HttpCode(HttpStatus.OK)
+  addTests(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: AddTestsDto
+  ) {
+    const actorName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+    return this.addTestsService.addTests(
+      id,
+      tenant.tenantId,
+      dto,
+      user.id,
+      actorName
+    );
   }
 
   // POST /api/lab/orders/:id/accession

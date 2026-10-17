@@ -128,6 +128,10 @@ export class ReportComponent implements OnInit {
     () => this.released()?.pendingTestNames ?? []
   );
 
+  /** Tests the lab added to this order that are still to come */
+  labAdded = computed(() => this.released()?.labAdded ?? null);
+  labAddedDisplay = computed(() => this.labAdded()?.testNames.join(', ') ?? '');
+
   sections = computed(() => {
     const tests = this.releasedTests();
 

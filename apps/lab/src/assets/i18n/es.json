@@ -1364,6 +1364,27 @@
     }
   },
   "specimens": {
+    "add_tests": "Agregar pruebas",
+    "add_tests_title": "Agregar pruebas a esta orden",
+    "add_tests_search": "Buscar en el catálogo…",
+    "add_tests_none": "No hay pruebas que coincidan.",
+    "add_tests_preview": "Vista previa",
+    "add_tests_confirm": "Agregar pruebas",
+    "add_tests_back": "Cambiar selección",
+    "add_tests_note": "Nota (opcional)",
+    "add_tests_added_success": "Pruebas agregadas.",
+    "add_tests_added_sample_success": "Pruebas agregadas; se notificó a la clínica que se necesita otra muestra.",
+    "add_tests_already": "Ya están en la orden (sin cambios): {{names}}",
+    "add_tests_nothing_new": "Todas las pruebas seleccionadas ya están en esta orden.",
+    "add_tests_sample_required": "Se requiere una nueva muestra. Se notifica a la clínica y ella coordina la entrega: no se crea ninguna recolección.",
+    "add_tests_tube_new": "Tubo nuevo: {{specimen}} · {{container}} — para {{tests}}",
+    "add_tests_tube_existing": "Se une al tubo ya solicitado: {{specimen}} · {{container}} — para {{tests}}",
+    "add_tests_outcome": {
+      "READY": "Lista para procesar",
+      "AWAITING_TUBE": "Espera un tubo ya solicitado",
+      "NEEDS_NEW_TUBE": "Necesita una muestra nueva",
+      "NO_TEMPLATE": "Bloqueada: sin plantilla de resultados"
+    },
     "receive": "Recibir",
     "receive_title": "Recibir tubo",
     "receive_confirm": "Recibir tubo",
