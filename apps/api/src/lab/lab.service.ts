@@ -18,7 +18,12 @@ import type { UpdateOrderedTestDto } from './dto/update-ordered-test.dto';
 import type { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import type { ListLabOrdersDto } from './dto/list-lab-orders.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
-import { OrderStatusService } from './order-status.service';
+import {
+  NONE_OUTSTANDING,
+  OrderStatusService,
+  type OutstandingSpecimens,
+} from './order-status.service';
+import { cancelUnneededSpecimens, lockOrderReport } from './report-lock.util';
 import { recordMembershipEvent } from './membership-events';
 
 type SignerInput = {
@@ -44,6 +49,46 @@ const AWAITING_REVIEW = {
     { orderedTests: { some: { status: 'IN_REVIEW' } } },
     { resultReport: { amendments: { some: { status: 'IN_REVIEW' } } } },
   ],
+} satisfies Prisma.OrderWhereInput;
+
+/**
+ * At the lab and still waiting on a tube some unfinished test needs — the
+ * same rule as OrderStatusService.outstandingSpecimens, as a query filter.
+ */
+const AWAITING_SPECIMENS = {
+  status: { in: ['RECEIVED_BY_LAB', 'PROCESSING'] },
+  specimens: {
+    some: {
+      OR: [
+        {
+          status: 'EXPECTED',
+          orderedTests: { some: { orderedTest: { status: 'PENDING' } } },
+        },
+        {
+          status: 'MISSING',
+          orderedTests: {
+            some: {
+              orderedTest: {
+                status: 'BLOCKED',
+                blockReason: 'MISSING_SPECIMEN',
+              },
+            },
+          },
+        },
+        {
+          status: 'REJECTED',
+          orderedTests: {
+            some: {
+              orderedTest: {
+                status: 'BLOCKED',
+                blockReason: 'REJECTED_SPECIMEN',
+              },
+            },
+          },
+        },
+      ],
+    },
+  },
 } satisfies Prisma.OrderWhereInput;
 
 // Valid status transitions for orders handled by the lab
@@ -72,6 +117,7 @@ export class LabService {
     const {
       status,
       forReview,
+      awaitingSpecimens,
       search,
       dateFrom,
       dateTo,
@@ -86,6 +132,9 @@ export class LabService {
     if (forReview) {
       // Waiting on a reviewer: no age limit, a date range still narrows it
       Object.assign(baseCondition, AWAITING_REVIEW);
+      if (explicitRange) baseCondition.createdAt = explicitRange;
+    } else if (awaitingSpecimens) {
+      Object.assign(baseCondition, AWAITING_SPECIMENS);
       if (explicitRange) baseCondition.createdAt = explicitRange;
     } else if (explicitRange) {
       // An explicit date range always wins, applied to whatever status scope
@@ -169,9 +218,14 @@ export class LabService {
       }),
       this.prisma.order.count({ where }),
     ]);
+    const outstanding = await this.orderStatusService.outstandingSpecimens(
+      orders.map((o) => o.id)
+    );
 
     return {
-      data: orders.map((o) => this.formatLabOrder(o)),
+      data: orders.map((o) =>
+        this.formatLabOrder(o, outstanding.get(o.id) ?? NONE_OUTSTANDING)
+      ),
       total,
       page,
       pageSize,
@@ -238,7 +292,7 @@ export class LabService {
           };
         };
       };
-    }>
+    }> & { outstandingSpecimens: OutstandingSpecimens }
   > {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, labTenantId },
@@ -298,7 +352,13 @@ export class LabService {
       return this.getLabOrderById(labTenantId, orderId);
     }
 
-    return order;
+    const outstanding = await this.orderStatusService.outstandingSpecimens([
+      order.id,
+    ]);
+    return {
+      ...order,
+      outstandingSpecimens: outstanding.get(order.id) ?? NONE_OUTSTANDING,
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -308,11 +368,13 @@ export class LabService {
   async updateOrderStatus(
     labTenantId: string,
     orderId: string,
-    dto: UpdateOrderStatusDto
+    dto: UpdateOrderStatusDto,
+    actorId?: string,
+    actorName?: string
   ) {
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, labTenantId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, caseId: true, tenantId: true },
     });
     if (!order) throw new NotFoundException('Order not found.');
 
@@ -323,44 +385,82 @@ export class LabService {
       );
     }
 
+    if (dto.status === 'CANCELLED') {
+      return this.cancelOrder(order, actorId, actorName);
+    }
+
     const now = new Date();
     const timestamps: Record<string, Date | null> = {};
     if (dto.status === 'RECEIVED_BY_LAB') timestamps.receivedByLabAt = now;
     if (dto.status === 'PROCESSING') timestamps.processingStartedAt = now;
     if (dto.status === 'COMPLETED') timestamps.completedAt = now;
-    if (dto.status === 'CANCELLED') timestamps.cancelledAt = now;
 
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: dto.status as OrderStatus, ...timestamps },
     });
 
-    if (dto.status === 'CANCELLED') {
-      await this.prisma.orderedTest.updateMany({
+    return updated;
+  }
+
+  /**
+   * Cancels the order and every test not yet finished, closes the tubes still
+   * awaited or missing, and cancels the case — in one transaction under the
+   * report lock, so it can't interleave with a release or a test addition.
+   * Released tests stay COMPLETED and visible; accepted tubes stay as they are.
+   */
+  private async cancelOrder(
+    order: { id: string; status: string; caseId: string; tenantId: string },
+    actorId?: string,
+    actorName?: string
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      await lockOrderReport(tx, order);
+      const fresh = await tx.order.findUniqueOrThrow({
+        where: { id: order.id },
+        select: { status: true },
+      });
+      if (fresh.status === 'COMPLETED' || fresh.status === 'CANCELLED') {
+        throw new BadRequestException(
+          `Cannot transition from ${fresh.status} to CANCELLED.`
+        );
+      }
+
+      const now = new Date();
+      const updated = await tx.order.update({
+        where: { id: order.id },
+        data: { status: 'CANCELLED', cancelledAt: now },
+      });
+      const { count: cancelledTests } = await tx.orderedTest.updateMany({
         where: {
-          orderId,
+          orderId: order.id,
           status: { notIn: ['COMPLETED', 'CANCELLED'] },
         },
         data: { status: 'CANCELLED', cancelledAt: now },
       });
+      const closedSpecimenIds = await cancelUnneededSpecimens(tx, order.id);
 
-      const caseRow = await this.prisma.order.findUnique({
-        where: { id: orderId },
-        select: { caseId: true, case: { select: { status: true } } },
+      await tx.timelineEvent.create({
+        data: {
+          orderId: order.id,
+          eventType: 'ORDER_CANCELLED',
+          actorId: actorId ?? null,
+          actorName: actorName ?? null,
+          description: 'Order cancelled',
+          metadata: { cancelledTests, closedSpecimenIds },
+        },
       });
-      if (
-        caseRow?.case &&
-        caseRow.case.status !== 'CANCELLED' &&
-        caseRow.case.status !== 'COMPLETED'
-      ) {
-        await this.prisma.case.update({
-          where: { id: caseRow.caseId },
-          data: { status: 'CANCELLED' },
-        });
-      }
-    }
 
-    return updated;
+      await tx.case.updateMany({
+        where: {
+          id: order.caseId,
+          status: { notIn: ['CANCELLED', 'COMPLETED'] },
+        },
+        data: { status: 'CANCELLED' },
+      });
+
+      return updated;
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -553,7 +653,7 @@ export class LabService {
         order: { labTenantId },
       },
       include: {
-        order: { select: { id: true } },
+        order: { select: { id: true, caseId: true, tenantId: true } },
         catalogItem: { select: { name: true } },
       },
     });
@@ -590,23 +690,44 @@ export class LabService {
     if (dto.status === 'COMPLETED') timestamps.completedAt = now;
     if (dto.status === 'CANCELLED') timestamps.cancelledAt = now;
 
-    const updated = await this.prisma.orderedTest.update({
-      where: { id: orderedTestId },
-      data: {
-        ...(dto.status !== undefined && { status: dto.status }),
-        ...(dto.entryMethod !== undefined && { entryMethod: dto.entryMethod }),
-        ...(dto.assignedUserId !== undefined && {
-          assignedUserId: dto.assignedUserId,
-        }),
-        ...(dto.instrumentId !== undefined && {
-          instrumentId: dto.instrumentId,
-        }),
-        ...timestamps,
-      },
-    });
+    const data = {
+      ...(dto.status !== undefined && { status: dto.status }),
+      ...(dto.entryMethod !== undefined && { entryMethod: dto.entryMethod }),
+      ...(dto.assignedUserId !== undefined && {
+        assignedUserId: dto.assignedUserId,
+      }),
+      ...(dto.instrumentId !== undefined && {
+        instrumentId: dto.instrumentId,
+      }),
+      ...timestamps,
+    };
 
-    if (dto.status === 'CANCELLED') {
-      await this.prisma.timelineEvent.create({
+    if (dto.status !== 'CANCELLED') {
+      return this.prisma.orderedTest.update({
+        where: { id: orderedTestId },
+        data,
+      });
+    }
+
+    // Cancelling can finish the order (the last open test) — under the report
+    // lock, like a release or a test addition, so they never interleave
+    return this.prisma.$transaction(async (tx) => {
+      await lockOrderReport(tx, test.order);
+      const fresh = await tx.orderedTest.findUniqueOrThrow({
+        where: { id: orderedTestId },
+        select: { status: true },
+      });
+      if (fresh.status === 'COMPLETED') {
+        throw new BadRequestException(
+          'Cannot cancel a test that has already been completed.'
+        );
+      }
+
+      const updated = await tx.orderedTest.update({
+        where: { id: orderedTestId },
+        data,
+      });
+      await tx.timelineEvent.create({
         data: {
           orderId: test.order.id,
           eventType: 'TEST_CANCELLED',
@@ -616,10 +737,11 @@ export class LabService {
           metadata: { orderedTestId: test.id },
         },
       });
-      await this.orderStatusService.deriveAndPersist(test.order.id);
-    }
-
-    return updated;
+      // A tube only this test was waiting for is no longer expected
+      await cancelUnneededSpecimens(tx, test.order.id);
+      await this.orderStatusService.deriveAndPersist(test.order.id, tx);
+      return updated;
+    });
   }
 
   async receiveOrderedTest(labTenantId: string, orderedTestId: string) {
@@ -1076,30 +1198,33 @@ export class LabService {
     return startOfTodayInTimezone(tenant.timezone);
   }
 
-  private formatLabOrder(order: {
-    id: string;
-    requisitionNumber: string;
-    caseId: string;
-    tenantId: string;
-    labTenantId: string | null;
-    status: string;
-    priority: string;
-    deliveryMethod: string | null;
-    orderedItems: unknown;
-    clinicNotes: string | null;
-    labNotes: string | null;
-    sampleType: string | null;
-    sampleNotes: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    collectedAt: Date | null;
-    receivedByLabAt: Date | null;
-    completedAt: Date | null;
-    tenant: { name: string };
-    case: { patientName: string; patientSpecies: string; ownerName: string };
-    orderedTests: unknown[];
-    resultReport?: { _count: { amendments: number } } | null;
-  }) {
+  private formatLabOrder(
+    order: {
+      id: string;
+      requisitionNumber: string;
+      caseId: string;
+      tenantId: string;
+      labTenantId: string | null;
+      status: string;
+      priority: string;
+      deliveryMethod: string | null;
+      orderedItems: unknown;
+      clinicNotes: string | null;
+      labNotes: string | null;
+      sampleType: string | null;
+      sampleNotes: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      collectedAt: Date | null;
+      receivedByLabAt: Date | null;
+      completedAt: Date | null;
+      tenant: { name: string };
+      case: { patientName: string; patientSpecies: string; ownerName: string };
+      orderedTests: unknown[];
+      resultReport?: { _count: { amendments: number } } | null;
+    },
+    outstandingSpecimens: OutstandingSpecimens = NONE_OUTSTANDING
+  ) {
     return {
       id: order.id,
       requisitionNumber: order.requisitionNumber,
@@ -1113,6 +1238,7 @@ export class LabService {
       orderedItems: order.orderedItems,
       orderedTests: order.orderedTests,
       amendmentsInReview: order.resultReport?._count.amendments ?? 0,
+      outstandingSpecimens,
       clinicNotes: order.clinicNotes,
       labNotes: order.labNotes,
       sampleType: order.sampleType,

@@ -39,6 +39,13 @@ export class ListLabOrdersDto {
   @IsOptional()
   forReview?: boolean;
 
+  /** Orders at the lab still waiting on a tube (awaited, missing or rejected
+   * and needed by an unfinished test), whatever their status (overrides `status`). */
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  awaitingSpecimens?: boolean;
+
   @IsString()
   @MaxLength(100)
   @IsOptional()

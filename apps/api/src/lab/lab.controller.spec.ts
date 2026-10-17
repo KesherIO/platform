@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import type { Request } from 'express';
+import type { AuthenticatedUser } from '@vet-ai/shared-types';
 import { ConfigService } from '@nestjs/config';
 import { LabController } from './lab.controller';
 import { LabService } from './lab.service';
@@ -303,13 +304,23 @@ describe('LabController', () => {
     expect(service.getReviewCount).toHaveBeenCalledWith('lab-1');
   });
 
-  it('updateOrderStatus delegates to service', async () => {
-    await controller.updateOrderStatus(tenant, 'order-1', {
+  it('updateOrderStatus delegates to service with the actor', async () => {
+    const user = {
+      id: 'user-1',
+      email: 'ana@lab.com',
+      firstName: 'Ana',
+      lastName: 'Lab',
+    } as AuthenticatedUser;
+    await controller.updateOrderStatus(tenant, user, 'order-1', {
       status: 'PROCESSING',
     });
-    expect(service.updateOrderStatus).toHaveBeenCalledWith('lab-1', 'order-1', {
-      status: 'PROCESSING',
-    });
+    expect(service.updateOrderStatus).toHaveBeenCalledWith(
+      'lab-1',
+      'order-1',
+      { status: 'PROCESSING' },
+      'user-1',
+      'Ana Lab'
+    );
   });
 
   describe('release endpoints', () => {

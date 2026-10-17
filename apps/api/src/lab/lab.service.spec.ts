@@ -36,6 +36,32 @@ const mockOrder = {
 describe('LabService', () => {
   let service: LabService;
   let prisma: jest.Mocked<PrismaService>;
+  let orderStatus: Record<string, jest.Mock>;
+
+  /**
+   * An interactive-transaction client over the shared mock, with what the
+   * cancel paths use; $transaction runs the callback with it.
+   */
+  function useTransaction() {
+    const p = prisma as unknown as Record<string, any>;
+    Object.assign(p, {
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      resultReport: {
+        upsert: jest.fn().mockResolvedValue({ id: 'report-1' }),
+      },
+      timelineEvent: { create: jest.fn() },
+      case: { updateMany: jest.fn() },
+      specimen: {
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn(),
+      },
+    });
+    p.order.findUniqueOrThrow = jest.fn();
+    p.orderedTest.updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    p.orderedTest.findUniqueOrThrow = jest.fn();
+    p.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(p));
+    return p;
+  }
 
   beforeEach(async () => {
     const prismaMock = {
@@ -92,6 +118,7 @@ describe('LabService', () => {
     const orderStatusMock = {
       deriveOrderStatus: jest.fn(),
       deriveAndPersist: jest.fn(),
+      outstandingSpecimens: jest.fn().mockResolvedValue(new Map()),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -104,6 +131,7 @@ describe('LabService', () => {
 
     service = module.get<LabService>(LabService);
     prisma = module.get(PrismaService);
+    orderStatus = module.get(OrderStatusService);
   });
 
   it('creates without error', () => {
@@ -111,6 +139,23 @@ describe('LabService', () => {
   });
 
   describe('getLabOrders', () => {
+    it('reports outstanding tubes per order and filters orders awaiting one', async () => {
+      (prisma.order.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.order.count as jest.Mock).mockResolvedValue(0);
+
+      await service.getLabOrders(LAB_TENANT_ID, { awaitingSpecimens: true });
+
+      const where = (prisma.order.findMany as jest.Mock).mock.calls[0][0].where;
+      expect(where.AND[0]).toEqual(
+        expect.objectContaining({
+          labTenantId: LAB_TENANT_ID,
+          status: { in: ['RECEIVED_BY_LAB', 'PROCESSING'] },
+          specimens: expect.any(Object),
+        })
+      );
+      expect(orderStatus.outstandingSpecimens).toHaveBeenCalledWith([]);
+    });
+
     it('returns formatted orders for the lab tenant', async () => {
       (prisma.order.findMany as jest.Mock).mockResolvedValue([mockOrder]);
       (prisma.order.count as jest.Mock).mockResolvedValue(1);
@@ -400,6 +445,88 @@ describe('LabService', () => {
           data: expect.objectContaining({ status: 'PROCESSING' }),
         })
       );
+    });
+
+    describe('cancelling', () => {
+      const openOrder = {
+        id: ORDER_ID,
+        status: 'PROCESSING',
+        caseId: 'case-1',
+        tenantId: 'clinic-1',
+      };
+
+      it('cancels under the report lock: open tests, unneeded tubes, case, timeline', async () => {
+        const tx = useTransaction();
+        (prisma.order.findFirst as jest.Mock).mockResolvedValue(openOrder);
+        tx.order.findUniqueOrThrow.mockResolvedValue({ status: 'PROCESSING' });
+        tx.order.update.mockResolvedValue({
+          ...openOrder,
+          status: 'CANCELLED',
+        });
+        tx.orderedTest.updateMany.mockResolvedValue({ count: 2 });
+        tx.specimen.findMany.mockResolvedValue([
+          // Awaited for a test now cancelled → closed
+          {
+            id: 'sp-awaited',
+            orderedTests: [{ orderedTest: { status: 'CANCELLED' } }],
+          },
+          // Serves a released test too (all linked tests done) → closed
+          {
+            id: 'sp-missing',
+            orderedTests: [{ orderedTest: { status: 'COMPLETED' } }],
+          },
+        ]);
+
+        await service.updateOrderStatus(
+          LAB_TENANT_ID,
+          ORDER_ID,
+          { status: 'CANCELLED' },
+          'user-1',
+          'Ana'
+        );
+
+        expect(tx.resultReport.upsert).toHaveBeenCalled();
+        expect(tx.$queryRaw).toHaveBeenCalled();
+        expect(tx.orderedTest.updateMany).toHaveBeenCalledWith({
+          where: {
+            orderId: ORDER_ID,
+            status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          },
+          data: { status: 'CANCELLED', cancelledAt: expect.any(Date) },
+        });
+        expect(tx.specimen.updateMany).toHaveBeenCalledWith({
+          where: { id: { in: ['sp-awaited', 'sp-missing'] } },
+          data: { status: 'CANCELLED' },
+        });
+        expect(tx.timelineEvent.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            orderId: ORDER_ID,
+            eventType: 'ORDER_CANCELLED',
+            actorId: 'user-1',
+            actorName: 'Ana',
+          }),
+        });
+        expect(tx.case.updateMany).toHaveBeenCalledWith({
+          where: {
+            id: 'case-1',
+            status: { notIn: ['CANCELLED', 'COMPLETED'] },
+          },
+          data: { status: 'CANCELLED' },
+        });
+      });
+
+      it('refuses when a release completed the order meanwhile', async () => {
+        const tx = useTransaction();
+        (prisma.order.findFirst as jest.Mock).mockResolvedValue(openOrder);
+        tx.order.findUniqueOrThrow.mockResolvedValue({ status: 'COMPLETED' });
+
+        await expect(
+          service.updateOrderStatus(LAB_TENANT_ID, ORDER_ID, {
+            status: 'CANCELLED',
+          })
+        ).rejects.toThrow(BadRequestException);
+        expect(tx.order.update).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -833,6 +960,68 @@ describe('LabService', () => {
 
   describe('updateOrderedTest', () => {
     const pendingTest = { id: 'test-1', status: 'PENDING', startedAt: null };
+
+    it('cancels under the report lock and closes a tube only it was waiting for', async () => {
+      const tx = useTransaction();
+      (prisma.orderedTest.findFirst as jest.Mock).mockResolvedValue({
+        ...pendingTest,
+        order: { id: ORDER_ID, caseId: 'case-1', tenantId: 'clinic-1' },
+        catalogItem: { name: 'Hemograma' },
+      });
+      tx.orderedTest.findUniqueOrThrow.mockResolvedValue({ status: 'PENDING' });
+      tx.orderedTest.update.mockResolvedValue({});
+      tx.specimen.findMany.mockResolvedValue([
+        {
+          id: 'sp-1',
+          orderedTests: [{ orderedTest: { status: 'CANCELLED' } }],
+        },
+        // Still needed by another open test → stays
+        {
+          id: 'sp-2',
+          orderedTests: [
+            { orderedTest: { status: 'CANCELLED' } },
+            { orderedTest: { status: 'PENDING' } },
+          ],
+        },
+      ]);
+
+      await service.updateOrderedTest(
+        LAB_TENANT_ID,
+        'test-1',
+        { status: 'CANCELLED' },
+        'user-1',
+        'Ana'
+      );
+
+      expect(tx.resultReport.upsert).toHaveBeenCalled();
+      expect(tx.timelineEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ eventType: 'TEST_CANCELLED' }),
+      });
+      expect(tx.specimen.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['sp-1'] } },
+        data: { status: 'CANCELLED' },
+      });
+      expect(orderStatus.deriveAndPersist).toHaveBeenCalledWith(ORDER_ID, tx);
+    });
+
+    it('refuses to cancel a test a release completed meanwhile', async () => {
+      const tx = useTransaction();
+      (prisma.orderedTest.findFirst as jest.Mock).mockResolvedValue({
+        ...pendingTest,
+        order: { id: ORDER_ID, caseId: 'case-1', tenantId: 'clinic-1' },
+        catalogItem: { name: 'Hemograma' },
+      });
+      tx.orderedTest.findUniqueOrThrow.mockResolvedValue({
+        status: 'COMPLETED',
+      });
+
+      await expect(
+        service.updateOrderedTest(LAB_TENANT_ID, 'test-1', {
+          status: 'CANCELLED',
+        })
+      ).rejects.toThrow(BadRequestException);
+      expect(tx.orderedTest.update).not.toHaveBeenCalled();
+    });
 
     it('rejects an assignee who is not a member of this lab', async () => {
       (prisma.orderedTest.findFirst as jest.Mock).mockResolvedValue(
