@@ -133,12 +133,14 @@ describe('StorageService', () => {
 
       const result = await service.snapshotReleaseImages('rel-1', {
         logoUrl: dataUrl('image/png', PNG),
+        labLogoUrl: dataUrl('image/png', PNG),
         signerSignatureUrl: dataUrl('image/png', PNG),
         analystSignatureUrl: null,
       });
 
       expect(result).toEqual({
         logoStoragePath: null,
+        labLogoStoragePath: 'rel-1/lab-logo.png',
         signerSignatureStoragePath: 'rel-1/signer-sig.png',
         analystSignatureStoragePath: null,
       });

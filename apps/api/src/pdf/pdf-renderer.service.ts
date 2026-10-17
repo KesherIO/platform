@@ -48,7 +48,10 @@ export interface ReleaseForPdf {
   reviewNotes: string | null;
   /** Tests still to come, listed under the results (current report only) */
   pendingTestNames?: string[];
+  /** Ordering clinic's logo — header, left */
   logoBuffer: Buffer | null;
+  /** Lab's logo — header, right (optional: older artifacts have none) */
+  labLogoBuffer?: Buffer | null;
   signerSignatureBuffer: Buffer | null;
   analystSignatureBuffer: Buffer | null;
   tests: Array<{
@@ -304,7 +307,11 @@ export class PdfRendererService {
     });
   }
 
-  /** Clinic branding on the left, report type / sequence / date on the right. */
+  /**
+   * Clinic branding on the left, lab logo on the right and report type /
+   * sequence / date centered between them, aligned to the bottom of the
+   * header. Without a lab logo the report block moves to the right edge.
+   */
   private drawHeader(
     doc: Doc,
     data: ReleaseForPdf,
@@ -313,7 +320,26 @@ export class PdfRendererService {
   ) {
     const headerY = doc.page.margins.top;
     const LOGO = 48;
-    const RIGHT_W = 140;
+    // Lab logos are often wide wordmarks — allow twice the clinic logo width
+    const LAB_LOGO_W = LOGO * 2;
+    const INFO_W = 120;
+
+    let labLogoDrawn = false;
+    if (data.labLogoBuffer) {
+      try {
+        doc.image(data.labLogoBuffer, LEFT + PAGE_WIDTH - LAB_LOGO_W, headerY, {
+          fit: [LAB_LOGO_W, LOGO],
+          align: 'right',
+        });
+        labLogoDrawn = true;
+      } catch {
+        /* skip if image fails */
+      }
+    }
+    const infoX = labLogoDrawn
+      ? LEFT + (PAGE_WIDTH - INFO_W) / 2
+      : LEFT + PAGE_WIDTH - INFO_W;
+    const infoAlign = labLogoDrawn ? 'center' : 'right';
 
     let logoDrawn = false;
     if (data.logoBuffer) {
@@ -326,7 +352,7 @@ export class PdfRendererService {
     }
 
     const textLeft = logoDrawn ? LEFT + LOGO + 10 : LEFT;
-    const textWidth = PAGE_WIDTH - (textLeft - LEFT) - RIGHT_W - 10;
+    const textWidth = infoX - textLeft - 10;
     doc
       .font('Helvetica-Bold')
       .fontSize(14)
@@ -336,7 +362,10 @@ export class PdfRendererService {
     for (const line of [data.clinicAddress, data.clinicPhone]) {
       if (line) doc.text(line, textLeft, doc.y + 1, { width: textWidth });
     }
-    const leftBottom = Math.max(doc.y, logoDrawn ? headerY + LOGO : 0);
+    const leftBottom = Math.max(
+      doc.y,
+      logoDrawn || labLogoDrawn ? headerY + LOGO : 0
+    );
 
     const badgeText =
       data.releaseType === 'FINAL'
@@ -350,29 +379,39 @@ export class PdfRendererService {
         : data.releaseType === 'AMENDMENT'
         ? '#dc2626'
         : '#d97706';
-    const rightX = LEFT + PAGE_WIDTH - RIGHT_W;
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(9)
-      .fillColor(badgeColor)
-      .text(badgeText, rightX, headerY, { width: RIGHT_W, align: 'right' });
-    doc.font('Helvetica').fontSize(8).fillColor(GRAY);
-    if (data.releaseSequence !== null) {
-      doc.text(`Informe #${data.releaseSequence}`, rightX, doc.y + 1, {
-        width: RIGHT_W,
-        align: 'right',
-      });
-    }
-    doc.text(
-      new Date(data.releasedAt).toLocaleDateString('es-CO', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-      rightX,
-      doc.y + 1,
-      { width: RIGHT_W, align: 'right' }
+    const dateText = new Date(data.releasedAt).toLocaleDateString('es-CO', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const infoLines: Array<{ text: string; bold: boolean }> = [
+      { text: badgeText, bold: true },
+      ...(data.releaseSequence !== null
+        ? [{ text: `Informe #${data.releaseSequence}`, bold: false }]
+        : []),
+      { text: dateText, bold: false },
+    ];
+    const setInfoFont = (bold: boolean) =>
+      bold
+        ? doc.font('Helvetica-Bold').fontSize(9)
+        : doc.font('Helvetica').fontSize(8);
+    const LINE_GAP = 1;
+    const infoHeight = infoLines.reduce(
+      (h, line, i) =>
+        h +
+        (i > 0 ? LINE_GAP : 0) +
+        setInfoFont(line.bold).heightOfString(line.text, { width: INFO_W }),
+      0
     );
+
+    // Sit the report block on the bottom of the header, next to the rule
+    let infoY = Math.max(headerY, leftBottom - infoHeight);
+    for (const line of infoLines) {
+      setInfoFont(line.bold)
+        .fillColor(line.bold ? badgeColor : GRAY)
+        .text(line.text, infoX, infoY, { width: INFO_W, align: infoAlign });
+      infoY = doc.y + LINE_GAP;
+    }
 
     doc.y = Math.max(doc.y, leftBottom) + 8;
     doc

@@ -379,3 +379,168 @@ describe('ResultEntryService — batch save validation', () => {
     expect(typeof prisma.$transaction.mock.calls[0][0]).toBe('function');
   });
 });
+
+describe('ResultEntryService — amended tests show the latest release', () => {
+  let service: ResultEntryService;
+  let prisma: Record<string, any>;
+
+  const completedTest = {
+    id: 'ot-1',
+    catalogItemCode: 'CBC',
+    templateDefinitionId: 'def-cbc',
+    catalogItemName: 'Hemograma',
+    status: 'COMPLETED',
+    order: {
+      id: 'order-1',
+      case: {
+        patientSpecies: 'CANINE',
+        patientAge: 5,
+        patientAgeUnit: 'YEARS',
+      },
+      resultReport: {
+        id: 'report-1',
+        status: 'RELEASED',
+        observations: null,
+        correctionNotes: null,
+      },
+    },
+  };
+  const templateAnalyte = (id: string, code: string, sortOrder: number) => ({
+    id,
+    code,
+    name: code,
+    valueType: 'NUMERIC',
+    isHeader: false,
+    isRequired: false,
+    sortOrder,
+  });
+  // Result-entry rows: still the originally entered values
+  const reportTest = (latestReleaseId: string | null) => ({
+    id: 'rt-1',
+    orderedTestId: 'ot-1',
+    latestReleaseId,
+    analytes: [
+      {
+        id: 'a-1',
+        templateAnalyteId: 'ta-hgb',
+        code: 'HGB',
+        numericValue: 12,
+        textValue: null,
+        booleanValue: null,
+        selectValue: null,
+      },
+      {
+        id: 'a-2',
+        templateAnalyteId: 'ta-wbc',
+        code: 'WBC',
+        numericValue: 8,
+        textValue: null,
+        booleanValue: null,
+        selectValue: null,
+      },
+    ],
+  });
+
+  const values = (session: { sections: Array<{ analytes: unknown[] }> }) =>
+    Object.fromEntries(
+      session.sections
+        .flatMap(
+          (s) =>
+            s.analytes as Array<{
+              code: string;
+              numericValue: number | null;
+              savedValueId: string | null;
+            }>
+        )
+        .map((a) => [a.code, [a.numericValue, a.savedValueId]])
+    );
+
+  beforeEach(async () => {
+    prisma = {
+      orderedTest: {
+        findFirst: jest.fn().mockResolvedValue(completedTest),
+        findMany: jest.fn().mockResolvedValue([completedTest]),
+      },
+      resultReportTest: {
+        findUnique: jest.fn().mockResolvedValue(reportTest('rel-2')),
+        findMany: jest.fn().mockResolvedValue([reportTest('rel-2')]),
+      },
+      // Amendment release #2 corrected HGB; WBC is not in the snapshot
+      resultReportReleaseTest: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            releaseId: 'rel-2',
+            sourceReportTestId: 'rt-1',
+            analytes: [
+              {
+                code: 'HGB',
+                numericValue: 15,
+                textValue: null,
+                booleanValue: null,
+                selectValue: null,
+              },
+            ],
+          },
+        ]),
+      },
+    };
+    const templateVersionService = {
+      resolveTemplateForTest: jest.fn().mockResolvedValue({
+        id: 'def-cbc',
+        activeVersion: {
+          title: 'Hemograma',
+          defaultObservations: null,
+          observationPhrases: null,
+          sections: [],
+          analytes: [
+            templateAnalyte('ta-hgb', 'HGB', 1),
+            templateAnalyte('ta-wbc', 'WBC', 2),
+          ],
+        },
+      }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ResultEntryService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: TemplateVersionService, useValue: templateVersionService },
+      ],
+    }).compile();
+
+    service = module.get<ResultEntryService>(ResultEntryService);
+  });
+
+  it('result session: values come from the latest release, matched by code', async () => {
+    const session = await service.getResultSession('ot-1', 'lab-1');
+
+    expect(prisma.resultReportReleaseTest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          sourceReportTestId: { in: ['rt-1'] },
+          releaseId: { in: ['rel-2'] },
+        },
+      })
+    );
+    // HGB amended 12 → 15; WBC missing from the snapshot keeps its entered value
+    expect(values(session)).toEqual({ HGB: [15, 'a-1'], WBC: [8, 'a-2'] });
+  });
+
+  it('batch sessions: same overlay', async () => {
+    const [session] = (await service.batchGetResultSessions(
+      ['ot-1'],
+      'lab-1'
+    )) as Array<{ sections: Array<{ analytes: unknown[] }> }>;
+
+    expect(values(session)).toEqual({ HGB: [15, 'a-1'], WBC: [8, 'a-2'] });
+  });
+
+  it('a test never released keeps its entered values (no release lookup)', async () => {
+    prisma.resultReportTest.findUnique.mockResolvedValue(reportTest(null));
+
+    const session = await service.getResultSession('ot-1', 'lab-1');
+
+    expect(prisma.resultReportReleaseTest.findMany).not.toHaveBeenCalled();
+    expect(values(session)).toEqual({ HGB: [12, 'a-1'], WBC: [8, 'a-2'] });
+  });
+});

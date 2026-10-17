@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import {
   isWhatsAppPhone,
   labPhoneNumbersSnapshot,
+  logoLinkSnapshot,
   phoneLabelForPdf,
 } from './lab-contact.util';
 
@@ -86,5 +87,19 @@ describe('phoneLabelForPdf', () => {
     [{}, ''],
   ])('%j → %j', (entry, expected) => {
     expect(phoneLabelForPdf(entry)).toBe(expected);
+  });
+});
+
+describe('logoLinkSnapshot', () => {
+  it('keeps a storage link', () => {
+    expect(logoLinkSnapshot('https://x.supabase.co/logo.png')).toBe(
+      'https://x.supabase.co/logo.png'
+    );
+  });
+
+  it('drops a base64 data URL and missing values', () => {
+    expect(logoLinkSnapshot('data:image/png;base64,iVBORw0K')).toBeNull();
+    expect(logoLinkSnapshot(null)).toBeNull();
+    expect(logoLinkSnapshot(undefined)).toBeNull();
   });
 });

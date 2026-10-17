@@ -582,6 +582,7 @@ function AmendmentPanel({
   const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { canRelease } = useAuth();
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -634,9 +635,11 @@ function AmendmentPanel({
       ])
     );
 
-  // Resume an amendment started earlier (e.g. before a page reload)
+  // Resume an amendment started earlier (e.g. before a page reload). Not the
+  // one just initiated here: the active-amendments refetch hands it back as
+  // activeAmendmentId, and reloading it flashed the skeleton a second time.
   useEffect(() => {
-    if (!activeAmendmentId) return;
+    if (!activeAmendmentId || activeAmendmentId === amendmentId) return;
     let cancelled = false;
     setBusy(true);
     labApi.amendment
@@ -736,6 +739,9 @@ function AmendmentPanel({
       setStatus(result.status);
       refreshActiveAmendments();
       toast.success(t('review.amendment_submitted'));
+      // Done here until a reviewer approves — back to the list, as when
+      // sending results to review
+      navigate('/orders');
     } catch (e) {
       toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
     } finally {
@@ -754,6 +760,7 @@ function AmendmentPanel({
       toast.success(t('review.amendment_approved'));
       refreshActiveAmendments();
       onDone();
+      navigate('/orders');
     } catch (e) {
       toast.error(`${t('review.amendment_error')} ${(e as Error).message}`);
     } finally {

@@ -16,6 +16,7 @@ describe('PdfProcessorService', () => {
     artifact_type: 'PDF',
     claim_token: 'tok-1',
     logo_storage_path: null,
+    lab_logo_storage_path: null,
     signer_signature_storage_path: null,
     analyst_signature_storage_path: null,
     retry_count: 0,
@@ -183,6 +184,42 @@ describe('PdfProcessorService', () => {
         { label: 'Comercial', number: '+57 601 555 0000' },
         { label: 'Recepción (WhatsApp)', number: '+57 601 555 0001' },
       ]);
+    });
+
+    it('passes the clinic and lab logos to the renderer from their snapshots', async () => {
+      prisma.$queryRaw.mockResolvedValue([
+        fakeRow({
+          logo_storage_path: 'rel-1/logo.png',
+          lab_logo_storage_path: 'rel-1/lab-logo.png',
+        }),
+      ]);
+      storage.downloadObject.mockImplementation(async (_bucket, path) =>
+        Buffer.from(`img:${path}`)
+      );
+
+      await (service as any).claimAndProcess();
+
+      expect(storage.downloadObject).toHaveBeenCalledWith(
+        'release-assets',
+        'rel-1/lab-logo.png'
+      );
+      const data = renderer.render.mock.calls[0][0];
+      expect(data.logoBuffer?.toString()).toBe('img:rel-1/logo.png');
+      expect(data.labLogoBuffer?.toString()).toBe('img:rel-1/lab-logo.png');
+    });
+
+    it('renders without a lab logo when the download fails', async () => {
+      prisma.$queryRaw.mockResolvedValue([
+        fakeRow({ lab_logo_storage_path: 'rel-1/lab-logo.png' }),
+      ]);
+      storage.downloadObject.mockImplementation(async (_bucket, path) => {
+        if (path === 'rel-1/lab-logo.png') throw new Error('not found');
+        return Buffer.from('tiny');
+      });
+
+      await (service as any).claimAndProcess();
+
+      expect(renderer.render.mock.calls[0][0].labLogoBuffer).toBeNull();
     });
 
     describe('clinic current report (CLINIC_REPORT_PDF)', () => {

@@ -237,6 +237,74 @@ export class ResultEntryService {
     return missing;
   }
 
+  /**
+   * Released tests show their latest release's values, not the result-entry
+   * rows: approving an amendment creates a new release but never updates
+   * ResultReportAnalyte, so the lab kept seeing the original values. Matched
+   * by analyte code; tests never released (or analytes missing from the
+   * release) keep the entered values.
+   */
+  private async withLatestReleaseValues<
+    T extends {
+      id: string;
+      latestReleaseId: string | null;
+      analytes: Array<{
+        code: string;
+        numericValue: number | null;
+        textValue: string | null;
+        booleanValue: boolean | null;
+        selectValue: string | null;
+      }>;
+    }
+  >(reportTests: T[]): Promise<T[]> {
+    const released = reportTests.filter((rt) => rt.latestReleaseId);
+    if (released.length === 0) return reportTests;
+
+    const releaseTests = await this.prisma.resultReportReleaseTest.findMany({
+      where: {
+        sourceReportTestId: { in: released.map((rt) => rt.id) },
+        releaseId: { in: released.map((rt) => rt.latestReleaseId as string) },
+      },
+      select: {
+        releaseId: true,
+        sourceReportTestId: true,
+        analytes: {
+          select: {
+            code: true,
+            numericValue: true,
+            textValue: true,
+            booleanValue: true,
+            selectValue: true,
+          },
+        },
+      },
+    });
+    const latestByReportTest = new Map(
+      releaseTests.map((rt) => [`${rt.sourceReportTestId}:${rt.releaseId}`, rt])
+    );
+
+    return reportTests.map((rt) => {
+      const latest = latestByReportTest.get(`${rt.id}:${rt.latestReleaseId}`);
+      if (!latest) return rt;
+      const byCode = new Map(latest.analytes.map((a) => [a.code, a]));
+      return {
+        ...rt,
+        analytes: rt.analytes.map((a) => {
+          const r = byCode.get(a.code);
+          return r
+            ? {
+                ...a,
+                numericValue: r.numericValue,
+                textValue: r.textValue,
+                booleanValue: r.booleanValue,
+                selectValue: r.selectValue,
+              }
+            : a;
+        }),
+      };
+    });
+  }
+
   private buildSections(
     version: {
       sections: Array<{ id: string; code?: string | null; name: string }>;
@@ -379,10 +447,12 @@ export class ResultEntryService {
           },
           select: {
             id: true,
+            latestReleaseId: true,
             analytes: {
               select: {
                 id: true,
                 templateAnalyteId: true,
+                code: true,
                 numericValue: true,
                 textValue: true,
                 booleanValue: true,
@@ -393,7 +463,10 @@ export class ResultEntryService {
         })
       : null;
 
-    const savedAnalytes = reportTest?.analytes ?? [];
+    const [current] = reportTest
+      ? await this.withLatestReleaseValues([reportTest])
+      : [];
+    const savedAnalytes = current?.analytes ?? [];
     const savedByTemplateId = new Map(
       savedAnalytes.map((a) => [a.templateAnalyteId, a])
     );
@@ -1510,10 +1583,12 @@ export class ResultEntryService {
             select: {
               id: true,
               orderedTestId: true,
+              latestReleaseId: true,
               analytes: {
                 select: {
                   id: true,
                   templateAnalyteId: true,
+                  code: true,
                   numericValue: true,
                   textValue: true,
                   booleanValue: true,
@@ -1524,7 +1599,10 @@ export class ResultEntryService {
           })
         : [];
     const reportTestByOrderedId = new Map(
-      reportTests.map((rt) => [rt.orderedTestId, rt])
+      (await this.withLatestReleaseValues(reportTests)).map((rt) => [
+        rt.orderedTestId,
+        rt,
+      ])
     );
 
     return eligible.map((test) => {

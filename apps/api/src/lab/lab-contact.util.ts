@@ -72,3 +72,15 @@ export function labPhoneNumbersSnapshot(
   if (phone?.trim()) return [{ label: '', number: phone.trim() }];
   return Prisma.DbNull;
 }
+
+/**
+ * Logo URL kept on a release row for reference. Lab Settings stores logos as
+ * base64 `data:` URLs (up to ~2.7 MB): copying one into the release inside the
+ * approval transaction made approvals time out on a remote DB. The PDF uses
+ * the image snapshot in release-assets instead, so a data URL is dropped here.
+ */
+export function logoLinkSnapshot(
+  url: string | null | undefined
+): string | null {
+  return url && !url.startsWith('data:') ? url : null;
+}
