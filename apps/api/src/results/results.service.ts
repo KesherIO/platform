@@ -5,21 +5,13 @@ import {
   ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import {
-  AnalyteValueType,
-  CaseStatus,
-  PatientSpecies,
-  Prisma,
-} from '@prisma/client';
+import { AnalyteValueType, PatientSpecies, Prisma } from '@prisma/client';
 import Anthropic from '@anthropic-ai/sdk';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { RagService, RetrievedChunk } from '../rag/rag.service';
 import { TemplateVersionService } from './template-version.service';
-import {
-  evaluateAllFormulas,
-  validateTemplateFormulas,
-} from '../lab/formula.util';
+import { validateTemplateFormulas } from '../lab/formula.util';
 import { toStableCode } from './code-gen.util';
 import {
   assertLabServicesActive,
@@ -40,7 +32,6 @@ import type {
   ImportTemplateDto,
   CreateReportDto,
   SaveAnalytesDto,
-  ReleaseReportDto,
 } from './dto/results.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
 
@@ -510,24 +501,6 @@ export class ResultsService {
     return this.formatReport(report);
   }
 
-  async findReportByOrderId(
-    tenantId: string,
-    requisitionNumber: string
-  ): Promise<ResultReportModel> {
-    const order = await this.prisma.order.findFirst({
-      where: { requisitionNumber, tenantId },
-      select: { id: true },
-    });
-    if (!order) throw new NotFoundException('Order not found.');
-
-    const report = await this.prisma.resultReport.findFirst({
-      where: { orderId: order.id, tenantId },
-      include: REPORT_INCLUDE,
-    });
-    if (!report) throw new NotFoundException('Result report not found.');
-    return this.formatReport(report);
-  }
-
   /**
    * Lab side: the report of an order processed by this lab. `tenantId` on the
    * report is the clinic's, so the lab is checked through the order.
@@ -603,121 +576,6 @@ export class ResultsService {
       include: REPORT_INCLUDE,
     });
     return this.formatReport(updated);
-  }
-
-  /**
-   * Release a DRAFT report — final and visible to the clinic.
-   * Computes and freezes abnormal flags, snapshots reference ranges,
-   * fills professional footer, and advances the case to COMPLETED.
-   */
-  async releaseReport(
-    reportId: string,
-    dto: ReleaseReportDto
-  ): Promise<ResultReportModel> {
-    const report = await this.prisma.resultReport.findUnique({
-      where: { id: reportId },
-      select: { id: true, status: true, caseId: true },
-    });
-    if (!report) throw new NotFoundException('Result report not found.');
-    if (report.status !== 'DRAFT' && report.status !== 'IN_REVIEW') {
-      throw new BadRequestException(
-        'Only DRAFT or IN_REVIEW reports can be released.'
-      );
-    }
-
-    const reportTests = await this.prisma.resultReportTest.findMany({
-      where: { reportId },
-      include: {
-        analytes: {
-          include: { templateAnalyte: { select: { referenceRange: true } } },
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-    });
-    const analytes = reportTests.flatMap((rt) => rt.analytes);
-
-    // Recompute all formula analytes before flag computation
-    for (const rt of reportTests) {
-      const hasFormulas = rt.analytes.some((a) => a.formula && !a.isHeader);
-      if (!hasFormulas) continue;
-
-      const allForEval = rt.analytes
-        .filter((a) => !a.isHeader)
-        .map((a) => ({
-          code: a.code,
-          formula: a.formula ?? null,
-          numericValue: a.numericValue ? Number(a.numericValue) : null,
-        }));
-
-      const computed = evaluateAllFormulas(allForEval);
-
-      for (const a of rt.analytes) {
-        if (!a.formula || a.isHeader) continue;
-        const value = computed[a.code] ?? null;
-        if (value !== null) {
-          await this.prisma.resultReportAnalyte.update({
-            where: { id: a.id },
-            data: { numericValue: value },
-          });
-          // Update in-memory for subsequent flag computation
-          (a as { numericValue: typeof value }).numericValue = value;
-        }
-      }
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      // Compute flags and snapshot reference ranges for every non-header analyte
-      await Promise.all(
-        analytes
-          .filter((a) => !a.isHeader)
-          .map((a) => {
-            const ref = a.templateAnalyte
-              ?.referenceRange as ReferenceRangeSnapshot | null;
-            const flag =
-              a.valueType === 'NUMERIC' && a.numericValue != null
-                ? this.computeFlag(ref, a.numericValue)
-                : null;
-
-            return tx.resultReportAnalyte.update({
-              where: { id: a.id },
-              data: {
-                flag,
-                referenceSnapshot:
-                  (ref as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-              },
-            });
-          })
-      );
-
-      // Release the report and fill professional footer
-      await tx.resultReport.update({
-        where: { id: reportId },
-        data: {
-          status: 'RELEASED',
-          observations: dto.observations ?? null,
-          processedByName: dto.processedByName ?? null,
-          processedByRole: dto.processedByRole ?? null,
-          processedByCredentials: dto.processedByCredentials ?? null,
-          approvedByName: dto.approvedByName ?? null,
-          approvedByRole: dto.approvedByRole ?? null,
-          approvedByCredentials: dto.approvedByCredentials ?? null,
-          signatureUrl: dto.signatureUrl ?? null,
-          releasedAt: new Date(),
-        },
-      });
-
-      // Advance case to COMPLETED (terminal state)
-      await tx.case.update({
-        where: { id: report.caseId },
-        data: { status: CaseStatus.COMPLETED },
-      });
-    });
-
-    const released = await this.prisma.resultReport.findUniqueOrThrow({
-      where: { id: reportId },
-      include: REPORT_INCLUDE,
-    });
-    return this.formatReport(released);
   }
 
   // ---------------------------------------------------------------------------
@@ -970,16 +828,6 @@ export class ResultsService {
     }
   }
 
-  private computeFlag(
-    ref: ReferenceRangeSnapshot | null,
-    value: number
-  ): string | null {
-    if (!ref || (ref.min == null && ref.max == null)) return null;
-    if (ref.min != null && value < ref.min) return 'L';
-    if (ref.max != null && value > ref.max) return 'H';
-    return 'N';
-  }
-
   private async callInterpretationAi(userMessage: string): Promise<{
     summary: string;
     flaggedAnalytes: AiInterpretationFlaggedAnalyte[];
@@ -1220,7 +1068,15 @@ export class ResultsService {
     const releasedTests = allReportTests.filter(
       (t) => t.status === 'RELEASED' && t.latestReleaseId
     );
-    const pendingTests = allReportTests.filter((t) => t.status !== 'RELEASED');
+    // Pending = every ordered test still to be released, started or not;
+    // cancelled tests are never coming
+    const pendingTests = await this.prisma.orderedTest.findMany({
+      where: {
+        orderId: order.id,
+        status: { notIn: ['COMPLETED', 'CANCELLED'] },
+      },
+      select: { catalogItemName: true },
+    });
 
     if (releasedTests.length === 0) {
       return {
@@ -1229,9 +1085,7 @@ export class ResultsService {
         caseId: order.caseId,
         releaseStatus: 'NO_RESULTS',
         releasedTests: [],
-        pendingTestNames: pendingTests.map(
-          (t) => t.orderedTest?.catalogItemName ?? 'Unknown'
-        ),
+        pendingTestNames: pendingTests.map((t) => t.catalogItemName),
         latestReleasedAt: null,
         labServicesSuspended,
       };
@@ -1389,9 +1243,7 @@ export class ResultsService {
       caseId: order.caseId,
       releaseStatus,
       releasedTests: tests,
-      pendingTestNames: pendingTests.map(
-        (t) => t.orderedTest?.catalogItemName ?? 'Unknown'
-      ),
+      pendingTestNames: pendingTests.map((t) => t.catalogItemName),
       latestReleasedAt: latestDate,
       labServicesSuspended,
     };

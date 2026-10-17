@@ -136,7 +136,13 @@ describe('LabController', () => {
             submitResults: jest.fn(),
           },
         },
-        { provide: ResultsService, useValue: { releaseReport: jest.fn() } },
+        {
+          provide: ResultsService,
+          useValue: {
+            findLabReport: jest.fn(),
+            findLabReportByOrder: jest.fn(),
+          },
+        },
         {
           provide: WorklistService,
           useValue: {

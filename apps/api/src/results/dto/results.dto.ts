@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUrl,
   Matches,
   MaxLength,
   ArrayMaxSize,
@@ -301,11 +300,6 @@ export class SaveAnalytesDto {
 }
 
 // ---------------------------------------------------------------------------
-// POST /results/reports/:id/release
-// Release the report — computes flags, freezes values, completes the case.
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // POST /results/reports/:id/interpret
 // Get or create AI interpretation for a released report — clinic-facing.
 // ---------------------------------------------------------------------------
@@ -371,56 +365,4 @@ export class AiInterpretationResponseDto {
 
   @ApiProperty()
   updatedAt!: Date;
-}
-
-// ---------------------------------------------------------------------------
-
-export class ReleaseReportDto {
-  @ApiPropertyOptional({
-    example: 'Tipo de muestra: sangre entera anticoagulada con EDTA.',
-  })
-  @IsOptional()
-  @IsString()
-  observations?: string;
-
-  @ApiPropertyOptional({ example: 'Karina Martinez' })
-  @IsOptional()
-  @IsString()
-  processedByName?: string;
-
-  @ApiPropertyOptional({ example: 'Analista de Laboratorio' })
-  @IsOptional()
-  @IsString()
-  processedByRole?: string;
-
-  @ApiPropertyOptional({
-    example: 'Microbióloga\nUniversidad del Valle',
-  })
-  @IsOptional()
-  @IsString()
-  processedByCredentials?: string;
-
-  @ApiPropertyOptional({ example: 'John Doe' })
-  @IsOptional()
-  @IsString()
-  approvedByName?: string;
-
-  @ApiPropertyOptional({ example: 'Jefe de Laboratorio y Calidad' })
-  @IsOptional()
-  @IsString()
-  approvedByRole?: string;
-
-  @ApiPropertyOptional({
-    example: 'Bacteriólogo y Laboratorista Clínico\nUniversidad del Valle',
-  })
-  @IsOptional()
-  @IsString()
-  approvedByCredentials?: string;
-
-  @ApiPropertyOptional({
-    example: 'https://storage.example.com/signatures/Martinez.png',
-  })
-  @IsOptional()
-  @IsUrl()
-  signatureUrl?: string;
 }

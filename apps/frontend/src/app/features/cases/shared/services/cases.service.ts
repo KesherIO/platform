@@ -1,13 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, delay, tap, map, catchError, take } from 'rxjs';
+import { Observable, of, tap, map, catchError, take } from 'rxjs';
 import {
   CaseModel,
   CaseStatus,
   PatientSpecies,
   PatientSex,
   AgeUnit,
-  ResultReportModel,
   AiInterpretationModel,
   ClinicReleasedResultsModel,
   ClinicOrderReleasesModel,
@@ -15,7 +14,6 @@ import {
   OrderPriority,
 } from '@vet-ai/shared-types';
 import { TenantService } from '../../../../core/services/tenant.service';
-import { MOCK_REPORT, MOCK_DELAY } from './cases.mocks';
 
 @Injectable({ providedIn: 'root' })
 export class CasesService {
@@ -192,16 +190,6 @@ export class CasesService {
       tap(() => {
         if (this.activeCase()?.id === id) this.activeCase.set(null);
       })
-    );
-  }
-
-  getReportByOrderId(orderId: string): Observable<ResultReportModel> {
-    if (orderId === 'ORD-0002') {
-      return of(MOCK_REPORT).pipe(delay(MOCK_DELAY));
-    }
-    return this.http.get<ResultReportModel>(
-      `/api/results/by-order/${orderId}`,
-      this.tenantHeaders
     );
   }
 

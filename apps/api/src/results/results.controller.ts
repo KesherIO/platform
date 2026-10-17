@@ -36,7 +36,6 @@ import {
   ImportTemplateDto,
   CreateReportDto,
   SaveAnalytesDto,
-  ReleaseReportDto,
 } from './dto/results.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -163,44 +162,6 @@ export class ResultsController {
   })
   saveAnalytes(@Param('id') id: string, @Body() body: SaveAnalytesDto) {
     return this.resultsService.saveAnalytes(id, body);
-  }
-
-  // ---------------------------------------------------------------------------
-  // POST /results/reports/:id/release
-  // Release a DRAFT report — lab internal.
-  // Computes flags, freezes values, advances case to COMPLETED.
-  // ---------------------------------------------------------------------------
-
-  @Post('reports/:id/release')
-  @Public()
-  @UseGuards(InternalApiKeyGuard)
-  @HttpCode(HttpStatus.OK)
-  @ApiSecurity('x-internal-api-key')
-  @ApiHeader({
-    name: 'x-internal-api-key',
-    description: 'KesherIO internal API key',
-    required: true,
-  })
-  @ApiOperation({ summary: 'Release a result report — lab internal only' })
-  releaseReport(@Param('id') id: string, @Body() body: ReleaseReportDto) {
-    return this.resultsService.releaseReport(id, body);
-  }
-
-  // ---------------------------------------------------------------------------
-  // GET /results/by-order/:orderId
-  // Clinic reads the released result for one of their orders — tenant-scoped.
-  // ---------------------------------------------------------------------------
-
-  @Get('by-order/:orderId')
-  @ApiBearerAuth()
-  @ApiSecurity('x-tenant-id')
-  @UseGuards(TenantGuard)
-  @ApiOperation({ summary: 'Get the result report for an order (clinic view)' })
-  findReportByOrderId(
-    @CurrentTenant() tenant: TenantContext,
-    @Param('orderId') orderId: string
-  ) {
-    return this.resultsService.findReportByOrderId(tenant.tenantId, orderId);
   }
 
   // ---------------------------------------------------------------------------
