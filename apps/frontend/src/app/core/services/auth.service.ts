@@ -19,6 +19,7 @@ import {
 } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { TenantService } from './tenant.service';
+import { PushSubscriptionService } from './push-subscription.service';
 
 // Captured at module-load time, before the Supabase SDK initialises and clears the hash.
 const initialHash = window.location.hash;
@@ -88,6 +89,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly tenantService = inject(TenantService);
+  private readonly pushSubscriptions = inject(PushSubscriptionService);
 
   private readonly supabase: SupabaseClient = createClient(
     environment.supabaseUrl,
@@ -349,7 +351,9 @@ export class AuthService {
    * we still clear locally and navigate to login.
    */
   signOut(): Observable<void> {
-    return this.http.post('/api/auth/sign-out', {}).pipe(
+    // Stop browser pushes for this user first — removing the subscription needs the session
+    return this.pushSubscriptions.removeForSignOut().pipe(
+      switchMap(() => this.http.post('/api/auth/sign-out', {})),
       catchError(() => of(null)), // non-fatal — proceed with client-side sign-out
       switchMap(() => from(this.supabase.auth.signOut())),
       switchMap(({ error }: { error: AuthError | null }) => {

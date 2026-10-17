@@ -215,6 +215,46 @@ describe('TenantService', () => {
     });
   });
 
+  describe('switchContext()', () => {
+    const twoClinics = () =>
+      makeMe([
+        makeMembership('t1', 'Clinic A', 'VET'),
+        makeMembership('t2', 'Clinic B', 'ADMIN'),
+      ]);
+
+    it('switches clinic and clears caches without navigating', () => {
+      const cleaner = vi.fn();
+      service.registerCacheCleaner(cleaner);
+      localStorage.setItem('kesherio:active-clinic:u1', 't1');
+      service.resolve(twoClinics());
+
+      expect(service.switchContext('t2')).toBe(true);
+
+      expect(service.activeTenantId()).toBe('t2');
+      expect(localStorage.getItem('kesherio:active-clinic:u1')).toBe('t2');
+      expect(cleaner).toHaveBeenCalledOnce();
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op for the clinic already active', () => {
+      const cleaner = vi.fn();
+      service.registerCacheCleaner(cleaner);
+      localStorage.setItem('kesherio:active-clinic:u1', 't1');
+      service.resolve(twoClinics());
+
+      expect(service.switchContext('t1')).toBe(true);
+      expect(cleaner).not.toHaveBeenCalled();
+    });
+
+    it("refuses a clinic the user doesn't belong to", () => {
+      localStorage.setItem('kesherio:active-clinic:u1', 't1');
+      service.resolve(twoClinics());
+
+      expect(service.switchContext('other')).toBe(false);
+      expect(service.activeTenantId()).toBe('t1');
+    });
+  });
+
   describe('clearSelection()', () => {
     it('resets in-memory state', () => {
       const me = makeMe([makeMembership('t1', 'Clinic A', 'VET')]);

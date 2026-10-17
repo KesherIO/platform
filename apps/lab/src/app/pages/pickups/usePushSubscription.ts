@@ -67,3 +67,25 @@ export function usePushSubscription(enabled: boolean) {
     };
   }, [enabled]);
 }
+
+/**
+ * On sign-out: stop pushes to this browser for the user leaving — the API
+ * subscription goes first (it needs the session), then the browser's.
+ * Soft-fails like subscribing: signing out must never be blocked by push.
+ */
+export async function removeBrowserPushSubscription(): Promise<void> {
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    const registration = await navigator.serviceWorker.getRegistration(
+      '/sw.js'
+    );
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return;
+    await labApi.messengers
+      .removePushSubscription(subscription.endpoint)
+      .catch(() => undefined);
+    await subscription.unsubscribe();
+  } catch {
+    // Nothing to clean up
+  }
+}

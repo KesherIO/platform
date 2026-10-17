@@ -666,5 +666,31 @@
     "CPF": "CPF",
     "RFC": "RFC",
     "OTHER": "Otro"
+  },
+  "NOTIFICATIONS": {
+    "BELL": "Notificaciones",
+    "BELL_UNREAD": "Notificaciones ({{count}} sin leer)",
+    "TITLE": "Notificaciones",
+    "MARK_ALL_READ": "Marcar todas como leídas",
+    "EMPTY": "Aún no tienes notificaciones.",
+    "LOAD_MORE": "Cargar más",
+    "LOAD_ERROR": "No se pudieron cargar las notificaciones.",
+    "UNREAD": "Sin leer",
+    "OTHER_CLINIC_UNREAD": "{{count}} sin leer",
+    "ENABLE_PUSH": "Activar notificaciones del navegador",
+    "PUSH_ENABLED": "Las notificaciones del navegador están activas en este dispositivo.",
+    "PUSH_BLOCKED": "Las notificaciones están bloqueadas en la configuración del navegador.",
+    "PUSH_ERROR": "No se pudieron activar las notificaciones del navegador.",
+    "TYPES": {
+      "TESTS_ADDED": "El laboratorio agregó pruebas a {{req}}",
+      "TESTS_ADDED_SAMPLE": "El laboratorio agregó pruebas a {{req}} — se necesita otra muestra",
+      "ADDITIONAL_SAMPLE_REQUIRED": "El laboratorio necesita otra muestra para {{req}}",
+      "RESULTS_RELEASED_PARTIAL": "Resultados parciales disponibles para {{req}}",
+      "RESULTS_RELEASED_FINAL": "Todos los resultados disponibles para {{req}}",
+      "RESULTS_AMENDED": "El laboratorio corrigió resultados de {{req}}",
+      "PICKUP_ASSIGNED": "Recolección {{req}} asignada",
+      "PICKUP_UNASSIGNED": "Recolección {{req}} reasignada",
+      "PICKUP_CANCELLED": "Recolección {{req}} cancelada"
+    }
   }
 }
