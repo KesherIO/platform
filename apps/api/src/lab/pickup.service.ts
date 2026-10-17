@@ -76,7 +76,8 @@ export class PickupService {
     orderId: string,
     labTenantId: string,
     clinicTenantId: string,
-    clinicTenant: {
+    // The lab's collection settings for this clinic (ClinicLabConnection)
+    collectionSettings: {
       pickupAddress: string | null;
       pickupContactName: string | null;
       pickupContactPhone: string | null;
@@ -90,10 +91,10 @@ export class PickupService {
         labTenantId,
         clinicTenantId,
         priority,
-        pickupAddress: clinicTenant.pickupAddress,
-        pickupContactName: clinicTenant.pickupContactName,
-        pickupContactPhone: clinicTenant.pickupContactPhone,
-        pickupInstructions: clinicTenant.pickupInstructions,
+        pickupAddress: collectionSettings.pickupAddress,
+        pickupContactName: collectionSettings.pickupContactName,
+        pickupContactPhone: collectionSettings.pickupContactPhone,
+        pickupInstructions: collectionSettings.pickupInstructions,
       },
     });
 

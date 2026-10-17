@@ -1061,7 +1061,10 @@ describe('OnboardingService', () => {
           user: { create: jest.fn() },
           userTenantMembership: { create: jest.fn().mockResolvedValue({}) },
           onboardingToken: { update: jest.fn().mockResolvedValue({}) },
-          clinicLabConnection: { findFirst: jest.fn().mockResolvedValue(null) },
+          clinicLabConnection: {
+            findFirst: jest.fn().mockResolvedValue(null),
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
           veterinarianProfile: {
             findUnique: jest.fn().mockResolvedValue(null),
           },
@@ -1129,10 +1132,10 @@ describe('OnboardingService', () => {
         expect(auth.deleteSupabaseUserByEmail).not.toHaveBeenCalled();
         expect(mockTx.user.create).not.toHaveBeenCalled();
         expect(mockTx.tenant.update).toHaveBeenCalledWith(
-          expect.objectContaining({
-            where: { id: 'existing-tenant-id' },
-            data: expect.objectContaining({ clientStatus: 'ACTIVE' }),
-          })
+          expect.objectContaining({ where: { id: 'existing-tenant-id' } })
+        );
+        expect(mockTx.clinicLabConnection.updateMany).toHaveBeenCalledWith(
+          expect.objectContaining({ data: { status: 'ACTIVE' } })
         );
         expect(mockTx.userTenantMembership.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
@@ -1209,7 +1212,27 @@ describe('OnboardingService', () => {
         // city, country and primaryContactName all keep the lab's values.
         expect(mockTx.tenant.update.mock.calls[0][0].data).toEqual({
           notificationMethod: 'email',
-          clientStatus: 'ACTIVE',
+        });
+      });
+
+      it("activates only the inviting lab's pending connection, so a suspension holds", async () => {
+        prisma.onboardingToken.findUnique.mockResolvedValue(labToken);
+        prisma.user.findUnique.mockResolvedValue(null);
+        auth.createSupabaseUser.mockResolvedValue('new-supabase-uid');
+        const mockTx = makeReOnboardingTx();
+        prisma.$transaction.mockImplementation(
+          (cb: (tx: typeof mockTx) => Promise<unknown>) => cb(mockTx)
+        );
+
+        await service.completeAdminOnboarding(untouchedDto);
+
+        expect(mockTx.clinicLabConnection.updateMany).toHaveBeenCalledWith({
+          where: {
+            clinicId: 'existing-tenant-id',
+            labId: 'lab-1',
+            status: 'PENDING',
+          },
+          data: { status: 'ACTIVE' },
         });
       });
 
@@ -1230,7 +1253,6 @@ describe('OnboardingService', () => {
         expect(mockTx.tenant.update.mock.calls[0][0].data).toEqual({
           phone: '+57 310 999 8888',
           notificationMethod: 'email',
-          clientStatus: 'ACTIVE',
         });
       });
 

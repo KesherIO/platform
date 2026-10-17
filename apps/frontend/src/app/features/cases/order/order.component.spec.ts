@@ -3,7 +3,8 @@ import { OrderComponent } from './order.component';
 import { CasesService } from '../shared/services/cases.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { TenantService } from '../../../core/services/tenant.service';
 import { signal } from '@angular/core';
 import { CaseStatus, PatientSpecies, AgeUnit } from '@vet-ai/shared-types';
 
@@ -46,8 +47,16 @@ describe('OrderComponent', () => {
     getEligibleVets: ReturnType<typeof vi.fn>;
   };
   let routerSpy: { navigate: ReturnType<typeof vi.fn> };
+  let tenantSpy: {
+    labServicesSuspended: ReturnType<typeof signal<boolean>>;
+    markLabServicesSuspended: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
+    tenantSpy = {
+      labServicesSuspended: signal(false),
+      markLabServicesSuspended: vi.fn(),
+    };
     casesServiceSpy = {
       getCase: vi.fn().mockReturnValue(of(MOCK_CASE_TRIAGED)),
       createOrder: vi.fn().mockReturnValue(of(ORDER_RESULT)),
@@ -67,6 +76,7 @@ describe('OrderComponent', () => {
         provideTranslateService({ defaultLanguage: 'en' }),
         { provide: CasesService, useValue: casesServiceSpy },
         { provide: Router, useValue: routerSpy },
+        { provide: TenantService, useValue: tenantSpy },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => 'c2' } } },
@@ -102,6 +112,31 @@ describe('OrderComponent', () => {
         state: expect.objectContaining({ orderId: 'ORD-1234' }),
       })
     );
+  });
+
+  it('cannot submit while the lab has suspended services', () => {
+    tenantSpy.labServicesSuspended.set(true);
+    const fixture = TestBed.createComponent(OrderComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.generateRequisition();
+
+    expect(fixture.componentInstance.canSubmitOrder()).toBe(false);
+    expect(casesServiceSpy.createOrder).not.toHaveBeenCalled();
+  });
+
+  it('a suspension refusal mid-session turns on the shell banner', () => {
+    casesServiceSpy.createOrder.mockReturnValue(
+      throwError(() => ({ error: { code: 'LAB_SERVICES_SUSPENDED' } }))
+    );
+    const fixture = TestBed.createComponent(OrderComponent);
+    fixture.detectChanges();
+
+    fixture.componentInstance.generateRequisition();
+
+    expect(tenantSpy.markLabServicesSuspended).toHaveBeenCalled();
+    expect(fixture.componentInstance.sending()).toBe(false);
+    expect(routerSpy.navigate).not.toHaveBeenCalled();
   });
 
   it('cancelCase() calls cancelCase service', () => {

@@ -31,6 +31,7 @@ function makeTenantService(overrides: Record<string, unknown> = {}) {
       () => clinics().find((m) => m.tenant.id === activeTenantId()) ?? null
     ),
     hasMultipleClinics: computed(() => clinics().length > 1),
+    labServicesSuspended: signal(false),
     selectClinic: vi.fn(),
     ...overrides,
   };

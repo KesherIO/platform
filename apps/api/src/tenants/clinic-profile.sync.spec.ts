@@ -95,7 +95,14 @@ function makeStore() {
       }),
     },
     clinicLabConnection: {
-      create: jest.fn(async ({ data }: Row) => connections.push({ ...data })),
+      create: jest.fn(async ({ data }: Row) =>
+        connections.push({ id: `conn-${nextId++}`, ...data })
+      ),
+      update: jest.fn(async ({ where, data, select }: Row) => {
+        const row = connections.find((c) => c.id === where.id) ?? {};
+        Object.assign(row, data);
+        return project(row, select);
+      }),
       findFirst: jest.fn(
         async ({ where }: Row) =>
           connections.find((c) => matches(c, where)) ?? null
@@ -104,6 +111,11 @@ function makeStore() {
         async ({ where }: Row) =>
           connections.filter((c) => matches(c, where)).length
       ),
+      updateMany: jest.fn(async ({ where, data }: Row) => {
+        const found = connections.filter((c) => matches(c, where));
+        for (const c of found) Object.assign(c, data);
+        return { count: found.length };
+      }),
       deleteMany: jest.fn(async ({ where }: Row) => {
         const keep = connections.filter((c) => !matches(c, where));
         connections.splice(0, connections.length, ...keep);
@@ -184,7 +196,7 @@ function makeStore() {
     ),
   };
 
-  return { prisma, tenants, tokens, memberships, orders };
+  return { prisma, tenants, tokens, connections, memberships, orders };
 }
 
 /** Raw token from an onboarding link like `/onboarding/welcome?token=abc`. */
@@ -300,6 +312,23 @@ describe('Shared clinic profile across lab portal, onboarding and clinic app', (
       ...LAB_ENTERED_DETAIL,
     });
     expect(store.tenants.size).toBe(2); // lab + this clinic — no duplicate
+  });
+
+  it('a lab suspension made before onboarding survives its completion', async () => {
+    const { clientId, onboardingLink } = await lab.createClient(
+      LAB_ID,
+      LAB_ENTERED,
+      'lab-user'
+    );
+    const token = tokenFromLink(onboardingLink);
+    await lab.suspendClient(LAB_ID, clientId);
+    await onboarding.verifyOnboardingToken(token);
+
+    await onboarding.completeAdminOnboarding(untouchedCompletion(token));
+
+    expect(await lab.getClientDetail(LAB_ID, clientId)).toMatchObject({
+      status: 'SUSPENDED',
+    });
   });
 
   it('onboarding writes only what the admin changed and keeps the rest', async () => {
@@ -425,7 +454,9 @@ describe('Shared clinic profile across lab portal, onboarding and clinic app', (
 
       expect(clinicSession.createSupabaseUser).not.toHaveBeenCalled();
       expect(store.tenants.get(clientId)).toMatchObject({ country: 'CO' });
-      expect(store.tenants.get(clientId)?.clientStatus).not.toBe('ACTIVE');
+      expect(
+        store.connections.find((c) => c.clinicId === clientId)?.status
+      ).toBe('PENDING');
     });
 
     it('onboarding accepts a new country together with an ID type of that country', async () => {

@@ -184,6 +184,10 @@
     "ROLE_TECHNICIAN": "Veterinary Technician",
     "ROLE_RECEPTIONIST": "Receptionist"
   },
+  "LAB_SUSPENDED": {
+    "TITLE": "Lab services suspended",
+    "BODY": "Your lab has suspended services for this clinic: you can't send new orders or request AI analysis. Your orders, results, reports and saved analysis remain available. Contact the lab to reactivate them."
+  },
   "PWA": {
     "INSTALL_TITLE": "Add to your home screen",
     "INSTALL_BODY": "Install the app for quick access from your phone.",
@@ -546,6 +550,8 @@
       "BUTTON": "Interpret with AI",
       "LOADING": "Generating AI interpretation...",
       "RETRY": "Retry",
+      "SUSPENDED_TITLE": "AI analysis unavailable",
+      "SUSPENDED_BODY": "The lab has suspended services for your clinic, so new analysis can't be generated. Results and reports remain available.",
       "ERROR": "Could not generate AI interpretation. Please try again.",
       "TITLE": "AI Clinical Interpretation",
       "BADGE": "AI-generated",

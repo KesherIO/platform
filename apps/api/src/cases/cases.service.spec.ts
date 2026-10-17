@@ -3,6 +3,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CasesService } from './cases.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TriageService } from '../triage/triage.service';
+import { LAB_SERVICES_SUSPENDED } from '../tenants/lab-services.util';
 import { CaseStatus, PatientSpecies } from '@vet-ai/shared-types';
 import type { CreateCaseDto, SendOrderDto } from './dto/cases.dto';
 
@@ -604,6 +605,20 @@ describe('CasesService', () => {
       const updateData = prisma.case.update.mock.calls[0][0].data;
       expect(updateData).toHaveProperty('triageResult');
       expect(updateData).toHaveProperty('suggestedCatalogItemIds');
+    });
+
+    it("refuses while the clinic's lab has suspended services, without calling the AI", async () => {
+      prisma.case.findFirst.mockResolvedValue(
+        makeCase({ symptoms: 'Vomiting for 2 days' })
+      );
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        status: 'SUSPENDED',
+      });
+
+      await expect(
+        service.runAiTriage('tenant-1', 'case-1')
+      ).rejects.toMatchObject({ response: { code: LAB_SERVICES_SUSPENDED } });
+      expect(prisma.case.update).not.toHaveBeenCalled();
     });
 
     it('throws BadRequestException when symptoms is null', async () => {

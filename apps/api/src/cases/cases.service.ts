@@ -7,6 +7,7 @@ import { CaseStatus, PatientSex, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CatalogItemModel } from '@vet-ai/shared-types';
 import { TriageService } from '../triage/triage.service';
+import { LabServicesSuspendedException } from '../tenants/lab-services.util';
 import {
   CreateCaseDto,
   UpdatePatientInfoDto,
@@ -298,6 +299,17 @@ export class CasesService {
       throw new BadRequestException(
         'Cannot run AI triage without symptoms. Add symptoms first.'
       );
+    }
+
+    // Triage suggests tests from the clinic's lab catalog — an AI service
+    // through that lab, refused while it has suspended services
+    const labConnection = await this.prisma.clinicLabConnection.findFirst({
+      where: { clinicId: tenantId, isActive: true },
+      orderBy: { isDefault: 'desc' },
+      select: { status: true },
+    });
+    if (labConnection?.status === 'SUSPENDED') {
+      throw new LabServicesSuspendedException();
     }
 
     const aiResult = await this.triageService.analyze(

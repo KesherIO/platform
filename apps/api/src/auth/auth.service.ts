@@ -268,9 +268,11 @@ export class AuthService {
                 taxId: true,
                 logoUrl: true,
                 primaryColor: true,
+                // The lab orders go to — same pick as order creation
                 clinicConnections: {
                   where: { isActive: true },
-                  select: { labId: true },
+                  orderBy: { isDefault: 'desc' },
+                  select: { labId: true, status: true },
                   take: 1,
                 },
               },
@@ -310,7 +312,8 @@ export class AuthService {
     }
 
     const memberships = clinicMemberships.map((m) => {
-      const labId = m.tenant.clinicConnections[0]?.labId ?? null;
+      const labConnection = m.tenant.clinicConnections[0];
+      const labId = labConnection?.labId ?? null;
       const verification = labId
         ? verificationsByLabId.get(labId) ?? null
         : null;
@@ -321,6 +324,8 @@ export class AuthService {
         isOrderingVet: m.isOrderingVet,
         createdAt: m.createdAt,
         tenant,
+        // The clinic app shows its suspension notice and disables ordering
+        labServicesSuspended: labConnection?.status === 'SUSPENDED',
         vetVerification: m.isOrderingVet
           ? verification
             ? {

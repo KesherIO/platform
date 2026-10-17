@@ -2,6 +2,14 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import type { MeResponse } from './auth.service';
 
+/** The API refused because the clinic's lab suspended services. */
+export function isLabServicesSuspendedError(err: unknown): boolean {
+  return (
+    (err as { error?: { code?: string } } | null)?.error?.code ===
+    'LAB_SERVICES_SUSPENDED'
+  );
+}
+
 function storageKey(userId: string): string {
   return `kesherio:active-clinic:${userId}`;
 }
@@ -27,9 +35,24 @@ export class TenantService {
 
   readonly hasMultipleClinics = computed(() => this._clinics().length > 1);
 
+  /** The active clinic's lab has suspended services for it. */
+  readonly labServicesSuspended = computed(
+    () => this.activeMembership()?.labServicesSuspended ?? false
+  );
+
   readonly needsClinicSelection = computed(
     () => this._clinics().length > 1 && this._activeTenantId() === null
   );
+
+  /** A request was refused mid-session — show the notice without a reload. */
+  markLabServicesSuspended(): void {
+    const id = this._activeTenantId();
+    this._clinics.update((clinics) =>
+      clinics.map((m) =>
+        m.tenant.id === id ? { ...m, labServicesSuspended: true } : m
+      )
+    );
+  }
 
   registerCacheCleaner(fn: () => void): void {
     this.cacheCleaners.push(fn);

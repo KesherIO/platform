@@ -3,7 +3,8 @@ import { SymptomsComponent } from './symptoms.component';
 import { CasesService } from '../shared/services/cases.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { TenantService } from '../../../core/services/tenant.service';
 import { signal } from '@angular/core';
 import { CaseStatus, PatientSpecies, AgeUnit } from '@vet-ai/shared-types';
 
@@ -29,8 +30,16 @@ describe('SymptomsComponent', () => {
     activeCase: ReturnType<typeof signal>;
   };
   let routerSpy: { navigate: ReturnType<typeof vi.fn> };
+  let tenantSpy: {
+    labServicesSuspended: ReturnType<typeof signal<boolean>>;
+    markLabServicesSuspended: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
+    tenantSpy = {
+      labServicesSuspended: signal(false),
+      markLabServicesSuspended: vi.fn(),
+    };
     casesServiceSpy = {
       getCase: vi.fn().mockReturnValue(of(MOCK_CASE)),
       updateSymptoms: vi.fn().mockReturnValue(of(MOCK_CASE)),
@@ -47,6 +56,7 @@ describe('SymptomsComponent', () => {
         provideTranslateService({ defaultLanguage: 'en' }),
         { provide: CasesService, useValue: casesServiceSpy },
         { provide: Router, useValue: routerSpy },
+        { provide: TenantService, useValue: tenantSpy },
         {
           provide: ActivatedRoute,
           useValue: { snapshot: { paramMap: { get: () => 'c1' } } },
@@ -83,6 +93,33 @@ describe('SymptomsComponent', () => {
       'c1',
       'ai-results',
     ]);
+  });
+
+  it('does not run AI triage while the lab has suspended services', () => {
+    tenantSpy.labServicesSuspended.set(true);
+    const fixture = TestBed.createComponent(SymptomsComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.form.patchValue({ symptoms: 'Lethargy' });
+
+    fixture.componentInstance.runAi();
+
+    expect(casesServiceSpy.updateSymptoms).not.toHaveBeenCalled();
+    expect(casesServiceSpy.triggerTriage).not.toHaveBeenCalled();
+  });
+
+  it('a triage refusal mid-session turns on the shell banner', () => {
+    casesServiceSpy.triggerTriage.mockReturnValue(
+      throwError(() => ({ error: { code: 'LAB_SERVICES_SUSPENDED' } }))
+    );
+    const fixture = TestBed.createComponent(SymptomsComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.form.patchValue({ symptoms: 'Lethargy' });
+
+    fixture.componentInstance.runAi();
+
+    expect(tenantSpy.markLabServicesSuspended).toHaveBeenCalled();
+    expect(fixture.componentInstance.runningAi()).toBe(false);
+    expect(routerSpy.navigate).not.toHaveBeenCalled();
   });
 
   it('skipAi() saves symptoms and navigates to test-selection', () => {

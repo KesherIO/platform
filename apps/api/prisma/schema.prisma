@@ -362,8 +362,8 @@ model Tenant {
   name                  String
   type                  TenantType      @default(CLINIC)
   slug                  String          @unique
-  clientType            ClientType?
-  clientStatus          ClientStatus?
+  clientType            ClientType? // what the organization is (clinic, breeder, farm…) — shared by every lab
+  clientStatus          ClientStatus? // DEPRECATED: per lab on ClinicLabConnection.status; drop after prod runs on it
   // Contact & clinic details — collected during onboarding clinic-setup step
   primaryContactName    String?
   address               String?
@@ -384,7 +384,9 @@ model Tenant {
   primaryColor          String?
   mapLat                Float?
   mapLng                Float?
-  // Sample collection settings — snapshotted onto each Pickup at creation time
+  // DEPRECATED sample collection settings: per lab on ClinicLabConnection
+  // (copied by migration 20261017000001); nothing reads them — drop after prod
+  // runs on the new columns
   pickupEnabled         Boolean         @default(false)
   defaultDeliveryMethod DeliveryMethod?
   pickupAddress         String?
@@ -1122,19 +1124,30 @@ model LabSigner {
 /// Explicit connection between a clinic tenant and a lab tenant.
 /// isDefault = true means this is the primary lab for the clinic (MVP: only one).
 /// isActive = false allows soft-disabling without deleting the connection history.
+/// status is this lab's relationship with the clinic: SUSPENDED stops new
+/// orders, pickups and AI through this lab only — history stays readable.
 model ClinicLabConnection {
-  id              String   @id @default(cuid())
-  clinicId        String
-  labId           String
-  isDefault       Boolean  @default(true)
-  isActive        Boolean  @default(true)
-  notes           String? // lab-internal, never shown to the clinic or other labs
+  id                    String          @id @default(cuid())
+  clinicId              String
+  labId                 String
+  isDefault             Boolean         @default(true)
+  isActive              Boolean         @default(true)
+  status                ClientStatus    @default(PENDING)
+  notes                 String? // lab-internal, never shown to the clinic or other labs
+  // Sample collection settings for this lab — snapshotted onto each Pickup at creation time
+  pickupEnabled         Boolean         @default(false)
+  defaultDeliveryMethod DeliveryMethod?
+  pickupAddress         String?
+  pickupContactName     String?
+  pickupContactPhone    String?
+  collectionHours       String?
+  pickupInstructions    String?
   // Set by bulk client import, for safe retries (docs/CLIENT_BULK_IMPORT_PLAN.md A2)
-  importBatchId   String?
-  importRowNumber Int?
-  importRowHash   String? // SHA-256 of the normalized submitted row — detects reuse with different data
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  importBatchId         String?
+  importRowNumber       Int?
+  importRowHash         String? // SHA-256 of the normalized submitted row — detects reuse with different data
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
   clinic Tenant @relation("ClinicConnections", fields: [clinicId], references: [id], onDelete: Cascade)
   lab    Tenant @relation("LabConnections", fields: [labId], references: [id], onDelete: Cascade)

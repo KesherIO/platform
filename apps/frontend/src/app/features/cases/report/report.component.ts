@@ -24,6 +24,10 @@ import {
 import { CasesService } from '../shared/services/cases.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { LanguageService } from '../../../core/services/language.service';
+import {
+  TenantService,
+  isLabServicesSuspendedError,
+} from '../../../core/services/tenant.service';
 
 @Component({
   selector: 'app-report',
@@ -38,6 +42,7 @@ export class ReportComponent implements OnInit {
   private casesService = inject(CasesService);
   private authService = inject(AuthService);
   private languageService = inject(LanguageService);
+  private tenant = inject(TenantService);
 
   loading = signal(true);
   error = signal<string | null>(null);
@@ -73,6 +78,13 @@ export class ReportComponent implements OnInit {
   interpretation = signal<AiInterpretationModel | null>(null);
   isInterpreting = signal(false);
   interpretationError = signal<string | null>(null);
+  private aiRefused = signal(false);
+
+  /** The lab that ran this order suspended services: no new AI analysis.
+   * A saved, current interpretation still shows. */
+  aiSuspended = computed(
+    () => !!this.released()?.labServicesSuspended || this.aiRefused()
+  );
 
   readonly CaseStatus = CaseStatus;
 
@@ -297,9 +309,14 @@ export class ReportComponent implements OnInit {
           this.interpretation.set(result);
           this.isInterpreting.set(false);
         },
-        error: () => {
-          this.interpretationError.set('REPORT.AI_INTERPRETATION.ERROR');
+        error: (err) => {
           this.isInterpreting.set(false);
+          if (isLabServicesSuspendedError(err)) {
+            this.aiRefused.set(true);
+            this.tenant.markLabServicesSuspended();
+            return;
+          }
+          this.interpretationError.set('REPORT.AI_INTERPRETATION.ERROR');
         },
       });
   }

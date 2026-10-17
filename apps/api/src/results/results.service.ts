@@ -21,6 +21,10 @@ import {
   validateTemplateFormulas,
 } from '../lab/formula.util';
 import { toStableCode } from './code-gen.util';
+import {
+  assertLabServicesActive,
+  isLabServicesSuspended,
+} from '../tenants/lab-services.util';
 import type {
   ResultTemplateModel,
   ResultTemplateSectionModel,
@@ -767,6 +771,7 @@ export class ResultsService {
       where: { id: reportId },
       include: {
         tests: { select: { id: true, status: true, latestReleaseId: true } },
+        order: { select: { labTenantId: true } },
       },
     });
     if (!report) throw new NotFoundException('Result report not found.');
@@ -775,6 +780,15 @@ export class ResultsService {
     if (report.status !== 'RELEASED') {
       throw new BadRequestException(
         'AI interpretation is only available for released reports.'
+      );
+    }
+    // A new or regenerated analysis is a service of the lab that ran the
+    // order; a saved current one was already returned above
+    if (report.order.labTenantId) {
+      await assertLabServicesActive(
+        this.prisma,
+        tenantId,
+        report.order.labTenantId
       );
     }
 
@@ -1181,6 +1195,12 @@ export class ResultsService {
     });
     if (!report) throw new NotFoundException('Result report not found.');
 
+    // Results stay readable; the flag lets the clinic explain why new AI
+    // analysis of this order isn't available
+    const labServicesSuspended = order.labTenantId
+      ? await isLabServicesSuspended(this.prisma, tenantId, order.labTenantId)
+      : false;
+
     const allReportTests = await this.prisma.resultReportTest.findMany({
       where: { reportId: report.id },
       select: {
@@ -1213,6 +1233,7 @@ export class ResultsService {
           (t) => t.orderedTest?.catalogItemName ?? 'Unknown'
         ),
         latestReleasedAt: null,
+        labServicesSuspended,
       };
     }
 
@@ -1372,6 +1393,7 @@ export class ResultsService {
         (t) => t.orderedTest?.catalogItemName ?? 'Unknown'
       ),
       latestReleasedAt: latestDate,
+      labServicesSuspended,
     };
   }
 

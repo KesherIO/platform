@@ -10,6 +10,7 @@ import { PickupService } from '../lab/pickup.service';
 import { ReadinessService } from '../lab/readiness.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
+import { LabServicesSuspendedException } from '../tenants/lab-services.util';
 
 /** Statuses from which an order can be placed. */
 const ORDERABLE_STATUSES: CaseStatus[] = [CaseStatus.OPEN, CaseStatus.TRIAGED];
@@ -75,8 +76,20 @@ export class OrdersService {
     const labConnection = await this.prisma.clinicLabConnection.findFirst({
       where: { clinicId: tenantId, isActive: true },
       orderBy: { isDefault: 'desc' },
-      select: { labId: true },
+      select: {
+        labId: true,
+        status: true,
+        pickupAddress: true,
+        pickupContactName: true,
+        pickupContactPhone: true,
+        pickupInstructions: true,
+      },
     });
+    // The lab suspended services for this clinic: no new orders (or pickups)
+    // through it — orders already sent keep flowing
+    if (labConnection?.status === 'SUSPENDED') {
+      throw new LabServicesSuspendedException();
+    }
 
     // 4b — Resolve ordering vet (DTO takes precedence; falls back to case.attendingVetId)
     const orderingVetId = body.orderingVetId ?? c.attendingVetId ?? null;
@@ -303,20 +316,17 @@ export class OrdersService {
     // Skip pickup creation if there's no lab connected to this clinic — the
     // order still gets created, just without a courier workflow attached.
     if (body.deliveryMethod === 'LAB_PICKUP' && labConnection?.labId) {
-      const clinicTenant = await this.prisma.tenant.findUniqueOrThrow({
-        where: { id: tenantId },
-        select: {
-          pickupAddress: true,
-          pickupContactName: true,
-          pickupContactPhone: true,
-          pickupInstructions: true,
-        },
-      });
+      // This lab's collection settings for the clinic, snapshotted on the pickup
       await this.pickupService.createPickup(
         order.id,
         labConnection.labId,
         tenantId,
-        clinicTenant,
+        {
+          pickupAddress: labConnection.pickupAddress,
+          pickupContactName: labConnection.pickupContactName,
+          pickupContactPhone: labConnection.pickupContactPhone,
+          pickupInstructions: labConnection.pickupInstructions,
+        },
         order.priority
       );
     }

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { TenantService } from './tenant.service';
+import { TenantService, isLabServicesSuspendedError } from './tenant.service';
 import { MeResponse } from './auth.service';
 
 function makeMembership(
@@ -232,6 +232,58 @@ describe('TenantService', () => {
     it('writes to localStorage', () => {
       TenantService.savePreference('u1', 't1');
       expect(localStorage.getItem('kesherio:active-clinic:u1')).toBe('t1');
+    });
+  });
+
+  describe('lab services suspension', () => {
+    it("follows the active clinic's flag from /me", () => {
+      service.resolve(
+        makeMe([
+          {
+            ...makeMembership('t1', 'Clinic A', 'VET'),
+            labServicesSuspended: true,
+          },
+        ])
+      );
+
+      expect(service.labServicesSuspended()).toBe(true);
+    });
+
+    it('is off when /me has no flag', () => {
+      service.resolve(makeMe([makeMembership('t1', 'Clinic A', 'VET')]));
+
+      expect(service.labServicesSuspended()).toBe(false);
+    });
+
+    it('can be switched on when a request is refused mid-session', () => {
+      service.resolve(
+        makeMe([
+          makeMembership('t1', 'Clinic A', 'VET'),
+          makeMembership('t2', 'Clinic B', 'VET'),
+        ])
+      );
+      service.selectClinic('t1');
+
+      service.markLabServicesSuspended();
+
+      expect(service.labServicesSuspended()).toBe(true);
+      // Only the active clinic — another clinic's lab is a different relationship
+      expect(
+        service.clinics().find((m) => m.tenant.id === 't2')
+          ?.labServicesSuspended
+      ).toBeUndefined();
+    });
+
+    it('recognizes the API refusal code', () => {
+      expect(
+        isLabServicesSuspendedError({
+          error: { code: 'LAB_SERVICES_SUSPENDED' },
+        })
+      ).toBe(true);
+      expect(isLabServicesSuspendedError({ error: { code: 'OTHER' } })).toBe(
+        false
+      );
+      expect(isLabServicesSuspendedError(null)).toBe(false);
     });
   });
 });

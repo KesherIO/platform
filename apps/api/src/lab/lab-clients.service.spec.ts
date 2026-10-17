@@ -29,6 +29,15 @@ const mockConnection = {
   labId: LAB_ID,
   isActive: true,
   isDefault: true,
+  status: 'ACTIVE',
+  notes: null,
+  pickupEnabled: true,
+  defaultDeliveryMethod: 'LAB_PICKUP',
+  pickupAddress: 'Calle 10 #5-20',
+  pickupContactName: 'Recepción',
+  pickupContactPhone: '+57 300 111 2222',
+  collectionHours: '8–12',
+  pickupInstructions: 'Timbre 2',
 };
 
 const mockClientTenant = {
@@ -37,7 +46,6 @@ const mockClientTenant = {
   slug: 'test-clinic',
   type: 'CLINIC',
   clientType: 'VETERINARY_CLINIC',
-  clientStatus: 'PENDING',
   primaryContactName: 'Dr. Smith',
   email: 'clinic@example.com',
   phone: '+1234567890',
@@ -49,7 +57,7 @@ const mockClientTenant = {
   legalName: 'Test Clinic SAS',
   taxIdType: 'NIT',
   taxId: '900.123.456-7',
-  clinicConnections: [{ notes: 'Pays monthly' }],
+  clinicConnections: [{ notes: 'Pays monthly', status: 'PENDING' }],
   _count: { memberships: 0, orders: 0 },
   memberships: [],
   orders: [],
@@ -177,10 +185,12 @@ describe('LabClientsService', () => {
 
       const [listCall, exportCall] = prisma.tenant.findMany.mock.calls;
       expect(exportCall[0].where).toEqual(listCall[0].where);
-      expect(exportCall[0].where.AND[0]).toMatchObject({
-        clinicConnections: { some: { labId: LAB_ID, isActive: true } },
+      // Status is this lab's connection status, not the clinic's
+      expect(exportCall[0].where.AND[0]).toEqual({
+        clinicConnections: {
+          some: { labId: LAB_ID, isActive: true, status: 'PENDING' },
+        },
         type: 'CLINIC',
-        clientStatus: 'PENDING',
       });
     });
 
@@ -242,9 +252,10 @@ describe('LabClientsService', () => {
       const { rows } = await exportOf({ includeNotes: false });
 
       expect(rows[0]).not.toHaveProperty('notes');
-      expect(prisma.tenant.findMany.mock.calls[0][0].select).not.toHaveProperty(
-        'clinicConnections'
-      );
+      // Only the status is read from the connection — the notes aren't fetched
+      expect(
+        prisma.tenant.findMany.mock.calls[0][0].select.clinicConnections.select
+      ).toEqual({ status: true, notes: false });
     });
 
     it("with includeNotes, returns only this lab's notes", async () => {
@@ -529,12 +540,16 @@ describe('LabClientsService', () => {
           taxIdType: 'NIT',
           taxId: '900.123.456-7',
           taxIdNormalized: '9001234567',
-          clientStatus: 'PENDING',
         })
+      );
+      // Status is per lab: on the connection, not the shared clinic
+      expect(prisma.tenant.create.mock.calls[0][0].data).not.toHaveProperty(
+        'clientStatus'
       );
       expect(prisma.clinicLabConnection.create.mock.calls[0][0].data).toEqual(
         expect.objectContaining({
           labId: LAB_ID,
+          status: 'PENDING',
           notes: 'Referred by Dr. Ruiz',
           importBatchId: null,
           importRowNumber: null,
@@ -609,12 +624,12 @@ describe('LabClientsService', () => {
       expect(result.summary).toMatchObject({ created: 1, failed: 0 });
       expect(prisma.tenant.create.mock.calls[0][0].data).toMatchObject({
         type: 'CLINIC',
-        clientStatus: 'PENDING',
       });
       expect(prisma.clinicLabConnection.create.mock.calls[0][0].data).toEqual(
         expect.objectContaining({
           clinicId: 'new-1',
           labId: LAB_ID,
+          status: 'PENDING',
           notes: 'Comentarios: pays monthly',
           importBatchId: BATCH_ID,
           importRowNumber: 2,
@@ -1171,9 +1186,9 @@ describe('LabClientsService', () => {
 
   describe('suspendClient', () => {
     it('throws BadRequestException if already suspended', async () => {
-      prisma.clinicLabConnection.findFirst.mockResolvedValue(mockConnection);
-      prisma.tenant.findUniqueOrThrow.mockResolvedValue({
-        clientStatus: 'SUSPENDED',
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        ...mockConnection,
+        status: 'SUSPENDED',
       });
 
       await expect(service.suspendClient(LAB_ID, CLIENT_ID)).rejects.toThrow(
@@ -1181,55 +1196,110 @@ describe('LabClientsService', () => {
       );
     });
 
-    it('sets client status to SUSPENDED', async () => {
+    it("suspends only this lab's connection, never the shared clinic", async () => {
       prisma.clinicLabConnection.findFirst.mockResolvedValue(mockConnection);
-      prisma.tenant.findUniqueOrThrow.mockResolvedValue({
-        clientStatus: 'ACTIVE',
-      });
-      prisma.tenant.update.mockResolvedValue({
-        id: CLIENT_ID,
-        clientStatus: 'SUSPENDED',
+      prisma.clinicLabConnection.update.mockResolvedValue({
+        status: 'SUSPENDED',
       });
 
-      await service.suspendClient(LAB_ID, CLIENT_ID);
+      const result = await service.suspendClient(LAB_ID, CLIENT_ID);
 
-      expect(prisma.tenant.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: { clientStatus: 'SUSPENDED' },
-        })
-      );
+      expect(prisma.clinicLabConnection.findFirst).toHaveBeenCalledWith({
+        where: { clinicId: CLIENT_ID, labId: LAB_ID },
+      });
+      expect(prisma.clinicLabConnection.update).toHaveBeenCalledWith({
+        where: { id: 'conn-1' },
+        data: { status: 'SUSPENDED' },
+        select: { status: true },
+      });
+      expect(prisma.tenant.update).not.toHaveBeenCalled();
+      expect(result).toEqual({ id: CLIENT_ID, status: 'SUSPENDED' });
     });
   });
 
   describe('reactivateClient', () => {
     it('throws BadRequestException if not suspended', async () => {
       prisma.clinicLabConnection.findFirst.mockResolvedValue(mockConnection);
-      prisma.tenant.findUniqueOrThrow.mockResolvedValue({
-        clientStatus: 'ACTIVE',
-      });
 
       await expect(service.reactivateClient(LAB_ID, CLIENT_ID)).rejects.toThrow(
         BadRequestException
       );
     });
 
-    it('sets client status to ACTIVE', async () => {
-      prisma.clinicLabConnection.findFirst.mockResolvedValue(mockConnection);
-      prisma.tenant.findUniqueOrThrow.mockResolvedValue({
-        clientStatus: 'SUSPENDED',
+    it('restores an onboarded clinic to ACTIVE', async () => {
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        ...mockConnection,
+        status: 'SUSPENDED',
       });
-      prisma.tenant.update.mockResolvedValue({
-        id: CLIENT_ID,
-        clientStatus: 'ACTIVE',
+      prisma.userTenantMembership.count.mockResolvedValue(2);
+      prisma.clinicLabConnection.update.mockResolvedValue({ status: 'ACTIVE' });
+
+      const result = await service.reactivateClient(LAB_ID, CLIENT_ID);
+
+      expect(prisma.clinicLabConnection.update).toHaveBeenCalledWith({
+        where: { id: 'conn-1' },
+        data: { status: 'ACTIVE' },
+        select: { status: true },
+      });
+      expect(result).toEqual({ id: CLIENT_ID, status: 'ACTIVE' });
+    });
+
+    it('restores a clinic that never finished onboarding to PENDING', async () => {
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        ...mockConnection,
+        status: 'SUSPENDED',
+      });
+      prisma.userTenantMembership.count.mockResolvedValue(0);
+      prisma.clinicLabConnection.update.mockResolvedValue({
+        status: 'PENDING',
       });
 
       await service.reactivateClient(LAB_ID, CLIENT_ID);
 
-      expect(prisma.tenant.update).toHaveBeenCalledWith(
+      expect(prisma.clinicLabConnection.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'PENDING' } })
+      );
+    });
+  });
+
+  describe('updateCollectionSettings', () => {
+    it("saves on this lab's connection, so other labs keep their own", async () => {
+      prisma.clinicLabConnection.findFirst.mockResolvedValue(mockConnection);
+      prisma.clinicLabConnection.update.mockResolvedValue({});
+
+      await service.updateCollectionSettings(LAB_ID, CLIENT_ID, {
+        pickupEnabled: true,
+        pickupAddress: 'Carrera 7 #12-30',
+      });
+
+      expect(prisma.clinicLabConnection.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { clientStatus: 'ACTIVE' },
+          where: { id: 'conn-1' },
+          data: { pickupEnabled: true, pickupAddress: 'Carrera 7 #12-30' },
         })
       );
+      expect(prisma.tenant.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getClientDetail (per-lab fields)', () => {
+    it("returns this lab's status and collection settings", async () => {
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        ...mockConnection,
+        status: 'SUSPENDED',
+      });
+      prisma.tenant.findUniqueOrThrow.mockResolvedValue(mockClientTenant);
+      prisma.tenant.findUnique.mockResolvedValue({ name: 'Lab' });
+      prisma.onboardingToken.findFirst.mockResolvedValue(null);
+
+      const detail = await service.getClientDetail(LAB_ID, CLIENT_ID);
+
+      expect(detail).toMatchObject({
+        status: 'SUSPENDED',
+        pickupEnabled: true,
+        pickupAddress: 'Calle 10 #5-20',
+        pickupInstructions: 'Timbre 2',
+      });
     });
   });
 

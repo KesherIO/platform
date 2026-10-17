@@ -6,7 +6,9 @@ import { ReportComponent } from './report.component';
 import { CasesService } from '../shared/services/cases.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { LanguageService } from '../../../core/services/language.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import {
+  AiInterpretationModel,
   CaseStatus,
   PatientSpecies,
   AgeUnit,
@@ -41,6 +43,7 @@ const mockReleased: ClinicReleasedResultsModel = {
   releasedTests: [],
   pendingTestNames: [],
   latestReleasedAt: '2026-03-29T00:00:00.000Z',
+  labServicesSuspended: false,
 };
 
 const mockReleases: ClinicOrderReleasesModel = {
@@ -94,6 +97,7 @@ describe('ReportComponent', () => {
             getOrderReleases: () => of(mockReleases),
             downloadReleasePdf,
             downloadCurrentReportPdf,
+            interpretReport: vi.fn(),
           },
         },
         {
@@ -192,6 +196,67 @@ describe('ReportComponent', () => {
   it('shows release PDFs, not the current report, when the lab shows amendments', () => {
     expect(component.showAmendments()).toBe(true);
     expect(component.silentReport()).toBeNull();
+  });
+
+  describe('when the lab has suspended services', () => {
+    function showAiTab(): HTMLElement {
+      component.activeTab.set('ai');
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('offers the Interpret button while services are active', () => {
+      const el = showAiTab();
+
+      expect(component.aiSuspended()).toBe(false);
+      expect(el.textContent).toContain('REPORT.AI_INTERPRETATION.BUTTON');
+    });
+
+    it('shows the suspension notice instead of the Interpret button', () => {
+      component.released.set({ ...mockReleased, labServicesSuspended: true });
+
+      const el = showAiTab();
+
+      expect(el.textContent).toContain(
+        'REPORT.AI_INTERPRETATION.SUSPENDED_TITLE'
+      );
+      expect(el.textContent).not.toContain('REPORT.AI_INTERPRETATION.BUTTON');
+    });
+
+    it('still shows a saved interpretation', () => {
+      component.released.set({ ...mockReleased, labServicesSuspended: true });
+      component.interpretation.set({
+        summary: 'Saved summary',
+        flaggedAnalytes: [],
+        risks: [],
+        suggestedNextSteps: [],
+        disclaimer: 'Decision support only.',
+      } as unknown as AiInterpretationModel);
+
+      const el = showAiTab();
+
+      expect(el.textContent).toContain('Saved summary');
+      expect(el.textContent).not.toContain(
+        'REPORT.AI_INTERPRETATION.SUSPENDED_TITLE'
+      );
+    });
+
+    it('a refusal mid-session switches to the notice and the shell banner', () => {
+      const service = TestBed.inject(CasesService) as unknown as {
+        interpretReport: ReturnType<typeof vi.fn>;
+      };
+      service.interpretReport.mockReturnValue(
+        throwError(() => ({ error: { code: 'LAB_SERVICES_SUSPENDED' } }))
+      );
+      const tenant = TestBed.inject(TenantService);
+      const markSuspended = vi.spyOn(tenant, 'markLabServicesSuspended');
+
+      component.interpret();
+
+      expect(component.aiSuspended()).toBe(true);
+      expect(component.interpretationError()).toBeNull();
+      expect(markSuspended).toHaveBeenCalled();
+    });
   });
 
   describe('when the lab keeps amendments silent', () => {

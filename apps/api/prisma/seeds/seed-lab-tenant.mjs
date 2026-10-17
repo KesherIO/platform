@@ -70,6 +70,7 @@ async function main() {
         labId: lab.id,
         isDefault: true,
         isActive: true,
+        status: 'ACTIVE', // seeded clinics are already set up
         updatedAt: new Date(),
       },
       update: {},
