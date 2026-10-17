@@ -43,7 +43,9 @@
   <div class="flex-1 flex justify-center items-center">
     <a
       routerLink="/cases/new"
-      class="relative -translate-y-4 w-14 h-14 rounded-full bg-black flex items-center justify-center shadow-lg border-[3px] border-white"
+      [attr.aria-disabled]="tenant.labServicesSuspended() || null"
+      [attr.tabindex]="tenant.labServicesSuspended() ? -1 : null"
+      class="relative -translate-y-4 w-14 h-14 rounded-full bg-black flex items-center justify-center shadow-lg border-[3px] border-white aria-disabled:pointer-events-none aria-disabled:opacity-40"
       aria-label="{{ 'CASES.NEW_CASE' | translate }}"
     >
       <svg

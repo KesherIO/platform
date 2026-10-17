@@ -212,6 +212,17 @@ describe('CasesService', () => {
       );
     });
 
+    it("refuses while the clinic's lab has suspended services", async () => {
+      prisma.clinicLabConnection.findFirst.mockResolvedValue({
+        status: 'SUSPENDED',
+      });
+
+      await expect(
+        service.createCase('tenant-1', 'user-1', CREATE_DTO)
+      ).rejects.toMatchObject({ response: { code: LAB_SERVICES_SUSPENDED } });
+      expect(prisma.case.create).not.toHaveBeenCalled();
+    });
+
     it('scopes the case to the provided tenantId', async () => {
       prisma.case.create.mockResolvedValue(makeCase());
 

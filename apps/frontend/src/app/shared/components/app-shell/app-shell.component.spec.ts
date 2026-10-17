@@ -90,6 +90,23 @@ describe('AppShellComponent', () => {
     expect(component.clinicName()).toBe('Clinic A');
   });
 
+  it('"New case" is a normal link while lab services are active', () => {
+    setup();
+    const link = fixture.nativeElement.querySelector(
+      'aside a[href="/cases/new"]'
+    );
+    expect(link?.getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('disables "New case" while the lab has suspended services', () => {
+    setup({ labServicesSuspended: signal(true) });
+    const link = fixture.nativeElement.querySelector(
+      'aside a[href="/cases/new"]'
+    );
+    expect(link?.getAttribute('aria-disabled')).toBe('true');
+    expect(link?.getAttribute('tabindex')).toBe('-1');
+  });
+
   it('hides clinic switcher chevron for single clinic', () => {
     setup();
     const sidebar = fixture.nativeElement.querySelector('aside');

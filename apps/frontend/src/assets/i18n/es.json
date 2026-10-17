@@ -186,7 +186,7 @@
   },
   "LAB_SUSPENDED": {
     "TITLE": "Servicios del laboratorio suspendidos",
-    "BODY": "Tu laboratorio suspendió los servicios para esta clínica: no puedes enviar órdenes nuevas ni solicitar análisis con IA. Tus órdenes, resultados, reportes y análisis guardados siguen disponibles. Comunícate con el laboratorio para reactivarlos."
+    "BODY": "Tu laboratorio suspendió los servicios para esta clínica: no puedes crear casos ni enviar órdenes nuevas, ni solicitar análisis con IA. Tus órdenes, resultados, reportes y análisis guardados siguen disponibles. Comunícate con el laboratorio para reactivarlos."
   },
   "PWA": {
     "INSTALL_TITLE": "Agrega a tu pantalla de inicio",

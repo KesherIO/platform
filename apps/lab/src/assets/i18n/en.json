@@ -688,7 +688,7 @@
       "reactivate": "Reactivate services",
       "delete": "Delete client",
       "confirm_suspend_title": "Suspend services?",
-      "confirm_suspend": "{{name}} won't be able to send new orders, request pickups or ask for AI analysis through this lab. Orders in progress continue, and its history (orders, results, PDF reports and saved analysis) stays available. Its other labs are not affected.",
+      "confirm_suspend": "{{name}} won't be able to create cases, send new orders, request pickups or ask for AI analysis through this lab. Orders in progress continue, and its history (orders, results, PDF reports and saved analysis) stays available. Its other labs are not affected.",
       "confirm_delete_title": "Delete client?",
       "confirm_delete": "Delete {{name}}? This cannot be undone. Only clients with no orders can be deleted.",
       "back": "← Clients"

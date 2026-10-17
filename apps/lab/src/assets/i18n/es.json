@@ -688,7 +688,7 @@
       "reactivate": "Reactivar servicios",
       "delete": "Eliminar cliente",
       "confirm_suspend_title": "¿Suspender servicios?",
-      "confirm_suspend": "{{name}} no podrá enviar órdenes nuevas, pedir recolecciones ni solicitar análisis con IA a este laboratorio. Las órdenes en curso continúan y su historial (órdenes, resultados, reportes PDF y análisis guardados) sigue disponible. Sus otros laboratorios no se ven afectados.",
+      "confirm_suspend": "{{name}} no podrá crear casos, enviar órdenes nuevas, pedir recolecciones ni solicitar análisis con IA a este laboratorio. Las órdenes en curso continúan y su historial (órdenes, resultados, reportes PDF y análisis guardados) sigue disponible. Sus otros laboratorios no se ven afectados.",
       "confirm_delete_title": "¿Eliminar cliente?",
       "confirm_delete": "¿Eliminar a {{name}}? Esta acción no se puede deshacer. Solo se pueden eliminar clientes sin órdenes.",
       "back": "← Clientes"

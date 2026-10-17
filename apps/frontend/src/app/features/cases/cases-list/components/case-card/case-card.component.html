@@ -102,8 +102,9 @@
       <div class="border-t border-gray-100 mt-1 pt-1">
         <button
           type="button"
+          [disabled]="tenant.labServicesSuspended()"
           (click)="navigateNewCaseForPatient()"
-          class="menu-item"
+          class="menu-item disabled:opacity-40"
         >
           {{ 'CASES.MENU.NEW_CASE_FOR_PATIENT' | translate }}
         </button>

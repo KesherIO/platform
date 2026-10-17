@@ -38,7 +38,9 @@
       <p class="text-sm text-gray-500">{{ 'CASES.EMPTY_BODY' | translate }}</p>
       <a
         routerLink="/cases/new"
-        class="mt-2 bg-black text-cyan text-sm font-medium px-5 py-2.5 rounded-full hover:bg-gray-900 transition-colors"
+        [attr.aria-disabled]="tenant.labServicesSuspended() || null"
+        [attr.tabindex]="tenant.labServicesSuspended() ? -1 : null"
+        class="mt-2 bg-black text-cyan text-sm font-medium px-5 py-2.5 rounded-full hover:bg-gray-900 transition-colors aria-disabled:pointer-events-none aria-disabled:opacity-40"
       >
         {{ 'CASES.NEW_CASE' | translate }}
       </a>
