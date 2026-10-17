@@ -12,5 +12,4 @@ export const ROLES_KEY = 'roles';
  * @Delete(':id')
  * remove(...) { ... }
  */
-export const Roles = (...roles: TenantRole[]) =>
-  SetMetadata(ROLES_KEY, roles);
+export const Roles = (...roles: TenantRole[]) => SetMetadata(ROLES_KEY, roles);

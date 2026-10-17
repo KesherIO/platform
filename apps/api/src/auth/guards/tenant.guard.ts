@@ -14,6 +14,13 @@ import {
   TenantRole,
 } from '@vet-ai/shared-types';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { ALLOW_ONBOARDING_MEMBERSHIP_KEY } from '../decorators/allow-onboarding-membership.decorator';
+
+/** Still onboarding — admitted only on @AllowOnboardingMembership() routes. */
+const ONBOARDING_STATUSES = new Set<string>([
+  MembershipStatus.PROFILE_REQUIRED,
+  MembershipStatus.VERIFICATION_PENDING,
+]);
 
 /**
  * Resolves the active tenant from the request and verifies the authenticated
@@ -30,6 +37,10 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
  * which rejects tenants that aren't LAB/PLATFORM. Without this, a user whose
  * only membership is to a LAB/PLATFORM tenant could pass its id as
  * x-tenant-id and be treated as a clinic member of it.
+ *
+ * Requires an ACTIVE membership. A member still onboarding (PROFILE_REQUIRED,
+ * VERIFICATION_PENDING) passes only on routes marked
+ * @AllowOnboardingMembership(); SUSPENDED and INVITED members never pass.
  *
  * Apply at controller or route level — NOT globally — because some routes
  * (e.g. /auth/me, /invitations/accept) do not require an active tenant.
@@ -77,6 +88,19 @@ export class TenantGuard implements CanActivate {
       throw new ForbiddenException(
         'This endpoint is restricted to clinic tenants.'
       );
+    }
+
+    if (membership.status !== MembershipStatus.ACTIVE) {
+      const allowOnboarding = this.reflector.getAllAndOverride<boolean>(
+        ALLOW_ONBOARDING_MEMBERSHIP_KEY,
+        [context.getHandler(), context.getClass()]
+      );
+      if (!allowOnboarding || !ONBOARDING_STATUSES.has(membership.status)) {
+        throw new ForbiddenException({
+          message: 'Your membership in this clinic is not active.',
+          code: 'MEMBERSHIP_NOT_ACTIVE',
+        });
+      }
     }
 
     const tenantContext: TenantContext = {
