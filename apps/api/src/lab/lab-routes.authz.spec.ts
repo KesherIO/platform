@@ -23,6 +23,7 @@ import { LabController } from './lab.controller';
 import { LabNotificationsController } from './lab-notifications.controller';
 import { LabConfigController } from '../lab-config/lab-config.controller';
 import { CatalogController } from '../catalog/catalog.controller';
+import { BillingController } from '../billing/billing.controller';
 import { TemplateController } from '../results/template.controller';
 import type { PrismaService } from '../prisma/prisma.service';
 
@@ -38,6 +39,7 @@ const CONTROLLERS = [
   LabNotificationsController,
   LabConfigController,
   CatalogController,
+  BillingController,
   TemplateController,
 ];
 
@@ -78,6 +80,14 @@ const STAFF_RECEPTION = [...STAFF, 'RECEPTIONIST'].sort();
 const ADMIN = ['ADMIN', 'OWNER'];
 const RELEASE = ['ADMIN', 'OWNER', 'REVIEWER'];
 const RESULTS = [...STAFF, 'RESULTS_VIEWER'].sort();
+/** Billing export downloads: Owner, Admin and Consulta (with the in-progress checkbox, see billing.http.int.spec.ts) */
+const BILLING_EXPORT = ['ADMIN', 'OWNER', 'RESULTS_VIEWER'];
+const BILLING_EXPORT_ROUTES = [
+  'GET lab/billing/exports/preview',
+  'POST lab/billing/exports',
+  'GET lab/billing/exports',
+  'GET lab/billing/exports/:id',
+];
 
 /** Every lab member's own notification inbox. */
 const INBOX_ROUTES = [
@@ -122,6 +132,7 @@ const RESULTS_VIEWER_ROUTES = [
   'GET lab/releases/:releaseId/artifacts/pdf',
   'GET lab/releases/:releaseId/artifacts/pdf/download',
   'POST lab/releases/:releaseId/artifacts/pdf/retry',
+  ...BILLING_EXPORT_ROUTES,
 ];
 
 const routes = labRoutes();
@@ -169,7 +180,7 @@ describe('lab route permissions', () => {
   });
 
   it('every other route is staff, staff+reception, admin, release or results', () => {
-    const allowedSets = [STAFF, STAFF_RECEPTION, ADMIN, RELEASE, RESULTS].map(
+    const allowedSets = [STAFF, STAFF_RECEPTION, ADMIN, RELEASE, RESULTS, BILLING_EXPORT].map(
       (s) => JSON.stringify([...s].sort())
     );
     const unexpected = routes
@@ -187,6 +198,24 @@ describe('lab route permissions', () => {
       .map((r) => r.key)
       .sort();
     expect(release).toEqual([...RELEASE_ROUTES].sort());
+  });
+
+  it('billing: downloads are Owner/Admin/Consulta, setting codes is Owner/Admin only', () => {
+    const billing = routes.filter((r) => r.key.includes('lab/billing/'));
+    expect(billing.map((r) => r.key).sort()).toEqual(
+      [
+        'DELETE lab/billing/deleted-items/:catalogItemId/code',
+        'PUT lab/billing/deleted-items/:catalogItemId/code',
+        ...BILLING_EXPORT_ROUTES,
+        'POST lab/billing/mapping/apply',
+        'POST lab/billing/mapping/suggest',
+      ].sort()
+    );
+    for (const r of billing) {
+      expect(sorted(r.roles)).toEqual(
+        BILLING_EXPORT_ROUTES.includes(r.key) ? sorted(BILLING_EXPORT) : ADMIN
+      );
+    }
   });
 
   it('changing a role stays ADMIN/OWNER only', () => {

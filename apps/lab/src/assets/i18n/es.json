@@ -72,7 +72,8 @@
     "templates": "Plantillas",
     "worklist": "Worklist",
     "verifications": "Verificaciones",
-    "results": "Resultados"
+    "results": "Resultados",
+    "billing": "Facturación"
   },
   "status": {
     "PENDING": "Pendiente",
@@ -1578,6 +1579,107 @@
       "ADDITIONAL_SAMPLE_REQUIRED": "Se necesita otra muestra para {{req}}",
       "RESULTS_RELEASED": "Resultados disponibles para {{req}}",
       "RESULTS_AMENDED": "Resultados corregidos para {{req}}"
+    }
+  },
+  "billing": {
+    "catalog": {
+      "billing_code": "Código de facturación",
+      "no_billing_code": "Sin código de facturación",
+      "billing_code_hint": "El código que usa su sistema de facturación para este servicio. No cambia el código interno, los resultados ni las plantillas, y se puede editar en cualquier momento."
+    },
+    "mapping": {
+      "open": "Códigos de facturación",
+      "title": "Asignar códigos de facturación",
+      "subtitle": "Relacione su lista de facturación con ítems del catálogo que ya tiene. No se crea nada y no se guarda nada hasta que aplique.",
+      "upload_help": "Suba su lista (.xlsx o .csv) con las columnas “Item” (su código de facturación) y “Descripción”. Las coincidencias claras vienen preseleccionadas; las similares, duplicadas o en disputa requieren su elección. Los servicios que no ofrece se ignoran.",
+      "choose_file": "Elegir archivo",
+      "reading": "Leyendo…",
+      "summary": "{{suggested}} coincidencia(s) clara(s) preseleccionada(s) · {{review}} requieren revisión · {{none}} no están en su catálogo o son inválidas.",
+      "col_code": "Código de facturación",
+      "col_description": "Descripción",
+      "col_catalog_item": "Ítem del catálogo",
+      "no_match": "No está en su catálogo — se omite",
+      "invalid": "Falta el código de facturación — se omite",
+      "skip": "— No asignar —",
+      "currently": "actual",
+      "apply": "Aplicar {{count}} asignación(es)",
+      "applying": "Aplicando…",
+      "applied": "{{updated}} código(s) de facturación guardado(s), {{unchanged}} ya estaban asignados.",
+      "close": "Cerrar",
+      "replace_title": "¿Reemplazar códigos de facturación existentes?",
+      "replace_confirm": "Reemplazar",
+      "errors": {
+        "columns": "No se encontraron las columnas “Item” y “Descripción”. Revise la fila de encabezados.",
+        "empty": "El archivo no tiene filas.",
+        "duplicate_item": "El mismo ítem del catálogo está seleccionado en más de una fila. Elija una fila por ítem.",
+        "UNSUPPORTED_FILE": "Use un archivo .xlsx o .csv.",
+        "EMPTY_FILE": "El archivo está vacío.",
+        "NO_DATA_ROWS": "El archivo tiene encabezado pero no filas.",
+        "TOO_MANY_ROWS": "El archivo tiene demasiadas filas (límite 500). Divídalo y súbalo por partes.",
+        "UNREADABLE_FILE": "No se pudo leer el archivo."
+      },
+      "reason": {
+        "DUPLICATE_DESCRIPTION": "La misma descripción aparece en otras filas",
+        "DUPLICATE_CODE": "El mismo código de facturación aparece en otras filas",
+        "MULTIPLE_CANDIDATES": "Varios ítems coinciden por igual",
+        "CLAIMED_BY_OTHER_ROW": "Otra fila apunta al mismo ítem",
+        "CODE_ASSIGNED_ELSEWHERE": "Este código de facturación ya está en otro ítem",
+        "NOT_EXACT": "No es una coincidencia exacta — confirme"
+      }
+    },
+    "export": {
+      "open": "Exportar para facturación",
+      "title": "Exportar para facturación",
+      "subtitle": "Descargue los servicios ordenados en un rango de fechas, con sus códigos de facturación, para cargarlos en su sistema de facturación. Se incluyen órdenes pendientes y completadas; las canceladas no. Sin precios ni resultados.",
+      "date_from": "Desde (fecha de la orden)",
+      "date_to": "Hasta (fecha de la orden)",
+      "format": "Formato",
+      "format_xlsx": "Excel (.xlsx)",
+      "format_csv": "CSV (.csv)",
+      "only_new": "Solo líneas que no estén en un archivo anterior (por defecto se incluyen todas; las ya generadas solo se marcan)",
+      "invalid_range": "Elija una fecha de inicio igual o anterior a la de fin.",
+      "loading": "Cargando vista previa…",
+      "timezone_note": "Ambas fechas son inclusivas y se cuentan en la zona horaria de su laboratorio ({{timezone}}). La columna “fecha” es el día en que se creó la orden, como AAAA-MM-DD.",
+      "summary": "{{orders}} orden(es), {{lines}} línea(s) facturable(s). Un paquete o perfil es una sola línea con su propio código.",
+      "cancelled_note": "Excluidas por canceladas: {{count}} línea(s).",
+      "already_exported": "{{already}} línea(s) ya estaban en un archivo anterior y {{fresh}} no. Un archivo generado no prueba que se haya cargado o facturado — verifique en su sistema de facturación antes de cargar de nuevo.",
+      "withdrawn_title": "{{count}} línea(s) de archivos anteriores ya no son facturables",
+      "withdrawn_help": "Se cancelaron después de exportarse. Corríjalas en su sistema de facturación si ya fueron cargadas.",
+      "withdrawn_reason": {
+        "ORDER_CANCELLED": "orden cancelada",
+        "ITEM_CANCELLED": "prueba cancelada",
+        "NOT_BILLABLE": "ya no es facturable"
+      },
+      "missing_title": "{{count}} servicio(s) sin código de facturación",
+      "missing_help": "No se puede generar el archivo hasta que cada uno tenga código. No se omite nada ni se usan códigos internos en su lugar.",
+      "missing_usage": "{{lines}} línea(s) en {{orders}} orden(es)",
+      "item_not_in_catalog": "Este ítem ya no está en su catálogo.",
+      "save_code": "Guardar código",
+      "preview_title": "Vista previa",
+      "generate": "Generar {{format}}",
+      "generating": "Generando…",
+      "nothing": "No hay líneas facturables en este rango.",
+      "no_code": "falta",
+      "col_service": "Servicio",
+      "col_status": "Archivos anteriores",
+      "status_exported": "en un archivo del {{when}}",
+      "status_added_later": "agregada después de un archivo anterior",
+      "status_new": "nueva",
+      "truncated": "Se muestran las primeras {{shown}} líneas; el archivo contendrá todas.",
+      "generated": "Archivo generado con {{count}} línea(s). Generado no es lo mismo que cargado o facturado.",
+      "history_title": "Archivos generados",
+      "history_help": "Vuelva a descargar cualquier archivo tal como se generó, sin importar lo que haya cambiado después. Descargar no significa que se haya cargado o facturado.",
+      "history_empty": "Aún no se han generado archivos.",
+      "history_lines": "{{count}} línea(s)",
+      "history_only_new": "solo líneas nuevas",
+      "history_generated": "Generado el {{when}} por {{who}}",
+      "redownload": "Descargar {{format}}",
+      "deleted_confirm_title": "¿Asignar este código de facturación a ítems eliminados del catálogo?",
+      "deleted_confirm_message": "“{{name}}” (código interno {{code}}) ya no existe en su catálogo, pero {{lines}} línea(s) de {{orders}} orden(es) todavía lo mencionan.\n\nEsto asigna el código de facturación “{{billing}}” a esas líneas en las exportaciones. Las órdenes originales no se modifican, no se recrea nada en su catálogo y los archivos ya generados conservan el código que tenían.",
+      "deleted_confirm_button": "Asignar código",
+      "review_and_save": "Revisar y guardar",
+      "code_from_deleted": "Código asignado a un ítem del catálogo que fue eliminado",
+      "ask_admin": "Un administrador debe asignar este código de facturación antes de poder generar el archivo."
     }
   }
 }

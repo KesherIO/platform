@@ -153,4 +153,140 @@ describeWithDb('Catalog import against Postgres', () => {
     ).rejects.toThrow('IT-NOPE');
     expect(await items()).toHaveLength(0);
   });
+
+  describe('replace:true', () => {
+    it('is refused and leaves the catalog, billing codes and package wiring untouched', async () => {
+      await service.import({
+        labTenantId: labId,
+        items: [
+          {
+            kind: 'TEST' as never,
+            name: 'A',
+            code: 'IT-A',
+            billingCode: 'BILL-A',
+          },
+          {
+            kind: 'PACKAGE' as never,
+            name: 'P',
+            code: 'IT-P',
+            billingCode: 'BILL-P',
+            componentCodes: ['IT-A'],
+          },
+        ],
+      });
+      const before = await prisma.catalogItem.findMany({
+        where: { labTenantId: labId },
+        orderBy: { code: 'asc' },
+      });
+
+      await expect(
+        service.import({
+          labTenantId: labId,
+          replace: true,
+          items: [{ kind: 'TEST' as never, name: 'Other', code: 'IT-O' }],
+        })
+      ).rejects.toMatchObject({
+        response: { code: 'CATALOG_REPLACE_UNSUPPORTED' },
+      });
+
+      const after = await prisma.catalogItem.findMany({
+        where: { labTenantId: labId },
+        orderBy: { code: 'asc' },
+      });
+      // Same rows, same ids, same billing codes, nothing new
+      expect(after).toEqual(before);
+      expect(after.map((i) => i.billingCode)).toEqual(['BILL-A', 'BILL-P']);
+      expect(
+        await prisma.catalogItemComposition.count({
+          where: { package: { labTenantId: labId } },
+        })
+      ).toBe(1);
+    });
+
+    it('a normal import never deletes items missing from the file', async () => {
+      await service.import({
+        labTenantId: labId,
+        items: [
+          { kind: 'TEST' as never, name: 'A', code: 'IT-A' },
+          { kind: 'TEST' as never, name: 'B', code: 'IT-B' },
+        ],
+      });
+      await service.import({
+        labTenantId: labId,
+        items: [{ kind: 'TEST' as never, name: 'A', code: 'IT-A' }],
+      });
+      expect(await items()).toHaveLength(2);
+    });
+  });
+
+  describe('billing codes (real unique index and UPDATE … COALESCE)', () => {
+    const row = (code: string, billingCode?: string) => ({
+      kind: 'TEST' as never,
+      name: `Test ${code}`,
+      code,
+      billingCode,
+    });
+    const codes = async () =>
+      Object.fromEntries(
+        (await items()).map((i) => [i.code, i.billingCode])
+      );
+
+    it('keeps an existing billing code when a re-import leaves it out', async () => {
+      await service.import({
+        labTenantId: labId,
+        items: [row('IT-A', 'BILL-A')],
+      });
+      await service.import({ labTenantId: labId, items: [row('IT-A')] });
+      expect(await codes()).toEqual({ 'IT-A': 'BILL-A' });
+    });
+
+    it('moves a code from one existing item to another in one import', async () => {
+      await service.import({
+        labTenantId: labId,
+        items: [row('IT-A', 'X'), row('IT-B')],
+      });
+      await service.import({
+        labTenantId: labId,
+        items: [row('IT-A', 'Y'), row('IT-B', 'X')],
+      });
+      expect(await codes()).toEqual({ 'IT-A': 'Y', 'IT-B': 'X' });
+    });
+
+    it('rejects two items with one code, writing nothing', async () => {
+      await expect(
+        service.import({
+          labTenantId: labId,
+          items: [row('IT-A', 'DUP'), row('IT-B', 'dup')],
+        })
+      ).rejects.toThrow(/more than one catalog item/);
+      expect(await items()).toHaveLength(0);
+    });
+
+    it('the same code in two different labs is fine (unique per lab)', async () => {
+      const other = (
+        await prisma.tenant.create({
+          data: {
+            name: 'IT other lab',
+            slug: `it-catalog-${randomUUID()}`,
+            type: 'LAB',
+          },
+        })
+      ).id;
+      try {
+        await service.import({
+          labTenantId: labId,
+          items: [row('IT-A', 'SAME')],
+        });
+        await service.import({
+          labTenantId: other,
+          items: [row('IT-A', 'SAME')],
+        });
+        expect(
+          await prisma.catalogItem.count({ where: { billingCode: 'SAME' } })
+        ).toBe(2);
+      } finally {
+        await prisma.tenant.delete({ where: { id: other } });
+      }
+    });
+  });
 });

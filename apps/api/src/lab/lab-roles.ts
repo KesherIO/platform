@@ -38,6 +38,19 @@ export const LAB_RESULTS_ROLES = [
   TenantRole.RESULTS_VIEWER,
 ] as const;
 
+/**
+ * Downloading the billing export (preview, generate, history, re-download):
+ * Owner and Admin, plus "Consulta" (the Facturación user) — and Consulta only
+ * with the "Puede ver órdenes en proceso" checkbox, which
+ * BillingExportAccessGuard checks on top of this role list. Setting billing
+ * codes (mapping, deleted-item codes, catalog) stays Owner/Admin only.
+ */
+export const LAB_BILLING_EXPORT_ROLES = [
+  TenantRole.ADMIN,
+  TenantRole.OWNER,
+  TenantRole.RESULTS_VIEWER,
+] as const;
+
 /** Roles an Owner/Admin can give on the Team page (OWNER: no transfer yet). */
 export const LAB_ASSIGNABLE_ROLES = [
   TenantRole.ADMIN,

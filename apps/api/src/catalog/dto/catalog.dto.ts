@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { BILLING_CODE_MAX_LENGTH } from '../../billing/billing-code.util';
 
 export enum CatalogItemKindDto {
   TEST = 'TEST',
@@ -43,6 +44,16 @@ export class ImportCatalogItemDto {
   @IsOptional()
   @IsString()
   code?: string;
+
+  @ApiPropertyOptional({
+    example: 'HEM',
+    description:
+      "The lab's billing-system code. Omit to keep the item's current one.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(BILLING_CODE_MAX_LENGTH)
+  billingCode?: string;
 
   @ApiPropertyOptional({ example: 'Hematology' })
   @IsOptional()
@@ -98,10 +109,11 @@ export class ImportCatalogDto {
 
   @ApiPropertyOptional({
     default: false,
+    deprecated: true,
     description:
-      'When true, all existing catalog items for the tenant are deleted before inserting ' +
-      'the new ones. Use this when the lab provides a full replacement catalog. ' +
-      'WARNING: also removes any CaseCatalogItem selections that reference deleted items.',
+      'UNSUPPORTED — true is rejected with a 400 before anything is deleted. ' +
+      'Replacing a catalog would orphan items that past orders, cases and billing codes use. ' +
+      'Import without it (upsert) and disable items you no longer offer.',
   })
   @IsOptional()
   @IsBoolean()
@@ -152,6 +164,12 @@ export class CreateCatalogItemDto {
   @IsString()
   code?: string;
 
+  @ApiPropertyOptional({ example: 'HEM', description: "The lab's billing code" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(BILLING_CODE_MAX_LENGTH)
+  billingCode?: string;
+
   @ApiPropertyOptional({ example: 'Hematology' })
   @IsOptional()
   @IsString()
@@ -200,6 +218,14 @@ export class UpdateCatalogItemDto {
   @IsOptional()
   @IsString()
   code?: string;
+
+  @ApiPropertyOptional({
+    description: "The lab's billing code. Empty string clears it.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(BILLING_CODE_MAX_LENGTH)
+  billingCode?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

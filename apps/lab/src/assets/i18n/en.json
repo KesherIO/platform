@@ -72,7 +72,8 @@
     "templates": "Templates",
     "worklist": "Worklist",
     "verifications": "Verifications",
-    "results": "Results"
+    "results": "Results",
+    "billing": "Billing"
   },
   "status": {
     "PENDING": "Pending",
@@ -1578,6 +1579,107 @@
       "ADDITIONAL_SAMPLE_REQUIRED": "Another sample is needed for {{req}}",
       "RESULTS_RELEASED": "Results available for {{req}}",
       "RESULTS_AMENDED": "Results corrected for {{req}}"
+    }
+  },
+  "billing": {
+    "catalog": {
+      "billing_code": "Billing code",
+      "no_billing_code": "No billing code",
+      "billing_code_hint": "The code your billing system uses for this service. It doesn't change the internal code, results or templates, and can be edited at any time."
+    },
+    "mapping": {
+      "open": "Billing codes",
+      "title": "Map billing codes",
+      "subtitle": "Match your billing list to catalog items you already have. Nothing is created, and nothing is saved until you apply.",
+      "upload_help": "Upload your list (.xlsx or .csv) with the columns “Item” (your billing code) and “Descripción”. Clear matches come pre-selected; similar, duplicated or contested ones need your choice. Services you don't offer are ignored.",
+      "choose_file": "Choose file",
+      "reading": "Reading…",
+      "summary": "{{suggested}} clear match(es) pre-selected · {{review}} need your review · {{none}} not in your catalog or invalid.",
+      "col_code": "Billing code",
+      "col_description": "Description",
+      "col_catalog_item": "Catalog item",
+      "no_match": "Not in your catalog — skipped",
+      "invalid": "Missing billing code — skipped",
+      "skip": "— Don't map —",
+      "currently": "now",
+      "apply": "Apply {{count}} mapping(s)",
+      "applying": "Applying…",
+      "applied": "{{updated}} billing code(s) saved, {{unchanged}} already set.",
+      "close": "Close",
+      "replace_title": "Replace existing billing codes?",
+      "replace_confirm": "Replace",
+      "errors": {
+        "columns": "Couldn't find the “Item” and “Descripción” columns. Check the header row.",
+        "empty": "The file has no rows.",
+        "duplicate_item": "The same catalog item is selected for more than one row. Choose one row per item.",
+        "UNSUPPORTED_FILE": "Use an .xlsx or .csv file.",
+        "EMPTY_FILE": "The file is empty.",
+        "NO_DATA_ROWS": "The file has a header but no rows.",
+        "TOO_MANY_ROWS": "The file has too many rows (limit 500). Split it and upload in parts.",
+        "UNREADABLE_FILE": "The file couldn't be read."
+      },
+      "reason": {
+        "DUPLICATE_DESCRIPTION": "Same description appears on other rows",
+        "DUPLICATE_CODE": "Same billing code appears on other rows",
+        "MULTIPLE_CANDIDATES": "Several items match equally",
+        "CLAIMED_BY_OTHER_ROW": "Another row points at the same item",
+        "CODE_ASSIGNED_ELSEWHERE": "This billing code is already on a different item",
+        "NOT_EXACT": "Not an exact match — please confirm"
+      }
+    },
+    "export": {
+      "open": "Export for billing",
+      "title": "Export for billing",
+      "subtitle": "Download the services ordered in a date range, with your billing codes, to upload into your billing system. Pending and completed orders are included; cancelled ones are not. No prices or results.",
+      "date_from": "From (order date)",
+      "date_to": "To (order date)",
+      "format": "Format",
+      "format_xlsx": "Excel (.xlsx)",
+      "format_csv": "CSV (.csv)",
+      "only_new": "Only lines not in an earlier file (by default every line is included, previously generated ones are just marked)",
+      "invalid_range": "Choose a start date that is on or before the end date.",
+      "loading": "Loading preview…",
+      "timezone_note": "Both dates are inclusive and counted in your laboratory's time zone ({{timezone}}). The “fecha” column is the day the order was created, as YYYY-MM-DD.",
+      "summary": "{{orders}} order(s), {{lines}} billable line(s). A package or profile is one line with its own code.",
+      "cancelled_note": "Left out as cancelled: {{count}} line(s).",
+      "already_exported": "{{already}} line(s) were already in an earlier file and {{fresh}} were not. A generated file is not proof it was uploaded or billed — check your billing system before uploading again.",
+      "withdrawn_title": "{{count}} line(s) in earlier files are no longer billable",
+      "withdrawn_help": "They were cancelled after being exported. Correct them in your billing system if they were already uploaded.",
+      "withdrawn_reason": {
+        "ORDER_CANCELLED": "order cancelled",
+        "ITEM_CANCELLED": "test cancelled",
+        "NOT_BILLABLE": "no longer billable"
+      },
+      "missing_title": "{{count}} service(s) have no billing code",
+      "missing_help": "The file can't be generated until each one has a code. Nothing is skipped and internal codes are never used instead.",
+      "missing_usage": "{{lines}} line(s) in {{orders}} order(s)",
+      "item_not_in_catalog": "This item is no longer in your catalog.",
+      "save_code": "Save code",
+      "preview_title": "Preview",
+      "generate": "Generate {{format}}",
+      "generating": "Generating…",
+      "nothing": "There are no billable lines in this range.",
+      "no_code": "missing",
+      "col_service": "Service",
+      "col_status": "Earlier files",
+      "status_exported": "in a file from {{when}}",
+      "status_added_later": "added after an earlier file",
+      "status_new": "new",
+      "truncated": "Showing the first {{shown}} lines; the file will contain all of them.",
+      "generated": "File generated with {{count}} line(s). Generated is not the same as uploaded or billed.",
+      "history_title": "Generated files",
+      "history_help": "Re-download any file exactly as it was generated, whatever has changed since. Downloading doesn't mean it was uploaded or billed.",
+      "history_empty": "No files generated yet.",
+      "history_lines": "{{count}} line(s)",
+      "history_only_new": "only new lines",
+      "history_generated": "Generated {{when}} by {{who}}",
+      "redownload": "Download {{format}}",
+      "deleted_confirm_title": "Assign this billing code to deleted catalog items?",
+      "deleted_confirm_message": "“{{name}}” (internal code {{code}}) no longer exists in your catalog, but {{lines}} order line(s) in {{orders}} order(s) still refer to it.\n\nThis assigns the billing code “{{billing}}” to those lines in billing exports. The original orders are not changed, nothing is recreated in your catalog, and files already generated keep the code they had.",
+      "deleted_confirm_button": "Assign code",
+      "review_and_save": "Review and save",
+      "code_from_deleted": "Code assigned to a catalog item that was deleted",
+      "ask_admin": "An administrator needs to assign this billing code before the file can be generated."
     }
   }
 }

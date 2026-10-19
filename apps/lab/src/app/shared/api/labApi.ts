@@ -55,6 +55,11 @@ import type {
   RequestSampleInput,
   AddTestsPreview,
   AddTestsResult,
+  MappingSuggestion,
+  MappingAssignment,
+  BillingPreview,
+  BillingExportFile,
+  BillingExportSummary,
 } from '../../types/lab.types';
 
 /** Non-2xx response. `message` is the response body, as before. */
@@ -273,6 +278,53 @@ export const labApi = {
       replace?: boolean;
     }) =>
       post<{ created: number; updated: number }>('lab/catalog/import', data),
+  },
+  billing: {
+    // Read-only: ranks this lab's own catalog items for each row of the list
+    suggestMapping: (rows: Array<{ code: string; description: string }>) =>
+      post<{ suggestions: MappingSuggestion[] }>(
+        'lab/billing/mapping/suggest',
+        { rows }
+      ),
+    // Saves only the pairs the user confirmed (billingCode on existing items)
+    applyMapping: (data: {
+      assignments: MappingAssignment[];
+      replaceExisting?: boolean;
+    }) =>
+      post<{ updated: number; unchanged: number }>(
+        'lab/billing/mapping/apply',
+        data
+      ),
+    preview: (params: {
+      dateFrom: string;
+      dateTo: string;
+      onlyNew?: boolean;
+    }) => {
+      const sp = new URLSearchParams({
+        dateFrom: params.dateFrom,
+        dateTo: params.dateTo,
+      });
+      if (params.onlyNew) sp.set('onlyNew', 'true');
+      return get<BillingPreview>(`lab/billing/exports/preview?${sp}`);
+    },
+    // Records the generated rows (history) and returns them to write the file
+    generate: (data: { dateFrom: string; dateTo: string; onlyNew?: boolean }) =>
+      post<BillingExportFile>('lab/billing/exports', data),
+    // Reviewed code for order lines whose catalog item was deleted; the
+    // orders themselves are not modified
+    assignDeletedItemCode: (catalogItemId: string, billingCode: string) =>
+      put<{
+        catalogItemId: string;
+        billingCode: string;
+        itemName: string;
+        lineCount: number;
+        orderCount: number;
+      }>(`lab/billing/deleted-items/${catalogItemId}/code`, { billingCode }),
+    history: () =>
+      get<{ data: BillingExportSummary[] }>('lab/billing/exports'),
+    // The rows exactly as generated, for a deliberate re-download
+    getExport: (id: string) =>
+      get<BillingExportFile>(`lab/billing/exports/${id}`),
   },
   pickups: {
     list: (params?: CollectionsQuery) => {

@@ -13,6 +13,7 @@ const auth = {
   canPerformPickups: false,
   vetVerificationRequired: false,
   isResultsViewer: false,
+  canViewInProgress: false,
   signOut: vi.fn(),
 };
 vi.mock('../../auth/AuthContext', () => ({ useAuth: () => auth }));
@@ -60,6 +61,8 @@ function renderAt(
           <Route element={<Layout />}>
             <Route path="/orders" element={<p>orders page</p>} />
             <Route path="/clients" element={<p>clients page</p>} />
+            <Route path="/results" element={<p>results page</p>} />
+            <Route path="/billing/export" element={<p>billing page</p>} />
             <Route path="/templates/*" element={<p>templates page</p>} />
           </Route>
         </Routes>
@@ -88,6 +91,8 @@ describe('Layout', () => {
       canRelease: false,
       labRole: 'ANALYST',
       canPerformPickups: false,
+      isResultsViewer: false,
+      canViewInProgress: false,
     });
   });
 
@@ -153,6 +158,58 @@ describe('Layout', () => {
     for (const label of ADMIN_TABS) {
       expect(tab(label)).toBeTruthy();
     }
+  });
+
+  describe('Facturación (billing export)', () => {
+    const consulta = (canViewInProgress: boolean) =>
+      Object.assign(auth, {
+        labRole: 'RESULTS_VIEWER',
+        isResultsViewer: true,
+        canViewInProgress,
+      });
+
+    it('an admin has the tab and the page', () => {
+      Object.assign(auth, { isAdmin: true, labRole: 'ADMIN' });
+      renderAt('/billing/export');
+
+      expect(screen.getByText('billing page')).toBeTruthy();
+      expect(tab('nav.billing')).toBeTruthy();
+    });
+
+    it('Consulta WITH the in-progress checkbox gets Results + Facturación', () => {
+      consulta(true);
+      renderAt('/billing/export');
+
+      expect(screen.getByText('billing page')).toBeTruthy();
+      expect(tab('nav.results')).toBeTruthy();
+      expect(tab('nav.billing')).toBeTruthy();
+      for (const label of [...ADMIN_TABS, 'nav.orders_queue']) {
+        expect(tab(label)).toBeNull();
+      }
+    });
+
+    it('Consulta WITHOUT the checkbox only has Results and is sent back from the page', () => {
+      consulta(false);
+      renderAt('/billing/export');
+
+      expect(screen.queryByText('billing page')).toBeNull();
+      expect(tab('nav.billing')).toBeNull();
+      expect(tab('nav.results')).toBeTruthy();
+    });
+
+    it('Consulta with the checkbox still cannot open other pages', () => {
+      consulta(true);
+      renderAt('/clients');
+
+      expect(screen.queryByText('clients page')).toBeNull();
+    });
+
+    it('an analyst has no tab and is sent to the orders queue', () => {
+      renderAt('/billing/export');
+
+      expect(screen.getByText('orders page')).toBeTruthy();
+      expect(tab('nav.billing')).toBeNull();
+    });
   });
 
   it('has the notification bell (rendered for every role)', () => {

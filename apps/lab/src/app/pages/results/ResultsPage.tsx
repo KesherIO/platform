@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Receipt } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import { SearchInput } from '../../shared/components/SearchInput';
@@ -49,7 +49,9 @@ function apiMessage(err: unknown): string {
  */
 export function ResultsPage() {
   const { t, i18n } = useTranslation();
-  const { isResultsViewer, canViewInProgress } = useAuth();
+  const { isResultsViewer, canViewInProgress, isAdmin } = useAuth();
+  // Billing export: Owner/Admin, or Consulta with the in-progress checkbox
+  const canExportBilling = isAdmin || (isResultsViewer && canViewInProgress);
   const canSeeInProgress = !isResultsViewer || canViewInProgress;
 
   const [view, setView] = useState<ResultsView>('released');
@@ -107,11 +109,22 @@ export function ResultsPage() {
     <div className="p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-white">{t('results.title')}</h1>
-        {data && (
-          <span className="text-sm text-gray-400">
-            {t('results.count', { count: data.total })}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {data && (
+            <span className="text-sm text-gray-400">
+              {t('results.count', { count: data.total })}
+            </span>
+          )}
+          {canExportBilling && (
+            <Link
+              to="/billing/export"
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 text-sm font-semibold text-white hover:bg-gray-700"
+            >
+              <Receipt size={14} />
+              {t('billing.export.open')}
+            </Link>
+          )}
+        </div>
       </div>
 
       {canSeeInProgress && (
