@@ -681,9 +681,21 @@ describe('LabController', () => {
       expect(dto.confirmedSuitable).toBe(true);
     });
 
+    // The service decides whether samples must be picked (the order has
+    // specimen records) or there are none to pick
     it.each([
-      ['no samples', { specimenIds: [], confirmedSuitable: true }],
-      ['the samples missing', { confirmedSuitable: true }],
+      ['no samples', { specimenIds: [] }],
+      ['the samples omitted', {}],
+    ])('accepts %s with the confirmation', async (_label, body) => {
+      const dto = await validate({
+        catalogItemIds: ['c-1'],
+        confirmedSuitable: true,
+        ...body,
+      });
+      expect(dto.confirmedSuitable).toBe(true);
+    });
+
+    it.each([
       [
         'the same sample twice',
         { specimenIds: ['sp-1', 'sp-1'], confirmedSuitable: true },

@@ -1375,11 +1375,16 @@
     "add_tests_added_success": "Tests added.",
     "add_tests_already": "Already on the order (left as is): {{names}}",
     "add_tests_nothing_new": "Every selected test is already on this order.",
-    "add_tests_lab_samples_only": "Tests can only be added onto a sample already accepted at the lab. This order has none — to test a new sample, request it from the clinic.",
     "add_tests_pick_samples": "Samples to run the added tests on",
     "add_tests_specimen": "{{accession}} · {{specimen}} · {{container}}",
     "add_tests_conditions": "Recorded at receipt: {{conditions}}",
     "add_tests_confirm_suitable": "I confirm the selected samples are suitable and sufficient for all the tests being added.",
+    "add_tests_confirm_received_sample": "I confirm the sample received with this order is suitable and sufficient for all the tests being added.",
+    "add_tests_sample_mode": {
+      "CONFIRM_RECEIVED_ORDER": "No samples were recorded for this order at receipt, so there is nothing to pick. The tests run on the sample the lab received with the order.",
+      "NO_ACCEPTED_SPECIMEN": "None of this order’s samples is accepted (they are expected, pending or rejected). Accept a sample first, or request a new one from the clinic.",
+      "NOT_RECEIVED": "Tests can only be added once the order has been received at the lab."
+    },
     "add_tests_outcome": {
       "READY": "Ready to process",
       "NO_TEMPLATE": "Added blocked: no result template"

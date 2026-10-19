@@ -41,6 +41,7 @@ const preview = (over: Partial<AddTestsPreview> = {}): AddTestsPreview => ({
     },
   ],
   alreadyOnOrder: [],
+  sampleMode: 'SELECT_ACCEPTED',
   acceptedSpecimens: [sample('sp-1'), sample('sp-2')],
   canAdd: true,
   ...over,
@@ -169,18 +170,63 @@ describe('AddTestsDialog', () => {
     expect(screen.getByText('specimens.add_tests_conditions')).toBeTruthy();
   });
 
-  it('explains and cannot add when the order has no accepted sample', async () => {
+  it.each(['NO_ACCEPTED_SPECIMEN', 'NOT_RECEIVED'] as const)(
+    'explains and cannot add when the sample mode is %s',
+    async (sampleMode) => {
+      vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
+        preview({ sampleMode, acceptedSpecimens: [], canAdd: false })
+      );
+      renderDialog();
+
+      fireEvent.click(await screen.findByLabelText(/Chemistry/));
+      fireEvent.click(screen.getByText('specimens.add_tests_preview'));
+
+      await screen.findByText(`specimens.add_tests_sample_mode.${sampleMode}`);
+      expect(screen.queryByText('specimens.add_tests_pick_samples')).toBeNull();
+      expect(
+        screen.queryByLabelText('specimens.add_tests_confirm_suitable')
+      ).toBeNull();
+      expect(confirmButton().disabled).toBe(true);
+    }
+  );
+
+  it('for a received order with no specimen records, asks only to confirm the received sample', async () => {
     vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
-      preview({ acceptedSpecimens: [], canAdd: false })
+      preview({ sampleMode: 'CONFIRM_RECEIVED_ORDER', acceptedSpecimens: [] })
     );
-    renderDialog();
+    const result = {
+      added: [{ id: 'ot-1', name: 'Chemistry', status: 'READY' }],
+      alreadyOnOrder: [],
+      specimens: [],
+      order: { id: 'o-1', status: 'PROCESSING' },
+    };
+    vi.mocked(labApi.specimens.addTests).mockResolvedValue(result);
+    const onSuccess = renderDialog();
 
     fireEvent.click(await screen.findByLabelText(/Chemistry/));
     fireEvent.click(screen.getByText('specimens.add_tests_preview'));
 
-    await screen.findByText('specimens.add_tests_lab_samples_only');
+    await screen.findByText(
+      'specimens.add_tests_sample_mode.CONFIRM_RECEIVED_ORDER'
+    );
     expect(screen.queryByText('specimens.add_tests_pick_samples')).toBeNull();
+    const received = screen.getByLabelText(
+      'specimens.add_tests_confirm_received_sample'
+    ) as HTMLInputElement;
+    expect(received.disabled).toBe(false);
     expect(confirmButton().disabled).toBe(true);
+
+    fireEvent.click(received);
+    fireEvent.click(confirmButton());
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(result));
+    expect(labApi.specimens.addTests).toHaveBeenCalledWith(
+      'o-1',
+      ['chem'],
+      [],
+      true,
+      undefined
+    );
   });
 
   it('cannot confirm when every selected test is already on the order', async () => {

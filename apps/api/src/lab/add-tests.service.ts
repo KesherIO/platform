@@ -26,15 +26,38 @@ import type { AddTestsDto } from './dto/add-tests.dto';
 type Db = Prisma.TransactionClient;
 
 /**
- * Tests are added only onto samples already accepted at the lab — adding never
+ * Tests are added only onto samples already at the lab — adding never
  * requests a sample from the clinic or creates a pickup. Specimen requirements
- * are optional in this version, so the lab picks which accepted samples of the
- * order the tests run on and confirms they are suitable and sufficient.
+ * are optional in this version, so staff confirm the samples are suitable and
+ * sufficient for every added test (see SampleMode for which samples).
  * Per test:
  * - READY: a result template is published
  * - NO_TEMPLATE: no result template is published (added BLOCKED)
  */
 export type AddedTestOutcome = 'READY' | 'NO_TEMPLATE';
+
+/**
+ * Which samples the added tests run on:
+ * - SELECT_ACCEPTED: the order has specimen records, some ACCEPTED — staff
+ *   pick among those
+ * - CONFIRM_RECEIVED_ORDER: received/accessioned with no specimen records at
+ *   all (tests without requirements create none) — staff confirm the sample
+ *   received with the order, nothing to pick
+ * - NO_ACCEPTED_SPECIMEN: specimen records exist but none is ACCEPTED (all
+ *   expected, pending or rejected) — can't add, no fallback
+ * - NOT_RECEIVED: no specimen records and the order isn't received — can't add
+ */
+export type SampleMode =
+  | 'SELECT_ACCEPTED'
+  | 'CONFIRM_RECEIVED_ORDER'
+  | 'NO_ACCEPTED_SPECIMEN'
+  | 'NOT_RECEIVED';
+
+const ADDABLE_MODES: readonly SampleMode[] = [
+  'SELECT_ACCEPTED',
+  'CONFIRM_RECEIVED_ORDER',
+];
+const RECEIVED_STATUSES = ['RECEIVED_BY_LAB', 'PROCESSING'];
 
 const CONDITION_FLAGS = [
   'isHemolyzed',
@@ -58,7 +81,8 @@ export interface AddTestsPreview {
   }>;
   /** Already on the order (not cancelled): left as they are */
   alreadyOnOrder: Array<{ catalogItemId: string; name: string }>;
-  /** Accepted samples of the order the lab can pick for the added tests */
+  sampleMode: SampleMode;
+  /** Accepted samples to pick from (SELECT_ACCEPTED only) */
   acceptedSpecimens: Array<{
     id: string;
     accessionNumber: string;
@@ -67,7 +91,7 @@ export interface AddTestsPreview {
     /** Condition flags recorded at receipt (e.g. isHemolyzed) */
     conditions: ConditionFlag[];
   }>;
-  /** Something new to add and an accepted sample to add it onto */
+  /** Something new to add, and a sample mode tests can be added in */
   canAdd: boolean;
 }
 
@@ -99,6 +123,7 @@ interface Plan {
   lines: OrderedItem[];
   tests: PlannedTest[];
   alreadyOnOrder: AddTestsPreview['alreadyOnOrder'];
+  sampleMode: SampleMode;
   acceptedSpecimens: AddTestsPreview['acceptedSpecimens'];
 }
 
@@ -141,7 +166,9 @@ export class AddTestsService {
         // PARTIAL against a set of tests nobody is changing at that moment
         await lockOrderReport(tx, base);
         // Specimen changes don't take the report lock: hold the order's
-        // samples so one picked can't be rejected before these tests link to it
+        // samples so one picked can't be rejected before these tests link to
+        // it, and the order row so its status is the one planned against
+        await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
         await tx.$queryRaw`SELECT id FROM specimens WHERE "orderId" = ${orderId} FOR UPDATE`;
 
         // Planned under the locks, so what is saved is what is true now
@@ -151,9 +178,33 @@ export class AddTestsService {
             'Every selected test is already on this order.'
           );
         }
+        const specimenIds = dto.specimenIds ?? [];
+        if (plan.sampleMode === 'NO_ACCEPTED_SPECIMEN') {
+          throw new BadRequestException(
+            'None of this order’s samples is accepted: accept one first, or request a new sample from the clinic.'
+          );
+        }
+        if (plan.sampleMode === 'NOT_RECEIVED') {
+          throw new BadRequestException(
+            'Tests can only be added once the order has been received at the lab.'
+          );
+        }
         if (!dto.confirmedSuitable) {
           throw new BadRequestException(
-            'Confirm the selected samples are suitable and sufficient for every added test.'
+            'Confirm the samples are suitable and sufficient for every added test.'
+          );
+        }
+        if (
+          plan.sampleMode === 'CONFIRM_RECEIVED_ORDER' &&
+          specimenIds.length
+        ) {
+          throw new BadRequestException(
+            'This order has no specimen records to select.'
+          );
+        }
+        if (plan.sampleMode === 'SELECT_ACCEPTED' && !specimenIds.length) {
+          throw new BadRequestException(
+            'Select the accepted samples the added tests run on.'
           );
         }
         // Re-read under the lock: a sample picked in the preview may have
@@ -161,15 +212,12 @@ export class AddTestsService {
         const acceptedById = new Map(
           plan.acceptedSpecimens.map((sp) => [sp.id, sp])
         );
-        const notAccepted = dto.specimenIds.filter(
-          (id) => !acceptedById.has(id)
-        );
-        if (notAccepted.length > 0) {
+        if (specimenIds.some((id) => !acceptedById.has(id))) {
           throw new BadRequestException(
             'Tests can only be added onto samples of this order already accepted at the lab.'
           );
         }
-        const selected = dto.specimenIds.flatMap(
+        const selected = specimenIds.flatMap(
           (id) => acceptedById.get(id) ?? []
         );
         const preview = this.toPreview(plan);
@@ -200,13 +248,16 @@ export class AddTestsService {
             },
             select: { id: true },
           });
-          // Every added test runs on the samples the lab picked
-          await tx.orderedTestSpecimen.createMany({
-            data: selected.map((sp) => ({
-              orderedTestId: row.id,
-              specimenId: sp.id,
-            })),
-          });
+          // Every added test runs on the samples the lab picked (none to
+          // link when the order has no specimen records)
+          if (selected.length > 0) {
+            await tx.orderedTestSpecimen.createMany({
+              data: selected.map((sp) => ({
+                orderedTestId: row.id,
+                specimenId: sp.id,
+              })),
+            });
+          }
           added.push({ id: row.id, name: test.name, status });
 
           if (test.outcome === 'READY') {
@@ -270,6 +321,9 @@ export class AddTestsService {
                 conditions: sp.conditions,
               })),
               sampleConfirmation: {
+                // SELECT_ACCEPTED: the samples above; CONFIRM_RECEIVED_ORDER:
+                // the sample received with the order, no records to select
+                basis: plan.sampleMode,
                 suitableAndSufficient: true,
                 confirmedById: actorId,
                 confirmedByName: actorName,
@@ -351,8 +405,9 @@ export class AddTestsService {
         outcome: t.outcome,
       })),
       alreadyOnOrder: plan.alreadyOnOrder,
+      sampleMode: plan.sampleMode,
       acceptedSpecimens: plan.acceptedSpecimens,
-      canAdd: plan.tests.length > 0 && plan.acceptedSpecimens.length > 0,
+      canAdd: plan.tests.length > 0 && ADDABLE_MODES.includes(plan.sampleMode),
     };
   }
 
@@ -383,7 +438,10 @@ export class AddTestsService {
           where: { status: { not: 'CANCELLED' } },
           select: { catalogItemId: true },
         },
-        // At the lab and usable: the only samples tests can be added onto
+        // Any status: whether the order has specimen records at all decides
+        // between picking accepted ones and confirming the received order
+        _count: { select: { specimens: true } },
+        // At the lab and usable: the only samples that can be picked
         specimens: {
           where: { status: 'ACCEPTED' },
           orderBy: { createdAt: 'asc' },
@@ -482,6 +540,14 @@ export class AddTestsService {
           )
         : null;
 
+    const sampleMode: SampleMode =
+      order._count.specimens === 0
+        ? RECEIVED_STATUSES.includes(order.status)
+          ? 'CONFIRM_RECEIVED_ORDER'
+          : 'NOT_RECEIVED'
+        : order.specimens.length > 0
+        ? 'SELECT_ACCEPTED'
+        : 'NO_ACCEPTED_SPECIMEN';
     const acceptedSpecimens = order.specimens.map((sp) => ({
       id: sp.id,
       accessionNumber: sp.accessionNumber,
@@ -534,6 +600,7 @@ export class AddTestsService {
       lines,
       tests,
       alreadyOnOrder,
+      sampleMode,
       acceptedSpecimens,
     };
   }

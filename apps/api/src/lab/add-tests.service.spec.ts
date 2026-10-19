@@ -79,18 +79,29 @@ describe('AddTestsService', () => {
     deliverQueued: jest.fn(),
   };
 
-  const order = (over: Record<string, unknown> = {}) => ({
-    id: 'o-1',
-    status: 'RECEIVED_BY_LAB',
-    caseId: 'case-1',
-    tenantId: 'clinic-1',
-    requisitionNumber: 'REQ-1',
-    orderedItems: [{ catalogItemId: 'old', name: 'Old' }],
-    case: { patientSpecies: 'DOG', patientAge: 3, patientAgeUnit: 'YEARS' },
-    orderedTests: [{ catalogItemId: 'old' }],
-    specimens: [tube('sp-edta', edta)],
-    ...over,
-  });
+  /** `specimens` are the ACCEPTED ones the plan reads; `specimenRecords`
+   * is how many the order has in any status (defaults to the accepted) */
+  const order = ({
+    specimenRecords,
+    ...over
+  }: Record<string, unknown> & { specimenRecords?: number } = {}) => {
+    const base = {
+      id: 'o-1',
+      status: 'RECEIVED_BY_LAB',
+      caseId: 'case-1',
+      tenantId: 'clinic-1',
+      requisitionNumber: 'REQ-1',
+      orderedItems: [{ catalogItemId: 'old', name: 'Old' }],
+      case: { patientSpecies: 'DOG', patientAge: 3, patientAgeUnit: 'YEARS' },
+      orderedTests: [{ catalogItemId: 'old' }],
+      specimens: [tube('sp-edta', edta)],
+      ...over,
+    };
+    return {
+      ...base,
+      _count: { specimens: specimenRecords ?? base.specimens.length },
+    };
+  };
 
   /** catalogItem.findMany is called twice: the lines, then their configs */
   function catalog(
@@ -216,10 +227,66 @@ describe('AddTestsService', () => {
         expect.objectContaining({ catalogItemId: 'cbc', outcome: 'READY' }),
       ]);
       expect(p.canAdd).toBe(true);
+      expect(p.sampleMode).toBe('SELECT_ACCEPTED');
       expect(p.acceptedSpecimens).toEqual([
         picked('sp-edta', edta),
         picked('sp-serum', serum, ['isHemolyzed']),
       ]);
+    });
+
+    it('counts specimen records in any status', async () => {
+      db.order.findFirst.mockResolvedValue(order());
+      catalog([CBC], { cbc: config() });
+
+      await service.preview('o-1', 'lab-1', ['cbc']);
+
+      expect(db.order.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: expect.objectContaining({
+            _count: { select: { specimens: true } },
+          }),
+        })
+      );
+    });
+
+    it.each(['RECEIVED_BY_LAB', 'PROCESSING'])(
+      'lets staff confirm the received sample of a %s order with no specimen records',
+      async (status) => {
+        db.order.findFirst.mockResolvedValue(order({ status, specimens: [] }));
+        catalog([CBC], { cbc: config() });
+
+        const p = await service.preview('o-1', 'lab-1', ['cbc']);
+
+        expect(p.sampleMode).toBe('CONFIRM_RECEIVED_ORDER');
+        expect(p.acceptedSpecimens).toEqual([]);
+        expect(p.canAdd).toBe(true);
+      }
+    );
+
+    it.each(['PENDING', 'READY_FOR_PICKUP', 'COLLECTED'])(
+      'cannot add to a %s order with no specimen records',
+      async (status) => {
+        db.order.findFirst.mockResolvedValue(order({ status, specimens: [] }));
+        catalog([CBC], { cbc: config() });
+
+        const p = await service.preview('o-1', 'lab-1', ['cbc']);
+
+        expect(p.sampleMode).toBe('NOT_RECEIVED');
+        expect(p.canAdd).toBe(false);
+      }
+    );
+
+    it('does not fall back to confirming the order when its records are all pending or rejected', async () => {
+      db.order.findFirst.mockResolvedValue(
+        order({ specimens: [], specimenRecords: 2 })
+      );
+      catalog([CBC], { cbc: config() });
+
+      const p = await service.preview('o-1', 'lab-1', ['cbc']);
+
+      expect(p.sampleMode).toBe('NO_ACCEPTED_SPECIMEN');
+      expect(p.acceptedSpecimens).toEqual([]);
+      expect(p.canAdd).toBe(false);
     });
 
     it.each([
@@ -233,16 +300,6 @@ describe('AddTestsService', () => {
 
       expect(p.tests[0].outcome).toBe('READY');
       expect(p.canAdd).toBe(true);
-    });
-
-    it('cannot add when the order has no accepted sample', async () => {
-      db.order.findFirst.mockResolvedValue(order({ specimens: [] }));
-      catalog([CBC], { cbc: config() });
-
-      const p = await service.preview('o-1', 'lab-1', ['cbc']);
-
-      expect(p.acceptedSpecimens).toEqual([]);
-      expect(p.canAdd).toBe(false);
     });
 
     it('is NO_TEMPLATE (still addable) when no template is published', async () => {
@@ -314,12 +371,15 @@ describe('AddTestsService', () => {
         caseId: 'case-1',
         tenantId: 'clinic-1',
       });
-      // Samples are locked before the plan reads them
-      expect(db.$queryRaw).toHaveBeenCalledTimes(1);
+      // The order row and its samples are locked before the plan reads them
+      expect(db.$queryRaw).toHaveBeenCalledTimes(2);
       expect(db.$queryRaw.mock.calls[0][0].join('?')).toContain(
+        'FROM orders WHERE id = ? FOR UPDATE'
+      );
+      expect(db.$queryRaw.mock.calls[1][0].join('?')).toContain(
         'FROM specimens WHERE "orderId" = ? FOR UPDATE'
       );
-      expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      expect(db.$queryRaw.mock.invocationCallOrder[1]).toBeLessThan(
         db.order.findFirst.mock.invocationCallOrder[1]
       );
       expect(db.orderedTest.create).toHaveBeenCalledWith(
@@ -386,6 +446,7 @@ describe('AddTestsService', () => {
             testNames: ['CBC'],
             selectedSpecimens: [picked('sp-edta', edta, ['isLipemic'])],
             sampleConfirmation: {
+              basis: 'SELECT_ACCEPTED',
               suitableAndSufficient: true,
               confirmedById: 'u-1',
               confirmedByName: 'Ana Lab',
@@ -461,15 +522,125 @@ describe('AddTestsService', () => {
       expectNothingWritten();
     });
 
+    it.each([
+      ['empty', []],
+      ['omitted', undefined],
+    ])(
+      'refuses samples %s when the order has accepted ones to pick',
+      async (_case, specimenIds) => {
+        arrange();
+        catalog([CBC], { cbc: config() });
+
+        await expect(
+          service.addTests(...actor, body({ specimenIds }), 'u-1', 'A')
+        ).rejects.toThrow(/Select the accepted samples/);
+        expectNothingWritten();
+      }
+    );
+
     it('refuses when the picked sample was rejected since the preview', async () => {
-      // The plan re-reads ACCEPTED samples under the lock: it's gone
-      arrange({ specimens: [] });
+      // The plan re-reads ACCEPTED samples under the lock: it's gone, the
+      // record remains (no fallback to confirming the order)
+      arrange({ specimens: [], specimenRecords: 1 });
       catalog([CBC], { cbc: config() });
 
       await expect(
         service.addTests(...actor, body(), 'u-1', 'A')
-      ).rejects.toThrow(/already accepted at the lab/);
+      ).rejects.toThrow(/accept one first/);
       expectNothingWritten();
+    });
+
+    describe('a received order with no specimen records', () => {
+      it('adds on the confirmed received sample, links nothing and records the basis', async () => {
+        arrange({ specimens: [] });
+        catalog([CBC], { cbc: null });
+
+        const result = await service.addTests(
+          ...actor,
+          body({ specimenIds: [] }),
+          'u-1',
+          'Ana Lab'
+        );
+
+        expect(db.orderedTest.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              catalogItemId: 'cbc',
+              status: 'READY',
+            }),
+          })
+        );
+        expect(db.orderedTestSpecimen.createMany).not.toHaveBeenCalled();
+        expect(db.specimen.create).not.toHaveBeenCalled();
+        expect(db.pickup.create).not.toHaveBeenCalled();
+        expect(db.timelineEvent.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            eventType: 'TESTS_ADDED',
+            metadata: expect.objectContaining({
+              selectedSpecimens: [],
+              sampleConfirmation: {
+                basis: 'CONFIRM_RECEIVED_ORDER',
+                suitableAndSufficient: true,
+                confirmedById: 'u-1',
+                confirmedByName: 'Ana Lab',
+                confirmedAt: expect.any(String),
+              },
+            }),
+          }),
+          select: { id: true },
+        });
+        expect(notifications.publish).toHaveBeenCalled();
+        expect(result.specimens).toEqual([]);
+      });
+
+      it('also accepts the samples omitted', async () => {
+        arrange({ specimens: [] });
+        catalog([CBC], { cbc: config() });
+
+        await service.addTests(
+          ...actor,
+          body({ specimenIds: undefined }),
+          'u-1',
+          'A'
+        );
+
+        expect(db.orderedTest.create).toHaveBeenCalled();
+      });
+
+      it('still requires the confirmation', async () => {
+        arrange({ specimens: [] });
+        catalog([CBC], { cbc: config() });
+
+        await expect(
+          service.addTests(
+            ...actor,
+            body({ specimenIds: [], confirmedSuitable: false }),
+            'u-1',
+            'A'
+          )
+        ).rejects.toThrow(/suitable and sufficient/);
+        expectNothingWritten();
+      });
+
+      it('refuses sample ids: there are none to select', async () => {
+        arrange({ specimens: [] });
+        catalog([CBC], { cbc: config() });
+
+        await expect(
+          service.addTests(...actor, body(), 'u-1', 'A')
+        ).rejects.toThrow(/no specimen records to select/);
+        expectNothingWritten();
+      });
+
+      it('refuses when the order is not received yet', async () => {
+        arrange({ status: 'PENDING', specimens: [] });
+        catalog([CBC], { cbc: config() });
+
+        await expect(
+          service.addTests(...actor, body({ specimenIds: [] }), 'u-1', 'A')
+        ).rejects.toThrow(/received at the lab/);
+        expectNothingWritten();
+      });
     });
 
     it('adds a test with no published template as blocked, and records why', async () => {

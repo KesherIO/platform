@@ -144,6 +144,15 @@ export interface RequestSampleInput {
 /** NO_TEMPLATE tests are added BLOCKED until a template is published */
 export type AddedTestOutcome = 'READY' | 'NO_TEMPLATE';
 
+/** Which samples added tests run on (see AddTestsService.SampleMode):
+ * pick ACCEPTED ones, or confirm the sample received with an order that has
+ * no specimen records; the last two can't add. */
+export type AddTestsSampleMode =
+  | 'SELECT_ACCEPTED'
+  | 'CONFIRM_RECEIVED_ORDER'
+  | 'NO_ACCEPTED_SPECIMEN'
+  | 'NOT_RECEIVED';
+
 export type SpecimenConditionFlag =
   | 'isHemolyzed'
   | 'isLipemic'
@@ -163,9 +172,10 @@ export interface AddTestsPreview {
     outcome: AddedTestOutcome;
   }>;
   alreadyOnOrder: Array<{ catalogItemId: string; name: string }>;
-  /** Accepted samples of the order the tests can be added onto */
+  sampleMode: AddTestsSampleMode;
+  /** Accepted samples to pick from (SELECT_ACCEPTED only) */
   acceptedSpecimens: AddTestsSpecimen[];
-  /** Something new to add and an accepted sample to add it onto */
+  /** Something new to add, and a sample mode tests can be added in */
   canAdd: boolean;
 }
 
