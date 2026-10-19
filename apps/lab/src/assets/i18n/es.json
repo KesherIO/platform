@@ -497,6 +497,13 @@
       "tests": "Pruebas",
       "packages": "Paquetes"
     },
+    "sort": {
+      "label": "Ordenar catálogo",
+      "created_desc": "Más recientes primero",
+      "created_asc": "Más antiguos primero",
+      "name_asc": "Nombre A–Z",
+      "name_desc": "Nombre Z–A"
+    },
     "search_placeholder": "Buscar por nombre...",
     "kind": {
       "TEST": "Prueba",

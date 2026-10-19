@@ -378,6 +378,37 @@ describe('CatalogService', () => {
       expect(result.total).toBe(34);
     });
 
+    it('defaults to newest-first with an id tiebreaker', async () => {
+      await service.findAllAdmin(LAB_A, {});
+      expect(prisma.catalogItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        })
+      );
+    });
+
+    it.each([
+      ['name_asc', { name: 'asc' }],
+      ['name_desc', { name: 'desc' }],
+      ['created_desc', { createdAt: 'desc' }],
+      ['created_asc', { createdAt: 'asc' }],
+    ])('orders by %s', async (sort, expected) => {
+      await service.findAllAdmin(LAB_A, { sort: sort as any });
+      expect(prisma.catalogItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: [expected, { id: 'asc' }] })
+      );
+    });
+
+    it('sort does not change the where clause or the counts', async () => {
+      await service.findAllAdmin(LAB_A, { sort: 'name_asc' as any });
+      expect(prisma.catalogItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { labTenantId: LAB_A } })
+      );
+      expect(prisma.catalogItem.count).toHaveBeenCalledWith({
+        where: { labTenantId: LAB_A },
+      });
+    });
+
     it('total falls back to the all-kinds count when no kind filter is given', async () => {
       prisma.catalogItem.count
         .mockResolvedValueOnce(39)
