@@ -23,6 +23,7 @@ import { BillingMappingModal } from './BillingMappingModal';
 import type {
   CatalogCounts,
   CatalogItem,
+  CatalogSort,
   ImportCatalogItemInput,
 } from '../../types/lab.types';
 
@@ -50,6 +51,13 @@ const KIND_FILTERS: Array<{
     labelKey: 'catalog.filter.packages',
     countKey: 'PACKAGE',
   },
+];
+
+const SORT_OPTIONS: Array<{ value: CatalogSort; labelKey: string }> = [
+  { value: 'created_desc', labelKey: 'catalog.sort.created_desc' },
+  { value: 'created_asc', labelKey: 'catalog.sort.created_asc' },
+  { value: 'name_asc', labelKey: 'catalog.sort.name_asc' },
+  { value: 'name_desc', labelKey: 'catalog.sort.name_desc' },
 ];
 
 const EMPTY_COUNTS: CatalogCounts = { all: 0, TEST: 0, PACKAGE: 0 };
@@ -155,6 +163,7 @@ export function CatalogPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [kindFilter, setKindFilter] = useState<KindFilter>('ALL');
+  const [sort, setSort] = useState<CatalogSort>('created_desc');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null);
   const [showMapping, setShowMapping] = useState(false);
@@ -187,11 +196,12 @@ export function CatalogPage() {
   const pageSize = 20;
 
   const { data, isLoading, isFetching, error } = useQuery({
-    queryKey: ['catalog', { search, kind: kindFilter, page }],
+    queryKey: ['catalog', { search, kind: kindFilter, sort, page }],
     queryFn: () =>
       labApi.catalog.list({
         search: search || undefined,
         kind: kindFilter === 'ALL' ? undefined : kindFilter,
+        sort,
         page,
         pageSize,
       }),
@@ -214,7 +224,7 @@ export function CatalogPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, kindFilter]);
+  }, [search, kindFilter, sort]);
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString(undefined, {
@@ -518,6 +528,18 @@ export function CatalogPage() {
             placeholder={t('catalog.search_placeholder')}
           />
         </div>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as CatalogSort)}
+          aria-label={t('catalog.sort.label')}
+          className="h-9 rounded-lg border border-gray-700 bg-gray-800 px-3 text-xs font-medium text-gray-300 hover:bg-gray-700"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {t(o.labelKey)}
+            </option>
+          ))}
+        </select>
         <div className="flex gap-1.5">
           {KIND_FILTERS.map((f) => (
             <button

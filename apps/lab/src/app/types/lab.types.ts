@@ -869,9 +869,16 @@ export interface CatalogItem {
   components?: CatalogItem[]; // PACKAGE only — constituent tests
 }
 
+export type CatalogSort =
+  | 'name_asc'
+  | 'name_desc'
+  | 'created_desc'
+  | 'created_asc';
+
 export interface CatalogQuery {
   search?: string;
   kind?: CatalogItemKind;
+  sort?: CatalogSort;
   page?: number;
   pageSize?: number;
 }

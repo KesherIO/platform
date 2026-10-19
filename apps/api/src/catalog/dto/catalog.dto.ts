@@ -124,6 +124,13 @@ export class ImportCatalogDto {
 // Admin CRUD (lab-scoped — see LabTenantGuard on the controller routes)
 // ---------------------------------------------------------------------------
 
+export enum CatalogSortDto {
+  NAME_ASC = 'name_asc',
+  NAME_DESC = 'name_desc',
+  CREATED_DESC = 'created_desc',
+  CREATED_ASC = 'created_asc',
+}
+
 export class ListCatalogAdminDto {
   @IsString()
   @MaxLength(100)
@@ -134,6 +141,11 @@ export class ListCatalogAdminDto {
   @IsOptional()
   @IsEnum(CatalogItemKindDto)
   kind?: CatalogItemKindDto;
+
+  @ApiPropertyOptional({ enum: CatalogSortDto })
+  @IsOptional()
+  @IsEnum(CatalogSortDto)
+  sort?: CatalogSortDto;
 
   @Type(() => Number)
   @IsInt()

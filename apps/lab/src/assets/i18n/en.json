@@ -498,6 +498,13 @@
       "tests": "Tests",
       "packages": "Packages"
     },
+    "sort": {
+      "label": "Sort catalog",
+      "created_desc": "Newest first",
+      "created_asc": "Oldest first",
+      "name_asc": "Name A–Z",
+      "name_desc": "Name Z–A"
+    },
     "kind": {
       "TEST": "Test",
       "PACKAGE": "Package"

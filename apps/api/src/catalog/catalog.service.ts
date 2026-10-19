@@ -14,6 +14,7 @@ import {
 } from '../billing/billing-code.util';
 import {
   CatalogItemKindDto,
+  CatalogSortDto,
   CreateCatalogItemDto,
   ImportCatalogDto,
   ListCatalogAdminDto,
@@ -91,6 +92,13 @@ function mapItem(
 }
 
 // ---------------------------------------------------------------------------
+
+const CATALOG_SORT_ORDER = {
+  [CatalogSortDto.NAME_ASC]: { name: 'asc' },
+  [CatalogSortDto.NAME_DESC]: { name: 'desc' },
+  [CatalogSortDto.CREATED_DESC]: { createdAt: 'desc' },
+  [CatalogSortDto.CREATED_ASC]: { createdAt: 'asc' },
+} as const;
 
 @Injectable()
 export class CatalogService {
@@ -413,7 +421,13 @@ export class CatalogService {
   // ---------------------------------------------------------------------------
 
   async findAllAdmin(labTenantId: string, query: ListCatalogAdminDto) {
-    const { search, kind, page = 1, pageSize = 20 } = query;
+    const {
+      search,
+      kind,
+      sort = CatalogSortDto.CREATED_DESC,
+      page = 1,
+      pageSize = 20,
+    } = query;
 
     // Counts are scoped by search but NOT by kind — the UI shows all three
     // ("All"/"Tests"/"Packages") counts side by side regardless of which
@@ -430,7 +444,7 @@ export class CatalogService {
     const [items, countAll, countTest, countPackage] = await Promise.all([
       this.prisma.catalogItem.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [CATALOG_SORT_ORDER[sort], { id: 'asc' }],
         skip,
         take: pageSize,
         include: { components: { include: { component: true } } },
