@@ -42,13 +42,11 @@ describe('CatalogService — package component only', () => {
       },
       catalogItem: {
         findMany: jest.fn().mockResolvedValue([RAW]),
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({
-            labTenantId: LAB_A,
-            code: 'COPRO1',
-            kind: 'TEST',
-          }),
+        findUnique: jest.fn().mockResolvedValue({
+          labTenantId: LAB_A,
+          code: 'COPRO1',
+          kind: 'TEST',
+        }),
         findFirst: jest.fn().mockResolvedValue(null),
         count: jest.fn().mockResolvedValue(1),
         create: jest.fn().mockResolvedValue(RAW),

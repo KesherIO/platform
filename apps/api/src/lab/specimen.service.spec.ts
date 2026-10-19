@@ -1186,11 +1186,9 @@ describe('SpecimenService — accessionOrder (samples not received yet)', () => 
       specimen: {
         count: jest.fn().mockResolvedValue(0),
         update: jest.fn().mockImplementation(({ where }) => ({ id: where.id })),
-        create: jest
-          .fn()
-          .mockImplementation(({ data }) => ({
-            id: `new-${data.containerType}`,
-          })),
+        create: jest.fn().mockImplementation(({ data }) => ({
+          id: `new-${data.containerType}`,
+        })),
       },
       orderedTest: { update: jest.fn(), updateMany: jest.fn() },
       orderedTestSpecimen: { upsert: jest.fn() },
