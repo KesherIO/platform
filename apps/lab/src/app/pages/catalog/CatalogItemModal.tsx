@@ -36,6 +36,9 @@ export function CatalogItemModal({
     item?.resultType ?? ''
   );
   const [unit, setUnit] = useState(item?.unit ?? '');
+  const [packageComponentOnly, setPackageComponentOnly] = useState(
+    item?.packageComponentOnly ?? false
+  );
   const [description, setDescription] = useState(item?.description ?? '');
   const [componentIds, setComponentIds] = useState<string[]>(
     item?.components?.map((c) => c.id) ?? []
@@ -75,6 +78,13 @@ export function CatalogItemModal({
           : undefined,
       resultType: kind === 'TEST' ? resultType || undefined : undefined,
       unit: kind === 'TEST' ? unit || undefined : undefined,
+      // Only tests can be package-only; false on edit un-hides it again
+      packageComponentOnly:
+        kind === 'TEST'
+          ? mode === 'edit' || packageComponentOnly
+            ? packageComponentOnly
+            : undefined
+          : undefined,
       description: kind === 'PACKAGE' ? description || undefined : undefined,
       componentIds: kind === 'PACKAGE' ? componentIds : undefined,
     };
@@ -240,6 +250,21 @@ export function CatalogItemModal({
                   />
                 </div>
               </div>
+
+              <label className="flex items-start gap-2 text-sm text-gray-200">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={packageComponentOnly}
+                  onChange={(e) => setPackageComponentOnly(e.target.checked)}
+                />
+                <span>
+                  {t('catalog.form.package_only')}
+                  <span className="block text-xs text-gray-500">
+                    {t('catalog.form.package_only_hint')}
+                  </span>
+                </span>
+              </label>
             </>
           )}
 

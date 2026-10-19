@@ -23,6 +23,8 @@ function buildInitialForms(
       tubeIndex: sp.tubeIndex,
       accessionNumber: sp.accessionNumber,
       accepted: sp.status === 'ACCEPTED',
+      // A tube still expected (requested, or saved as not received yet)
+      awaiting: sp.status === 'EXPECTED',
       rejectionReason: sp.rejectionReason ?? undefined,
       notes: sp.notes ?? undefined,
       isHemolyzed: sp.isHemolyzed,
@@ -43,6 +45,7 @@ function buildInitialForms(
     accessionNumber:
       idx === 0 ? requisitionNumber : `${requisitionNumber}-${idx + 1}`,
     accepted: true,
+    awaiting: false,
     isHemolyzed: false,
     isLipemic: false,
     isIcteric: false,
@@ -85,14 +88,26 @@ export function AccessionDialog({
   const [forms, setForms] = useState<SpecimenFormState[]>([]);
 
   useEffect(() => {
+    // Only the latest request may fill the form: under StrictMode (and on
+    // any re-run) an older, slower response would otherwise land after the
+    // user's first clicks and reset them
+    let stale = false;
     labApi.specimens
       .getExpected(orderId)
       .then((data) => {
+        if (stale) return;
         setExpectedData(data);
         setForms(buildInitialForms(data, requisitionNumber));
       })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e: Error) => {
+        if (!stale) setError(e.message);
+      })
+      .finally(() => {
+        if (!stale) setLoading(false);
+      });
+    return () => {
+      stale = true;
+    };
   }, [orderId]);
 
   const updateForm = (key: string, patch: Partial<SpecimenFormState>) => {
@@ -118,6 +133,7 @@ export function AccessionDialog({
         tubeIndex: nextIdx,
         accessionNumber: '',
         accepted: true,
+        awaiting: false,
         isHemolyzed: false,
         isLipemic: false,
         isIcteric: false,
@@ -134,6 +150,7 @@ export function AccessionDialog({
       prev.map((f) => ({
         ...f,
         accepted: true,
+        awaiting: false,
         rejectionReason: undefined,
         isHemolyzed: false,
         isLipemic: false,
@@ -156,8 +173,17 @@ export function AccessionDialog({
       f.isWrongContainer ||
       f.isLeaking;
 
+    if (forms.length > 0 && forms.every((f) => f.awaiting)) {
+      setError(t('accession.all_awaiting'));
+      return;
+    }
     for (const f of forms) {
-      if (!f.accepted && !f.rejectionReason && !hasConditionFlag(f)) {
+      if (
+        !f.awaiting &&
+        !f.accepted &&
+        !f.rejectionReason &&
+        !hasConditionFlag(f)
+      ) {
         setError(t('accession.rejection_reason_required'));
         return;
       }
@@ -252,11 +278,12 @@ export function AccessionDialog({
                           onClick={() =>
                             updateForm(f._key, {
                               accepted: true,
+                              awaiting: false,
                               rejectionReason: undefined,
                             })
                           }
                           className={`rounded-lg px-3 py-1 text-xs font-medium ${
-                            f.accepted
+                            f.accepted && !f.awaiting
                               ? 'bg-emerald-600 text-white'
                               : 'border border-gray-700 text-gray-400 hover:border-emerald-600 hover:text-emerald-400'
                           }`}
@@ -265,15 +292,41 @@ export function AccessionDialog({
                         </button>
                         <button
                           onClick={() =>
-                            updateForm(f._key, { accepted: false })
+                            updateForm(f._key, {
+                              accepted: false,
+                              awaiting: false,
+                            })
                           }
                           className={`rounded-lg px-3 py-1 text-xs font-medium ${
-                            !f.accepted
+                            !f.accepted && !f.awaiting
                               ? 'bg-red-700 text-white'
                               : 'border border-gray-700 text-gray-400 hover:border-red-600 hover:text-red-400'
                           }`}
                         >
                           {t('accession.reject')}
+                        </button>
+                        <button
+                          onClick={() =>
+                            updateForm(f._key, {
+                              awaiting: true,
+                              accepted: false,
+                              rejectionReason: undefined,
+                              isHemolyzed: false,
+                              isLipemic: false,
+                              isIcteric: false,
+                              isInsufficient: false,
+                              isContaminated: false,
+                              isWrongContainer: false,
+                              isLeaking: false,
+                            })
+                          }
+                          className={`rounded-lg px-3 py-1 text-xs font-medium ${
+                            f.awaiting
+                              ? 'bg-amber-600 text-white'
+                              : 'border border-gray-700 text-gray-400 hover:border-amber-600 hover:text-amber-400'
+                          }`}
+                        >
+                          {t('accession.awaiting')}
                         </button>
                       </div>
                     </div>
@@ -298,36 +351,44 @@ export function AccessionDialog({
                       />
                     </div>
 
-                    {/* Condition flags */}
-                    <div className="mb-3">
-                      <p className="mb-1.5 text-xs text-gray-400">
-                        {t('accession.conditions')}
+                    {f.awaiting && (
+                      <p className="mb-3 rounded-lg border border-amber-900/60 bg-amber-900/10 px-3 py-2 text-xs text-amber-200">
+                        {t('accession.awaiting_hint')}
                       </p>
-                      <div className="flex flex-wrap gap-2">
-                        {CONDITION_FLAGS.map((flag) => (
-                          <button
-                            key={flag}
-                            onClick={() => {
-                              const turningOn = !f[flag];
-                              updateForm(f._key, {
-                                [flag]: turningOn,
-                                ...(turningOn ? { accepted: false } : {}),
-                              } as Partial<SpecimenFormState>);
-                            }}
-                            className={`rounded-lg border px-2.5 py-1 text-xs ${
-                              f[flag]
-                                ? 'border-yellow-600 bg-yellow-900/40 text-yellow-300'
-                                : 'border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-400'
-                            }`}
-                          >
-                            {t(`accession.flag.${flag}`)}
-                          </button>
-                        ))}
+                    )}
+
+                    {/* Condition flags */}
+                    {!f.awaiting && (
+                      <div className="mb-3">
+                        <p className="mb-1.5 text-xs text-gray-400">
+                          {t('accession.conditions')}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {CONDITION_FLAGS.map((flag) => (
+                            <button
+                              key={flag}
+                              onClick={() => {
+                                const turningOn = !f[flag];
+                                updateForm(f._key, {
+                                  [flag]: turningOn,
+                                  ...(turningOn ? { accepted: false } : {}),
+                                } as Partial<SpecimenFormState>);
+                              }}
+                              className={`rounded-lg border px-2.5 py-1 text-xs ${
+                                f[flag]
+                                  ? 'border-yellow-600 bg-yellow-900/40 text-yellow-300'
+                                  : 'border-gray-700 text-gray-500 hover:border-gray-600 hover:text-gray-400'
+                              }`}
+                            >
+                              {t(`accession.flag.${flag}`)}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Rejection reason */}
-                    {!f.accepted && (
+                    {!f.accepted && !f.awaiting && (
                       <div className="mb-3">
                         <label className="mb-1 block text-xs text-gray-400">
                           {t('accession.rejection_reason')}

@@ -248,7 +248,10 @@
       "REQUIRES_RECOLLECTION": "Requiere recolección",
       "MISSING_RESULT_TEMPLATE": "Sin plantilla de resultado",
       "OTHER": "Bloqueado"
-    }
+    },
+    "awaiting": "Aún no recibida",
+    "awaiting_hint": "Esta muestra todavía no ha llegado al laboratorio. Queda esperada y sus pruebas siguen pendientes; no se rechaza nada y no se notifica a la clínica. Recíbala después desde el panel de Muestras de esta orden.",
+    "all_awaiting": "Reciba al menos una muestra para registrar la orden. Las muestras marcadas como \"Aún no recibida\" se reciben después."
   },
   "result_entry": {
     "back": "← Regresar a la orden",
@@ -537,7 +540,9 @@
       "no_tests": "Aún no hay pruebas activas disponibles.",
       "cancel": "Cancelar",
       "submit": "Guardar",
-      "submitting": "Guardando..."
+      "submitting": "Guardando...",
+      "package_only": "Solo parte de paquetes",
+      "package_only_hint": "Las clínicas no verán esta prueba en su lista ni podrán pedirla sola; aparece dentro de los paquetes que la incluyen. El laboratorio sí la ve y puede usarla."
     },
     "errors": {
       "create": "No se pudo crear el elemento del catálogo.",
@@ -588,7 +593,9 @@
         "description (opcional): texto libre",
         "componentCodes (opcional, solo PACKAGE): códigos de pruebas en el paquete — separados por punto y coma en CSV, array en JSON"
       ]
-    }
+    },
+    "package_only": "Solo en paquetes",
+    "package_only_hint": "Oculta para las clínicas; solo disponible dentro de paquetes"
   },
   "clients": {
     "title": "Clientes",

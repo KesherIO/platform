@@ -682,6 +682,13 @@ export class SpecimenService {
     });
     if (!order) throw new NotFoundException('Order not found.');
 
+    // Receiving nothing is not an accession: the lab uses "Receive tube" later
+    if (dto.specimens.length > 0 && dto.specimens.every((s) => s.awaiting)) {
+      throw new BadRequestException(
+        'Receive at least one sample to accession the order. Samples marked "not received yet" are received later.'
+      );
+    }
+
     const patientSpecies = order.case.patientSpecies as PatientSpecies;
     const ageWeeks =
       order.case.patientAge && order.case.patientAgeUnit
@@ -744,6 +751,9 @@ export class SpecimenService {
     const result = await this.prisma.$transaction(
       async (tx) => {
         const timelineEvents: Prisma.TimelineEventCreateManyInput[] = [];
+        // Tests left waiting for a sample that hasn't arrived: not stamped
+        // as received, and they stay PENDING
+        const waitingTestIds = new Set<string>();
 
         // --- Specimens: parallel create/update ---
         const createdSpecimens = await Promise.all(
@@ -757,15 +767,26 @@ export class SpecimenService {
                 sp.tubeIndex === tubeIndex
             );
 
-            const specimenStatus = s.accepted ? 'ACCEPTED' : 'REJECTED';
+            const awaiting = s.awaiting === true;
+            if (awaiting && existing?.receivedAt) {
+              throw new BadRequestException(
+                `Specimen ${existing.id} was already received and cannot be marked as not received yet.`
+              );
+            }
+            const specimenStatus = awaiting
+              ? 'EXPECTED'
+              : s.accepted
+              ? 'ACCEPTED'
+              : 'REJECTED';
+            // A sample that hasn't arrived has no conditions to record
             const conditionData = {
-              isHemolyzed: s.isHemolyzed ?? false,
-              isLipemic: s.isLipemic ?? false,
-              isIcteric: s.isIcteric ?? false,
-              isInsufficient: s.isInsufficient ?? false,
-              isContaminated: s.isContaminated ?? false,
-              isWrongContainer: s.isWrongContainer ?? false,
-              isLeaking: s.isLeaking ?? false,
+              isHemolyzed: !awaiting && (s.isHemolyzed ?? false),
+              isLipemic: !awaiting && (s.isLipemic ?? false),
+              isIcteric: !awaiting && (s.isIcteric ?? false),
+              isInsufficient: !awaiting && (s.isInsufficient ?? false),
+              isContaminated: !awaiting && (s.isContaminated ?? false),
+              isWrongContainer: !awaiting && (s.isWrongContainer ?? false),
+              isLeaking: !awaiting && (s.isLeaking ?? false),
             };
 
             const specimen = existing
@@ -774,14 +795,15 @@ export class SpecimenService {
                   data: {
                     status: specimenStatus,
                     ...conditionData,
-                    rejectionReason: s.accepted
-                      ? null
-                      : s.rejectionReason ?? null,
+                    rejectionReason:
+                      s.accepted || awaiting ? null : s.rejectionReason ?? null,
                     notes: s.notes ?? null,
                     // A tube keeps its original receipt when the order is
-                    // accessioned again
-                    receivedAt: existing.receivedAt ?? now,
-                    receivedById: existing.receivedAt
+                    // accessioned again; an awaited one has none yet
+                    receivedAt: awaiting ? null : existing.receivedAt ?? now,
+                    receivedById: awaiting
+                      ? null
+                      : existing.receivedAt
                       ? existing.receivedById
                       : actorId,
                   },
@@ -796,37 +818,40 @@ export class SpecimenService {
                     tubeIndex,
                     status: specimenStatus,
                     ...conditionData,
-                    rejectionReason: s.accepted
-                      ? null
-                      : s.rejectionReason ?? null,
+                    rejectionReason:
+                      s.accepted || awaiting ? null : s.rejectionReason ?? null,
                     notes: s.notes ?? null,
-                    receivedAt: now,
-                    receivedById: actorId,
+                    receivedAt: awaiting ? null : now,
+                    receivedById: awaiting ? null : actorId,
                   },
                 });
 
-            timelineEvents.push({
-              orderId,
-              eventType: s.accepted ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED',
-              actorId,
-              actorName,
-              description: s.accepted
-                ? `Specimen ${s.accessionNumber} (${s.specimenType}) accepted`
-                : `Specimen ${s.accessionNumber} (${
-                    s.specimenType
-                  }) rejected: ${buildRejectionReason(s)}`,
-              metadata: {
-                specimenId: specimen.id,
-                accessionNumber: s.accessionNumber,
-                specimenType: s.specimenType,
-                reason: s.rejectionReason,
-                conditions: buildConditionFlags(s),
-              },
-            });
+            // An awaited sample is logged in the overall accession event only
+            if (!awaiting) {
+              timelineEvents.push({
+                orderId,
+                eventType: s.accepted ? 'SAMPLE_ACCEPTED' : 'SAMPLE_REJECTED',
+                actorId,
+                actorName,
+                description: s.accepted
+                  ? `Specimen ${s.accessionNumber} (${s.specimenType}) accepted`
+                  : `Specimen ${s.accessionNumber} (${
+                      s.specimenType
+                    }) rejected: ${buildRejectionReason(s)}`,
+                metadata: {
+                  specimenId: specimen.id,
+                  accessionNumber: s.accessionNumber,
+                  specimenType: s.specimenType,
+                  reason: s.rejectionReason,
+                  conditions: buildConditionFlags(s),
+                },
+              });
+            }
 
             return {
               id: specimen.id,
-              accepted: s.accepted,
+              accepted: awaiting ? false : s.accepted,
+              awaiting,
               specimenType: s.specimenType,
               containerType: s.containerType,
               tubeIndex,
@@ -850,11 +875,25 @@ export class SpecimenService {
                     sp.containerType === primaryReq.containerType))
             );
 
-            const matchingRejected =
+            // Another sample of its kind is still on its way: wait for it
+            // rather than blocking on a rejected one
+            const matchingAwaiting =
               !matchingAccepted &&
               createdSpecimens.find(
                 (sp) =>
+                  sp.awaiting &&
+                  (!primaryReq ||
+                    (sp.specimenType === primaryReq.specimenType &&
+                      sp.containerType === primaryReq.containerType))
+              );
+
+            const matchingRejected =
+              !matchingAccepted &&
+              !matchingAwaiting &&
+              createdSpecimens.find(
+                (sp) =>
                   !sp.accepted &&
+                  !sp.awaiting &&
                   (!primaryReq ||
                     (sp.specimenType === primaryReq.specimenType &&
                       sp.containerType === primaryReq.containerType))
@@ -925,6 +964,33 @@ export class SpecimenService {
                     blockReason: 'MISSING_RESULT_TEMPLATE',
                     catalogCode,
                     species: patientSpecies,
+                  },
+                });
+              }
+            } else if (matchingAwaiting) {
+              // Linked to the tube it is waiting for; "Receive tube" moves it
+              waitingTestIds.add(test.id);
+              await tx.orderedTestSpecimen.upsert({
+                where: {
+                  orderedTestId_specimenId: {
+                    orderedTestId: test.id,
+                    specimenId: matchingAwaiting.id,
+                  },
+                },
+                create: {
+                  orderedTestId: test.id,
+                  specimenId: matchingAwaiting.id,
+                },
+                update: {},
+              });
+              if (test.status !== 'PENDING') {
+                await tx.orderedTest.update({
+                  where: { id: test.id },
+                  data: {
+                    status: 'PENDING',
+                    blockReason: null,
+                    blockReasonDetail: null,
+                    version: { increment: 1 },
                   },
                 });
               }
@@ -1007,18 +1073,32 @@ export class SpecimenService {
           actorName,
           description: `Order accessioned — ${
             createdSpecimens.filter((s) => s.accepted).length
-          } specimen(s) accepted`,
+          } specimen(s) accepted${
+            createdSpecimens.some((s) => s.awaiting)
+              ? `, ${
+                  createdSpecimens.filter((s) => s.awaiting).length
+                } not received yet`
+              : ''
+          }`,
           metadata: {
             totalSpecimens: createdSpecimens.length,
             accepted: createdSpecimens.filter((s) => s.accepted).length,
-            rejected: createdSpecimens.filter((s) => !s.accepted).length,
+            rejected: createdSpecimens.filter((s) => !s.accepted && !s.awaiting)
+              .length,
+            awaiting: createdSpecimens.filter((s) => s.awaiting).length,
           },
         });
 
         // Batch: stamp receivedAt + all timeline events in parallel
         await Promise.all([
           tx.orderedTest.updateMany({
-            where: { orderId, receivedAt: null },
+            where: {
+              orderId,
+              receivedAt: null,
+              ...(waitingTestIds.size > 0 && {
+                id: { notIn: [...waitingTestIds] },
+              }),
+            },
             data: { receivedAt: now },
           }),
           tx.timelineEvent.createMany({ data: timelineEvents }),

@@ -643,6 +643,7 @@ model CatalogItem {
   labTenantId     String
   kind            CatalogItemKind
   code            String? // TEST only — lab code (e.g. "CBC"); unique within the lab's catalog
+  packageComponentOnly Boolean       @default(false) // TEST only — part of packages, not orderable on its own: hidden from clinics (catalog list, AI suggestions, selection); the lab still sees and uses it
   billingCode     String? // lab's own billing-system code (tests and packages); unique within the lab (AWAITING BIOMET CONFIRMATION, docs/BILLING_EXPORT.md), never used to match templates
   name            String
   description     String? // PACKAGE only

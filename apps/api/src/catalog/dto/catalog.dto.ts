@@ -173,6 +173,14 @@ export class CreateCatalogItemDto {
   @MaxLength(BILLING_CODE_MAX_LENGTH)
   billingCode?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'TEST only — the test exists only as part of packages: hidden from clinics, still available to the lab',
+  })
+  @IsOptional()
+  @IsBoolean()
+  packageComponentOnly?: boolean;
+
   @ApiPropertyOptional({ example: 'Hematology' })
   @IsOptional()
   @IsString()
@@ -229,6 +237,14 @@ export class UpdateCatalogItemDto {
   @IsString()
   @MaxLength(BILLING_CODE_MAX_LENGTH)
   billingCode?: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'TEST only — the test exists only as part of packages: hidden from clinics, still available to the lab and inside packages',
+  })
+  @IsOptional()
+  @IsBoolean()
+  packageComponentOnly?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

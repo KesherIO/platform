@@ -248,7 +248,10 @@
       "REQUIRES_RECOLLECTION": "Requires recollection",
       "MISSING_RESULT_TEMPLATE": "No result template",
       "OTHER": "Blocked"
-    }
+    },
+    "awaiting": "Not received yet",
+    "awaiting_hint": "This sample isn't at the lab yet. It stays expected and its tests stay pending; nothing is rejected and the clinic isn't notified. Receive it later from this order's Samples panel.",
+    "all_awaiting": "Receive at least one sample to accession the order. Samples marked \"Not received yet\" are received later."
   },
   "result_entry": {
     "back": "← Back to order",
@@ -537,7 +540,9 @@
       "no_tests": "No active tests available yet.",
       "cancel": "Cancel",
       "submit": "Save",
-      "submitting": "Saving..."
+      "submitting": "Saving...",
+      "package_only": "Only part of packages",
+      "package_only_hint": "Clinics won't see this test in their list or be able to order it on its own; it appears inside the packages that include it. The lab still sees and can use it."
     },
     "errors": {
       "create": "Couldn't create the catalog item.",
@@ -588,7 +593,9 @@
         "description (optional): free text",
         "componentCodes (optional, PACKAGE only): test codes in this package — semicolon-separated in CSV, array in JSON"
       ]
-    }
+    },
+    "package_only": "Package only",
+    "package_only_hint": "Hidden from clinics; only available inside packages"
   },
   "clients": {
     "title": "Clients",

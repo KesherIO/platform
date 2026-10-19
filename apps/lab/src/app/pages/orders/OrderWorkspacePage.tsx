@@ -770,35 +770,59 @@ export function OrderWorkspacePage() {
                 {t('specimens.title')}
               </h2>
               <div className="space-y-2">
-                {order.specimens.map((specimen) => (
-                  <div
-                    key={specimen.id}
-                    className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-950 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm text-white">
-                        {specimen.accessionNumber}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {specimen.specimenType} · {specimen.containerType}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={specimen.status} size="sm" />
-                      {(specimen.status === 'EXPECTED' ||
-                        specimen.status === 'MISSING') &&
-                        order.status !== 'CANCELLED' &&
-                        order.status !== 'COMPLETED' && (
-                          <button
-                            onClick={() => setReceivingSpecimen(specimen)}
-                            className="rounded bg-cyan/15 px-2 py-1 text-xs font-medium text-cyan hover:bg-cyan/25"
-                          >
-                            {t('specimens.receive')}
-                          </button>
-                        )}
-                      {(specimen.status === 'EXPECTED' ||
-                        specimen.status === 'RECEIVED') && (
-                        <div className="flex items-center gap-1">
+                {order.specimens.map((specimen) => {
+                  const canAct =
+                    order.status !== 'CANCELLED' &&
+                    order.status !== 'COMPLETED';
+                  const canReceive =
+                    (specimen.status === 'EXPECTED' ||
+                      specimen.status === 'MISSING') &&
+                    canAct;
+                  const canMarkMissing =
+                    specimen.status === 'EXPECTED' ||
+                    specimen.status === 'RECEIVED';
+                  return (
+                    <div
+                      key={specimen.id}
+                      className="space-y-2 rounded-lg border border-gray-800 bg-gray-950 px-3 py-2"
+                    >
+                      {/* Who it is and where it stands; wraps on narrow cards */}
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                        <div className="min-w-0 flex-1 basis-40">
+                          <p className="break-all text-sm text-white">
+                            {specimen.accessionNumber}
+                          </p>
+                          <p className="break-words text-xs text-gray-400">
+                            {specimen.specimenType} · {specimen.containerType}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          <StatusBadge status={specimen.status} size="sm" />
+                          {canReceive && (
+                            <button
+                              onClick={() => setReceivingSpecimen(specimen)}
+                              className="rounded bg-cyan/15 px-2 py-1 text-xs font-medium text-cyan hover:bg-cyan/25"
+                            >
+                              {t('specimens.receive')}
+                            </button>
+                          )}
+                          {specimen.status === 'MISSING' && isAdmin && (
+                            <button
+                              onClick={() => handleReverseMissing(specimen)}
+                              disabled={reversingMissingId === specimen.id}
+                              className="rounded bg-gray-700 px-2 py-1 text-xs font-medium text-gray-300 hover:bg-gray-600 disabled:opacity-50"
+                            >
+                              {reversingMissingId === specimen.id
+                                ? '...'
+                                : t('specimens.reverse_missing')}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Marking a sample missing: its own line, full width */}
+                      {canMarkMissing && (
+                        <div className="flex items-center gap-2">
                           <input
                             type="text"
                             placeholder={t(
@@ -806,7 +830,7 @@ export function OrderWorkspacePage() {
                             )}
                             value={missingReason}
                             onChange={(e) => setMissingReason(e.target.value)}
-                            className="w-32 rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-white placeholder-gray-500"
+                            className="min-w-0 flex-1 rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs text-white placeholder-gray-500"
                           />
                           <button
                             onClick={() => handleMarkMissing(specimen)}
@@ -814,7 +838,7 @@ export function OrderWorkspacePage() {
                               markingMissingId === specimen.id ||
                               !missingReason.trim()
                             }
-                            className="rounded bg-amber-600/20 px-2 py-1 text-xs font-medium text-amber-300 hover:bg-amber-600/30 disabled:opacity-50"
+                            className="shrink-0 whitespace-nowrap rounded bg-amber-600/20 px-2 py-1 text-xs font-medium text-amber-300 hover:bg-amber-600/30 disabled:opacity-50"
                           >
                             {markingMissingId === specimen.id
                               ? '...'
@@ -822,20 +846,9 @@ export function OrderWorkspacePage() {
                           </button>
                         </div>
                       )}
-                      {specimen.status === 'MISSING' && isAdmin && (
-                        <button
-                          onClick={() => handleReverseMissing(specimen)}
-                          disabled={reversingMissingId === specimen.id}
-                          className="rounded bg-gray-700 px-2 py-1 text-xs font-medium text-gray-300 hover:bg-gray-600 disabled:opacity-50"
-                        >
-                          {reversingMissingId === specimen.id
-                            ? '...'
-                            : t('specimens.reverse_missing')}
-                        </button>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
           )}

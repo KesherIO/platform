@@ -31,6 +31,16 @@ export class AccessionSpecimenDto {
   @IsBoolean()
   accepted!: boolean;
 
+  /**
+   * The sample hasn't reached the lab yet (e.g. a serial test's later
+   * samples). It is kept as an EXPECTED tube — not accepted, not rejected, no
+   * clinic notification — and its tests stay PENDING until the lab receives
+   * it with "Receive tube". `accepted` is ignored when this is true.
+   */
+  @IsOptional()
+  @IsBoolean()
+  awaiting?: boolean;
+
   @IsOptional()
   @IsString()
   rejectionReason?: string;
