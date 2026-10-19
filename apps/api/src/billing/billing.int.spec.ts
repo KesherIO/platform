@@ -141,7 +141,13 @@ describeWithDb('Billing export against Postgres', () => {
     ) =>
       (
         await prisma.catalogItem.create({
-          data: { labTenantId: lab, kind, code, name: `${code} name`, billingCode },
+          data: {
+            labTenantId: lab,
+            kind,
+            code,
+            name: `${code} name`,
+            billingCode,
+          },
         })
       ).id;
     alt = await item(labA, 'TEST', 'ALT', 'ALT-B');
@@ -341,9 +347,9 @@ describeWithDb('Billing export against Postgres', () => {
         /not found/i
       );
       expect((await exporter.list(labB)).data).toEqual([]);
-      expect(
-        (await exporter.list(labA)).data.map((e) => e.id)
-      ).toContain(exportA.exportId);
+      expect((await exporter.list(labA)).data.map((e) => e.id)).toContain(
+        exportA.exportId
+      );
     });
 
     it("another lab's catalog item is never used to code my order lines", async () => {
@@ -428,7 +434,11 @@ describeWithDb('Billing export against Postgres', () => {
       expect(
         await prisma.billingExport.count({ where: { labTenantId: labA } })
       ).toBe(before);
-      const history = await exporter.preview(labA, range.dateFrom, range.dateTo);
+      const history = await exporter.preview(
+        labA,
+        range.dateFrom,
+        range.dateTo
+      );
       expect(history.summary.alreadyExported).toBe(0);
     });
 
@@ -531,7 +541,11 @@ describeWithDb('Billing export against Postgres', () => {
       ]);
       expect(a.rows).toHaveLength(8);
       expect(b.rows).toHaveLength(8);
-      const preview = await exporter.preview(labA, range.dateFrom, range.dateTo);
+      const preview = await exporter.preview(
+        labA,
+        range.dateFrom,
+        range.dateTo
+      );
       expect(preview.summary.alreadyExported).toBe(8);
     });
 
@@ -544,7 +558,9 @@ describeWithDb('Billing export against Postgres', () => {
         items: [{ id: labBItem, kind: 'TEST', code: 'ALT' }],
       });
       const [a, b] = await Promise.all([
-        exporter.generate(labA, user, { ...range, onlyNew: true }).catch((e) => e),
+        exporter
+          .generate(labA, user, { ...range, onlyNew: true })
+          .catch((e) => e),
         exporter.generate(labB, user, range),
       ]);
       expect(b.rows.map((r) => r.patientName)).toEqual(['Lab B only']);
@@ -604,15 +620,18 @@ describeWithDb('Billing export against Postgres', () => {
 
       const gen = await exporter.generate(labA, user, range);
       expect(gen.rows).toEqual([
-        expect.objectContaining({ item: 'HEM-LAB', patientName: 'Orphan Line' }),
+        expect.objectContaining({
+          item: 'HEM-LAB',
+          patientName: 'Orphan Line',
+        }),
       ]);
 
       expect(
         await prisma.order.findUniqueOrThrow({ where: { id: orderId } })
       ).toEqual(orderBefore);
-      expect(await prisma.catalogItem.count({ where: { labTenantId: labA } })).toBe(
-        catalogCountBefore
-      );
+      expect(
+        await prisma.catalogItem.count({ where: { labTenantId: labA } })
+      ).toBe(catalogCountBefore);
     });
 
     it('changing the code later affects new files only; the frozen file stays', async () => {
@@ -659,7 +678,12 @@ describeWithDb('Billing export against Postgres', () => {
     it('the database enforces one code per lab, not across labs', async () => {
       await expect(
         prisma.catalogItem.create({
-          data: { labTenantId: labA, kind: 'TEST', name: 'Dup', billingCode: 'ALT-B' },
+          data: {
+            labTenantId: labA,
+            kind: 'TEST',
+            name: 'Dup',
+            billingCode: 'ALT-B',
+          },
         })
       ).rejects.toMatchObject({ code: 'P2002' });
       // lab B already uses ALT-B for its own item

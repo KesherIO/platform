@@ -180,9 +180,14 @@ describe('lab route permissions', () => {
   });
 
   it('every other route is staff, staff+reception, admin, release or results', () => {
-    const allowedSets = [STAFF, STAFF_RECEPTION, ADMIN, RELEASE, RESULTS, BILLING_EXPORT].map(
-      (s) => JSON.stringify([...s].sort())
-    );
+    const allowedSets = [
+      STAFF,
+      STAFF_RECEPTION,
+      ADMIN,
+      RELEASE,
+      RESULTS,
+      BILLING_EXPORT,
+    ].map((s) => JSON.stringify([...s].sort()));
     const unexpected = routes
       .filter((r) => !MESSENGER_ROUTES.includes(r.key))
       .filter((r) => !allowedSets.includes(JSON.stringify(sorted(r.roles))))

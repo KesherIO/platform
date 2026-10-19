@@ -227,9 +227,7 @@ describeWithDb('Catalog import against Postgres', () => {
       billingCode,
     });
     const codes = async () =>
-      Object.fromEntries(
-        (await items()).map((i) => [i.code, i.billingCode])
-      );
+      Object.fromEntries((await items()).map((i) => [i.code, i.billingCode]));
 
     it('keeps an existing billing code when a re-import leaves it out', async () => {
       await service.import({

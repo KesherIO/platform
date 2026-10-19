@@ -44,7 +44,7 @@ code is never substituted.
 unique within a lab (case-insensitive, enforced in the service; the DB index
 `(labTenantId, billingCode)` is case-sensitive), and unmapped items (`NULL`) do
 not collide. If Biomet needs one code to cover two catalog items, drop the
-unique index and `assertBillingCodeAvailable`. Codes assigned to *deleted*
+unique index and `assertBillingCodeAvailable`. Codes assigned to _deleted_
 items are not subject to this rule.
 
 ## Catalog import
@@ -90,11 +90,11 @@ referenced by one of the lab's own orders are accepted.
 
 **Who can do what**
 
-| | Owner / Admin | Consulta **with** "Puede ver órdenes en proceso" (the Facturación user) | Consulta without it | Analyst, Reviewer, Messenger, others |
-|---|---|---|---|---|
-| Preview, generate, history, re-download (pending **and** completed orders) | yes | yes | no | no |
-| Set billing codes: mapping, deleted-item codes, catalog edits | yes | no | no | no |
-| See the Catalog tab and manage catalogs | yes | no | no | no |
+|                                                                            | Owner / Admin | Consulta **with** "Puede ver órdenes en proceso" (the Facturación user) | Consulta without it | Analyst, Reviewer, Messenger, others |
+| -------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------- | ------------------- | ------------------------------------ |
+| Preview, generate, history, re-download (pending **and** completed orders) | yes           | yes                                                                     | no                  | no                                   |
+| Set billing codes: mapping, deleted-item codes, catalog edits              | yes           | no                                                                      | no                  | no                                   |
+| See the Catalog tab and manage catalogs                                    | yes           | no                                                                      | no                  | no                                   |
 
 Consulta without the checkbox cannot download because the export includes
 pending orders. The export has no result values; Consulta already sees clinic
@@ -113,14 +113,14 @@ The four download routes also pass `BillingExportAccessGuard`, which refuses
 Consulta without the checkbox. `labTenantId` always comes from that membership;
 the global `ValidationPipe` (`whitelist: true`) strips any lab id sent in a body.
 
-| Route | Roles |
-|---|---|
-| `GET lab/billing/exports/preview` | Owner, Admin, Consulta + checkbox |
-| `POST lab/billing/exports` (generate) | Owner, Admin, Consulta + checkbox |
+| Route                                                                            | Roles                             |
+| -------------------------------------------------------------------------------- | --------------------------------- |
+| `GET lab/billing/exports/preview`                                                | Owner, Admin, Consulta + checkbox |
+| `POST lab/billing/exports` (generate)                                            | Owner, Admin, Consulta + checkbox |
 | `GET lab/billing/exports` (history), `GET lab/billing/exports/:id` (re-download) | Owner, Admin, Consulta + checkbox |
-| `POST lab/billing/mapping/suggest`, `POST lab/billing/mapping/apply` | Owner, Admin |
-| `PUT / DELETE lab/billing/deleted-items/:catalogItemId/code` | Owner, Admin |
-| `PATCH catalog/:id` (inline mapping, existing route) | Owner, Admin |
+| `POST lab/billing/mapping/suggest`, `POST lab/billing/mapping/apply`             | Owner, Admin                      |
+| `PUT / DELETE lab/billing/deleted-items/:catalogItemId/code`                     | Owner, Admin                      |
+| `PATCH catalog/:id` (inline mapping, existing route)                             | Owner, Admin                      |
 
 Tests: `lab-routes.authz.spec.ts` (route table), `billing-export-access.guard.spec.ts`,
 `billing.http.int.spec.ts` (real HTTP, real guard, real DB: every route × every
@@ -144,6 +144,6 @@ role, Consulta with and without the checkbox, cross-lab, smuggled lab ids),
    WHERE id = '<biomet lab id>' AND type = 'LAB';
    ```
 
-Note: a *new empty* database cannot currently be built from `prisma/migrations`
+Note: a _new empty_ database cannot currently be built from `prisma/migrations`
 alone (`20260711000000_enable_rls_knowledge_tables` references
 `knowledge_documents`, which no migration creates). This predates the feature.

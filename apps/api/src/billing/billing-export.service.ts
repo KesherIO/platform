@@ -338,7 +338,9 @@ export class BillingExportService {
   ) {
     const c = await this.compute(this.prisma, labTenantId, dateFrom, dateTo);
     const missingCodes = this.missingCodes(c.lines);
-    const lines = onlyNew ? c.lines.filter((l) => !l.previouslyExported) : c.lines;
+    const lines = onlyNew
+      ? c.lines.filter((l) => !l.previouslyExported)
+      : c.lines;
     const alreadyExported = c.lines.filter((l) => l.previouslyExported).length;
     const missingLines = lines.filter((l) => l.missing).length;
 

@@ -95,7 +95,9 @@ describe('BillingExportService', () => {
       expect(where.labTenantId).toBe(LAB);
       expect(where).not.toHaveProperty('status');
       // Bogotá is UTC-5: the 18th local = 05:00Z on the 18th → 05:00Z on the 19th
-      expect(where.createdAt.gte.toISOString()).toBe('2026-10-18T05:00:00.000Z');
+      expect(where.createdAt.gte.toISOString()).toBe(
+        '2026-10-18T05:00:00.000Z'
+      );
       expect(where.createdAt.lt.toISOString()).toBe('2026-10-19T05:00:00.000Z');
     });
 
@@ -379,15 +381,17 @@ describe('BillingExportService', () => {
         timezone: 'America/Bogota',
         lineCount: 1,
       });
-      expect(prisma.billingExportLine.createMany.mock.calls[0][0].data).toEqual([
-        expect.objectContaining({
-          exportId: 'exp1',
-          orderId: 'o1',
-          lineKey: 'line-0',
-          item: 'ALT-B',
-          position: 0,
-        }),
-      ]);
+      expect(prisma.billingExportLine.createMany.mock.calls[0][0].data).toEqual(
+        [
+          expect.objectContaining({
+            exportId: 'exp1',
+            orderId: 'o1',
+            lineKey: 'line-0',
+            item: 'ALT-B',
+            position: 0,
+          }),
+        ]
+      );
     });
   });
 
@@ -479,7 +483,7 @@ describe('BillingExportService', () => {
   });
 
   describe('history and re-download', () => {
-    it('re-download returns the stored rows, ignoring today\'s catalog mapping', async () => {
+    it("re-download returns the stored rows, ignoring today's catalog mapping", async () => {
       prisma.billingExport.findFirst.mockResolvedValue({
         id: 'exp1',
         createdAt: new Date(),
@@ -516,7 +520,7 @@ describe('BillingExportService', () => {
       });
     });
 
-    it('lists only this lab\'s exports', async () => {
+    it("lists only this lab's exports", async () => {
       await service.list(LAB);
       expect(prisma.billingExport.findMany.mock.calls[0][0].where).toEqual({
         labTenantId: LAB,

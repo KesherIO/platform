@@ -71,7 +71,13 @@ describe('BillingMappingService', () => {
   describe('suggest', () => {
     it("ranks only this lab's items and saves nothing", async () => {
       prisma.catalogItem.findMany.mockResolvedValue([
-        { id: 'alb', kind: 'TEST', code: 'ALB', name: 'Albumina', billingCode: null },
+        {
+          id: 'alb',
+          kind: 'TEST',
+          code: 'ALB',
+          name: 'Albumina',
+          billingCode: null,
+        },
       ]);
       const res = await service.suggest(LAB, [
         { code: 'ALB', description: 'Albumina' },
@@ -92,7 +98,10 @@ describe('BillingMappingService', () => {
 
   describe('apply', () => {
     it('saves confirmed pairs touching only billingCode', async () => {
-      own([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }]);
+      own([
+        { id: 'a', name: 'A' },
+        { id: 'b', name: 'B' },
+      ]);
       const res = await service.apply(
         LAB,
         [
@@ -103,10 +112,9 @@ describe('BillingMappingService', () => {
         'u1'
       );
       expect(res).toEqual({ updated: 2, unchanged: 0 });
-      expect(prisma.catalogItem.update.mock.calls.map((c) => c[0].data)).toEqual([
-        { billingCode: 'AAA' },
-        { billingCode: 'BBB' },
-      ]);
+      expect(
+        prisma.catalogItem.update.mock.calls.map((c) => c[0].data)
+      ).toEqual([{ billingCode: 'AAA' }, { billingCode: 'BBB' }]);
     });
 
     it("rejects an item that is not in this lab's catalog (other lab's id)", async () => {
@@ -126,7 +134,10 @@ describe('BillingMappingService', () => {
     });
 
     it('rejects one code assigned to two items in the request', async () => {
-      own([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }]);
+      own([
+        { id: 'a', name: 'A' },
+        { id: 'b', name: 'B' },
+      ]);
       await expect(
         service.apply(
           LAB,
@@ -220,7 +231,10 @@ describe('BillingMappingService', () => {
       expect(prisma.billingDeletedItemCode.upsert).toHaveBeenCalledTimes(1);
       const arg = prisma.billingDeletedItemCode.upsert.mock.calls[0][0];
       expect(arg.where).toEqual({
-        labTenantId_catalogItemId: { labTenantId: LAB, catalogItemId: 'gone-1' },
+        labTenantId_catalogItemId: {
+          labTenantId: LAB,
+          catalogItemId: 'gone-1',
+        },
       });
       expect(arg.create).toMatchObject({
         labTenantId: LAB,
@@ -281,9 +295,9 @@ describe('BillingMappingService', () => {
         where: { labTenantId: LAB, catalogItemId: 'gone-1' },
       });
       prisma.billingDeletedItemCode.deleteMany.mockResolvedValue({ count: 0 });
-      await expect(
-        service.clearDeletedItemCode(LAB, 'gone-1')
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.clearDeletedItemCode(LAB, 'gone-1')).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 });

@@ -164,7 +164,10 @@ export class CreateCatalogItemDto {
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ example: 'HEM', description: "The lab's billing code" })
+  @ApiPropertyOptional({
+    example: 'HEM',
+    description: "The lab's billing code",
+  })
   @IsOptional()
   @IsString()
   @MaxLength(BILLING_CODE_MAX_LENGTH)

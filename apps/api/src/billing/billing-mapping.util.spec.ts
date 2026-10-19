@@ -16,7 +16,13 @@ const CATALOG: MappingCatalogItem[] = [
   test('sdma', 'SDMA', 'SDMA'),
   test('hem', 'CBC', 'Hemograma sencillo automatizado'),
   test('hem2', 'CBC2', 'Hemograma completo automatizado'),
-  { id: 'pren', kind: 'PACKAGE', code: 'PREN', name: 'Perfil renal', billingCode: null },
+  {
+    id: 'pren',
+    kind: 'PACKAGE',
+    code: 'PREN',
+    name: 'Perfil renal',
+    billingCode: null,
+  },
 ];
 
 const one = (code: string, description: string, catalog = CATALOG) =>

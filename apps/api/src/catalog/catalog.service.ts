@@ -276,7 +276,11 @@ export class CatalogService {
         if (toUpdate.size > 0) {
           const values = [...toUpdate.entries()].map(
             ([id, r]) =>
-              Prisma.sql`(${id}, ${r.kind}, ${r.name}, ${r.code}, ${r.description}, ${r.category}, ${r.turnaroundHours}::int, ${r.resultType}, ${r.unit}, ${r.billingCode ?? null}::text)`
+              Prisma.sql`(${id}, ${r.kind}, ${r.name}, ${r.code}, ${
+                r.description
+              }, ${r.category}, ${r.turnaroundHours}::int, ${r.resultType}, ${
+                r.unit
+              }, ${r.billingCode ?? null}::text)`
           );
           await tx.$executeRaw`
             UPDATE catalog_items AS c SET

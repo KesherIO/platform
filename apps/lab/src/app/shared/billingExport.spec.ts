@@ -32,9 +32,7 @@ async function xlsxGrid(rows: BillingRow[]): Promise<string[][]> {
   const sheet = workbook.worksheets[0];
   const grid: string[][] = [];
   sheet.eachRow((row) => {
-    grid.push(
-      [1, 2, 3, 4, 5].map((c) => String(row.getCell(c).value ?? ''))
-    );
+    grid.push([1, 2, 3, 4, 5].map((c) => String(row.getCell(c).value ?? '')));
   });
   return grid;
 }

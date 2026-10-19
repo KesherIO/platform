@@ -10,10 +10,13 @@ const sheet = (headers: string[], rows: string[][]): ParsedSheet => ({
 describe('readMappingRows', () => {
   it('finds Item / Descripción by header, ignoring case and accents', () => {
     const rows = readMappingRows(
-      sheet(['Item', 'Descripción'], [
-        ['ALT', 'ALT Transaminasas T.G.P.'],
-        ['SDMA022720261534', 'SDMA'],
-      ])
+      sheet(
+        ['Item', 'Descripción'],
+        [
+          ['ALT', 'ALT Transaminasas T.G.P.'],
+          ['SDMA022720261534', 'SDMA'],
+        ]
+      )
     );
     expect(rows).toEqual([
       { rowNumber: 2, code: 'ALT', description: 'ALT Transaminasas T.G.P.' },
@@ -35,7 +38,13 @@ describe('readMappingRows', () => {
 
   it('drops rows that are empty in both columns', () => {
     const rows = readMappingRows(
-      sheet(['Item', 'Descripción'], [['', ''], ['K', 'Potasio']])
+      sheet(
+        ['Item', 'Descripción'],
+        [
+          ['', ''],
+          ['K', 'Potasio'],
+        ]
+      )
     );
     expect(rows).toHaveLength(1);
   });

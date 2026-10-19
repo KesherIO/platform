@@ -74,9 +74,7 @@ export function BillingMappingModal({ onClose, onApplied }: Props) {
     }
   };
 
-  const picked = rows
-    ? rows.filter((r) => choice[r.index]).map((r) => r)
-    : [];
+  const picked = rows ? rows.filter((r) => choice[r.index]).map((r) => r) : [];
   const itemUse = new Map<string, number>();
   for (const r of picked) {
     itemUse.set(choice[r.index], (itemUse.get(choice[r.index]) ?? 0) + 1);
@@ -237,12 +235,16 @@ export function BillingMappingModal({ onClose, onApplied }: Props) {
                               {r.reasons.length > 0 && (
                                 <p className="text-xs text-amber-300">
                                   {r.reasons
-                                    .map((x) => t(`billing.mapping.reason.${x}`))
+                                    .map((x) =>
+                                      t(`billing.mapping.reason.${x}`)
+                                    )
                                     .join(' · ')}
                                 </p>
                               )}
                               <select
-                                aria-label={t('billing.mapping.col_catalog_item')}
+                                aria-label={t(
+                                  'billing.mapping.col_catalog_item'
+                                )}
                                 value={choice[r.index] ?? ''}
                                 onChange={(e) =>
                                   setChoice((c) => ({
@@ -266,9 +268,9 @@ export function BillingMappingModal({ onClose, onApplied }: Props) {
                                       : ''}
                                     {` · ${t(`catalog.kind.${c.kind}`)}`}
                                     {c.currentBillingCode
-                                      ? ` · ${t(
-                                          'billing.mapping.currently'
-                                        )} ${c.currentBillingCode}`
+                                      ? ` · ${t('billing.mapping.currently')} ${
+                                          c.currentBillingCode
+                                        }`
                                       : ''}
                                   </option>
                                 ))}

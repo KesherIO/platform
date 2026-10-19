@@ -320,8 +320,7 @@ export const labApi = {
         lineCount: number;
         orderCount: number;
       }>(`lab/billing/deleted-items/${catalogItemId}/code`, { billingCode }),
-    history: () =>
-      get<{ data: BillingExportSummary[] }>('lab/billing/exports'),
+    history: () => get<{ data: BillingExportSummary[] }>('lab/billing/exports'),
     // The rows exactly as generated, for a deliberate re-download
     getExport: (id: string) =>
       get<BillingExportFile>(`lab/billing/exports/${id}`),

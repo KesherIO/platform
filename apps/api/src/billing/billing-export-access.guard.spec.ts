@@ -30,8 +30,6 @@ describe('BillingExportAccessGuard', () => {
   });
 
   it('refuses a request with no resolved tenant', () => {
-    expect(() => guard.canActivate(ctx(undefined))).toThrow(
-      ForbiddenException
-    );
+    expect(() => guard.canActivate(ctx(undefined))).toThrow(ForbiddenException);
   });
 });

@@ -1,11 +1,7 @@
 import type { ParsedSheet } from '../../types/lab.types';
 
 const fold = (s: string) =>
-  s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 const CODE_HEADERS = ['item', 'codigo', 'code', 'cod'];
 const DESCRIPTION_HEADERS = [

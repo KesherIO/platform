@@ -92,8 +92,7 @@ export function formatDayInTimezone(instant: Date, timezone: string): string {
     month: '2-digit',
     day: '2-digit',
   }).formatToParts(instant);
-  const get = (type: string) =>
-    parts.find((p) => p.type === type)?.value ?? '';
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
