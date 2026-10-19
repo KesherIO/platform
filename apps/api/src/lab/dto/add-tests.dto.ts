@@ -21,6 +21,14 @@ export class AddTestsPreviewDto {
 
 /** POST lab/orders/:orderId/add-tests — add them to the open order. */
 export class AddTestsDto extends AddTestsPreviewDto {
+  /** Accepted tubes (from the preview) staff confirm have enough usable
+   * sample left — every tube the added tests run on must be listed */
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ArrayUnique()
+  @IsString({ each: true })
+  confirmedSpecimenIds!: string[];
+
   @IsOptional()
   @IsString()
   @MaxLength(500)

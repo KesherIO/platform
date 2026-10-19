@@ -16,6 +16,7 @@ import { TenantRole } from '@prisma/client';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
 import { AddTestsService } from './add-tests.service';
+import { AddTestsDto } from './dto/add-tests.dto';
 import { CatalogService } from '../catalog/catalog.service';
 import { ResultEntryService } from './result-entry.service';
 import { ResultsService } from '../results/results.service';
@@ -362,7 +363,11 @@ describe('LabController', () => {
     });
     expect(addTests.preview).toHaveBeenCalledWith('o-1', 'lab-1', ['c-1']);
 
-    const dto = { catalogItemIds: ['c-1'], note: 'n' };
+    const dto = {
+      catalogItemIds: ['c-1'],
+      confirmedSpecimenIds: ['sp-1'],
+      note: 'n',
+    };
     await controller.addTests(tenant, user, 'o-1', dto);
     expect(addTests.addTests).toHaveBeenCalledWith(
       'o-1',
@@ -653,6 +658,35 @@ describe('LabController', () => {
           ],
           submitAfterSave: false,
         },
+      ],
+    ])('rejects %s with 400', async (_label, body) => {
+      await expect(validate(body)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('AddTestsDto', () => {
+    // Same options as the global pipe in main.ts.
+    const pipe = new ValidationPipe({ whitelist: true, transform: true });
+    const validate = (body: unknown) =>
+      pipe.transform(body, { type: 'body', metatype: AddTestsDto });
+
+    it('keeps the tubes confirmed to have enough sample', async () => {
+      const dto = await validate({
+        catalogItemIds: ['c-1'],
+        confirmedSpecimenIds: ['sp-1'],
+      });
+      expect(dto.confirmedSpecimenIds).toEqual(['sp-1']);
+    });
+
+    it.each([
+      ['no confirmations', { catalogItemIds: ['c-1'] }],
+      [
+        'the same tube twice',
+        { catalogItemIds: ['c-1'], confirmedSpecimenIds: ['sp-1', 'sp-1'] },
+      ],
+      [
+        'a non-string tube id',
+        { catalogItemIds: ['c-1'], confirmedSpecimenIds: [1] },
       ],
     ])('rejects %s with 400', async (_label, body) => {
       await expect(validate(body)).rejects.toThrow(BadRequestException);

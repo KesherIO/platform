@@ -525,7 +525,6 @@
     "PARTIAL_BANNER_TESTS": "Pendientes: {{tests}}",
     "LAB_ADDED_TITLE": "El laboratorio agregó pruebas a esta orden",
     "LAB_ADDED_TESTS": "Agregadas por el laboratorio: {{tests}}",
-    "LAB_ADDED_SAMPLE": "Se requiere una nueva muestra para estas pruebas. No se creó ninguna recolección: coordine el envío al laboratorio.",
     "TEST_RELEASED_BY": "Liberado por {{name}}",
     "RELEASE_SEQUENCE": "Liberación #{{seq}}",
     "DOWNLOAD_PDF": "Descargar PDF",
@@ -688,7 +687,6 @@
     "PUSH_ERROR": "No se pudieron activar las notificaciones del navegador.",
     "TYPES": {
       "TESTS_ADDED": "El laboratorio agregó pruebas a {{req}}",
-      "TESTS_ADDED_SAMPLE": "El laboratorio agregó pruebas a {{req}} — se necesita otra muestra",
       "ADDITIONAL_SAMPLE_REQUIRED": "El laboratorio necesita otra muestra para {{req}}",
       "RESULTS_RELEASED_PARTIAL": "Resultados parciales disponibles para {{req}}",
       "RESULTS_RELEASED_FINAL": "Todos los resultados disponibles para {{req}}",

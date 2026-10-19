@@ -35,9 +35,7 @@ export function pushText(
     case 'TESTS_ADDED':
       return {
         title: 'Pruebas agregadas',
-        body: params.sampleRequired
-          ? `${req}: se agregaron pruebas. Se requiere una nueva muestra.`
-          : `${req}: el laboratorio agregó pruebas a la orden.`,
+        body: `${req}: el laboratorio agregó pruebas a la orden.`,
       };
     case 'ADDITIONAL_SAMPLE_REQUIRED':
       return {

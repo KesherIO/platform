@@ -17,8 +17,6 @@ export interface NotificationParams {
   /** Clinic links open the case's report page */
   caseId?: string;
   testNames?: string[];
-  /** TESTS_ADDED: the lab needs another sample for some of the added tests */
-  sampleRequired?: boolean;
   /** RESULTS_RELEASED */
   releaseType?: 'PARTIAL' | 'FINAL';
   /** PICKUP_ASSIGNED: the persisted assignment it was sent for (ISO) */

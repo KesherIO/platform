@@ -5,10 +5,11 @@ import { labApi, apiErrorMessage } from '../../shared/api/labApi';
 import type { AddTestsPreview, AddTestsResult } from '../../types/lab.types';
 
 /**
- * Adds tests (or packages) to an open order. Choose, preview what would
- * happen — which tests are ready, which wait for a tube, whether the clinic
- * must send another sample — then confirm. A new sample notifies the clinic;
- * no pickup is created.
+ * Adds tests (or packages) to an open order, only onto samples already
+ * accepted at the lab. Choose, preview which tests can be added and on which
+ * tubes, confirm each tube has enough usable sample left, then save. Adding
+ * never requests a sample or creates a pickup; the clinic is told for
+ * information.
  */
 export function AddTestsDialog({
   orderId,
@@ -24,6 +25,7 @@ export function AddTestsDialog({
   const [selected, setSelected] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [preview, setPreview] = useState<AddTestsPreview | null>(null);
+  const [confirmed, setConfirmed] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,12 +65,31 @@ export function AddTestsDialog({
   };
 
   const showPreview = () =>
-    run(() => labApi.specimens.previewAddTests(orderId, selected), setPreview);
+    run(
+      () => labApi.specimens.previewAddTests(orderId, selected),
+      (p) => {
+        setConfirmed([]);
+        setPreview(p);
+      }
+    );
+
+  const toggleConfirmed = (id: string) =>
+    setConfirmed((cur) =>
+      cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]
+    );
+
+  const allConfirmed =
+    !!preview && preview.specimens.every((s) => confirmed.includes(s.id));
 
   const confirm = () =>
     run(
       () =>
-        labApi.specimens.addTests(orderId, selected, note.trim() || undefined),
+        labApi.specimens.addTests(
+          orderId,
+          selected,
+          confirmed,
+          note.trim() || undefined
+        ),
       onSuccess
     );
 
@@ -152,8 +173,8 @@ export function AddTestsDialog({
                           test.outcome === 'READY'
                             ? 'text-green-400'
                             : test.outcome === 'NO_TEMPLATE'
-                            ? 'text-red-400'
-                            : 'text-amber-300'
+                            ? 'text-amber-300'
+                            : 'text-red-400'
                         }`}
                       >
                         {t(`specimens.add_tests_outcome.${test.outcome}`)}
@@ -171,28 +192,52 @@ export function AddTestsDialog({
                 </p>
               )}
 
-              {preview.tubes.map((tube) => (
-                <p
-                  key={`${tube.specimenType}|${tube.containerType}`}
-                  className="text-xs text-gray-300"
+              {preview.tests.length > 0 && !preview.canAdd && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-900/50 bg-red-900/20 px-3 py-2 text-xs text-red-200"
                 >
-                  {t(
-                    tube.existing
-                      ? 'specimens.add_tests_tube_existing'
-                      : 'specimens.add_tests_tube_new',
-                    {
-                      specimen: tube.specimenType,
-                      container: tube.containerType,
-                      tests: tube.testNames.join(', '),
-                    }
-                  )}
-                </p>
-              ))}
+                  <p>{t('specimens.add_tests_lab_samples_only')}</p>
+                  <p className="mt-1">{t('specimens.add_tests_not_addable')}</p>
+                </div>
+              )}
 
-              {preview.sampleRequired && (
-                <p className="rounded-lg border border-amber-900/50 bg-amber-900/20 px-3 py-2 text-xs text-amber-200">
-                  {t('specimens.add_tests_sample_required')}
-                </p>
+              {preview.canAdd && preview.specimens.length > 0 && (
+                <fieldset className="space-y-2">
+                  <legend className="mb-1 text-xs font-semibold text-gray-300">
+                    {t('specimens.add_tests_confirm_title')}
+                  </legend>
+                  {preview.specimens.map((sp) => (
+                    <label
+                      key={sp.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 px-3 py-2 hover:bg-gray-900"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={confirmed.includes(sp.id)}
+                        onChange={() => toggleConfirmed(sp.id)}
+                      />
+                      <span className="text-xs text-gray-200">
+                        {t('specimens.add_tests_confirm_specimen', {
+                          accession: sp.accessionNumber,
+                          specimen: sp.specimenType,
+                          container: sp.containerType,
+                          tests: sp.testNames.join(', '),
+                        })}
+                        {sp.conditions.length > 0 && (
+                          <span className="mt-0.5 block text-amber-300">
+                            {t('specimens.add_tests_conditions', {
+                              conditions: sp.conditions
+                                .map((c) => t(`accession.flag.${c}`))
+                                .join(', '),
+                            })}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
               )}
 
               <div>
@@ -225,7 +270,7 @@ export function AddTestsDialog({
               </button>
               <button
                 onClick={confirm}
-                disabled={busy || preview.tests.length === 0}
+                disabled={busy || !preview.canAdd || !allConfirmed}
                 className="rounded-lg bg-cyan px-5 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
               >
                 {busy ? '…' : t('specimens.add_tests_confirm')}

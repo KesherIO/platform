@@ -111,13 +111,16 @@ describe('NotificationBellComponent', () => {
     expect(component.open()).toBe(false);
   });
 
-  it('describes each type, flagging when another sample is needed', () => {
+  it('describes each type', () => {
     setup();
     expect(
+      component.describe(notification({ type: 'TESTS_ADDED', params: {} })).key
+    ).toBe('NOTIFICATIONS.TYPES.TESTS_ADDED');
+    expect(
       component.describe(
-        notification({ type: 'TESTS_ADDED', params: { sampleRequired: true } })
+        notification({ type: 'ADDITIONAL_SAMPLE_REQUIRED', params: {} })
       ).key
-    ).toBe('NOTIFICATIONS.TYPES.TESTS_ADDED_SAMPLE');
+    ).toBe('NOTIFICATIONS.TYPES.ADDITIONAL_SAMPLE_REQUIRED');
     expect(
       component.describe(
         notification({

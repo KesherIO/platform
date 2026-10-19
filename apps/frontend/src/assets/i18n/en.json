@@ -525,7 +525,6 @@
     "PARTIAL_BANNER_TESTS": "Pending: {{tests}}",
     "LAB_ADDED_TITLE": "The lab added tests to this order",
     "LAB_ADDED_TESTS": "Added by the lab: {{tests}}",
-    "LAB_ADDED_SAMPLE": "A new sample is required for these tests. No pickup was created — please arrange sending it to the lab.",
     "TEST_RELEASED_BY": "Released by {{name}}",
     "RELEASE_SEQUENCE": "Release #{{seq}}",
     "DOWNLOAD_PDF": "Download PDF",
@@ -688,7 +687,6 @@
     "PUSH_ERROR": "Couldn't turn on browser notifications.",
     "TYPES": {
       "TESTS_ADDED": "The lab added tests to {{req}}",
-      "TESTS_ADDED_SAMPLE": "The lab added tests to {{req}} — another sample is needed",
       "ADDITIONAL_SAMPLE_REQUIRED": "The lab needs another sample for {{req}}",
       "RESULTS_RELEASED_PARTIAL": "Partial results available for {{req}}",
       "RESULTS_RELEASED_FINAL": "All results available for {{req}}",

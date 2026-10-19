@@ -28,19 +28,21 @@ const preview = (over: Partial<AddTestsPreview> = {}): AddTestsPreview => ({
       code: 'CHEM',
       name: 'Chemistry',
       origins: ['Chemistry'],
-      outcome: 'NEEDS_NEW_TUBE',
+      outcome: 'READY',
     },
   ],
   alreadyOnOrder: [],
-  tubes: [
+  specimens: [
     {
+      id: 'sp-1',
+      accessionNumber: 'REQ-1-1',
       specimenType: 'SERUM',
       containerType: 'SST_TUBE',
-      existing: false,
+      conditions: [],
       testNames: ['Chemistry'],
     },
   ],
-  sampleRequired: true,
+  canAdd: true,
   ...over,
 });
 
@@ -76,14 +78,13 @@ describe('AddTestsDialog', () => {
     expect((previewBtn as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('previews, warns a new sample is required with no pickup, then adds', async () => {
+  it('previews, requires confirming each tube has enough sample, then adds', async () => {
     vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(preview());
     const result = {
-      added: [{ id: 'ot-1', name: 'Chemistry', status: 'PENDING' }],
+      added: [{ id: 'ot-1', name: 'Chemistry', status: 'READY' }],
       alreadyOnOrder: [],
-      sampleRequired: true,
-      tubes: [],
-      order: { id: 'o-1', status: 'RECEIVED_BY_LAB' },
+      specimens: preview().specimens,
+      order: { id: 'o-1', status: 'PROCESSING' },
     };
     vi.mocked(labApi.specimens.addTests).mockResolvedValue(result);
     const onSuccess = renderDialog();
@@ -91,27 +92,75 @@ describe('AddTestsDialog', () => {
     fireEvent.click(await screen.findByLabelText(/Chemistry/));
     fireEvent.click(screen.getByText('specimens.add_tests_preview'));
 
-    await screen.findByText('specimens.add_tests_sample_required');
+    const tube = await screen.findByLabelText(
+      'specimens.add_tests_confirm_specimen'
+    );
     expect(labApi.specimens.previewAddTests).toHaveBeenCalledWith('o-1', [
       'chem',
     ]);
-    expect(labApi.specimens.addTests).not.toHaveBeenCalled();
+    const confirm = screen.getByText('specimens.add_tests_confirm');
+    expect((confirm as HTMLButtonElement).disabled).toBe(true);
 
-    fireEvent.click(screen.getByText('specimens.add_tests_confirm'));
+    fireEvent.click(tube);
+    expect((confirm as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(confirm);
+
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(result));
     expect(labApi.specimens.addTests).toHaveBeenCalledWith(
       'o-1',
       ['chem'],
+      ['sp-1'],
       undefined
     );
   });
+
+  it('shows conditions recorded at receipt next to the tube', async () => {
+    vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
+      preview({
+        specimens: [{ ...preview().specimens[0], conditions: ['isHemolyzed'] }],
+      })
+    );
+    renderDialog();
+
+    fireEvent.click(await screen.findByLabelText(/Chemistry/));
+    fireEvent.click(screen.getByText('specimens.add_tests_preview'));
+
+    await screen.findByText('specimens.add_tests_conditions');
+  });
+
+  it.each(['AWAITING_SPECIMEN', 'NO_SPECIMEN', 'NO_REQUIREMENT'] as const)(
+    'explains and cannot confirm when a test is %s',
+    async (outcome) => {
+      vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
+        preview({
+          tests: [{ ...preview().tests[0], outcome }],
+          specimens: [],
+          canAdd: false,
+        })
+      );
+      renderDialog();
+
+      fireEvent.click(await screen.findByLabelText(/Chemistry/));
+      fireEvent.click(screen.getByText('specimens.add_tests_preview'));
+
+      await screen.findByText(`specimens.add_tests_outcome.${outcome}`);
+      expect(
+        screen.getByText('specimens.add_tests_lab_samples_only')
+      ).toBeTruthy();
+      expect(
+        screen.queryByText('specimens.add_tests_confirm_title')
+      ).toBeNull();
+      const confirm = screen.getByText('specimens.add_tests_confirm');
+      expect((confirm as HTMLButtonElement).disabled).toBe(true);
+    }
+  );
 
   it('cannot confirm when every selected test is already on the order', async () => {
     vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
       preview({
         tests: [],
-        tubes: [],
-        sampleRequired: false,
+        specimens: [],
+        canAdd: false,
         alreadyOnOrder: [{ catalogItemId: 'chem', name: 'Chemistry' }],
       })
     );
@@ -134,7 +183,10 @@ describe('AddTestsDialog', () => {
 
     fireEvent.click(await screen.findByLabelText(/Chemistry/));
     fireEvent.click(screen.getByText('specimens.add_tests_preview'));
-    fireEvent.click(await screen.findByText('specimens.add_tests_confirm'));
+    fireEvent.click(
+      await screen.findByLabelText('specimens.add_tests_confirm_specimen')
+    );
+    fireEvent.click(screen.getByText('specimens.add_tests_confirm'));
 
     await screen.findByText('The order is COMPLETED.');
     expect(onSuccess).not.toHaveBeenCalled();

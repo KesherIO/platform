@@ -141,11 +141,23 @@ export interface RequestSampleInput {
   note?: string;
 }
 
+/** READY / NO_TEMPLATE can be added (onto a tube accepted at the lab); the
+ * others can't — adding never requests a sample from the clinic. */
 export type AddedTestOutcome =
   | 'READY'
-  | 'AWAITING_TUBE'
-  | 'NEEDS_NEW_TUBE'
-  | 'NO_TEMPLATE';
+  | 'NO_TEMPLATE'
+  | 'AWAITING_SPECIMEN'
+  | 'NO_SPECIMEN'
+  | 'NO_REQUIREMENT';
+
+export type SpecimenConditionFlag =
+  | 'isHemolyzed'
+  | 'isLipemic'
+  | 'isIcteric'
+  | 'isInsufficient'
+  | 'isContaminated'
+  | 'isWrongContainer'
+  | 'isLeaking';
 
 /** What adding tests to an open order would do (nothing is saved yet). */
 export interface AddTestsPreview {
@@ -157,21 +169,23 @@ export interface AddTestsPreview {
     outcome: AddedTestOutcome;
   }>;
   alreadyOnOrder: Array<{ catalogItemId: string; name: string }>;
-  tubes: Array<{
+  /** Accepted tubes the tests would run on — each confirmed before saving */
+  specimens: Array<{
+    id: string;
+    accessionNumber: string;
     specimenType: string;
     containerType: string;
-    /** false → a new tube is requested from the clinic */
-    existing: boolean;
+    conditions: SpecimenConditionFlag[];
     testNames: string[];
   }>;
-  sampleRequired: boolean;
+  /** Something new to add and every test can be added */
+  canAdd: boolean;
 }
 
 export interface AddTestsResult {
   added: Array<{ id: string; name: string; status: string }>;
   alreadyOnOrder: AddTestsPreview['alreadyOnOrder'];
-  sampleRequired: boolean;
-  tubes: AddTestsPreview['tubes'];
+  specimens: AddTestsPreview['specimens'];
   order: { id: string; status: string };
 }
 
@@ -1497,7 +1511,6 @@ export interface NotificationParams {
   requisitionNumber?: string;
   caseId?: string;
   testNames?: string[];
-  sampleRequired?: boolean;
   releaseType?: 'PARTIAL' | 'FINAL';
   assignedAt?: string;
 }

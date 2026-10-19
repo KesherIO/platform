@@ -1254,7 +1254,7 @@ export class ResultsService {
 
   /**
    * Tests the lab added to the order (TESTS_ADDED timeline entries) that are
-   * still to come, and whether another sample is awaited for them.
+   * still to come.
    */
   private async findLabAddedTests(
     orderId: string
@@ -1281,19 +1281,9 @@ export class ResultsService {
     });
     if (pending.length === 0) return null;
 
-    const awaitingTubes = await this.prisma.specimen.count({
-      where: {
-        orderId,
-        status: 'EXPECTED',
-        orderedTests: {
-          some: { orderedTestId: { in: pending.map((t) => t.id) } },
-        },
-      },
-    });
     return {
       testNames: pending.map((t) => t.catalogItemName),
       addedAt: events[0].createdAt.toISOString(),
-      awaitingSample: awaitingTubes > 0,
     };
   }
 

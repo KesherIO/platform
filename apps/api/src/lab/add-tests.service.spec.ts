@@ -7,13 +7,11 @@ import { NotificationService } from '../notifications/notification.service';
 import { OrderStatusService } from './order-status.service';
 import { clinicOrderRecipients } from '../notifications/clinic-recipients';
 import { lockOrderReport } from './report-lock.util';
-import { createRequestedTube } from './requested-tube.util';
 
 jest.mock('../notifications/clinic-recipients', () => ({
   clinicOrderRecipients: jest.fn(),
 }));
 jest.mock('./report-lock.util', () => ({ lockOrderReport: jest.fn() }));
-jest.mock('./requested-tube.util', () => ({ createRequestedTube: jest.fn() }));
 
 const CBC = {
   id: 'cbc',
@@ -34,14 +32,46 @@ const CHEM = {
 
 const edta = { specimenType: 'EDTA_BLOOD', containerType: 'EDTA_TUBE' };
 const serum = { specimenType: 'SERUM', containerType: 'SST_TUBE' };
+const plasma = { specimenType: 'HEPARIN_PLASMA', containerType: 'LH_TUBE' };
 
-const config = (req?: { specimenType: string; containerType: string }) => ({
+type Req = { specimenType: string; containerType: string };
+/** One requirement group per argument; a group's first entry is the
+ * primary, the rest are alternatives within it */
+const config = (...groups: Req[][]) => ({
   department: 'HEMATOLOGY',
   defaultProcessingMethod: 'MANUAL',
   defaultAnalyzerId: null,
-  specimenRequirements: req
-    ? [{ ...req, isAlternativeWithinGroup: false, sortOrder: 0 }]
-    : [],
+  specimenRequirements: groups.flatMap((group, g) =>
+    group.map((req, i) => ({
+      ...req,
+      requirementGroupKey: `g${g}`,
+      isAlternativeWithinGroup: i > 0,
+      sortOrder: g * 10 + i,
+    }))
+  ),
+});
+
+const NO_FLAGS = {
+  isHemolyzed: false,
+  isLipemic: false,
+  isIcteric: false,
+  isInsufficient: false,
+  isContaminated: false,
+  isWrongContainer: false,
+  isLeaking: false,
+};
+const tube = (
+  id: string,
+  status: string,
+  kind: Req,
+  flags: Partial<typeof NO_FLAGS> = {}
+) => ({
+  id,
+  accessionNumber: `REQ-1-${id}`,
+  status,
+  ...kind,
+  ...NO_FLAGS,
+  ...flags,
 });
 
 describe('AddTestsService', () => {
@@ -63,7 +93,7 @@ describe('AddTestsService', () => {
     orderedItems: [{ catalogItemId: 'old', name: 'Old' }],
     case: { patientSpecies: 'DOG', patientAge: 3, patientAgeUnit: 'YEARS' },
     orderedTests: [{ catalogItemId: 'old' }],
-    specimens: [{ id: 'sp-edta', status: 'ACCEPTED', ...edta }],
+    specimens: [tube('sp-edta', 'ACCEPTED', edta)],
     ...over,
   });
 
@@ -92,13 +122,16 @@ describe('AddTestsService', () => {
           .fn()
           .mockImplementation(async () => ({ id: `ot-${Math.random()}` })),
       },
-      orderedTestSpecimen: { create: jest.fn() },
+      orderedTestSpecimen: { createMany: jest.fn() },
+      specimen: { create: jest.fn() },
+      pickup: { create: jest.fn() },
       timelineEvent: {
         create: jest.fn().mockResolvedValue({ id: 'ev-1' }),
         createMany: jest.fn(),
       },
     };
     db.$transaction = jest.fn((cb: (tx: unknown) => unknown) => cb(db));
+    db.$queryRaw = jest.fn().mockResolvedValue([]);
     templates = {
       resolveTemplateForTest: jest
         .fn()
@@ -114,10 +147,6 @@ describe('AddTestsService', () => {
       userIds: ['vet-1'],
       requisitionNumber: 'REQ-1',
       caseId: 'case-1',
-    });
-    (createRequestedTube as jest.Mock).mockResolvedValue({
-      id: 'sp-new',
-      accessionNumber: 'REQ-1-2',
     });
 
     const module = await Test.createTestingModule({
@@ -158,82 +187,141 @@ describe('AddTestsService', () => {
       );
     });
 
-    it('is READY when an accepted tube of the kind is already on the order', async () => {
+    it('is READY on an accepted tube of the kind, listed for confirmation', async () => {
       db.order.findFirst.mockResolvedValue(order());
-      catalog([CBC], { cbc: config(edta) });
+      catalog([CBC], { cbc: config([edta]) });
 
       const p = await service.preview('o-1', 'lab-1', ['cbc']);
 
       expect(p.tests).toEqual([
         expect.objectContaining({ catalogItemId: 'cbc', outcome: 'READY' }),
       ]);
-      expect(p.sampleRequired).toBe(false);
-      expect(p.tubes).toEqual([]);
+      expect(p.canAdd).toBe(true);
+      expect(p.specimens).toEqual([
+        {
+          id: 'sp-edta',
+          accessionNumber: 'REQ-1-sp-edta',
+          ...edta,
+          conditions: [],
+          testNames: ['CBC'],
+        },
+      ]);
     });
 
-    it('needs a new tube when no tube of the kind is at the lab, shared by tests needing it', async () => {
-      db.order.findFirst.mockResolvedValue(order());
+    it('lists one tube once for every test running on it, with its conditions', async () => {
+      db.order.findFirst.mockResolvedValue(
+        order({
+          specimens: [
+            tube('sp-serum', 'ACCEPTED', serum, { isHemolyzed: true }),
+          ],
+        })
+      );
       catalog([CHEM, { ...CHEM, id: 'chem2', code: 'C2', name: 'Chem 2' }], {
-        chem: config(serum),
-        chem2: config(serum),
+        chem: config([serum]),
+        chem2: config([serum]),
       });
 
       const p = await service.preview('o-1', 'lab-1', ['chem', 'chem2']);
 
-      expect(p.tests.map((t) => t.outcome)).toEqual([
-        'NEEDS_NEW_TUBE',
-        'NEEDS_NEW_TUBE',
-      ]);
-      expect(p.sampleRequired).toBe(true);
-      expect(p.tubes).toEqual([
-        { ...serum, existing: false, testNames: ['Chemistry', 'Chem 2'] },
+      expect(p.specimens).toEqual([
+        expect.objectContaining({
+          id: 'sp-serum',
+          conditions: ['isHemolyzed'],
+          testNames: ['Chemistry', 'Chem 2'],
+        }),
       ]);
     });
 
-    it('joins a tube already requested instead of asking for another', async () => {
+    it('accepts an alternative within the requirement group', async () => {
       db.order.findFirst.mockResolvedValue(
-        order({
-          specimens: [{ id: 'sp-wait', status: 'EXPECTED', ...serum }],
-        })
+        order({ specimens: [tube('sp-plasma', 'ACCEPTED', plasma)] })
       );
-      catalog([CHEM], { chem: config(serum) });
+      catalog([CHEM], { chem: config([serum, plasma]) });
 
       const p = await service.preview('o-1', 'lab-1', ['chem']);
 
-      expect(p.tests[0].outcome).toBe('AWAITING_TUBE');
-      expect(p.sampleRequired).toBe(false);
-      expect(p.tubes[0]).toMatchObject({ existing: true });
+      expect(p.tests[0].outcome).toBe('READY');
+      expect(p.specimens.map((sp) => sp.id)).toEqual(['sp-plasma']);
     });
 
-    it('is NO_TEMPLATE when the sample is covered but no template is published', async () => {
+    it('needs an accepted tube for every requirement group', async () => {
       db.order.findFirst.mockResolvedValue(order());
-      catalog([CBC], { cbc: config(edta) });
+      catalog([CHEM], { chem: config([edta], [serum]) });
+
+      const p = await service.preview('o-1', 'lab-1', ['chem']);
+
+      expect(p.tests[0].outcome).toBe('NO_SPECIMEN');
+      expect(p.canAdd).toBe(false);
+    });
+
+    it('is NO_SPECIMEN when no compatible tube is at the lab', async () => {
+      db.order.findFirst.mockResolvedValue(order());
+      catalog([CHEM], { chem: config([serum]) });
+
+      const p = await service.preview('o-1', 'lab-1', ['chem']);
+
+      expect(p.tests[0].outcome).toBe('NO_SPECIMEN');
+      expect(p.canAdd).toBe(false);
+      expect(p.specimens).toEqual([]);
+    });
+
+    it.each(['EXPECTED', 'RECEIVED'])(
+      'is AWAITING_SPECIMEN when the compatible tube is only %s',
+      async (status) => {
+        db.order.findFirst.mockResolvedValue(
+          order({ specimens: [tube('sp-wait', status, serum)] })
+        );
+        catalog([CHEM], { chem: config([serum]) });
+
+        const p = await service.preview('o-1', 'lab-1', ['chem']);
+
+        expect(p.tests[0].outcome).toBe('AWAITING_SPECIMEN');
+        expect(p.canAdd).toBe(false);
+      }
+    );
+
+    it('is NO_REQUIREMENT when no specimen requirement is configured', async () => {
+      db.order.findFirst.mockResolvedValue(order());
+      catalog([CBC], { cbc: null });
+
+      const p = await service.preview('o-1', 'lab-1', ['cbc']);
+
+      expect(p.tests[0].outcome).toBe('NO_REQUIREMENT');
+      expect(p.canAdd).toBe(false);
+    });
+
+    it('cannot add when any selected test is blocked, and lists no tubes to confirm', async () => {
+      db.order.findFirst.mockResolvedValue(order());
+      catalog([CBC, CHEM], { cbc: config([edta]), chem: config([serum]) });
+
+      const p = await service.preview('o-1', 'lab-1', ['cbc', 'chem']);
+
+      expect(p.tests.map((t) => t.outcome)).toEqual(['READY', 'NO_SPECIMEN']);
+      expect(p.canAdd).toBe(false);
+      expect(p.specimens).toEqual([]);
+    });
+
+    it('is NO_TEMPLATE (still addable) when the sample is there but no template is published', async () => {
+      db.order.findFirst.mockResolvedValue(order());
+      catalog([CBC], { cbc: config([edta]) });
       templates.resolveTemplateForTest.mockResolvedValue(null);
 
       const p = await service.preview('o-1', 'lab-1', ['cbc']);
 
       expect(p.tests[0].outcome).toBe('NO_TEMPLATE');
-    });
-
-    it('is READY with no tube when the test has no specimen requirement', async () => {
-      db.order.findFirst.mockResolvedValue(order({ specimens: [] }));
-      catalog([CBC], { cbc: config() });
-
-      const p = await service.preview('o-1', 'lab-1', ['cbc']);
-
-      expect(p.tests[0].outcome).toBe('READY');
-      expect(p.sampleRequired).toBe(false);
+      expect(p.canAdd).toBe(true);
     });
 
     it('lists tests already on the order and leaves them out', async () => {
       db.order.findFirst.mockResolvedValue(
         order({ orderedTests: [{ catalogItemId: 'cbc' }] })
       );
-      catalog([CBC], { cbc: config(edta) });
+      catalog([CBC], { cbc: config([edta]) });
 
       const p = await service.preview('o-1', 'lab-1', ['cbc']);
 
       expect(p.tests).toEqual([]);
+      expect(p.canAdd).toBe(false);
       expect(p.alreadyOnOrder).toEqual([{ catalogItemId: 'cbc', name: 'CBC' }]);
     });
   });
@@ -241,19 +329,35 @@ describe('AddTestsService', () => {
   describe('addTests', () => {
     const actor = ['o-1', 'lab-1'] as const;
 
-    it('locks the report, creates the test, appends the line and notifies without a new tube', async () => {
+    function arrange(over: Record<string, unknown> = {}) {
       db.order.findFirst
         .mockResolvedValueOnce({
           id: 'o-1',
           caseId: 'case-1',
           tenantId: 'clinic-1',
         })
-        .mockResolvedValueOnce(order());
-      catalog([CBC], { cbc: config(edta) });
+        .mockResolvedValueOnce(order(over));
+    }
+
+    function expectNothingWritten() {
+      expect(db.orderedTest.create).not.toHaveBeenCalled();
+      expect(db.orderedTestSpecimen.createMany).not.toHaveBeenCalled();
+      expect(db.order.update).not.toHaveBeenCalled();
+      expect(db.timelineEvent.create).not.toHaveBeenCalled();
+      expect(notifications.publish).not.toHaveBeenCalled();
+    }
+
+    it('locks the report and the tubes, links the test to the confirmed tube and notifies vets', async () => {
+      arrange();
+      catalog([CBC], { cbc: config([edta]) });
 
       const result = await service.addTests(
         ...actor,
-        { catalogItemIds: ['cbc'], note: 'vet asked' },
+        {
+          catalogItemIds: ['cbc'],
+          confirmedSpecimenIds: ['sp-edta'],
+          note: 'vet asked',
+        },
         'u-1',
         'Ana Lab'
       );
@@ -263,19 +367,27 @@ describe('AddTestsService', () => {
         caseId: 'case-1',
         tenantId: 'clinic-1',
       });
+      // Tubes are locked before the plan reads them
+      expect(db.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(db.$queryRaw.mock.calls[0][0].join('?')).toContain(
+        'FROM specimens WHERE "orderId" = ? FOR UPDATE'
+      );
+      expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        db.order.findFirst.mock.invocationCallOrder[1]
+      );
       expect(db.orderedTest.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             orderId: 'o-1',
             catalogItemId: 'cbc',
             status: 'READY',
+            receivedAt: expect.any(Date),
           }),
         })
       );
-      expect(db.orderedTestSpecimen.create).toHaveBeenCalledWith({
-        data: { orderedTestId: expect.any(String), specimenId: 'sp-edta' },
+      expect(db.orderedTestSpecimen.createMany).toHaveBeenCalledWith({
+        data: [{ orderedTestId: expect.any(String), specimenId: 'sp-edta' }],
       });
-      expect(createRequestedTube).not.toHaveBeenCalled();
       expect(db.order.update).toHaveBeenCalledWith({
         where: { id: 'o-1' },
         data: {
@@ -291,7 +403,13 @@ describe('AddTestsService', () => {
           actorId: 'u-1',
           metadata: expect.objectContaining({
             testNames: ['CBC'],
-            sampleRequired: false,
+            confirmedSpecimens: [
+              {
+                id: 'sp-edta',
+                accessionNumber: 'REQ-1-sp-edta',
+                testNames: ['CBC'],
+              },
+            ],
             note: 'vet asked',
           }),
         }),
@@ -309,76 +427,163 @@ describe('AddTestsService', () => {
             requisitionNumber: 'REQ-1',
             caseId: 'case-1',
             testNames: ['CBC'],
-            sampleRequired: false,
           },
         })
       );
       expect(notifications.deliverQueued).toHaveBeenCalled();
       expect(result.order).toEqual({ id: 'o-1', status: 'PROCESSING' });
-      expect(result.sampleRequired).toBe(false);
     });
 
-    it('requests one new tube for tests needing it, creates no pickup and tells Owner/Admin too', async () => {
-      db.order.findFirst
-        .mockResolvedValueOnce({
-          id: 'o-1',
-          caseId: 'case-1',
-          tenantId: 'clinic-1',
-        })
-        .mockResolvedValueOnce(order());
+    it('never creates a tube or a pickup', async () => {
+      arrange({ specimens: [tube('sp-serum', 'ACCEPTED', serum)] });
       catalog([CHEM, { ...CHEM, id: 'chem2', code: 'C2', name: 'Chem 2' }], {
-        chem: config(serum),
-        chem2: config(serum),
+        chem: config([serum]),
+        chem2: config([serum]),
       });
 
-      const result = await service.addTests(
+      await service.addTests(
         ...actor,
-        { catalogItemIds: ['chem', 'chem2'] },
+        {
+          catalogItemIds: ['chem', 'chem2'],
+          confirmedSpecimenIds: ['sp-serum'],
+        },
         'u-1',
-        'Ana Lab'
+        'A'
       );
 
-      expect(createRequestedTube).toHaveBeenCalledTimes(1);
-      expect(createRequestedTube).toHaveBeenCalledWith(
-        db,
-        'o-1',
-        'lab-1',
-        'REQ-1',
-        'SERUM',
-        'SST_TUBE'
-      );
       expect(db.orderedTest.create).toHaveBeenCalledTimes(2);
       for (const call of db.orderedTest.create.mock.calls) {
-        expect(call[0].data.status).toBe('PENDING');
+        expect(call[0].data.status).toBe('READY');
       }
-      expect(db.orderedTestSpecimen.create).toHaveBeenCalledTimes(2);
-      expect(db.orderedTestSpecimen.create).toHaveBeenCalledWith({
-        data: { orderedTestId: expect.any(String), specimenId: 'sp-new' },
-      });
-      expect(clinicOrderRecipients).toHaveBeenCalledWith(db, 'o-1', {
-        includeAdmins: true,
-      });
-      expect(notifications.publish).toHaveBeenCalledWith(
-        db,
-        expect.objectContaining({
-          params: expect.objectContaining({ sampleRequired: true }),
-        })
-      );
-      expect(result.sampleRequired).toBe(true);
+      expect(db.specimen.create).not.toHaveBeenCalled();
+      expect(db.pickup.create).not.toHaveBeenCalled();
     });
 
-    it('blocks a test with no published template and records why', async () => {
-      db.order.findFirst
-        .mockResolvedValueOnce({
-          id: 'o-1',
-          caseId: 'case-1',
-          tenantId: 'clinic-1',
-        })
-        .mockResolvedValueOnce(order());
-      catalog([CBC], { cbc: config(edta) });
+    it('links a test to one tube per requirement group', async () => {
+      arrange({
+        specimens: [
+          tube('sp-edta', 'ACCEPTED', edta),
+          tube('sp-serum', 'ACCEPTED', serum),
+        ],
+      });
+      catalog([CHEM], { chem: config([edta], [serum]) });
+
+      await service.addTests(
+        ...actor,
+        {
+          catalogItemIds: ['chem'],
+          confirmedSpecimenIds: ['sp-edta', 'sp-serum'],
+        },
+        'u-1',
+        'A'
+      );
+
+      expect(db.orderedTestSpecimen.createMany).toHaveBeenCalledWith({
+        data: [
+          { orderedTestId: expect.any(String), specimenId: 'sp-edta' },
+          { orderedTestId: expect.any(String), specimenId: 'sp-serum' },
+        ],
+      });
+    });
+
+    it.each([
+      ['no compatible tube is at the lab', {}, config([serum])],
+      [
+        'the compatible tube is only expected',
+        { specimens: [tube('sp-wait', 'EXPECTED', serum)] },
+        config([serum]),
+      ],
+      [
+        'the compatible tube is received but not accepted',
+        { specimens: [tube('sp-recv', 'RECEIVED', serum)] },
+        config([serum]),
+      ],
+      ['no specimen requirement is configured', {}, null],
+    ])('refuses when %s, writing nothing', async (_case, over, chemConfig) => {
+      arrange(over);
+      catalog([CHEM], { chem: chemConfig });
+
+      await expect(
+        service.addTests(
+          ...actor,
+          { catalogItemIds: ['chem'], confirmedSpecimenIds: [] },
+          'u-1',
+          'A'
+        )
+      ).rejects.toThrow(/already accepted at the lab: Chemistry/);
+      expectNothingWritten();
+      expect(db.specimen.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses the whole selection when one test cannot be added', async () => {
+      arrange();
+      catalog([CBC, CHEM], { cbc: config([edta]), chem: config([serum]) });
+
+      await expect(
+        service.addTests(
+          ...actor,
+          {
+            catalogItemIds: ['cbc', 'chem'],
+            confirmedSpecimenIds: ['sp-edta'],
+          },
+          'u-1',
+          'A'
+        )
+      ).rejects.toThrow(BadRequestException);
+      expectNothingWritten();
+    });
+
+    it('refuses until every tube used is confirmed to have enough usable sample', async () => {
+      arrange({
+        specimens: [
+          tube('sp-edta', 'ACCEPTED', edta),
+          tube('sp-serum', 'ACCEPTED', serum),
+        ],
+      });
+      catalog([CBC, CHEM], { cbc: config([edta]), chem: config([serum]) });
+
+      await expect(
+        service.addTests(
+          ...actor,
+          {
+            catalogItemIds: ['cbc', 'chem'],
+            confirmedSpecimenIds: ['sp-edta'],
+          },
+          'u-1',
+          'A'
+        )
+      ).rejects.toThrow(/enough usable sample in REQ-1-sp-serum/);
+      expectNothingWritten();
+    });
+
+    it('refuses when the confirmed tube was rejected since the preview', async () => {
+      // The plan re-reads the tubes under the lock, and only reads ones
+      // ACCEPTED, RECEIVED or EXPECTED: the rejected tube isn't there
+      arrange({ specimens: [] });
+      catalog([CBC], { cbc: config([edta]) });
+
+      await expect(
+        service.addTests(
+          ...actor,
+          { catalogItemIds: ['cbc'], confirmedSpecimenIds: ['sp-edta'] },
+          'u-1',
+          'A'
+        )
+      ).rejects.toThrow(/already accepted at the lab: CBC/);
+      expectNothingWritten();
+    });
+
+    it('adds a test with no published template as blocked, and records why', async () => {
+      arrange();
+      catalog([CBC], { cbc: config([edta]) });
       templates.resolveTemplateForTest.mockResolvedValue(null);
 
-      await service.addTests(...actor, { catalogItemIds: ['cbc'] }, 'u-1', 'A');
+      await service.addTests(
+        ...actor,
+        { catalogItemIds: ['cbc'], confirmedSpecimenIds: ['sp-edta'] },
+        'u-1',
+        'A'
+      );
 
       expect(db.orderedTest.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -394,30 +599,32 @@ describe('AddTestsService', () => {
     });
 
     it('refuses when every selected test is already on the order, writing nothing', async () => {
-      db.order.findFirst
-        .mockResolvedValueOnce({
-          id: 'o-1',
-          caseId: 'case-1',
-          tenantId: 'clinic-1',
-        })
-        .mockResolvedValueOnce(
-          order({ orderedTests: [{ catalogItemId: 'cbc' }] })
-        );
-      catalog([CBC], { cbc: config(edta) });
+      arrange({ orderedTests: [{ catalogItemId: 'cbc' }] });
+      catalog([CBC], { cbc: config([edta]) });
 
       await expect(
-        service.addTests(...actor, { catalogItemIds: ['cbc'] }, 'u-1', 'A')
+        service.addTests(
+          ...actor,
+          { catalogItemIds: ['cbc'], confirmedSpecimenIds: [] },
+          'u-1',
+          'A'
+        )
       ).rejects.toThrow(BadRequestException);
-      expect(db.orderedTest.create).not.toHaveBeenCalled();
-      expect(notifications.publish).not.toHaveBeenCalled();
+      expectNothingWritten();
     });
 
     it('404s for an order of another lab before locking anything', async () => {
       db.order.findFirst.mockResolvedValueOnce(null);
       await expect(
-        service.addTests(...actor, { catalogItemIds: ['cbc'] }, 'u-1', 'A')
+        service.addTests(
+          ...actor,
+          { catalogItemIds: ['cbc'], confirmedSpecimenIds: [] },
+          'u-1',
+          'A'
+        )
       ).rejects.toThrow(NotFoundException);
       expect(lockOrderReport).not.toHaveBeenCalled();
+      expect(db.$queryRaw).not.toHaveBeenCalled();
     });
   });
 });
