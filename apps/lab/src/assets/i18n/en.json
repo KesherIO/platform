@@ -632,6 +632,9 @@
       "INDIVIDUAL": "Individual",
       "OTHER": "Other"
     },
+    "card": {
+      "phone": "Phone:"
+    },
     "columns": {
       "name": "Name",
       "type": "Type",

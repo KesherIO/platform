@@ -1,4 +1,5 @@
 import {
+  formatPhoneDisplay,
   mentionsWhatsApp,
   normalizeLabPhones,
   toSavedPhones,
@@ -132,5 +133,35 @@ describe('mentionsWhatsApp', () => {
     ['', false],
   ])('%j → %s', (label, expected) => {
     expect(mentionsWhatsApp(label)).toBe(expected);
+  });
+});
+
+describe('formatPhoneDisplay', () => {
+  it('groups an international number consistently', () => {
+    expect(formatPhoneDisplay('+573024330161')).toBe('+57 302 433 0161');
+    expect(formatPhoneDisplay('+57 (302) 433-0161', 'CO')).toBe(
+      '+57 302 433 0161'
+    );
+    expect(formatPhoneDisplay('0057 302 433 0161')).toBe('+57 302 433 0161');
+  });
+
+  it('adds the country code only when the country is known', () => {
+    expect(formatPhoneDisplay('3024330161', 'CO')).toBe('+57 302 433 0161');
+    expect(formatPhoneDisplay('3024330161')).toBe('3024330161');
+    expect(formatPhoneDisplay('3024330161', 'XX')).toBe('3024330161');
+  });
+
+  it('does not guess a code for numbers of the wrong national length', () => {
+    expect(formatPhoneDisplay('4330161', 'CO')).toBe('4330161');
+    expect(formatPhoneDisplay('302 433 01', 'CO')).toBe('302 433 01');
+  });
+
+  it('returns unreadable input as typed', () => {
+    expect(formatPhoneDisplay('302 433 0161 ext 4', 'CO')).toBe(
+      '302 433 0161 ext 4'
+    );
+    expect(formatPhoneDisplay('+99 1', 'CO')).toBe('+99 1');
+    expect(formatPhoneDisplay('  ')).toBe('');
+    expect(formatPhoneDisplay(null)).toBe('');
   });
 });

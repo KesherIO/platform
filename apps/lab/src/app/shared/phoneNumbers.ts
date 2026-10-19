@@ -76,3 +76,114 @@ export function toSavedPhones(phones: LabPhoneNumber[]) {
     ...(whatsapp && { whatsapp: true }),
   }));
 }
+
+/** ITU calling codes for the countries in `COUNTRY_CODES`. */
+const CALLING_CODES: Record<string, string> = {
+  AR: '54',
+  AU: '61',
+  BR: '55',
+  CA: '1',
+  CL: '56',
+  CO: '57',
+  DE: '49',
+  EC: '593',
+  ES: '34',
+  FR: '33',
+  GB: '44',
+  GT: '502',
+  HN: '504',
+  IT: '39',
+  MX: '52',
+  NI: '505',
+  PA: '507',
+  PE: '51',
+  PT: '351',
+  SV: '503',
+  US: '1',
+  UY: '598',
+  VE: '58',
+};
+
+/**
+ * Digits a national number must have for us to be sure which country code to
+ * add. Countries not listed are never given a code — only formatted when the
+ * number already carries a "+".
+ */
+const NATIONAL_LENGTHS: Record<string, number[]> = {
+  AR: [10],
+  CA: [10],
+  CL: [9],
+  CO: [10],
+  EC: [9],
+  ES: [9],
+  FR: [9],
+  GT: [8],
+  HN: [8],
+  MX: [10],
+  NI: [8],
+  PE: [9],
+  PT: [9],
+  SV: [8],
+  US: [10],
+  UY: [8],
+  VE: [10],
+};
+
+const GROUPINGS: Record<number, number[]> = {
+  7: [3, 4],
+  8: [4, 4],
+  9: [3, 3, 3],
+  10: [3, 3, 4],
+  11: [3, 4, 4],
+};
+
+function groupDigits(digits: string): string | null {
+  const groups = GROUPINGS[digits.length];
+  if (!groups) return null;
+  let at = 0;
+  return groups.map((size) => digits.slice(at, (at += size))).join(' ');
+}
+
+// Longest first, so "593" is tried before "59…" lookalikes and "1" last.
+const CODES_LONGEST_FIRST = [...new Set(Object.values(CALLING_CODES))].sort(
+  (a, b) => b.length - a.length
+);
+
+/**
+ * Display form of a stored phone number, e.g. "+57 302 433 0161". The country
+ * code is only added when `country` is known and the number has the national
+ * length for it; anything we can't read confidently comes back as typed.
+ * Never use the result as the stored value.
+ */
+export function formatPhoneDisplay(
+  raw: string | null | undefined,
+  country?: string | null
+): string {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return '';
+  // Letters or extensions ("x12", "ext") — not ours to reformat.
+  if (/[a-z]/i.test(trimmed)) return trimmed;
+
+  const digits = trimmed.replace(/\D/g, '');
+  const isInternational = trimmed.startsWith('+') || digits.startsWith('00');
+  const iso = country?.toUpperCase();
+  const ownCode = iso ? CALLING_CODES[iso] : undefined;
+
+  if (isInternational) {
+    const full = trimmed.startsWith('+') ? digits : digits.slice(2);
+    if (full.length < 8 || full.length > 15) return trimmed;
+    const code =
+      ownCode && full.startsWith(ownCode)
+        ? ownCode
+        : CODES_LONGEST_FIRST.find((c) => full.startsWith(c));
+    if (!code) return trimmed;
+    const grouped = groupDigits(full.slice(code.length));
+    return grouped ? `+${code} ${grouped}` : trimmed;
+  }
+
+  if (!iso || !ownCode || !NATIONAL_LENGTHS[iso]?.includes(digits.length)) {
+    return trimmed;
+  }
+  const grouped = groupDigits(digits);
+  return grouped ? `+${ownCode} ${grouped}` : trimmed;
+}

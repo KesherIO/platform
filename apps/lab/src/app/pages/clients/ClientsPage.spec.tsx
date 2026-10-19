@@ -80,3 +80,77 @@ describe('ClientsPage export button', () => {
     expect(exportButton()).toHaveProperty('disabled', false);
   });
 });
+
+describe('ClientsPage client card', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const client = (over: Record<string, unknown> = {}) => ({
+    id: 'c1',
+    name: 'CLINICA Y PELUQUERIA CANINA LOS PERRITOS',
+    clientType: 'VETERINARY_CLINIC',
+    status: 'ACTIVE',
+    primaryContactName: null,
+    primaryContactEmail: 'ascontab2013@gmail.com',
+    phone: '3024330161',
+    address: 'Circunvalar 29 # 9-72, Barrio Lagos I',
+    city: 'Floridablanca',
+    country: 'CO',
+    legalName: null,
+    taxIdType: null,
+    taxId: null,
+    notes: null,
+    userCount: 2,
+    orderCount: 5,
+    createdAt: '2026-01-01T00:00:00Z',
+    ...over,
+  });
+
+  const renderWith = async (c: Record<string, unknown>) => {
+    list.mockResolvedValue({ ...page(1), data: [c] } as never);
+    renderPage();
+    await screen.findByText(/^CLINICA|^Name/);
+  };
+
+  it('shows address, email, formatted phone and the type badge', async () => {
+    await renderWith(client());
+
+    expect(
+      screen.getByText('Circunvalar 29 # 9-72, Barrio Lagos I, Floridablanca')
+    ).toBeTruthy();
+    expect(screen.getByText('ascontab2013@gmail.com')).toBeTruthy();
+    expect(
+      screen.getByText('clients.card.phone +57 302 433 0161')
+    ).toBeTruthy();
+    expect(screen.getByText('clients.type.VETERINARY_CLINIC')).toBeTruthy();
+  });
+
+  it('omits missing contact fields instead of leaving empty lines', async () => {
+    await renderWith(
+      client({
+        address: null,
+        city: null,
+        phone: '  ',
+        primaryContactEmail: null,
+        clientType: null,
+      })
+    );
+
+    expect(screen.queryByText(/clients\.card\.phone/)).toBeNull();
+    expect(screen.queryByText(/clients\.type\./)).toBeNull();
+    expect(screen.queryByText(/@/)).toBeNull();
+  });
+
+  it('does not repeat the city when the address already has it', async () => {
+    await renderWith(client({ address: 'Calle 1, Floridablanca' }));
+
+    expect(screen.getByText('Calle 1, Floridablanca')).toBeTruthy();
+  });
+
+  it('shows an unreadable phone as stored', async () => {
+    await renderWith(client({ phone: '302 433 0161 ext 4', country: null }));
+
+    expect(
+      screen.getByText('clients.card.phone 302 433 0161 ext 4')
+    ).toBeTruthy();
+  });
+});
