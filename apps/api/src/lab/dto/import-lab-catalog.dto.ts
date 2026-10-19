@@ -17,9 +17,10 @@ export class ImportLabCatalogDto {
 
   @ApiPropertyOptional({
     default: false,
+    deprecated: true,
     description:
-      'When true, all existing catalog items for the lab are deleted before inserting ' +
-      'the new ones. WARNING: also removes any CaseCatalogItem selections that reference deleted items.',
+      'UNSUPPORTED — true is rejected with a 400 before anything is deleted. ' +
+      'Import without it: existing items are updated and new ones added.',
   })
   @IsOptional()
   @IsBoolean()

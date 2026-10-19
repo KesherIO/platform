@@ -9,6 +9,10 @@ import {
 import { Prisma, ResultType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  assertBillingCodeAvailable,
+  normalizeBillingCode,
+} from '../billing/billing-code.util';
+import {
   CatalogItemKindDto,
   CreateCatalogItemDto,
   ImportCatalogDto,
@@ -24,6 +28,7 @@ type RawCatalogItem = {
   id: string;
   kind: string;
   code: string | null;
+  billingCode?: string | null;
   name: string;
   description: string | null;
   category: string | null;
@@ -54,12 +59,16 @@ function mapItem(
   raw: RawCatalogItem & {
     components?: Array<{ component: RawCatalogItem }>;
   },
-  includeComponents: boolean
+  includeComponents: boolean,
+  // The lab's own billing code is for the lab only: clinics (GET /catalog)
+  // never receive it
+  includeBilling = false
 ) {
   return {
     id: raw.id,
     kind: raw.kind,
     code: raw.code ?? undefined,
+    ...(includeBilling ? { billingCode: raw.billingCode ?? undefined } : {}),
     name: raw.name,
     description: raw.description ?? undefined,
     category: raw.category ?? undefined,
@@ -115,6 +124,21 @@ export class CatalogService {
   async import(body: ImportCatalogDto) {
     const labTenantId = body.labTenantId;
 
+    // Destructive replacement is not supported. Deleting a lab's items would
+    // detach them from past orders and cases, drop package compositions and
+    // wipe billing codes, and past order lines would then point at items that
+    // no longer exist. Refused before anything is read or written; a normal
+    // import (upsert by code, else by name) never deletes.
+    if (body.replace) {
+      throw new BadRequestException({
+        code: 'CATALOG_REPLACE_UNSUPPORTED',
+        message:
+          'Replacing the whole catalog is not supported because it would delete items that past orders, cases and billing codes depend on. ' +
+          'Import without "replace": existing items are updated by code (or name) and new ones are added. ' +
+          'To retire an item, disable it instead.',
+      });
+    }
+
     // A fixed number of queries whatever the catalog size: from a laptop to
     // a remote database one round trip per item ran past the transaction
     // timeout ("Transaction not found"). Same rules as before: upsert by
@@ -125,17 +149,9 @@ export class CatalogService {
 
     await this.prisma.$transaction(
       async (tx) => {
-        // Replace mode: wipe this lab's catalog before inserting — other
-        // labs' catalogs are untouched. CatalogItemComposition rows
-        // cascade-delete automatically. CaseCatalogItem rows also
-        // cascade-delete — clinics lose their selections.
-        if (body.replace) {
-          await tx.catalogItem.deleteMany({ where: { labTenantId } });
-        }
-
         const existing = await tx.catalogItem.findMany({
           where: { labTenantId },
-          select: { id: true, code: true, name: true },
+          select: { id: true, code: true, name: true, billingCode: true },
           orderBy: { createdAt: 'asc' },
         });
         const existingByCode = new Map<string, string>();
@@ -155,6 +171,8 @@ export class CatalogService {
           turnaroundHours: number | null;
           resultType: ResultType | null;
           unit: string | null;
+          /** undefined = the file has no billing code for this row: keep what the item has */
+          billingCode?: string | null;
         };
         const toUpdate = new Map<string, Row>(); // existing id → data
         const toCreate = new Map<string, Row>(); // import key → data
@@ -171,6 +189,7 @@ export class CatalogService {
             turnaroundHours: item.turnaroundHours ?? null,
             resultType: (item.resultType as ResultType | undefined) ?? null,
             unit: item.unit ?? null,
+            billingCode: normalizeBillingCode(item.billingCode) ?? undefined,
           };
           const existingId = item.code
             ? existingByCode.get(item.code)
@@ -186,6 +205,28 @@ export class CatalogService {
             toCreate.set(key, row);
             created++;
           }
+        }
+
+        // Billing codes are unique within the lab: checked before anything is
+        // written, against the codes items keep and the ones this import sets.
+        const codeOwners = new Map<string, string>();
+        const claimBillingCode = (code: string, owner: string) => {
+          const k = code.toLowerCase();
+          const current = codeOwners.get(k);
+          if (current && current !== owner) {
+            throw new BadRequestException(
+              `Billing code "${code}" would belong to more than one catalog item.`
+            );
+          }
+          codeOwners.set(k, owner);
+        };
+        for (const e of existing) {
+          const incoming = toUpdate.get(e.id)?.billingCode;
+          const effective = incoming !== undefined ? incoming : e.billingCode;
+          if (effective) claimBillingCode(effective, e.id);
+        }
+        for (const [key, row] of toCreate) {
+          if (row.billingCode) claimBillingCode(row.billingCode, `new:${key}`);
         }
 
         // Package components must already be this lab's items or come in
@@ -219,10 +260,27 @@ export class CatalogService {
               })
             : [];
 
+        // A code moving between existing items (or being replaced) would trip
+        // the unique index mid-statement: free the ones changing first.
+        const changingCode = existing.filter((e) => {
+          const incoming = toUpdate.get(e.id)?.billingCode;
+          return e.billingCode && incoming && incoming !== e.billingCode;
+        });
+        if (changingCode.length > 0) {
+          await tx.catalogItem.updateMany({
+            where: { labTenantId, id: { in: changingCode.map((e) => e.id) } },
+            data: { billingCode: null },
+          });
+        }
+
         if (toUpdate.size > 0) {
           const values = [...toUpdate.entries()].map(
             ([id, r]) =>
-              Prisma.sql`(${id}, ${r.kind}, ${r.name}, ${r.code}, ${r.description}, ${r.category}, ${r.turnaroundHours}::int, ${r.resultType}, ${r.unit})`
+              Prisma.sql`(${id}, ${r.kind}, ${r.name}, ${r.code}, ${
+                r.description
+              }, ${r.category}, ${r.turnaroundHours}::int, ${r.resultType}, ${
+                r.unit
+              }, ${r.billingCode ?? null}::text)`
           );
           await tx.$executeRaw`
             UPDATE catalog_items AS c SET
@@ -234,9 +292,10 @@ export class CatalogService {
               "turnaroundHours" = v.turnaround_hours,
               "resultType" = v.result_type::"ResultType",
               unit = v.unit,
+              "billingCode" = COALESCE(v.billing_code, c."billingCode"),
               "updatedAt" = now()
             FROM (VALUES ${Prisma.join(values)})
-              AS v(id, kind, name, code, description, category, turnaround_hours, result_type, unit)
+              AS v(id, kind, name, code, description, category, turnaround_hours, result_type, unit, billing_code)
             WHERE c.id = v.id AND c."labTenantId" = ${labTenantId}`;
         }
 
@@ -384,7 +443,7 @@ export class CatalogService {
       // includeComponents:true — the admin UI needs a PACKAGE's existing
       // component ids to pre-fill the edit form; without this an edit would
       // silently wipe composition since the client would submit an empty list.
-      data: items.map((item) => mapItem(item, true)),
+      data: items.map((item) => mapItem(item, true, true)),
       total,
       page,
       pageSize,
@@ -406,6 +465,11 @@ export class CatalogService {
       }
     }
 
+    const billingCode = normalizeBillingCode(dto.billingCode);
+    if (billingCode) {
+      await assertBillingCodeAvailable(this.prisma, labTenantId, billingCode);
+    }
+
     const componentIds = await this.resolveOwnComponentIds(
       labTenantId,
       dto.componentIds
@@ -417,6 +481,7 @@ export class CatalogService {
         kind: dto.kind,
         name: dto.name,
         code: dto.code ?? null,
+        billingCode,
         category: dto.category ?? null,
         turnaroundHours: dto.turnaroundHours ?? null,
         resultType: dto.resultType ?? null,
@@ -434,7 +499,7 @@ export class CatalogService {
       });
     }
 
-    return mapItem(item, false);
+    return mapItem(item, false, true);
   }
 
   async updateItem(labTenantId: string, id: string, dto: UpdateCatalogItemDto) {
@@ -473,6 +538,23 @@ export class CatalogService {
       }
     }
 
+    // The billing code is a plain label for the lab's billing system, so
+    // unlike the internal code it can change even after the item was used;
+    // past exports keep the code they were generated with. An empty value
+    // clears it.
+    let billingCode: string | null | undefined;
+    if (dto.billingCode !== undefined) {
+      billingCode = normalizeBillingCode(dto.billingCode);
+      if (billingCode) {
+        await assertBillingCodeAvailable(
+          this.prisma,
+          labTenantId,
+          billingCode,
+          id
+        );
+      }
+    }
+
     // Resolve/validate componentIds BEFORE mutating anything — otherwise a
     // rejected package composition (wrong lab, non-TEST, self-reference)
     // would leave the scalar fields already saved as a partial write.
@@ -484,6 +566,7 @@ export class CatalogService {
     const updateData: Record<string, unknown> = {};
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.code !== undefined) updateData.code = dto.code;
+    if (billingCode !== undefined) updateData.billingCode = billingCode;
     if (dto.category !== undefined) updateData.category = dto.category;
     if (dto.turnaroundHours !== undefined)
       updateData.turnaroundHours = dto.turnaroundHours;
@@ -514,7 +597,7 @@ export class CatalogService {
       return updated;
     });
 
-    return mapItem(item, false);
+    return mapItem(item, false, true);
   }
 
   async setActive(labTenantId: string, id: string, active: boolean) {
@@ -531,7 +614,7 @@ export class CatalogService {
       data: { active },
     });
 
-    return mapItem(item, false);
+    return mapItem(item, false, true);
   }
 
   // Verifies every componentId belongs to this lab's own catalog, is a TEST

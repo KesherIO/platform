@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Power, Upload, FileDown, ChevronDown } from 'lucide-react';
+import {
+  Pencil,
+  Power,
+  Upload,
+  FileDown,
+  ChevronDown,
+  Receipt,
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
@@ -11,6 +19,7 @@ import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import { CatalogItemModal } from './CatalogItemModal';
 import { CatalogGuidelines } from './CatalogGuidelines';
+import { BillingMappingModal } from './BillingMappingModal';
 import type {
   CatalogCounts,
   CatalogItem,
@@ -55,6 +64,7 @@ const CSV_HEADERS = [
   'unit',
   'description',
   'componentCodes',
+  'billingCode',
 ] as const;
 
 function parseCsvRow(line: string): string[] {
@@ -122,6 +132,8 @@ function parseCsvToItems(text: string): Record<string, unknown>[] | string {
           .filter(Boolean);
       } else if (header === 'resulttype') {
         item.resultType = value;
+      } else if (header === 'billingcode') {
+        item.billingCode = value;
       } else {
         item[header] = value;
       }
@@ -145,6 +157,7 @@ export function CatalogPage() {
   const [kindFilter, setKindFilter] = useState<KindFilter>('ALL');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null);
+  const [showMapping, setShowMapping] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importMenuOpen, setImportMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -344,8 +357,8 @@ export function CatalogPage() {
   const handleDownloadCsvTemplate = () => {
     const header = CSV_HEADERS.join(',');
     const rows = [
-      'TEST,EXAMPLE-001,Example Test,Hematology,4,NUMERIC,mg/dL,,',
-      'PACKAGE,PKG-001,Example Package,Chemistry,,,,,EXAMPLE-001',
+      'TEST,EXAMPLE-001,Example Test,Hematology,4,NUMERIC,mg/dL,,,BILL-001',
+      'PACKAGE,PKG-001,Example Package,Chemistry,,,,,EXAMPLE-001,BILL-PKG',
     ];
     const csv = [header, ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -369,6 +382,7 @@ export function CatalogPage() {
           turnaroundHours: 4,
           resultType: 'NUMERIC',
           unit: 'mg/dL',
+          billingCode: 'BILL-001',
         },
         {
           kind: 'PACKAGE',
@@ -409,6 +423,20 @@ export function CatalogPage() {
         {isAdmin && (
           <div className="flex items-center gap-2">
             <CatalogGuidelines />
+            <button
+              onClick={() => setShowMapping(true)}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 text-sm font-semibold text-white hover:bg-gray-700"
+            >
+              <Receipt size={14} />
+              {t('billing.mapping.open')}
+            </button>
+            <Link
+              to="/billing/export"
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-800 px-3 text-sm font-semibold text-white hover:bg-gray-700"
+            >
+              <FileDown size={14} />
+              {t('billing.export.open')}
+            </Link>
             <div className="relative" ref={importMenuRef}>
               <button
                 onClick={() => setImportMenuOpen(!importMenuOpen)}
@@ -582,6 +610,18 @@ export function CatalogPage() {
                       {item.code && item.category && ' · '}
                       {item.category}
                     </p>
+                    <p className="text-xs text-gray-500">
+                      {t('billing.catalog.billing_code')}:{' '}
+                      {item.billingCode ? (
+                        <span className="font-mono text-gray-300">
+                          {item.billingCode}
+                        </span>
+                      ) : (
+                        <span className="text-amber-400/80">
+                          {t('billing.catalog.no_billing_code')}
+                        </span>
+                      )}
+                    </p>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-4">
@@ -651,6 +691,13 @@ export function CatalogPage() {
             setShowCreateModal(false);
             loadCatalog();
           }}
+        />
+      )}
+
+      {showMapping && (
+        <BillingMappingModal
+          onClose={() => setShowMapping(false)}
+          onApplied={loadCatalog}
         />
       )}
 

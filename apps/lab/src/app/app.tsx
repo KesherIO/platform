@@ -21,6 +21,7 @@ import { TestConfigPage } from './pages/settings/TestConfigPage';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { ClientDetailPage } from './pages/clients/ClientDetailPage';
 import { CatalogPage } from './pages/catalog/CatalogPage';
+import { BillingExportPage } from './pages/billing/BillingExportPage';
 import { CollectionsPage } from './pages/collections/CollectionsPage';
 import { MyPickupsPage } from './pages/pickups/MyPickupsPage';
 import { TemplateManagementPage } from './pages/templates/TemplateManagementPage';
@@ -86,6 +87,7 @@ export function App() {
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/clients/:id" element={<ClientDetailPage />} />
                 <Route path="/catalog" element={<CatalogPage />} />
+                <Route path="/billing/export" element={<BillingExportPage />} />
                 <Route path="/collections" element={<CollectionsPage />} />
                 <Route path="/my-pickups" element={<MyPickupsPage />} />
                 <Route

@@ -852,6 +852,8 @@ export interface CatalogItem {
   kind: CatalogItemKind;
   name: string;
   code?: string;
+  /** The lab's own billing-system code (set by Owner/Admin) */
+  billingCode?: string;
   description?: string;
   category?: string;
   turnaroundHours?: number;
@@ -884,12 +886,145 @@ export interface ImportCatalogItemInput {
   kind: CatalogItemKind;
   name: string;
   code?: string;
+  billingCode?: string;
   category?: string;
   turnaroundHours?: number;
   resultType?: ResultType;
   unit?: string;
   description?: string;
   componentCodes?: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Billing codes and billing export
+// ---------------------------------------------------------------------------
+
+export interface BillingRow {
+  fecha: string;
+  entidad: string;
+  item: string;
+  cantidad: number;
+  patientName: string;
+}
+
+export type MappingStatus = 'SUGGESTED' | 'REVIEW' | 'NO_MATCH' | 'INVALID';
+export type MappingReason =
+  | 'DUPLICATE_DESCRIPTION'
+  | 'DUPLICATE_CODE'
+  | 'MULTIPLE_CANDIDATES'
+  | 'CLAIMED_BY_OTHER_ROW'
+  | 'CODE_ASSIGNED_ELSEWHERE'
+  | 'NOT_EXACT';
+
+export interface MappingCandidate {
+  catalogItemId: string;
+  kind: CatalogItemKind;
+  internalCode: string | null;
+  name: string;
+  currentBillingCode: string | null;
+  matchedBy: 'NAME' | 'CODE' | 'SIMILAR';
+  score: number;
+}
+
+export interface MappingSuggestion {
+  index: number;
+  code: string;
+  description: string;
+  status: MappingStatus;
+  reasons: MappingReason[];
+  suggestedCatalogItemId: string | null;
+  candidates: MappingCandidate[];
+}
+
+export interface MappingAssignment {
+  catalogItemId: string;
+  billingCode: string;
+}
+
+export interface BillingMissingCode {
+  catalogItemId: string;
+  name: string;
+  internalCode: string | null;
+  kind: CatalogItemKind;
+  reason: 'NO_BILLING_CODE' | 'ITEM_NOT_IN_CATALOG';
+  lineCount: number;
+  orderCount: number;
+}
+
+export interface BillingPreviousExport {
+  exportId: string;
+  exportedAt: string;
+  item: string;
+}
+
+export interface BillingPreviewLine {
+  orderId: string;
+  requisitionNumber: string;
+  lineKey: string;
+  fecha: string;
+  entidad: string;
+  item: string | null;
+  cantidad: number;
+  patientName: string;
+  serviceName: string;
+  kind: CatalogItemKind;
+  catalogItemId: string;
+  missing: BillingMissingCode['reason'] | null;
+  /** CATALOG = the item's own code; DELETED_ITEM = a reviewed code for a deleted item */
+  codeSource: 'CATALOG' | 'DELETED_ITEM' | null;
+  previouslyExported: BillingPreviousExport | null;
+  orderPreviouslyExported: boolean;
+}
+
+export interface BillingWithdrawnLine {
+  orderId: string;
+  requisitionNumber: string;
+  lineKey: string;
+  item: string;
+  exportId: string;
+  exportedAt: string;
+  reason: 'ORDER_CANCELLED' | 'ITEM_CANCELLED' | 'NOT_BILLABLE';
+}
+
+export interface BillingPreview {
+  range: { dateFrom: string; dateTo: string };
+  timezone: string;
+  onlyNew: boolean;
+  summary: {
+    orders: number;
+    lines: number;
+    alreadyExported: number;
+    notExportedBefore: number;
+    missingCode: number;
+    cancelledOrderLines: number;
+    cancelledItemLines: number;
+  };
+  lines: BillingPreviewLine[];
+  linesTruncated: boolean;
+  missingCodes: BillingMissingCode[];
+  withdrawnSinceExport: BillingWithdrawnLine[];
+  canGenerate: boolean;
+}
+
+export interface BillingExportFile {
+  exportId: string;
+  createdAt: string;
+  dateFrom: string;
+  dateTo: string;
+  timezone: string;
+  onlyNew: boolean;
+  rows: BillingRow[];
+}
+
+export interface BillingExportSummary {
+  id: string;
+  createdAt: string;
+  createdByName: string;
+  dateFrom: string;
+  dateTo: string;
+  timezone: string;
+  onlyNew: boolean;
+  lineCount: number;
 }
 
 // ---------------------------------------------------------------------------

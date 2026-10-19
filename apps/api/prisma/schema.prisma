@@ -413,6 +413,8 @@ model Tenant {
   clinicConnections      ClinicLabConnection[]      @relation("ClinicConnections")
   labConnections         ClinicLabConnection[]      @relation("LabConnections")
   labCatalogItems        CatalogItem[]              @relation("LabCatalog")
+  labBillingExports      BillingExport[]            @relation("LabBillingExports")
+  billingDeletedItemCodes BillingDeletedItemCode[]  @relation("LabBillingDeletedItemCodes")
   labPickups             Pickup[]                   @relation("LabPickups")
   clinicPickups          Pickup[]                   @relation("ClinicPickups")
   labAnalyzers           Analyzer[]                 @relation("LabAnalyzers")
@@ -641,6 +643,7 @@ model CatalogItem {
   labTenantId     String
   kind            CatalogItemKind
   code            String? // TEST only — lab code (e.g. "CBC"); unique within the lab's catalog
+  billingCode     String? // lab's own billing-system code (tests and packages); unique within the lab (AWAITING BIOMET CONFIRMATION, docs/BILLING_EXPORT.md), never used to match templates
   name            String
   description     String? // PACKAGE only
   category        String? // TEST only
@@ -660,6 +663,7 @@ model CatalogItem {
   labTestConfigurations LabTestConfiguration[]
 
   @@unique([labTenantId, code])
+  @@unique([labTenantId, billingCode])
   @@index([kind])
   @@map("catalog_items")
 }
@@ -1942,4 +1946,76 @@ model VetVerificationEvent {
 
   @@index([verificationId, createdAt])
   @@map("vet_verification_events")
+}
+
+// ---------------------------------------------------------------------------
+// Billing export
+// ---------------------------------------------------------------------------
+
+/// One generated billing file: which lab, which order-date range, and the exact
+/// rows produced. It records that a file was GENERATED — never that it was
+/// uploaded to or accepted by the lab's billing system.
+model BillingExport {
+  id              String   @id @default(cuid())
+  labTenantId     String
+  createdByUserId String
+  createdByName   String // snapshot — the user may be renamed or removed later
+  dateFrom        String // "YYYY-MM-DD", inclusive, in `timezone`
+  dateTo          String // "YYYY-MM-DD", inclusive, in `timezone`
+  timezone        String // IANA zone the range and the fecha column were evaluated in
+  onlyNew         Boolean  @default(false) // lines already in an earlier export were left out on request
+  lineCount       Int
+  createdAt       DateTime @default(now())
+
+  labTenant Tenant              @relation("LabBillingExports", fields: [labTenantId], references: [id], onDelete: Cascade)
+  lines     BillingExportLine[]
+
+  @@index([labTenantId, createdAt])
+  @@map("billing_exports")
+}
+
+/// A row of a BillingExport, frozen as generated (billing code included), so a
+/// re-download reproduces the file even after catalog mappings, clinic or
+/// patient names change. orderId/lineKey identify the order line it came from
+/// ("line-N" = index in Order.orderedItems); no FK so history outlives orders.
+model BillingExportLine {
+  id            String @id @default(cuid())
+  exportId      String
+  orderId       String
+  lineKey       String
+  catalogItemId String
+  fecha         String // "YYYY-MM-DD" order creation date in the export's timezone
+  entidad       String
+  item          String // billing code as of generation
+  cantidad      Int
+  patientName   String
+  position      Int // row order within the file
+
+  export BillingExport @relation(fields: [exportId], references: [id], onDelete: Cascade)
+
+  @@index([exportId, position])
+  @@index([orderId, lineKey])
+  @@map("billing_export_lines")
+}
+
+/// A billing code the lab reviewed and assigned to order lines whose catalog
+/// item no longer exists. Keyed by the deleted item's id as stored in
+/// Order.orderedItems; the orders themselves are never modified, and no catalog
+/// item is recreated. Only used while exporting; past exports keep their rows.
+model BillingDeletedItemCode {
+  id               String   @id @default(cuid())
+  labTenantId      String
+  catalogItemId    String // the deleted item's id, as in orderedItems[].catalogItemId
+  billingCode      String
+  itemName         String // snapshot of the order line's name when assigned
+  internalCode     String? // snapshot of the order line's internal code (never exported)
+  assignedByUserId String
+  assignedByName   String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  labTenant Tenant @relation("LabBillingDeletedItemCodes", fields: [labTenantId], references: [id], onDelete: Cascade)
+
+  @@unique([labTenantId, catalogItemId])
+  @@map("billing_deleted_item_codes")
 }

@@ -27,6 +27,7 @@ export function CatalogItemModal({
   const [kind, setKind] = useState<CatalogItemKind>(item?.kind ?? 'TEST');
   const [name, setName] = useState(item?.name ?? '');
   const [code, setCode] = useState(item?.code ?? '');
+  const [billingCode, setBillingCode] = useState(item?.billingCode ?? '');
   const [category, setCategory] = useState(item?.category ?? '');
   const [turnaroundHours, setTurnaroundHours] = useState(
     item?.turnaroundHours != null ? String(item.turnaroundHours) : ''
@@ -77,7 +78,13 @@ export function CatalogItemModal({
       description: kind === 'PACKAGE' ? description || undefined : undefined,
       componentIds: kind === 'PACKAGE' ? componentIds : undefined,
     };
-    if (mode === 'create') payload.kind = kind;
+    if (mode === 'create') {
+      payload.kind = kind;
+      payload.billingCode = billingCode.trim() || undefined;
+    } else {
+      // '' clears it; the billing code (unlike the internal code) stays editable
+      payload.billingCode = billingCode.trim();
+    }
 
     try {
       if (mode === 'create') {
@@ -154,6 +161,21 @@ export function CatalogItemModal({
               {mode === 'edit'
                 ? t('catalog.form.code_hint_locked')
                 : t('catalog.form.code_hint')}
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-400">
+              {t('billing.catalog.billing_code')}
+            </label>
+            <input
+              value={billingCode}
+              maxLength={50}
+              onChange={(e) => setBillingCode(e.target.value)}
+              className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 font-mono text-sm text-white placeholder-gray-500 focus:border-cyan focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {t('billing.catalog.billing_code_hint')}
             </p>
           </div>
 

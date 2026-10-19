@@ -17,6 +17,7 @@ import {
   Microscope,
   ShieldCheck,
   Search,
+  Receipt,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
@@ -29,6 +30,7 @@ const ICON_STROKE_WIDTH = 2;
 const POLL_MS = 60_000;
 const MESSENGER_HOME = '/my-pickups';
 const RESULTS_VIEWER_HOME = '/results';
+const BILLING_EXPORT_PATH = '/billing/export';
 /**
  * Setup and admin pages. Analysts and reviewers work with what the admin set
  * up (a small lab can make its analyst an admin), so they don't get these
@@ -36,6 +38,7 @@ const RESULTS_VIEWER_HOME = '/results';
  */
 const ADMIN_ONLY_PATHS = [
   '/catalog',
+  '/billing',
   '/clients',
   '/collections',
   '/templates',
@@ -56,6 +59,7 @@ export function Layout() {
     canPerformPickups,
     vetVerificationRequired,
     isResultsViewer,
+    canViewInProgress,
     signOut,
   } = useAuth();
   const { t } = useTranslation();
@@ -132,16 +136,35 @@ export function Layout() {
   if (isMessenger && location.pathname !== MESSENGER_HOME) {
     return <Navigate to={MESSENGER_HOME} replace />;
   }
-  // Same for "Consulta": released results only, nothing else in the lab
-  if (isResultsViewer && location.pathname !== RESULTS_VIEWER_HOME) {
+  // Same for "Consulta": released results only, nothing else in the lab —
+  // except the billing export for the Facturación user (the checkbox)
+  const onBillingExport = location.pathname === BILLING_EXPORT_PATH;
+  if (
+    isResultsViewer &&
+    location.pathname !== RESULTS_VIEWER_HOME &&
+    !(canViewInProgress && onBillingExport)
+  ) {
     return <Navigate to={RESULTS_VIEWER_HOME} replace />;
   }
-  if (!isAdmin && isAdminOnlyPath(location.pathname)) {
+  const consultaMayBill =
+    isResultsViewer && canViewInProgress && onBillingExport;
+  if (!isAdmin && !consultaMayBill && isAdminOnlyPath(location.pathname)) {
     return <Navigate to="/orders" replace />;
   }
 
   const NAV_ITEMS = isResultsViewer
-    ? [{ to: RESULTS_VIEWER_HOME, label: t('nav.results'), icon: Search }]
+    ? [
+        { to: RESULTS_VIEWER_HOME, label: t('nav.results'), icon: Search },
+        ...(canViewInProgress
+          ? [
+              {
+                to: BILLING_EXPORT_PATH,
+                label: t('nav.billing'),
+                icon: Receipt,
+              },
+            ]
+          : []),
+      ]
     : isMessenger
     ? [
         {
@@ -174,6 +197,11 @@ export function Layout() {
                 to: '/catalog',
                 label: t('nav.catalog'),
                 icon: FlaskConical,
+              },
+              {
+                to: '/billing/export',
+                label: t('nav.billing'),
+                icon: Receipt,
               },
               {
                 to: '/settings/analyzers',

@@ -1,5 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -214,16 +218,27 @@ describe('CatalogService', () => {
       ).toEqual([expect.objectContaining({ code: 'X', name: 'Second' })]);
     });
 
-    it("replace:true only deletes this lab's items", async () => {
-      existing([]);
-      await service.import({
-        labTenantId: LAB_A,
-        replace: true,
-        items: [{ kind: 'TEST' as const, name: 'New Test', code: 'NT' }],
-      });
-      expect(prisma.catalogItem.deleteMany).toHaveBeenCalledWith({
-        where: { labTenantId: LAB_A },
-      });
+    it('replace:true is refused with a clear error before anything is touched', async () => {
+      const err = await service
+        .import({
+          labTenantId: LAB_A,
+          replace: true,
+          items: [{ kind: 'TEST' as const, name: 'New Test', code: 'NT' }],
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(BadRequestException);
+      const body = (err as BadRequestException).getResponse() as {
+        code: string;
+        message: string;
+      };
+      expect(body.code).toBe('CATALOG_REPLACE_UNSUPPORTED');
+      expect(body.message).toMatch(/not supported/i);
+      // Nothing read, nothing opened, nothing deleted or written
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.catalogItem.findMany).not.toHaveBeenCalled();
+      expect(prisma.catalogItem.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.catalogItem.createManyAndReturn).not.toHaveBeenCalled();
+      expect(prisma.$executeRaw).not.toHaveBeenCalled();
     });
 
     it('without replace:true does not call deleteMany', async () => {
