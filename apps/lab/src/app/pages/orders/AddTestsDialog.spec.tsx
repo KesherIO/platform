@@ -12,13 +12,22 @@ vi.mock('../../shared/api/labApi', () => ({
 
 import { labApi } from '../../shared/api/labApi';
 import { AddTestsDialog } from './AddTestsDialog';
-import type { AddTestsPreview } from '../../types/lab.types';
+import type { AddTestsPreview, AddTestsSpecimen } from '../../types/lab.types';
 
 const item = (id: string, name: string, active = true) => ({
   id,
   name,
   kind: 'TEST',
   active,
+});
+
+const sample = (id: string, over: Partial<AddTestsSpecimen> = {}) => ({
+  id,
+  accessionNumber: `REQ-1-${id}`,
+  specimenType: 'SERUM',
+  containerType: 'SST_TUBE',
+  conditions: [],
+  ...over,
 });
 
 const preview = (over: Partial<AddTestsPreview> = {}): AddTestsPreview => ({
@@ -32,16 +41,7 @@ const preview = (over: Partial<AddTestsPreview> = {}): AddTestsPreview => ({
     },
   ],
   alreadyOnOrder: [],
-  specimens: [
-    {
-      id: 'sp-1',
-      accessionNumber: 'REQ-1-1',
-      specimenType: 'SERUM',
-      containerType: 'SST_TUBE',
-      conditions: [],
-      testNames: ['Chemistry'],
-    },
-  ],
+  acceptedSpecimens: [sample('sp-1'), sample('sp-2')],
   canAdd: true,
   ...over,
 });
@@ -78,88 +78,115 @@ describe('AddTestsDialog', () => {
     expect((previewBtn as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('previews, requires confirming each tube has enough sample, then adds', async () => {
+  async function openPreview() {
+    fireEvent.click(await screen.findByLabelText(/Chemistry/));
+    fireEvent.click(screen.getByText('specimens.add_tests_preview'));
+    await screen.findByText('specimens.add_tests_pick_samples');
+  }
+
+  const confirmButton = () =>
+    screen.getByText('specimens.add_tests_confirm') as HTMLButtonElement;
+  const sampleBoxes = () =>
+    screen.getAllByLabelText('specimens.add_tests_specimen');
+  const suitableBox = () =>
+    screen.getByLabelText(
+      'specimens.add_tests_confirm_suitable'
+    ) as HTMLInputElement;
+
+  it('requires picking a sample and confirming it is suitable, then adds', async () => {
     vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(preview());
     const result = {
       added: [{ id: 'ot-1', name: 'Chemistry', status: 'READY' }],
       alreadyOnOrder: [],
-      specimens: preview().specimens,
+      specimens: [sample('sp-2')],
       order: { id: 'o-1', status: 'PROCESSING' },
     };
     vi.mocked(labApi.specimens.addTests).mockResolvedValue(result);
     const onSuccess = renderDialog();
 
-    fireEvent.click(await screen.findByLabelText(/Chemistry/));
-    fireEvent.click(screen.getByText('specimens.add_tests_preview'));
-
-    const tube = await screen.findByLabelText(
-      'specimens.add_tests_confirm_specimen'
-    );
+    await openPreview();
     expect(labApi.specimens.previewAddTests).toHaveBeenCalledWith('o-1', [
       'chem',
     ]);
-    const confirm = screen.getByText('specimens.add_tests_confirm');
-    expect((confirm as HTMLButtonElement).disabled).toBe(true);
+    expect(sampleBoxes()).toHaveLength(2);
+    // Nothing picked yet: can't confirm or add
+    expect(suitableBox().disabled).toBe(true);
+    expect(confirmButton().disabled).toBe(true);
 
-    fireEvent.click(tube);
-    expect((confirm as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(confirm);
+    fireEvent.click(sampleBoxes()[1]);
+    expect(confirmButton().disabled).toBe(true);
+    fireEvent.click(suitableBox());
+    expect(confirmButton().disabled).toBe(false);
+    fireEvent.click(confirmButton());
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(result));
     expect(labApi.specimens.addTests).toHaveBeenCalledWith(
       'o-1',
       ['chem'],
-      ['sp-1'],
+      ['sp-2'],
+      true,
       undefined
     );
   });
 
-  it('shows conditions recorded at receipt next to the tube', async () => {
+  it('pre-picks the only accepted sample, but still asks for the confirmation', async () => {
+    vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
+      preview({ acceptedSpecimens: [sample('sp-1')] })
+    );
+    renderDialog();
+
+    await openPreview();
+
+    expect((sampleBoxes()[0] as HTMLInputElement).checked).toBe(true);
+    expect(suitableBox().checked).toBe(false);
+    expect(confirmButton().disabled).toBe(true);
+  });
+
+  it('clears the confirmation when the picked samples change', async () => {
+    vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(preview());
+    renderDialog();
+
+    await openPreview();
+    fireEvent.click(sampleBoxes()[0]);
+    fireEvent.click(suitableBox());
+    expect(suitableBox().checked).toBe(true);
+
+    fireEvent.click(sampleBoxes()[1]);
+    expect(suitableBox().checked).toBe(false);
+    expect(confirmButton().disabled).toBe(true);
+  });
+
+  it('shows conditions recorded at receipt next to the sample', async () => {
     vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
       preview({
-        specimens: [{ ...preview().specimens[0], conditions: ['isHemolyzed'] }],
+        acceptedSpecimens: [sample('sp-1', { conditions: ['isHemolyzed'] })],
       })
+    );
+    renderDialog();
+
+    await openPreview();
+
+    expect(screen.getByText('specimens.add_tests_conditions')).toBeTruthy();
+  });
+
+  it('explains and cannot add when the order has no accepted sample', async () => {
+    vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
+      preview({ acceptedSpecimens: [], canAdd: false })
     );
     renderDialog();
 
     fireEvent.click(await screen.findByLabelText(/Chemistry/));
     fireEvent.click(screen.getByText('specimens.add_tests_preview'));
 
-    await screen.findByText('specimens.add_tests_conditions');
+    await screen.findByText('specimens.add_tests_lab_samples_only');
+    expect(screen.queryByText('specimens.add_tests_pick_samples')).toBeNull();
+    expect(confirmButton().disabled).toBe(true);
   });
-
-  it.each(['AWAITING_SPECIMEN', 'NO_SPECIMEN', 'NO_REQUIREMENT'] as const)(
-    'explains and cannot confirm when a test is %s',
-    async (outcome) => {
-      vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
-        preview({
-          tests: [{ ...preview().tests[0], outcome }],
-          specimens: [],
-          canAdd: false,
-        })
-      );
-      renderDialog();
-
-      fireEvent.click(await screen.findByLabelText(/Chemistry/));
-      fireEvent.click(screen.getByText('specimens.add_tests_preview'));
-
-      await screen.findByText(`specimens.add_tests_outcome.${outcome}`);
-      expect(
-        screen.getByText('specimens.add_tests_lab_samples_only')
-      ).toBeTruthy();
-      expect(
-        screen.queryByText('specimens.add_tests_confirm_title')
-      ).toBeNull();
-      const confirm = screen.getByText('specimens.add_tests_confirm');
-      expect((confirm as HTMLButtonElement).disabled).toBe(true);
-    }
-  );
 
   it('cannot confirm when every selected test is already on the order', async () => {
     vi.mocked(labApi.specimens.previewAddTests).mockResolvedValue(
       preview({
         tests: [],
-        specimens: [],
         canAdd: false,
         alreadyOnOrder: [{ catalogItemId: 'chem', name: 'Chemistry' }],
       })
@@ -183,10 +210,10 @@ describe('AddTestsDialog', () => {
 
     fireEvent.click(await screen.findByLabelText(/Chemistry/));
     fireEvent.click(screen.getByText('specimens.add_tests_preview'));
-    fireEvent.click(
-      await screen.findByLabelText('specimens.add_tests_confirm_specimen')
-    );
-    fireEvent.click(screen.getByText('specimens.add_tests_confirm'));
+    await screen.findByText('specimens.add_tests_pick_samples');
+    fireEvent.click(sampleBoxes()[0]);
+    fireEvent.click(suitableBox());
+    fireEvent.click(confirmButton());
 
     await screen.findByText('The order is COMPLETED.');
     expect(onSuccess).not.toHaveBeenCalled();

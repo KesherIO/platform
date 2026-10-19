@@ -365,7 +365,8 @@ describe('LabController', () => {
 
     const dto = {
       catalogItemIds: ['c-1'],
-      confirmedSpecimenIds: ['sp-1'],
+      specimenIds: ['sp-1'],
+      confirmedSuitable: true as const,
       note: 'n',
     };
     await controller.addTests(tenant, user, 'o-1', dto);
@@ -670,26 +671,37 @@ describe('LabController', () => {
     const validate = (body: unknown) =>
       pipe.transform(body, { type: 'body', metatype: AddTestsDto });
 
-    it('keeps the tubes confirmed to have enough sample', async () => {
+    it('keeps the picked samples and the confirmation', async () => {
       const dto = await validate({
         catalogItemIds: ['c-1'],
-        confirmedSpecimenIds: ['sp-1'],
+        specimenIds: ['sp-1'],
+        confirmedSuitable: true,
       });
-      expect(dto.confirmedSpecimenIds).toEqual(['sp-1']);
+      expect(dto.specimenIds).toEqual(['sp-1']);
+      expect(dto.confirmedSuitable).toBe(true);
     });
 
     it.each([
-      ['no confirmations', { catalogItemIds: ['c-1'] }],
+      ['no samples', { specimenIds: [], confirmedSuitable: true }],
+      ['the samples missing', { confirmedSuitable: true }],
       [
-        'the same tube twice',
-        { catalogItemIds: ['c-1'], confirmedSpecimenIds: ['sp-1', 'sp-1'] },
+        'the same sample twice',
+        { specimenIds: ['sp-1', 'sp-1'], confirmedSuitable: true },
+      ],
+      ['a non-string sample id', { specimenIds: [1], confirmedSuitable: true }],
+      ['no confirmation', { specimenIds: ['sp-1'] }],
+      [
+        'a confirmation that is not true',
+        { specimenIds: ['sp-1'], confirmedSuitable: false },
       ],
       [
-        'a non-string tube id',
-        { catalogItemIds: ['c-1'], confirmedSpecimenIds: [1] },
+        'a truthy non-boolean confirmation',
+        { specimenIds: ['sp-1'], confirmedSuitable: 'yes' },
       ],
     ])('rejects %s with 400', async (_label, body) => {
-      await expect(validate(body)).rejects.toThrow(BadRequestException);
+      await expect(
+        validate({ catalogItemIds: ['c-1'], ...body })
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

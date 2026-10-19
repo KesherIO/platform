@@ -1375,17 +1375,14 @@
     "add_tests_added_success": "Pruebas agregadas.",
     "add_tests_already": "Ya están en la orden (sin cambios): {{names}}",
     "add_tests_nothing_new": "Todas las pruebas seleccionadas ya están en esta orden.",
-    "add_tests_lab_samples_only": "Solo se pueden agregar pruebas sobre una muestra ya aceptada en el laboratorio. Para analizar una muestra nueva, solicítela a la clínica.",
-    "add_tests_not_addable": "Quite las pruebas que no se pueden agregar para continuar.",
-    "add_tests_confirm_title": "Confirme la muestra",
-    "add_tests_confirm_specimen": "Queda suficiente muestra utilizable en {{accession}} ({{specimen}} · {{container}}) para {{tests}}",
+    "add_tests_lab_samples_only": "Solo se pueden agregar pruebas sobre una muestra ya aceptada en el laboratorio. Esta orden no tiene ninguna: para analizar una muestra nueva, solicítela a la clínica.",
+    "add_tests_pick_samples": "Muestras sobre las que se harán las pruebas agregadas",
+    "add_tests_specimen": "{{accession}} · {{specimen}} · {{container}}",
     "add_tests_conditions": "Registrado al recibir: {{conditions}}",
+    "add_tests_confirm_suitable": "Confirmo que las muestras seleccionadas son adecuadas y suficientes para todas las pruebas que se agregan.",
     "add_tests_outcome": {
       "READY": "Lista para procesar",
-      "NO_TEMPLATE": "Se agrega bloqueada: sin plantilla de resultados",
-      "AWAITING_SPECIMEN": "No se puede agregar: su muestra aún no está aceptada",
-      "NO_SPECIMEN": "No se puede agregar: no hay una muestra compatible en el laboratorio",
-      "NO_REQUIREMENT": "No se puede agregar: sin requisito de muestra configurado"
+      "NO_TEMPLATE": "Se agrega bloqueada: sin plantilla de resultados"
     },
     "receive": "Recibir",
     "receive_title": "Recibir tubo",

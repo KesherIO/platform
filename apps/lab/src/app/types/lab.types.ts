@@ -141,14 +141,8 @@ export interface RequestSampleInput {
   note?: string;
 }
 
-/** READY / NO_TEMPLATE can be added (onto a tube accepted at the lab); the
- * others can't — adding never requests a sample from the clinic. */
-export type AddedTestOutcome =
-  | 'READY'
-  | 'NO_TEMPLATE'
-  | 'AWAITING_SPECIMEN'
-  | 'NO_SPECIMEN'
-  | 'NO_REQUIREMENT';
+/** NO_TEMPLATE tests are added BLOCKED until a template is published */
+export type AddedTestOutcome = 'READY' | 'NO_TEMPLATE';
 
 export type SpecimenConditionFlag =
   | 'isHemolyzed'
@@ -169,23 +163,25 @@ export interface AddTestsPreview {
     outcome: AddedTestOutcome;
   }>;
   alreadyOnOrder: Array<{ catalogItemId: string; name: string }>;
-  /** Accepted tubes the tests would run on — each confirmed before saving */
-  specimens: Array<{
-    id: string;
-    accessionNumber: string;
-    specimenType: string;
-    containerType: string;
-    conditions: SpecimenConditionFlag[];
-    testNames: string[];
-  }>;
-  /** Something new to add and every test can be added */
+  /** Accepted samples of the order the tests can be added onto */
+  acceptedSpecimens: AddTestsSpecimen[];
+  /** Something new to add and an accepted sample to add it onto */
   canAdd: boolean;
+}
+
+export interface AddTestsSpecimen {
+  id: string;
+  accessionNumber: string;
+  specimenType: string;
+  containerType: string;
+  conditions: SpecimenConditionFlag[];
 }
 
 export interface AddTestsResult {
   added: Array<{ id: string; name: string; status: string }>;
   alreadyOnOrder: AddTestsPreview['alreadyOnOrder'];
-  specimens: AddTestsPreview['specimens'];
+  /** The samples the tests were added onto */
+  specimens: AddTestsSpecimen[];
   order: { id: string; status: string };
 }
 
