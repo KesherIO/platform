@@ -118,14 +118,12 @@ export interface ReleasedTestResult {
   analytes: ResultReportAnalyteModel[];
 }
 
-/** Tests the lab added to the order that are still to come. */
+/** Tests the lab added to the order that are still to come. The lab adds
+ * tests only onto samples it already has: the clinic has nothing to send. */
 export interface ClinicLabAddedTestsModel {
   testNames: string[];
   /** When the lab last added tests (ISO) */
   addedAt: string;
-  /** Another sample is awaited for some of them. The lab creates no pickup:
-   * the clinic arranges sending it. */
-  awaitingSample: boolean;
 }
 
 export interface ClinicReleasedResultsModel {

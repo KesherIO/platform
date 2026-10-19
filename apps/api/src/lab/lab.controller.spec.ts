@@ -16,6 +16,7 @@ import { TenantRole } from '@prisma/client';
 import { PickupService } from './pickup.service';
 import { SpecimenService } from './specimen.service';
 import { AddTestsService } from './add-tests.service';
+import { AddTestsDto } from './dto/add-tests.dto';
 import { CatalogService } from '../catalog/catalog.service';
 import { ResultEntryService } from './result-entry.service';
 import { ResultsService } from '../results/results.service';
@@ -362,7 +363,12 @@ describe('LabController', () => {
     });
     expect(addTests.preview).toHaveBeenCalledWith('o-1', 'lab-1', ['c-1']);
 
-    const dto = { catalogItemIds: ['c-1'], note: 'n' };
+    const dto = {
+      catalogItemIds: ['c-1'],
+      specimenIds: ['sp-1'],
+      confirmedSuitable: true as const,
+      note: 'n',
+    };
     await controller.addTests(tenant, user, 'o-1', dto);
     expect(addTests.addTests).toHaveBeenCalledWith(
       'o-1',
@@ -656,6 +662,58 @@ describe('LabController', () => {
       ],
     ])('rejects %s with 400', async (_label, body) => {
       await expect(validate(body)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('AddTestsDto', () => {
+    // Same options as the global pipe in main.ts.
+    const pipe = new ValidationPipe({ whitelist: true, transform: true });
+    const validate = (body: unknown) =>
+      pipe.transform(body, { type: 'body', metatype: AddTestsDto });
+
+    it('keeps the picked samples and the confirmation', async () => {
+      const dto = await validate({
+        catalogItemIds: ['c-1'],
+        specimenIds: ['sp-1'],
+        confirmedSuitable: true,
+      });
+      expect(dto.specimenIds).toEqual(['sp-1']);
+      expect(dto.confirmedSuitable).toBe(true);
+    });
+
+    // The service decides whether samples must be picked (the order has
+    // specimen records) or there are none to pick
+    it.each([
+      ['no samples', { specimenIds: [] }],
+      ['the samples omitted', {}],
+    ])('accepts %s with the confirmation', async (_label, body) => {
+      const dto = await validate({
+        catalogItemIds: ['c-1'],
+        confirmedSuitable: true,
+        ...body,
+      });
+      expect(dto.confirmedSuitable).toBe(true);
+    });
+
+    it.each([
+      [
+        'the same sample twice',
+        { specimenIds: ['sp-1', 'sp-1'], confirmedSuitable: true },
+      ],
+      ['a non-string sample id', { specimenIds: [1], confirmedSuitable: true }],
+      ['no confirmation', { specimenIds: ['sp-1'] }],
+      [
+        'a confirmation that is not true',
+        { specimenIds: ['sp-1'], confirmedSuitable: false },
+      ],
+      [
+        'a truthy non-boolean confirmation',
+        { specimenIds: ['sp-1'], confirmedSuitable: 'yes' },
+      ],
+    ])('rejects %s with 400', async (_label, body) => {
+      await expect(
+        validate({ catalogItemIds: ['c-1'], ...body })
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

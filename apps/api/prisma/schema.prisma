@@ -1475,7 +1475,7 @@ enum PushApp {
 }
 
 enum NotificationType {
-  TESTS_ADDED // lab added tests to an open order (params.sampleRequired)
+  TESTS_ADDED // lab added tests to an open order, onto samples already at the lab
   ADDITIONAL_SAMPLE_REQUIRED // another sample requested after a rejected/missing tube
   RESULTS_RELEASED // PARTIAL or FINAL release (params.releaseType)
   RESULTS_AMENDED // amendment approved; only when the lab shows amendments

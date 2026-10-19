@@ -77,13 +77,6 @@ export class NotificationBellComponent {
   } {
     const params = { req: n.params.requisitionNumber ?? '' };
     switch (n.type) {
-      case 'TESTS_ADDED':
-        return {
-          key: n.params.sampleRequired
-            ? 'NOTIFICATIONS.TYPES.TESTS_ADDED_SAMPLE'
-            : 'NOTIFICATIONS.TYPES.TESTS_ADDED',
-          params,
-        };
       case 'RESULTS_RELEASED':
         return {
           key:

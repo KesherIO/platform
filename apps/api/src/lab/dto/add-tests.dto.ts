@@ -2,6 +2,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   ArrayUnique,
+  Equals,
   IsArray,
   IsOptional,
   IsString,
@@ -21,6 +22,21 @@ export class AddTestsPreviewDto {
 
 /** POST lab/orders/:orderId/add-tests — add them to the open order. */
 export class AddTestsDto extends AddTestsPreviewDto {
+  /** Accepted samples of the order (from the preview) the tests run on.
+   * Required when the order has specimen records; omitted or empty when it
+   * was received with none (the service decides which applies). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ArrayUnique()
+  @IsString({ each: true })
+  specimenIds?: string[];
+
+  /** Staff confirm the samples (selected, or received with the order) are
+   * suitable and sufficient for every added test */
+  @Equals(true)
+  confirmedSuitable!: true;
+
   @IsOptional()
   @IsString()
   @MaxLength(500)

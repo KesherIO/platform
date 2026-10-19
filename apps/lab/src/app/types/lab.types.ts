@@ -141,11 +141,26 @@ export interface RequestSampleInput {
   note?: string;
 }
 
-export type AddedTestOutcome =
-  | 'READY'
-  | 'AWAITING_TUBE'
-  | 'NEEDS_NEW_TUBE'
-  | 'NO_TEMPLATE';
+/** NO_TEMPLATE tests are added BLOCKED until a template is published */
+export type AddedTestOutcome = 'READY' | 'NO_TEMPLATE';
+
+/** Which samples added tests run on (see AddTestsService.SampleMode):
+ * pick ACCEPTED ones, or confirm the sample received with an order that has
+ * no specimen records; the last two can't add. */
+export type AddTestsSampleMode =
+  | 'SELECT_ACCEPTED'
+  | 'CONFIRM_RECEIVED_ORDER'
+  | 'NO_ACCEPTED_SPECIMEN'
+  | 'NOT_RECEIVED';
+
+export type SpecimenConditionFlag =
+  | 'isHemolyzed'
+  | 'isLipemic'
+  | 'isIcteric'
+  | 'isInsufficient'
+  | 'isContaminated'
+  | 'isWrongContainer'
+  | 'isLeaking';
 
 /** What adding tests to an open order would do (nothing is saved yet). */
 export interface AddTestsPreview {
@@ -157,21 +172,26 @@ export interface AddTestsPreview {
     outcome: AddedTestOutcome;
   }>;
   alreadyOnOrder: Array<{ catalogItemId: string; name: string }>;
-  tubes: Array<{
-    specimenType: string;
-    containerType: string;
-    /** false → a new tube is requested from the clinic */
-    existing: boolean;
-    testNames: string[];
-  }>;
-  sampleRequired: boolean;
+  sampleMode: AddTestsSampleMode;
+  /** Accepted samples to pick from (SELECT_ACCEPTED only) */
+  acceptedSpecimens: AddTestsSpecimen[];
+  /** Something new to add, and a sample mode tests can be added in */
+  canAdd: boolean;
+}
+
+export interface AddTestsSpecimen {
+  id: string;
+  accessionNumber: string;
+  specimenType: string;
+  containerType: string;
+  conditions: SpecimenConditionFlag[];
 }
 
 export interface AddTestsResult {
   added: Array<{ id: string; name: string; status: string }>;
   alreadyOnOrder: AddTestsPreview['alreadyOnOrder'];
-  sampleRequired: boolean;
-  tubes: AddTestsPreview['tubes'];
+  /** The samples the tests were added onto */
+  specimens: AddTestsSpecimen[];
   order: { id: string; status: string };
 }
 
@@ -1497,7 +1517,6 @@ export interface NotificationParams {
   requisitionNumber?: string;
   caseId?: string;
   testNames?: string[];
-  sampleRequired?: boolean;
   releaseType?: 'PARTIAL' | 'FINAL';
   assignedAt?: string;
 }

@@ -1373,17 +1373,21 @@
     "add_tests_back": "Cambiar selección",
     "add_tests_note": "Nota (opcional)",
     "add_tests_added_success": "Pruebas agregadas.",
-    "add_tests_added_sample_success": "Pruebas agregadas; se notificó a la clínica que se necesita otra muestra.",
     "add_tests_already": "Ya están en la orden (sin cambios): {{names}}",
     "add_tests_nothing_new": "Todas las pruebas seleccionadas ya están en esta orden.",
-    "add_tests_sample_required": "Se requiere una nueva muestra. Se notifica a la clínica y ella coordina la entrega: no se crea ninguna recolección.",
-    "add_tests_tube_new": "Tubo nuevo: {{specimen}} · {{container}} — para {{tests}}",
-    "add_tests_tube_existing": "Se une al tubo ya solicitado: {{specimen}} · {{container}} — para {{tests}}",
+    "add_tests_pick_samples": "Muestras sobre las que se harán las pruebas agregadas",
+    "add_tests_specimen": "{{accession}} · {{specimen}} · {{container}}",
+    "add_tests_conditions": "Registrado al recibir: {{conditions}}",
+    "add_tests_confirm_suitable": "Confirmo que las muestras seleccionadas son adecuadas y suficientes para todas las pruebas que se agregan.",
+    "add_tests_confirm_received_sample": "Confirmo que la muestra recibida con esta orden es adecuada y suficiente para todas las pruebas que se agregan.",
+    "add_tests_sample_mode": {
+      "CONFIRM_RECEIVED_ORDER": "No se registraron muestras para esta orden al recibirla, así que no hay nada que seleccionar. Las pruebas se hacen sobre la muestra que el laboratorio recibió con la orden.",
+      "NO_ACCEPTED_SPECIMEN": "Ninguna muestra de esta orden está aceptada (están esperadas, pendientes o rechazadas). Acepte una muestra primero o solicite una nueva a la clínica.",
+      "NOT_RECEIVED": "Solo se pueden agregar pruebas cuando el laboratorio ya recibió la orden."
+    },
     "add_tests_outcome": {
       "READY": "Lista para procesar",
-      "AWAITING_TUBE": "Espera un tubo ya solicitado",
-      "NEEDS_NEW_TUBE": "Necesita una muestra nueva",
-      "NO_TEMPLATE": "Bloqueada: sin plantilla de resultados"
+      "NO_TEMPLATE": "Se agrega bloqueada: sin plantilla de resultados"
     },
     "receive": "Recibir",
     "receive_title": "Recibir tubo",

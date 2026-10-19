@@ -5,10 +5,11 @@ import { labApi, apiErrorMessage } from '../../shared/api/labApi';
 import type { AddTestsPreview, AddTestsResult } from '../../types/lab.types';
 
 /**
- * Adds tests (or packages) to an open order. Choose, preview what would
- * happen — which tests are ready, which wait for a tube, whether the clinic
- * must send another sample — then confirm. A new sample notifies the clinic;
- * no pickup is created.
+ * Adds tests (or packages) to an open order, only onto samples already at the
+ * lab. Choose, preview, then pick the accepted samples the tests run on — or,
+ * for a received order with no specimen records, nothing to pick — and
+ * confirm they are suitable and sufficient. Adding never requests a sample or
+ * creates a pickup; the clinic is told for information.
  */
 export function AddTestsDialog({
   orderId,
@@ -24,6 +25,8 @@ export function AddTestsDialog({
   const [selected, setSelected] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [preview, setPreview] = useState<AddTestsPreview | null>(null);
+  const [specimenIds, setSpecimenIds] = useState<string[]>([]);
+  const [confirmedSuitable, setConfirmedSuitable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,12 +66,39 @@ export function AddTestsDialog({
   };
 
   const showPreview = () =>
-    run(() => labApi.specimens.previewAddTests(orderId, selected), setPreview);
+    run(
+      () => labApi.specimens.previewAddTests(orderId, selected),
+      (p) => {
+        // A single accepted sample is the obvious pick
+        setSpecimenIds(
+          p.acceptedSpecimens.length === 1 ? [p.acceptedSpecimens[0].id] : []
+        );
+        setConfirmedSuitable(false);
+        setPreview(p);
+      }
+    );
+
+  const selecting = preview?.sampleMode === 'SELECT_ACCEPTED';
+  const samplesChosen = !selecting || specimenIds.length > 0;
+
+  const toggleSpecimen = (id: string) => {
+    // What was confirmed no longer matches the selection
+    setConfirmedSuitable(false);
+    setSpecimenIds((cur) =>
+      cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]
+    );
+  };
 
   const confirm = () =>
     run(
       () =>
-        labApi.specimens.addTests(orderId, selected, note.trim() || undefined),
+        labApi.specimens.addTests(
+          orderId,
+          selected,
+          selecting ? specimenIds : [],
+          confirmedSuitable,
+          note.trim() || undefined
+        ),
       onSuccess
     );
 
@@ -151,8 +181,6 @@ export function AddTestsDialog({
                         className={`text-xs ${
                           test.outcome === 'READY'
                             ? 'text-green-400'
-                            : test.outcome === 'NO_TEMPLATE'
-                            ? 'text-red-400'
                             : 'text-amber-300'
                         }`}
                       >
@@ -171,28 +199,77 @@ export function AddTestsDialog({
                 </p>
               )}
 
-              {preview.tubes.map((tube) => (
+              {preview.tests.length > 0 && !preview.canAdd && (
                 <p
-                  key={`${tube.specimenType}|${tube.containerType}`}
-                  className="text-xs text-gray-300"
+                  role="alert"
+                  className="rounded-lg border border-red-900/50 bg-red-900/20 px-3 py-2 text-xs text-red-200"
                 >
-                  {t(
-                    tube.existing
-                      ? 'specimens.add_tests_tube_existing'
-                      : 'specimens.add_tests_tube_new',
-                    {
-                      specimen: tube.specimenType,
-                      container: tube.containerType,
-                      tests: tube.testNames.join(', '),
-                    }
-                  )}
+                  {t(`specimens.add_tests_sample_mode.${preview.sampleMode}`)}
                 </p>
-              ))}
+              )}
 
-              {preview.sampleRequired && (
-                <p className="rounded-lg border border-amber-900/50 bg-amber-900/20 px-3 py-2 text-xs text-amber-200">
-                  {t('specimens.add_tests_sample_required')}
-                </p>
+              {preview.canAdd && (
+                <>
+                  {selecting ? (
+                    <fieldset className="space-y-2">
+                      <legend className="mb-1 text-xs font-semibold text-gray-300">
+                        {t('specimens.add_tests_pick_samples')}
+                      </legend>
+                      {preview.acceptedSpecimens.map((sp) => (
+                        <label
+                          key={sp.id}
+                          className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-800 px-3 py-2 hover:bg-gray-900"
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={specimenIds.includes(sp.id)}
+                            onChange={() => toggleSpecimen(sp.id)}
+                          />
+                          <span className="text-xs text-gray-200">
+                            {t('specimens.add_tests_specimen', {
+                              accession: sp.accessionNumber,
+                              specimen: sp.specimenType,
+                              container: sp.containerType,
+                            })}
+                            {sp.conditions.length > 0 && (
+                              <span className="mt-0.5 block text-amber-300">
+                                {t('specimens.add_tests_conditions', {
+                                  conditions: sp.conditions
+                                    .map((c) => t(`accession.flag.${c}`))
+                                    .join(', '),
+                                })}
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                      ))}
+                    </fieldset>
+                  ) : (
+                    <p className="rounded-lg border border-gray-800 px-3 py-2 text-xs text-gray-300">
+                      {t(
+                        'specimens.add_tests_sample_mode.CONFIRM_RECEIVED_ORDER'
+                      )}
+                    </p>
+                  )}
+
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-cyan/30 bg-cyan/5 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={confirmedSuitable}
+                      disabled={!samplesChosen}
+                      onChange={(e) => setConfirmedSuitable(e.target.checked)}
+                    />
+                    <span className="text-xs text-gray-100">
+                      {t(
+                        selecting
+                          ? 'specimens.add_tests_confirm_suitable'
+                          : 'specimens.add_tests_confirm_received_sample'
+                      )}
+                    </span>
+                  </label>
+                </>
               )}
 
               <div>
@@ -225,7 +302,12 @@ export function AddTestsDialog({
               </button>
               <button
                 onClick={confirm}
-                disabled={busy || preview.tests.length === 0}
+                disabled={
+                  busy ||
+                  !preview.canAdd ||
+                  !samplesChosen ||
+                  !confirmedSuitable
+                }
                 className="rounded-lg bg-cyan px-5 py-2 text-sm font-semibold text-gray-950 hover:opacity-90 disabled:opacity-50"
               >
                 {busy ? '…' : t('specimens.add_tests_confirm')}

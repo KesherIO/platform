@@ -20,24 +20,55 @@ import { clinicOrderRecipients } from '../notifications/clinic-recipients';
 import { OrderStatusService } from './order-status.service';
 import { lockOrderReport } from './report-lock.util';
 import { expandOrderedItems } from './ordered-test-expansion.util';
-import { createRequestedTube } from './requested-tube.util';
 import { ageToWeeks } from './specimen.service';
 import type { AddTestsDto } from './dto/add-tests.dto';
 
 type Db = Prisma.TransactionClient;
 
 /**
- * What happens to a test the lab adds:
- * - READY: a tube already accepted on the order serves it (or it needs none)
- * - AWAITING_TUBE: it joins a tube already requested and not received yet
- * - NEEDS_NEW_TUBE: the clinic must send another sample (no pickup is created)
- * - NO_TEMPLATE: its sample is covered but no result template is published
+ * Tests are added only onto samples already at the lab — adding never
+ * requests a sample from the clinic or creates a pickup. Specimen requirements
+ * are optional in this version, so staff confirm the samples are suitable and
+ * sufficient for every added test (see SampleMode for which samples).
+ * Per test:
+ * - READY: a result template is published
+ * - NO_TEMPLATE: no result template is published (added BLOCKED)
  */
-export type AddedTestOutcome =
-  | 'READY'
-  | 'AWAITING_TUBE'
-  | 'NEEDS_NEW_TUBE'
-  | 'NO_TEMPLATE';
+export type AddedTestOutcome = 'READY' | 'NO_TEMPLATE';
+
+/**
+ * Which samples the added tests run on:
+ * - SELECT_ACCEPTED: the order has specimen records, some ACCEPTED — staff
+ *   pick among those
+ * - CONFIRM_RECEIVED_ORDER: received/accessioned with no specimen records at
+ *   all (tests without requirements create none) — staff confirm the sample
+ *   received with the order, nothing to pick
+ * - NO_ACCEPTED_SPECIMEN: specimen records exist but none is ACCEPTED (all
+ *   expected, pending or rejected) — can't add, no fallback
+ * - NOT_RECEIVED: no specimen records and the order isn't received — can't add
+ */
+export type SampleMode =
+  | 'SELECT_ACCEPTED'
+  | 'CONFIRM_RECEIVED_ORDER'
+  | 'NO_ACCEPTED_SPECIMEN'
+  | 'NOT_RECEIVED';
+
+const ADDABLE_MODES: readonly SampleMode[] = [
+  'SELECT_ACCEPTED',
+  'CONFIRM_RECEIVED_ORDER',
+];
+const RECEIVED_STATUSES = ['RECEIVED_BY_LAB', 'PROCESSING'];
+
+const CONDITION_FLAGS = [
+  'isHemolyzed',
+  'isLipemic',
+  'isIcteric',
+  'isInsufficient',
+  'isContaminated',
+  'isWrongContainer',
+  'isLeaking',
+] as const;
+type ConditionFlag = (typeof CONDITION_FLAGS)[number];
 
 export interface AddTestsPreview {
   tests: Array<{
@@ -50,14 +81,18 @@ export interface AddTestsPreview {
   }>;
   /** Already on the order (not cancelled): left as they are */
   alreadyOnOrder: Array<{ catalogItemId: string; name: string }>;
-  tubes: Array<{
+  sampleMode: SampleMode;
+  /** Accepted samples to pick from (SELECT_ACCEPTED only) */
+  acceptedSpecimens: Array<{
+    id: string;
+    accessionNumber: string;
     specimenType: string;
     containerType: string;
-    /** false → a new tube is requested from the clinic */
-    existing: boolean;
-    testNames: string[];
+    /** Condition flags recorded at receipt (e.g. isHemolyzed) */
+    conditions: ConditionFlag[];
   }>;
-  sampleRequired: boolean;
+  /** Something new to add, and a sample mode tests can be added in */
+  canAdd: boolean;
 }
 
 interface PlannedTest {
@@ -67,8 +102,6 @@ interface PlannedTest {
   origins: string[];
   sources: Awaited<ReturnType<typeof expandOrderedItems>>[number]['sources'];
   outcome: AddedTestOutcome;
-  tubeKey: string | null;
-  acceptedSpecimenId: string | null;
   config: {
     department: Department;
     defaultProcessingMethod: ProcessingMethod;
@@ -90,17 +123,9 @@ interface Plan {
   lines: OrderedItem[];
   tests: PlannedTest[];
   alreadyOnOrder: AddTestsPreview['alreadyOnOrder'];
-  tubes: Array<{
-    key: string;
-    specimenType: string;
-    containerType: string;
-    existingSpecimenId: string | null;
-    testNames: string[];
-  }>;
+  sampleMode: SampleMode;
+  acceptedSpecimens: AddTestsPreview['acceptedSpecimens'];
 }
-
-const tubeKeyOf = (specimenType: string, containerType: string) =>
-  `${specimenType}|${containerType}`;
 
 @Injectable()
 export class AddTestsService {
@@ -140,34 +165,63 @@ export class AddTestsService {
         // Same lock release and cancellation take: a release decides FINAL vs
         // PARTIAL against a set of tests nobody is changing at that moment
         await lockOrderReport(tx, base);
+        // Specimen changes don't take the report lock: hold the order's
+        // samples so one picked can't be rejected before these tests link to
+        // it, and the order row so its status is the one planned against
+        await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM specimens WHERE "orderId" = ${orderId} FOR UPDATE`;
 
-        // Planned under the lock, so what is saved is what is true now
+        // Planned under the locks, so what is saved is what is true now
         const plan = await this.plan(tx, orderId, labTenantId, dto);
         if (plan.tests.length === 0) {
           throw new BadRequestException(
             'Every selected test is already on this order.'
           );
         }
+        const specimenIds = dto.specimenIds ?? [];
+        if (plan.sampleMode === 'NO_ACCEPTED_SPECIMEN') {
+          throw new BadRequestException(
+            'None of this order’s samples is accepted: accept one first, or request a new sample from the clinic.'
+          );
+        }
+        if (plan.sampleMode === 'NOT_RECEIVED') {
+          throw new BadRequestException(
+            'Tests can only be added once the order has been received at the lab.'
+          );
+        }
+        if (!dto.confirmedSuitable) {
+          throw new BadRequestException(
+            'Confirm the samples are suitable and sufficient for every added test.'
+          );
+        }
+        if (
+          plan.sampleMode === 'CONFIRM_RECEIVED_ORDER' &&
+          specimenIds.length
+        ) {
+          throw new BadRequestException(
+            'This order has no specimen records to select.'
+          );
+        }
+        if (plan.sampleMode === 'SELECT_ACCEPTED' && !specimenIds.length) {
+          throw new BadRequestException(
+            'Select the accepted samples the added tests run on.'
+          );
+        }
+        // Re-read under the lock: a sample picked in the preview may have
+        // been rejected since
+        const acceptedById = new Map(
+          plan.acceptedSpecimens.map((sp) => [sp.id, sp])
+        );
+        if (specimenIds.some((id) => !acceptedById.has(id))) {
+          throw new BadRequestException(
+            'Tests can only be added onto samples of this order already accepted at the lab.'
+          );
+        }
+        const selected = specimenIds.flatMap(
+          (id) => acceptedById.get(id) ?? []
+        );
         const preview = this.toPreview(plan);
         const now = new Date();
-
-        // New tubes the clinic must send; tests needing one kind share a tube
-        const tubeIdByKey = new Map<string, string>();
-        for (const tube of plan.tubes) {
-          if (tube.existingSpecimenId) {
-            tubeIdByKey.set(tube.key, tube.existingSpecimenId);
-          } else {
-            const created = await createRequestedTube(
-              tx,
-              orderId,
-              labTenantId,
-              plan.order.requisitionNumber,
-              tube.specimenType,
-              tube.containerType
-            );
-            tubeIdByKey.set(tube.key, created.id);
-          }
-        }
 
         const timeline: Prisma.TimelineEventCreateManyInput[] = [];
         const added: Array<{ id: string; name: string; status: string }> = [];
@@ -185,25 +239,23 @@ export class AddTestsService {
               status,
               blockReason,
               blockReasonDetail,
-              ...(test.outcome === 'READY' || test.outcome === 'NO_TEMPLATE'
-                ? {
-                    receivedAt: now,
-                    department: test.config?.department ?? null,
-                    processingMethod:
-                      test.config?.defaultProcessingMethod ?? null,
-                    analyzerId: test.config?.defaultAnalyzerId ?? null,
-                  }
-                : {}),
+              // Its sample is already at the lab
+              receivedAt: now,
+              department: test.config?.department ?? null,
+              processingMethod: test.config?.defaultProcessingMethod ?? null,
+              analyzerId: test.config?.defaultAnalyzerId ?? null,
               sources: { createMany: { data: test.sources } },
             },
             select: { id: true },
           });
-          const specimenId =
-            test.acceptedSpecimenId ??
-            (test.tubeKey ? tubeIdByKey.get(test.tubeKey) : undefined);
-          if (specimenId) {
-            await tx.orderedTestSpecimen.create({
-              data: { orderedTestId: row.id, specimenId },
+          // Every added test runs on the samples the lab picked (none to
+          // link when the order has no specimen records)
+          if (selected.length > 0) {
+            await tx.orderedTestSpecimen.createMany({
+              data: selected.map((sp) => ({
+                orderedTestId: row.id,
+                specimenId: sp.id,
+              })),
             });
           }
           added.push({ id: row.id, name: test.name, status });
@@ -259,8 +311,24 @@ export class AddTestsService {
             metadata: {
               orderedTestIds: added.map((a) => a.id),
               testNames: added.map((a) => a.name),
-              sampleRequired: preview.sampleRequired,
-              newTubes: preview.tubes.filter((t) => !t.existing),
+              // The samples picked, and who confirmed they are suitable and
+              // sufficient for every added test
+              selectedSpecimens: selected.map((sp) => ({
+                id: sp.id,
+                accessionNumber: sp.accessionNumber,
+                specimenType: sp.specimenType,
+                containerType: sp.containerType,
+                conditions: sp.conditions,
+              })),
+              sampleConfirmation: {
+                // SELECT_ACCEPTED: the samples above; CONFIRM_RECEIVED_ORDER:
+                // the sample received with the order, no records to select
+                basis: plan.sampleMode,
+                suitableAndSufficient: true,
+                confirmedById: actorId,
+                confirmedByName: actorName,
+                confirmedAt: now.toISOString(),
+              },
               note: dto.note ?? null,
             },
           },
@@ -275,9 +343,9 @@ export class AddTestsService {
           tx
         );
 
-        // Vets, plus Owner/Admin when the clinic has to send another sample
+        // Informational: the clinic has nothing to send, so vets only
         const recipients = await clinicOrderRecipients(tx, orderId, {
-          includeAdmins: preview.sampleRequired,
+          includeAdmins: false,
         });
         if (recipients) {
           await this.notifications.publish(tx, {
@@ -290,7 +358,6 @@ export class AddTestsService {
               requisitionNumber: recipients.requisitionNumber,
               caseId: recipients.caseId,
               testNames: added.map((a) => a.name),
-              sampleRequired: preview.sampleRequired,
             },
           });
         }
@@ -298,8 +365,7 @@ export class AddTestsService {
         return {
           added,
           alreadyOnOrder: preview.alreadyOnOrder,
-          sampleRequired: preview.sampleRequired,
-          tubes: preview.tubes,
+          specimens: selected,
           order: { id: orderId, status: orderStatus },
         };
       },
@@ -317,34 +383,19 @@ export class AddTestsService {
     blockReason: BlockReason | null;
     blockReasonDetail: string | null;
   } {
-    switch (test.outcome) {
-      case 'READY':
-        return { status: 'READY', blockReason: null, blockReasonDetail: null };
-      case 'NO_TEMPLATE':
-        return {
-          status: 'BLOCKED',
-          blockReason: 'MISSING_RESULT_TEMPLATE',
-          blockReasonDetail: `No published template for ${
-            test.code ?? ''
-          } + ${species}`,
-        };
-      default:
-        // Waiting for a tube: receiving it moves the test on
-        return {
-          status: 'PENDING',
-          blockReason: null,
-          blockReasonDetail: null,
-        };
+    if (test.outcome === 'NO_TEMPLATE') {
+      return {
+        status: 'BLOCKED',
+        blockReason: 'MISSING_RESULT_TEMPLATE',
+        blockReasonDetail: `No published template for ${
+          test.code ?? ''
+        } + ${species}`,
+      };
     }
+    return { status: 'READY', blockReason: null, blockReasonDetail: null };
   }
 
   private toPreview(plan: Plan): AddTestsPreview {
-    const tubes = plan.tubes.map((t) => ({
-      specimenType: t.specimenType,
-      containerType: t.containerType,
-      existing: t.existingSpecimenId !== null,
-      testNames: t.testNames,
-    }));
     return {
       tests: plan.tests.map((t) => ({
         catalogItemId: t.catalogItemId,
@@ -354,8 +405,9 @@ export class AddTestsService {
         outcome: t.outcome,
       })),
       alreadyOnOrder: plan.alreadyOnOrder,
-      tubes,
-      sampleRequired: tubes.some((t) => !t.existing),
+      sampleMode: plan.sampleMode,
+      acceptedSpecimens: plan.acceptedSpecimens,
+      canAdd: plan.tests.length > 0 && ADDABLE_MODES.includes(plan.sampleMode),
     };
   }
 
@@ -386,13 +438,25 @@ export class AddTestsService {
           where: { status: { not: 'CANCELLED' } },
           select: { catalogItemId: true },
         },
+        // Any status: whether the order has specimen records at all decides
+        // between picking accepted ones and confirming the received order
+        _count: { select: { specimens: true } },
+        // At the lab and usable: the only samples that can be picked
         specimens: {
-          where: { status: { in: ['ACCEPTED', 'EXPECTED'] } },
+          where: { status: 'ACCEPTED' },
+          orderBy: { createdAt: 'asc' },
           select: {
             id: true,
-            status: true,
+            accessionNumber: true,
             specimenType: true,
             containerType: true,
+            isHemolyzed: true,
+            isLipemic: true,
+            isIcteric: true,
+            isInsufficient: true,
+            isContaminated: true,
+            isWrongContainer: true,
+            isLeaking: true,
           },
         },
       },
@@ -460,7 +524,6 @@ export class AddTestsService {
             department: true,
             defaultProcessingMethod: true,
             defaultAnalyzerId: true,
-            specimenRequirements: { orderBy: { sortOrder: 'asc' } },
           },
           take: 1,
         },
@@ -477,73 +540,26 @@ export class AddTestsService {
           )
         : null;
 
-    const accepted = order.specimens.filter((s) => s.status === 'ACCEPTED');
-    const awaited = order.specimens.filter((s) => s.status === 'EXPECTED');
-
-    const tubes = new Map<
-      Plan['tubes'][number]['key'],
-      Plan['tubes'][number]
-    >();
+    const sampleMode: SampleMode =
+      order._count.specimens === 0
+        ? RECEIVED_STATUSES.includes(order.status)
+          ? 'CONFIRM_RECEIVED_ORDER'
+          : 'NOT_RECEIVED'
+        : order.specimens.length > 0
+        ? 'SELECT_ACCEPTED'
+        : 'NO_ACCEPTED_SPECIMEN';
+    const acceptedSpecimens = order.specimens.map((sp) => ({
+      id: sp.id,
+      accessionNumber: sp.accessionNumber,
+      specimenType: sp.specimenType,
+      containerType: sp.containerType,
+      conditions: CONDITION_FLAGS.filter((f) => sp[f]),
+    }));
     const tests: PlannedTest[] = [];
 
     for (const entry of toAdd) {
       const catalog = configById.get(entry.catalogItemId);
       const config = catalog?.labTestConfigurations[0] ?? null;
-      const primaryReq = config?.specimenRequirements.find(
-        (r) => !r.isAlternativeWithinGroup
-      );
-      const matches = (s: { specimenType: string; containerType: string }) =>
-        s.specimenType === primaryReq?.specimenType &&
-        s.containerType === primaryReq?.containerType;
-
-      const origins = [...new Set(entry.sources.map((s) => s.originName))];
-      const base = {
-        catalogItemId: entry.catalogItemId,
-        code: entry.catalogItemCode,
-        name: entry.catalogItemName,
-        origins,
-        sources: entry.sources,
-        config: config
-          ? {
-              department: config.department,
-              defaultProcessingMethod: config.defaultProcessingMethod,
-              defaultAnalyzerId: config.defaultAnalyzerId,
-            }
-          : null,
-      };
-
-      const acceptedTube = primaryReq ? accepted.find(matches) : undefined;
-      if (primaryReq && !acceptedTube) {
-        // Needs a sample that isn't at the lab: share a requested tube of
-        // that kind, or ask for a new one
-        const key = tubeKeyOf(
-          primaryReq.specimenType,
-          primaryReq.containerType
-        );
-        let tube = tubes.get(key);
-        if (!tube) {
-          tube = {
-            key,
-            specimenType: primaryReq.specimenType,
-            containerType: primaryReq.containerType,
-            existingSpecimenId: awaited.find(matches)?.id ?? null,
-            testNames: [],
-          };
-          tubes.set(key, tube);
-        }
-        tube.testNames.push(entry.catalogItemName);
-        tests.push({
-          ...base,
-          outcome: tube.existingSpecimenId ? 'AWAITING_TUBE' : 'NEEDS_NEW_TUBE',
-          tubeKey: key,
-          acceptedSpecimenId: null,
-          templateDefinitionId: null,
-          templateVersionId: null,
-        });
-        continue;
-      }
-
-      // Sample covered (or none needed): ready if a template is published
       const template = await this.templateVersionService.resolveTemplateForTest(
         {
           catalogItemCode: catalog?.code ?? entry.catalogItemCode,
@@ -554,10 +570,19 @@ export class AddTestsService {
         ageWeeks
       );
       tests.push({
-        ...base,
+        catalogItemId: entry.catalogItemId,
+        code: entry.catalogItemCode,
+        name: entry.catalogItemName,
+        origins: [...new Set(entry.sources.map((s) => s.originName))],
+        sources: entry.sources,
         outcome: template?.activeVersionId ? 'READY' : 'NO_TEMPLATE',
-        tubeKey: null,
-        acceptedSpecimenId: acceptedTube?.id ?? null,
+        config: config
+          ? {
+              department: config.department,
+              defaultProcessingMethod: config.defaultProcessingMethod,
+              defaultAnalyzerId: config.defaultAnalyzerId,
+            }
+          : null,
         templateDefinitionId: template?.id ?? null,
         templateVersionId: template?.activeVersionId ?? null,
       });
@@ -575,7 +600,8 @@ export class AddTestsService {
       lines,
       tests,
       alreadyOnOrder,
-      tubes: Array.from(tubes.values()),
+      sampleMode,
+      acceptedSpecimens,
     };
   }
 }

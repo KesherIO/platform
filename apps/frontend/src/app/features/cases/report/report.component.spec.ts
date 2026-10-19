@@ -203,7 +203,6 @@ describe('ReportComponent', () => {
     const labAdded = {
       testNames: ['Chemistry', 'Urinalysis'],
       addedAt: '2026-03-30T00:00:00.000Z',
-      awaitingSample: true,
     };
 
     function banner(): HTMLElement | null {
@@ -225,15 +224,15 @@ describe('ReportComponent', () => {
       expect(banner()?.textContent).toContain('REPORT.LAB_ADDED_TITLE');
     });
 
-    it('says a new sample is required, with no pickup, only while one is awaited', () => {
+    it('asks the clinic for nothing: the lab added them onto samples it has', () => {
       component.released.set({ ...mockReleased, labAdded });
-      expect(banner()?.textContent).toContain('REPORT.LAB_ADDED_SAMPLE');
 
-      component.released.set({
-        ...mockReleased,
-        labAdded: { ...labAdded, awaitingSample: false },
-      });
       expect(banner()?.textContent).not.toContain('REPORT.LAB_ADDED_SAMPLE');
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector(
+          '[data-testid="lab-added-sample"]'
+        )
+      ).toBeNull();
     });
   });
 

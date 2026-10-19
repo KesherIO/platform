@@ -52,11 +52,13 @@ describe('notification content', () => {
     }
   );
 
-  it('says when another sample is needed and when results are complete', () => {
+  it('says tests were added, another sample is needed, results are complete', () => {
+    expect(pushText('TESTS_ADDED', { requisitionNumber: 'R' }).body).toContain(
+      'agregó pruebas'
+    );
     expect(
-      pushText('TESTS_ADDED', { requisitionNumber: 'R', sampleRequired: true })
-        .body
-    ).toContain('nueva muestra');
+      pushText('ADDITIONAL_SAMPLE_REQUIRED', { requisitionNumber: 'R' }).body
+    ).toContain('otra muestra');
     expect(
       pushText('RESULTS_RELEASED', {
         requisitionNumber: 'R',

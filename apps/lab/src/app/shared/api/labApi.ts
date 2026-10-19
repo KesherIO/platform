@@ -384,9 +384,17 @@ export const labApi = {
       post<AddTestsPreview>(`lab/orders/${orderId}/add-tests/preview`, {
         catalogItemIds,
       }),
-    addTests: (orderId: string, catalogItemIds: string[], note?: string) =>
+    addTests: (
+      orderId: string,
+      catalogItemIds: string[],
+      specimenIds: string[],
+      confirmedSuitable: boolean,
+      note?: string
+    ) =>
       post<AddTestsResult>(`lab/orders/${orderId}/add-tests`, {
         catalogItemIds,
+        specimenIds,
+        confirmedSuitable,
         note,
       }),
     getExpected: (orderId: string) =>

@@ -614,13 +614,12 @@ describe('ResultsService', () => {
         expect(prisma.orderedTest.findMany).toHaveBeenCalledTimes(1);
       });
 
-      it('lists the added tests still to come and that a sample is awaited', async () => {
+      it('lists the added tests still to come', async () => {
         arrangeAdded();
         prisma.orderedTest.findMany.mockImplementation(
           async ({ where }: { where: { id?: unknown } }) =>
             where.id ? [{ id: 'ot-9', catalogItemName: 'Chemistry' }] : []
         );
-        prisma.specimen.count.mockResolvedValue(1);
 
         const result = await service.findReleasedResultsByOrder(
           'clinic-1',
@@ -630,14 +629,6 @@ describe('ResultsService', () => {
         expect(result.labAdded).toEqual({
           testNames: ['Chemistry'],
           addedAt: addedAt.toISOString(),
-          awaitingSample: true,
-        });
-        expect(prisma.specimen.count).toHaveBeenCalledWith({
-          where: {
-            orderId: 'order-1',
-            status: 'EXPECTED',
-            orderedTests: { some: { orderedTestId: { in: ['ot-9'] } } },
-          },
         });
       });
 

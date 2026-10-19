@@ -1154,15 +1154,9 @@ export function OrderWorkspacePage() {
         <AddTestsDialog
           orderId={orderId}
           onClose={() => setShowAddTests(false)}
-          onSuccess={(result) => {
+          onSuccess={() => {
             setShowAddTests(false);
-            toast.success(
-              t(
-                result.sampleRequired
-                  ? 'specimens.add_tests_added_sample_success'
-                  : 'specimens.add_tests_added_success'
-              )
-            );
+            toast.success(t('specimens.add_tests_added_success'));
             invalidateOrder();
           }}
         />
