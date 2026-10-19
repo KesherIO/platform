@@ -29,6 +29,7 @@ type RawCatalogItem = {
   kind: string;
   code: string | null;
   billingCode?: string | null;
+  packageComponentOnly?: boolean;
   name: string;
   description: string | null;
   category: string | null;
@@ -60,15 +61,20 @@ function mapItem(
     components?: Array<{ component: RawCatalogItem }>;
   },
   includeComponents: boolean,
-  // The lab's own billing code is for the lab only: clinics (GET /catalog)
-  // never receive it
-  includeBilling = false
+  // The lab's own billing code and the package-only flag are for the lab
+  // only: clinics (GET /catalog) never receive them
+  includeAdminFields = false
 ) {
   return {
     id: raw.id,
     kind: raw.kind,
     code: raw.code ?? undefined,
-    ...(includeBilling ? { billingCode: raw.billingCode ?? undefined } : {}),
+    ...(includeAdminFields
+      ? {
+          billingCode: raw.billingCode ?? undefined,
+          packageComponentOnly: raw.packageComponentOnly ?? false,
+        }
+      : {}),
     name: raw.name,
     description: raw.description ?? undefined,
     category: raw.category ?? undefined,
@@ -107,7 +113,13 @@ export class CatalogService {
     if (!connection) return [];
 
     const items = await this.prisma.catalogItem.findMany({
-      where: { labTenantId: connection.labId, active: true },
+      // Package-only tests are never offered to clinics (this list also feeds
+      // the AI triage suggestions); they still come inside their packages
+      where: {
+        labTenantId: connection.labId,
+        active: true,
+        packageComponentOnly: false,
+      },
       orderBy: [{ kind: 'asc' }, { name: 'asc' }],
       include: includeComponents
         ? { components: { include: { component: true } } }
@@ -469,6 +481,12 @@ export class CatalogService {
     if (billingCode) {
       await assertBillingCodeAvailable(this.prisma, labTenantId, billingCode);
     }
+    const packageComponentOnly = dto.packageComponentOnly === true;
+    if (packageComponentOnly && dto.kind !== CatalogItemKindDto.TEST) {
+      throw new BadRequestException(
+        'Only a test can be marked as part of a package only.'
+      );
+    }
 
     const componentIds = await this.resolveOwnComponentIds(
       labTenantId,
@@ -482,6 +500,7 @@ export class CatalogService {
         name: dto.name,
         code: dto.code ?? null,
         billingCode,
+        packageComponentOnly,
         category: dto.category ?? null,
         turnaroundHours: dto.turnaroundHours ?? null,
         resultType: dto.resultType ?? null,
@@ -505,10 +524,15 @@ export class CatalogService {
   async updateItem(labTenantId: string, id: string, dto: UpdateCatalogItemDto) {
     const existing = await this.prisma.catalogItem.findUnique({
       where: { id },
-      select: { labTenantId: true, code: true },
+      select: { labTenantId: true, code: true, kind: true },
     });
     if (!existing || existing.labTenantId !== labTenantId) {
       throw new NotFoundException('Catalog item not found.');
+    }
+    if (dto.packageComponentOnly === true && existing.kind !== 'TEST') {
+      throw new BadRequestException(
+        'Only a test can be marked as part of a package only.'
+      );
     }
 
     const isCodeChange = dto.code !== undefined && dto.code !== existing.code;
@@ -567,6 +591,8 @@ export class CatalogService {
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.code !== undefined) updateData.code = dto.code;
     if (billingCode !== undefined) updateData.billingCode = billingCode;
+    if (dto.packageComponentOnly !== undefined)
+      updateData.packageComponentOnly = dto.packageComponentOnly;
     if (dto.category !== undefined) updateData.category = dto.category;
     if (dto.turnaroundHours !== undefined)
       updateData.turnaroundHours = dto.turnaroundHours;

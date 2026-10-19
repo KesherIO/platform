@@ -590,6 +590,14 @@ export function CatalogPage() {
                       >
                         {t(`catalog.kind.${item.kind}`)}
                       </span>
+                      {item.packageComponentOnly && (
+                        <span
+                          title={t('catalog.package_only_hint')}
+                          className="shrink-0 rounded-full bg-amber-900/30 px-2.5 py-1 text-xs font-medium text-amber-300"
+                        >
+                          {t('catalog.package_only')}
+                        </span>
+                      )}
                       {item.kind === 'TEST' && readiness && (
                         <span
                           title={

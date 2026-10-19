@@ -240,6 +240,8 @@ export interface AccessionSpecimenInput {
   tubeIndex?: number;
   accessionNumber?: string;
   accepted: boolean;
+  /** Not at the lab yet: kept as an expected tube, its tests stay pending */
+  awaiting?: boolean;
   rejectionReason?: string;
   notes?: string;
   isHemolyzed?: boolean;
@@ -854,6 +856,8 @@ export interface CatalogItem {
   code?: string;
   /** The lab's own billing-system code (set by Owner/Admin) */
   billingCode?: string;
+  /** TEST only: exists only inside packages — hidden from clinics */
+  packageComponentOnly?: boolean;
   description?: string;
   category?: string;
   turnaroundHours?: number;

@@ -105,7 +105,11 @@ describe('CatalogService', () => {
       );
       expect(prisma.catalogItem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { labTenantId: LAB_A, active: true },
+          where: {
+            labTenantId: LAB_A,
+            active: true,
+            packageComponentOnly: false,
+          },
         })
       );
       expect(result).toHaveLength(1);

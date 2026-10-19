@@ -253,6 +253,8 @@ export class CasesService {
             id: { in: body.selectedCatalogItemIds },
             active: true,
             labTenantId: labConnection.labId,
+            // Package-only tests cannot be picked on their own, even by id
+            packageComponentOnly: false,
           },
           select: { id: true },
         })
