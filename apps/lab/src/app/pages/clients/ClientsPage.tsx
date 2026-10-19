@@ -10,7 +10,8 @@ import { AddClientModal } from './AddClientModal';
 import { ImportClientsModal } from './ImportClientsModal';
 import { ExportClientsModal } from './ExportClientsModal';
 import { ClientsListSkeleton } from './ClientSkeletons';
-import type { ClientStatus } from '../../types/lab.types';
+import { formatPhoneDisplay } from '../../shared/phoneNumbers';
+import type { ClientOrganization, ClientStatus } from '../../types/lab.types';
 
 const STATUS_FILTERS: Array<{ key: string; value?: ClientStatus }> = [
   { key: 'all' },
@@ -24,6 +25,17 @@ const STATUS_COLORS: Record<ClientStatus, string> = {
   ACTIVE: 'bg-green-900/30 text-green-300',
   SUSPENDED: 'bg-red-900/30 text-red-300',
 };
+
+/** Street address plus city, unless the address already names the city. */
+function clientAddress(client: ClientOrganization): string {
+  const address = client.address?.trim() ?? '';
+  const city = client.city?.trim() ?? '';
+  if (!city) return address;
+  if (!address) return city;
+  return address.toLowerCase().includes(city.toLowerCase())
+    ? address
+    : `${address}, ${city}`;
+}
 
 export function ClientsPage() {
   const { t } = useTranslation();
@@ -162,29 +174,44 @@ export function ClientsPage() {
               <button
                 key={client.id}
                 onClick={() => navigate(`/clients/${client.id}`)}
-                className="flex w-full items-center justify-between rounded-xl border border-gray-800 bg-gray-900 px-5 py-4 text-left transition hover:border-gray-700"
+                className="flex w-full flex-col gap-3 rounded-xl border border-gray-800 bg-gray-900 px-5 py-4 text-left transition hover:border-gray-700 sm:flex-row sm:items-start sm:justify-between sm:gap-5"
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-700 text-sm font-semibold text-white">
+                <div className="flex min-w-0 flex-1 items-start gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-700 text-sm font-semibold text-white">
                     {client.name[0]?.toUpperCase() ?? '?'}
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">
-                      {client.name}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {client.primaryContactEmail}
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex flex-col items-start gap-1 sm:flex-row sm:justify-between sm:gap-3">
+                      <p className="min-w-0 break-words text-sm font-bold text-white [overflow-wrap:anywhere]">
+                        {client.name}
+                      </p>
                       {client.clientType && (
-                        <span className="ml-2 text-gray-500">
-                          · {t(`clients.type.${client.clientType}`)}
+                        <span className="shrink-0 rounded-md border border-gray-700 bg-gray-800/60 px-2 py-0.5 text-[11px] text-gray-400">
+                          {t(`clients.type.${client.clientType}`)}
                         </span>
                       )}
-                    </p>
+                    </div>
+                    {clientAddress(client) && (
+                      <p className="text-xs text-gray-400 [overflow-wrap:anywhere]">
+                        {clientAddress(client)}
+                      </p>
+                    )}
+                    {client.primaryContactEmail && (
+                      <p className="text-xs text-gray-400 [overflow-wrap:anywhere]">
+                        {client.primaryContactEmail}
+                      </p>
+                    )}
+                    {client.phone?.trim() && (
+                      <p className="text-xs text-gray-400 [overflow-wrap:anywhere]">
+                        {t('clients.card.phone')}{' '}
+                        {formatPhoneDisplay(client.phone, client.country)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-5">
-                  <div className="text-right">
+                <div className="flex shrink-0 items-center justify-between gap-5 sm:justify-end">
+                  <div className="sm:text-right">
                     <p className="text-xs text-gray-500">
                       {client.userCount}{' '}
                       {t('clients.columns.users').toLowerCase()} ·{' '}
