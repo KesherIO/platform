@@ -105,12 +105,20 @@ describeWithDb('Accession with samples not received yet (Postgres)', () => {
 
     labId = (
       await prisma.tenant.create({
-        data: { name: `IT lab ${runId}`, slug: `it-acc-lab-${runId}`, type: 'LAB' },
+        data: {
+          name: `IT lab ${runId}`,
+          slug: `it-acc-lab-${runId}`,
+          type: 'LAB',
+        },
       })
     ).id;
     otherLabId = (
       await prisma.tenant.create({
-        data: { name: `IT lab2 ${runId}`, slug: `it-acc-lab2-${runId}`, type: 'LAB' },
+        data: {
+          name: `IT lab2 ${runId}`,
+          slug: `it-acc-lab2-${runId}`,
+          type: 'LAB',
+        },
       })
     ).id;
     clinicId = (
@@ -206,7 +214,11 @@ describeWithDb('Accession with samples not received yet (Postgres)', () => {
     expect((await test(tests['c1'])).receivedAt).not.toBeNull();
 
     const sp = await specimens(orderId);
-    expect(sp.map((s) => s.status)).toEqual(['ACCEPTED', 'EXPECTED', 'EXPECTED']);
+    expect(sp.map((s) => s.status)).toEqual([
+      'ACCEPTED',
+      'EXPECTED',
+      'EXPECTED',
+    ]);
     expect(sp[1].receivedAt).toBeNull();
     expect(sp[1].isInsufficient).toBe(false);
     expect(sp[1].rejectionReason).toBeNull();
@@ -215,11 +227,7 @@ describeWithDb('Accession with samples not received yet (Postgres)', () => {
     const links = await prisma.orderedTestSpecimen.findMany({
       where: { orderedTestId: { in: [tests['c2'], tests['c3']] } },
     });
-    expect(
-      links
-        .map((l) => [l.orderedTestId, l.specimenId])
-        .sort()
-    ).toEqual(
+    expect(links.map((l) => [l.orderedTestId, l.specimenId]).sort()).toEqual(
       [
         [tests['c2'], sp[1].id],
         [tests['c3'], sp[2].id],
@@ -295,16 +303,25 @@ describeWithDb('Accession with samples not received yet (Postgres)', () => {
   it('refuses an accession where nothing is received, and writes nothing', async () => {
     const { orderId } = await newOrder();
     await expect(
-      accession(orderId, [tube(1, { awaiting: true }), tube(2, { awaiting: true })])
+      accession(orderId, [
+        tube(1, { awaiting: true }),
+        tube(2, { awaiting: true }),
+      ])
     ).rejects.toThrow(/at least one sample/i);
     expect(await specimens(orderId)).toHaveLength(0);
   });
 
   it('refuses to un-receive a tube that was already received', async () => {
     const { orderId } = await newOrder();
-    await accession(orderId, [tube(1, { accepted: true }), tube(2, { accepted: true })]);
+    await accession(orderId, [
+      tube(1, { accepted: true }),
+      tube(2, { accepted: true }),
+    ]);
     await expect(
-      accession(orderId, [tube(1, { awaiting: true }), tube(2, { accepted: true })])
+      accession(orderId, [
+        tube(1, { awaiting: true }),
+        tube(2, { accepted: true }),
+      ])
     ).rejects.toThrow(/already received/i);
     expect((await specimens(orderId)).map((s) => s.status)).toEqual([
       'ACCEPTED',

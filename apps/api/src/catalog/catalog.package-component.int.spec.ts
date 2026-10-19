@@ -53,14 +53,24 @@ describeWithDb('Package component only (Postgres)', () => {
     const mk = (name: string, type: 'LAB' | 'CLINIC') =>
       prisma.tenant
         .create({
-          data: { name: `${name} ${runId}`, slug: `it-pco-${name}-${runId}`, type },
+          data: {
+            name: `${name} ${runId}`,
+            slug: `it-pco-${name}-${runId}`,
+            type,
+          },
         })
         .then((t) => t.id);
     labId = await mk('lab', 'LAB');
     otherLabId = await mk('lab2', 'LAB');
     clinicId = await mk('clinic', 'CLINIC');
     await prisma.clinicLabConnection.create({
-      data: { clinicId, labId, isDefault: true, isActive: true, status: 'ACTIVE' },
+      data: {
+        clinicId,
+        labId,
+        isDefault: true,
+        isActive: true,
+        status: 'ACTIVE',
+      },
     });
     userId = (
       await prisma.user.create({

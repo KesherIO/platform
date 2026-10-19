@@ -1156,10 +1156,7 @@ describe('SpecimenService — accessionOrder (samples not received yet)', () => 
     },
   });
 
-  const tube = (
-    container: string,
-    patch: Record<string, unknown> = {}
-  ) => ({
+  const tube = (container: string, patch: Record<string, unknown> = {}) => ({
     specimenType: 'FECES',
     containerType: container,
     tubeIndex: 1,
@@ -1177,7 +1174,11 @@ describe('SpecimenService — accessionOrder (samples not received yet)', () => 
         findFirst: jest.fn().mockResolvedValue({
           id: 'order-1',
           status: 'PENDING',
-          case: { patientSpecies: 'CANINE', patientAge: null, patientAgeUnit: null },
+          case: {
+            patientSpecies: 'CANINE',
+            patientAge: null,
+            patientAgeUnit: null,
+          },
           orderedTests,
           specimens: existingSpecimens,
         }),
@@ -1187,7 +1188,9 @@ describe('SpecimenService — accessionOrder (samples not received yet)', () => 
         update: jest.fn().mockImplementation(({ where }) => ({ id: where.id })),
         create: jest
           .fn()
-          .mockImplementation(({ data }) => ({ id: `new-${data.containerType}` })),
+          .mockImplementation(({ data }) => ({
+            id: `new-${data.containerType}`,
+          })),
       },
       orderedTest: { update: jest.fn(), updateMany: jest.fn() },
       orderedTestSpecimen: { upsert: jest.fn() },
@@ -1242,15 +1245,21 @@ describe('SpecimenService — accessionOrder (samples not received yet)', () => 
     ]);
 
     // the awaited tube is EXPECTED with no receipt and no conditions
-    const created = prisma.specimen.create.mock.calls.map((c: any) => c[0].data);
-    expect(created.find((d: any) => d.containerType === 'FRASCO_2')).toMatchObject({
+    const created = prisma.specimen.create.mock.calls.map(
+      (c: any) => c[0].data
+    );
+    expect(
+      created.find((d: any) => d.containerType === 'FRASCO_2')
+    ).toMatchObject({
       status: 'EXPECTED',
       receivedAt: null,
       receivedById: null,
       rejectionReason: null,
       isInsufficient: false,
     });
-    expect(created.find((d: any) => d.containerType === 'FRASCO_1')).toMatchObject({
+    expect(
+      created.find((d: any) => d.containerType === 'FRASCO_1')
+    ).toMatchObject({
       status: 'ACCEPTED',
       receivedById: 'user-1',
     });
@@ -1278,7 +1287,11 @@ describe('SpecimenService — accessionOrder (samples not received yet)', () => 
     expect(events().map((e) => e.eventType)).not.toContain('SAMPLE_REJECTED');
     const overall = events().find((e) => e.eventType === 'SAMPLE_ACCESSIONED');
     expect(overall?.description).toContain('1 not received yet');
-    expect(overall?.metadata).toMatchObject({ accepted: 1, rejected: 0, awaiting: 1 });
+    expect(overall?.metadata).toMatchObject({
+      accepted: 1,
+      rejected: 0,
+      awaiting: 1,
+    });
     // and nobody is notified
     expect(notificationsMock.publish).not.toHaveBeenCalled();
   });
@@ -1358,8 +1371,16 @@ describe('SpecimenService — accessionOrder (samples not received yet)', () => 
   it('waiting for another tube of its kind beats blocking on a rejected one', async () => {
     await build([test('c1', 'FRASCO_1'), test('c2', 'FRASCO_1')]);
     await accession([
-      tube('FRASCO_1', { tubeIndex: 1, accepted: false, rejectionReason: 'leaked' }),
-      tube('FRASCO_1', { tubeIndex: 2, awaiting: true, accessionNumber: 'REQ-1-2' }),
+      tube('FRASCO_1', {
+        tubeIndex: 1,
+        accepted: false,
+        rejectionReason: 'leaked',
+      }),
+      tube('FRASCO_1', {
+        tubeIndex: 2,
+        awaiting: true,
+        accessionNumber: 'REQ-1-2',
+      }),
       tube('FRASCO_2', { accepted: true, accessionNumber: 'REQ-1-3' }),
     ]);
     const blocked = prisma.orderedTest.update.mock.calls.filter(
@@ -1368,4 +1389,3 @@ describe('SpecimenService — accessionOrder (samples not received yet)', () => 
     expect(blocked).toHaveLength(0);
   });
 });
-
