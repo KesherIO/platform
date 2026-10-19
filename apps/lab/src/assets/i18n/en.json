@@ -981,7 +981,12 @@
     "actions": {
       "edit": "Edit user",
       "remove": "Remove user",
-      "history": "View history"
+      "history": "View history",
+      "reactivate": "Reactivate"
+    },
+    "reactivate": {
+      "title": "Reactivate team member?",
+      "confirm": "Add {{name}} back to the lab as {{role}}? They will regain access immediately with the role they had when removed."
     },
     "remove": {
       "title": "Remove team member?",

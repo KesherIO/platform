@@ -611,6 +611,99 @@ export class LabUsersService {
   }
 
   // ---------------------------------------------------------------------------
+  // Reactivate a removed member — restores the role and access flags they had
+  // when they were removed. Reuses their existing Supabase account.
+  // ---------------------------------------------------------------------------
+
+  async reactivateMember(
+    labTenantId: string,
+    userId: string,
+    reason: string,
+    requestingUserId: string,
+    requestingRole: TenantRole
+  ) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const removal = await tx.membershipEvent.findFirst({
+          where: {
+            tenantId: labTenantId,
+            targetUserId: userId,
+            eventType: MembershipEventType.REMOVED,
+          },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        });
+        const user = await tx.user.findUnique({ where: { id: userId } });
+        if (!removal || !user || !removal.previousRole) {
+          throw new NotFoundException('No removed member found for this user.');
+        }
+
+        const existing = await tx.userTenantMembership.findUnique({
+          where: { userId_tenantId: { userId, tenantId: labTenantId } },
+        });
+        if (existing) {
+          throw new ConflictException(
+            'This user is already a member of the lab.'
+          );
+        }
+
+        const role = removal.previousRole;
+        if (role === TenantRole.OWNER && requestingRole !== TenantRole.OWNER) {
+          throw new ForbiddenException(
+            'Only an owner can reactivate another owner.'
+          );
+        }
+
+        const membership = await tx.userTenantMembership.create({
+          data: {
+            userId,
+            tenantId: labTenantId,
+            role,
+            ...(removal.previousCanPerformPickups &&
+              canHavePickupFlag(role) && { canPerformPickups: true }),
+            ...(removal.previousCanViewInProgress &&
+              canHaveInProgressFlag(role) && { canViewInProgress: true }),
+          },
+        });
+
+        await recordMembershipEvent(tx, {
+          tenantId: labTenantId,
+          eventType: MembershipEventType.REACTIVATED,
+          targetUserId: userId,
+          actorUserId: requestingUserId,
+          source: 'lab_users',
+          newRole: membership.role,
+          newStatus: membership.status,
+          newCanPerformPickups: membership.canPerformPickups,
+          newCanViewInProgress: membership.canViewInProgress,
+          reason,
+        });
+
+        return {
+          userId: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: membership.role,
+          joinedAt: membership.createdAt,
+          canPerformPickups: membership.canPerformPickups,
+          canViewInProgress: membership.canViewInProgress,
+        };
+      });
+    } catch (err) {
+      // Concurrent reactivation: the composite PK rejected the second insert.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'This user is already a member of the lab.'
+        );
+      }
+      throw err;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Membership history (read-only — events are never edited or deleted)
   // ---------------------------------------------------------------------------
 

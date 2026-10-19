@@ -1,6 +1,13 @@
 import { useEffect, useState, useRef, FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Trash2, MoreVertical, History, UserCog } from 'lucide-react';
+import {
+  Pencil,
+  Trash2,
+  MoreVertical,
+  History,
+  UserCog,
+  UserCheck,
+} from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi, apiErrorMessage } from '../../shared/api/labApi';
@@ -234,6 +241,8 @@ export function TeamPage() {
     role: LabRole;
   } | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<LabMember | null>(null);
+  const [pendingReactivation, setPendingReactivation] =
+    useState<RemovedLabMember | null>(null);
   const [historyFor, setHistoryFor] = useState<{
     userId?: string;
     title: string;
@@ -922,19 +931,31 @@ export function TeamPage() {
                       {r.lastRole && ` · ${t(`team.roles.${r.lastRole}`)}`}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setHistoryFor({
-                        userId: r.userId,
-                        title: t('team.history.title_for', { name }),
-                      })
-                    }
-                    className="flex shrink-0 items-center gap-2 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
-                  >
-                    <History size={14} strokeWidth={2} />
-                    {t('team.actions.history')}
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {r.lastRole && (
+                      <button
+                        type="button"
+                        onClick={() => setPendingReactivation(r)}
+                        className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
+                      >
+                        <UserCheck size={14} strokeWidth={2} />
+                        {t('team.actions.reactivate')}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHistoryFor({
+                          userId: r.userId,
+                          title: t('team.history.title_for', { name }),
+                        })
+                      }
+                      className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800"
+                    >
+                      <History size={14} strokeWidth={2} />
+                      {t('team.actions.history')}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -978,6 +999,28 @@ export function TeamPage() {
           onSubmit={async (reason) => {
             await labApi.users.remove(pendingRemoval.userId, reason);
             setPendingRemoval(null);
+            invalidateUsers();
+          }}
+        />
+      )}
+
+      {pendingReactivation && (
+        <ReasonDialog
+          title={t('team.reactivate.title')}
+          message={t('team.reactivate.confirm', {
+            name:
+              pendingReactivation.name ??
+              pendingReactivation.email ??
+              pendingReactivation.userId,
+            role: t(`team.roles.${pendingReactivation.lastRole}`),
+          })}
+          confirmLabel={t('team.actions.reactivate')}
+          required
+          icon={UserCheck}
+          onCancel={() => setPendingReactivation(null)}
+          onSubmit={async (reason) => {
+            await labApi.users.reactivate(pendingReactivation.userId, reason);
+            setPendingReactivation(null);
             invalidateUsers();
           }}
         />
