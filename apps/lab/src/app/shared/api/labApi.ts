@@ -206,6 +206,9 @@ export const labApi = {
       );
     },
     removed: () => get<RemovedLabMember[]>('lab/users/removed'),
+    /** Restores the role they had when removed. `reason` is required. */
+    reactivate: (userId: string, reason: string) =>
+      post<unknown>(`lab/users/${userId}/reactivate`, { reason }),
   },
   clients: {
     list: (params?: ClientsQuery) => {

@@ -48,6 +48,7 @@ import { CreateLabUserDto } from './dto/create-lab-user.dto';
 import { UpdateLabUserRoleDto } from './dto/update-lab-user-role.dto';
 import { UpdateLabUserDto } from './dto/update-lab-user.dto';
 import { RemoveLabUserDto } from './dto/remove-lab-user.dto';
+import { ReactivateLabUserDto } from './dto/reactivate-lab-user.dto';
 import { ListMembershipEventsDto } from './dto/list-membership-events.dto';
 import { ListLabOrdersDto } from './dto/list-lab-orders.dto';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -1331,6 +1332,25 @@ export class LabController {
     @Body() dto: RemoveLabUserDto
   ) {
     return this.labUsersService.removeMember(
+      tenant.tenantId,
+      userId,
+      dto.reason,
+      user.id,
+      tenant.role
+    );
+  }
+
+  // POST /api/lab/users/:userId/reactivate
+  @UseGuards(JwtAuthGuard, LabTenantGuard)
+  @Roles(TenantRole.ADMIN, TenantRole.OWNER)
+  @Post('users/:userId/reactivate')
+  reactivateMember(
+    @CurrentTenant() tenant: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('userId') userId: string,
+    @Body() dto: ReactivateLabUserDto
+  ) {
+    return this.labUsersService.reactivateMember(
       tenant.tenantId,
       userId,
       dto.reason,

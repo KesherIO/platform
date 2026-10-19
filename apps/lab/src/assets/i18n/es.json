@@ -981,7 +981,12 @@
     "actions": {
       "edit": "Editar usuario",
       "remove": "Eliminar usuario",
-      "history": "Ver historial"
+      "history": "Ver historial",
+      "reactivate": "Reactivar"
+    },
+    "reactivate": {
+      "title": "¿Reactivar miembro del equipo?",
+      "confirm": "¿Volver a agregar a {{name}} al laboratorio como {{role}}? Recuperará el acceso inmediatamente con el rol que tenía al ser eliminado."
     },
     "remove": {
       "title": "¿Eliminar miembro del equipo?",

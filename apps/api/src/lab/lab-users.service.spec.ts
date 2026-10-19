@@ -749,6 +749,101 @@ describe('LabUsersService', () => {
     });
   });
 
+  describe('reactivateMember', () => {
+    const removal = {
+      previousRole: 'ANALYST',
+      previousCanPerformPickups: true,
+      previousCanViewInProgress: false,
+    };
+
+    beforeEach(() => {
+      prisma.membershipEvent.findFirst = jest.fn().mockResolvedValue(removal);
+      prisma.user.findUnique.mockResolvedValue({
+        id: USER_ID,
+        email: 'a@b.c',
+        firstName: 'A',
+        lastName: 'B',
+      });
+      prisma.userTenantMembership.findUnique.mockResolvedValue(null);
+      prisma.userTenantMembership.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({ ...data, status: 'ACTIVE', createdAt: new Date() })
+      );
+    });
+
+    it('throws NotFoundException when the user was never removed', async () => {
+      prisma.membershipEvent.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.reactivateMember(
+          LAB_ID,
+          USER_ID,
+          REASON,
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws ConflictException when already a member', async () => {
+      prisma.userTenantMembership.findUnique.mockResolvedValue(mockMembership);
+
+      await expect(
+        service.reactivateMember(
+          LAB_ID,
+          USER_ID,
+          REASON,
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('restores the previous role and access flags', async () => {
+      const result = await service.reactivateMember(
+        LAB_ID,
+        USER_ID,
+        REASON,
+        ADMIN_ID,
+        TenantRole.ADMIN
+      );
+
+      expect(prisma.userTenantMembership.create).toHaveBeenCalledWith({
+        data: {
+          userId: USER_ID,
+          tenantId: LAB_ID,
+          role: 'ANALYST',
+          canPerformPickups: true,
+        },
+      });
+      expect(result.role).toBe('ANALYST');
+      expect(prisma.membershipEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          eventType: 'REACTIVATED',
+          newRole: 'ANALYST',
+        }),
+      });
+    });
+
+    it('an admin cannot reactivate a former owner', async () => {
+      prisma.membershipEvent.findFirst.mockResolvedValue({
+        ...removal,
+        previousRole: 'OWNER',
+      });
+
+      await expect(
+        service.reactivateMember(
+          LAB_ID,
+          USER_ID,
+          REASON,
+          ADMIN_ID,
+          TenantRole.ADMIN
+        )
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.userTenantMembership.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('owner protection', () => {
     const owner = { userId: USER_ID, tenantId: LAB_ID, role: 'OWNER' };
 
