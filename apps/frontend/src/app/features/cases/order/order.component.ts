@@ -71,7 +71,9 @@ export class OrderComponent implements OnInit {
   altContactPhone = signal('');
   altNotes = signal('');
 
-  showAlternateLocation = computed(() => this.deliveryMethod() === 'LAB_PICKUP');
+  showAlternateLocation = computed(
+    () => this.deliveryMethod() === 'LAB_PICKUP'
+  );
   alternateLocationComplete = computed(
     () =>
       !!this.altAddress().trim() &&
