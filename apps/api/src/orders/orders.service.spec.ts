@@ -84,6 +84,14 @@ function makePrismaMock() {
     clinicLabConnection: {
       findFirst: jest.fn().mockResolvedValue({ labId: 'lab-tenant-1' }),
     },
+    tenant: {
+      findUnique: jest.fn().mockResolvedValue({
+        address: 'Calle 1 #2-3',
+        city: 'Bogotá',
+        phone: '+57 300 000 0000',
+        primaryContactName: 'Dra. Ana',
+      }),
+    },
     counter: {
       upsert: jest
         .fn()
@@ -197,9 +205,78 @@ describe('OrdersService', () => {
         pickupContactName: 'Recepción',
         pickupContactPhone: '+57 300 111 2222',
         pickupInstructions: 'Timbre 2',
+        isAlternateLocation: false,
+        pickupLocationNotes: null,
       },
       'ROUTINE'
     );
+  });
+
+  it('falls back to the clinic profile for unset collection settings', async () => {
+    prisma.clinicLabConnection.findFirst.mockResolvedValue({
+      labId: 'lab-tenant-1',
+      status: 'ACTIVE',
+      pickupAddress: null,
+      pickupContactName: 'Recepción',
+      pickupContactPhone: null,
+      pickupInstructions: null,
+    });
+
+    await service.createOrderForCase('tenant-1', 'case-1', {
+      deliveryMethod: 'LAB_PICKUP',
+    });
+
+    expect(pickupService.createPickup).toHaveBeenCalledWith(
+      'order-1',
+      'lab-tenant-1',
+      'tenant-1',
+      expect.objectContaining({
+        pickupAddress: 'Calle 1 #2-3, Bogotá',
+        pickupContactName: 'Recepción',
+        pickupContactPhone: '+57 300 000 0000',
+      }),
+      'ROUTINE'
+    );
+  });
+
+  it('snapshots an alternate location onto the pickup', async () => {
+    await service.createOrderForCase('tenant-1', 'case-1', {
+      deliveryMethod: 'LAB_PICKUP',
+      alternateLocation: {
+        address: 'Finca La Esperanza',
+        contactName: 'Juan',
+        contactPhone: '222',
+        notes: 'Portón verde',
+      },
+    });
+
+    expect(pickupService.createPickup).toHaveBeenCalledWith(
+      'order-1',
+      'lab-tenant-1',
+      'tenant-1',
+      expect.objectContaining({
+        pickupAddress: 'Finca La Esperanza',
+        pickupContactName: 'Juan',
+        pickupContactPhone: '222',
+        isAlternateLocation: true,
+        pickupLocationNotes: 'Portón verde',
+      }),
+      'ROUTINE'
+    );
+  });
+
+  it('rejects an alternate location without lab pickup', async () => {
+    await expect(
+      service.createOrderForCase('tenant-1', 'case-1', {
+        deliveryMethod: 'CLIENT_DELIVERY',
+        alternateLocation: {
+          address: 'x',
+          contactName: 'y',
+          contactPhone: 'z',
+        },
+      })
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('throws NotFoundException when case does not exist', async () => {

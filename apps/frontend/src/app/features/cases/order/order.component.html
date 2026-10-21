@@ -67,6 +67,59 @@
       (ngModelChange)="onDeliveryMethodChange($event)"
     />
 
+    @if (showAlternateLocation()) {
+    <div class="flex flex-col gap-3">
+      <label class="flex items-center gap-2 text-sm text-gray-800">
+        <input
+          type="checkbox"
+          class="h-4 w-4 rounded border-gray-300 accent-black"
+          [checked]="useAlternateLocation()"
+          (change)="onUseAlternateLocationChange($event)"
+        />
+        {{ 'CASES.ORDER.ALT_LOCATION_CHECKBOX' | translate }}
+      </label>
+
+      @if (useAlternateLocation()) {
+      <p class="text-xs text-gray-500">
+        {{ 'CASES.ORDER.ALT_LOCATION_HINT' | translate }}
+      </p>
+      <app-input
+        id="alt-address"
+        label="CASES.ORDER.ALT_ADDRESS_LABEL"
+        placeholder="CASES.ORDER.ALT_ADDRESS_PLACEHOLDER"
+        [ngModel]="altAddress()"
+        (ngModelChange)="altAddress.set($event)"
+      />
+      <app-input
+        id="alt-contact-name"
+        label="CASES.ORDER.ALT_CONTACT_NAME_LABEL"
+        placeholder="CASES.ORDER.ALT_CONTACT_NAME_PLACEHOLDER"
+        [ngModel]="altContactName()"
+        (ngModelChange)="altContactName.set($event)"
+      />
+      <app-input
+        id="alt-contact-phone"
+        type="tel"
+        label="CASES.ORDER.ALT_CONTACT_PHONE_LABEL"
+        placeholder="CASES.ORDER.ALT_CONTACT_PHONE_PLACEHOLDER"
+        [ngModel]="altContactPhone()"
+        (ngModelChange)="altContactPhone.set($event)"
+      />
+      <app-input
+        id="alt-notes"
+        label="CASES.ORDER.ALT_NOTES_LABEL"
+        placeholder="CASES.ORDER.ALT_NOTES_PLACEHOLDER"
+        [ngModel]="altNotes()"
+        (ngModelChange)="altNotes.set($event)"
+      />
+      @if (!alternateLocationComplete()) {
+      <p class="text-xs text-amber-600">
+        {{ 'CASES.ORDER.ALT_LOCATION_REQUIRED' | translate }}
+      </p>
+      } }
+    </div>
+    }
+
     <app-toggle
       label="CASES.ORDER.PRIORITY_LABEL"
       [options]="priorityOptions"

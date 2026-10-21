@@ -10,6 +10,7 @@ import { PickupService } from '../lab/pickup.service';
 import { ReadinessService } from '../lab/readiness.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import type { OrderedItem } from '@vet-ai/shared-types';
+import { resolvePickupLocation } from './pickup-location.util';
 import { LabServicesSuspendedException } from '../tenants/lab-services.util';
 
 /** Statuses from which an order can be placed. */
@@ -89,6 +90,12 @@ export class OrdersService {
     // through it — orders already sent keep flowing
     if (labConnection?.status === 'SUSPENDED') {
       throw new LabServicesSuspendedException();
+    }
+
+    if (body.alternateLocation && body.deliveryMethod !== 'LAB_PICKUP') {
+      throw new BadRequestException(
+        'An alternate collection location requires lab pickup.'
+      );
     }
 
     // 4b — Resolve ordering vet (DTO takes precedence; falls back to case.attendingVetId)
@@ -316,17 +323,22 @@ export class OrdersService {
     // Skip pickup creation if there's no lab connected to this clinic — the
     // order still gets created, just without a courier workflow attached.
     if (body.deliveryMethod === 'LAB_PICKUP' && labConnection?.labId) {
-      // This lab's collection settings for the clinic, snapshotted on the pickup
+      // This lab's collection settings (field-by-field fallback to the clinic
+      // profile, or the order's alternate location), snapshotted on the pickup
+      const clinic = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: {
+          address: true,
+          city: true,
+          phone: true,
+          primaryContactName: true,
+        },
+      });
       await this.pickupService.createPickup(
         order.id,
         labConnection.labId,
         tenantId,
-        {
-          pickupAddress: labConnection.pickupAddress,
-          pickupContactName: labConnection.pickupContactName,
-          pickupContactPhone: labConnection.pickupContactPhone,
-          pickupInstructions: labConnection.pickupInstructions,
-        },
+        resolvePickupLocation(labConnection, clinic, body.alternateLocation),
         order.priority
       );
     }

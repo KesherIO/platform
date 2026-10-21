@@ -1400,6 +1400,11 @@ model Pickup {
   pickupContactName   String?
   pickupContactPhone  String?
   pickupInstructions  String?
+  // true when the vet gave a one-off location for this order (e.g. a house
+  // call) instead of the clinic's usual collection point
+  isAlternateLocation Boolean   @default(false)
+  // Apartment, access instructions, landmarks — only set with an alternate location
+  pickupLocationNotes String?
   requestedPickupTime DateTime?
 
   messengerId String? // User with MESSENGER role in labTenantId

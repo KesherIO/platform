@@ -379,6 +379,11 @@ export function CollectionsPage() {
                         </span>
                       )}
                     </p>
+                    {pickup.isAlternateLocation && (
+                      <span className="mt-0.5 inline-flex rounded-full bg-purple/15 px-2 py-0.5 text-[10px] font-bold uppercase text-purple">
+                        {t('pickup_location.alternate_badge')}
+                      </span>
+                    )}
                     {(pickup.pickupAddress || pickup.pickupContactName) && (
                       <p className="truncate text-xs text-gray-400">
                         {[
@@ -386,6 +391,7 @@ export function CollectionsPage() {
                             `${t('collections.address')} ${
                               pickup.pickupAddress
                             }`,
+                          pickup.pickupLocationNotes,
                           pickup.pickupContactName,
                           pickup.pickupContactPhone,
                         ]

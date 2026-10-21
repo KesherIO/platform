@@ -9,6 +9,14 @@ export type OrderStatus =
 
 import type { DeliveryMethod } from './pickup.model.js';
 
+/** One-off collection location for an order (e.g. a house call). */
+export interface AlternateLocationModel {
+  address: string;
+  contactName: string;
+  contactPhone: string;
+  notes?: string;
+}
+
 export type OrderPriority = 'ROUTINE' | 'URGENT' | 'STAT';
 
 export interface OrderedItem {

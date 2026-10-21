@@ -320,6 +320,8 @@ export interface OrderPickupInfo {
   pickupContactName: string | null;
   pickupContactPhone: string | null;
   pickupInstructions: string | null;
+  isAlternateLocation: boolean;
+  pickupLocationNotes: string | null;
   requestedPickupTime: string | null;
   messengerId: string | null;
   messenger: {
@@ -1054,6 +1056,8 @@ export interface PickupSummary {
   pickupContactName: string | null;
   pickupContactPhone: string | null;
   pickupInstructions: string | null;
+  isAlternateLocation: boolean;
+  pickupLocationNotes: string | null;
   requestedPickupTime: string | null;
   messengerId: string | null;
   messengerName: string | null;

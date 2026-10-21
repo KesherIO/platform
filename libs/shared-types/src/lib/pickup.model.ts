@@ -47,6 +47,8 @@ export interface PickupModel {
   pickupContactName: string | null;
   pickupContactPhone: string | null;
   pickupInstructions: string | null;
+  isAlternateLocation: boolean;
+  pickupLocationNotes: string | null;
   requestedPickupTime: Date | null;
 
   messengerId: string | null;
