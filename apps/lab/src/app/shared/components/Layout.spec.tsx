@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
@@ -34,6 +34,9 @@ vi.mock('../api/labApi', () => ({
     },
   },
 }));
+
+// Importing the real module would initialize i18n and turn the keys into text
+vi.mock('../../i18n/i18n', () => ({ setLanguage: vi.fn() }));
 
 import { labApi } from '../api/labApi';
 import { Layout } from './Layout';
@@ -158,6 +161,16 @@ describe('Layout', () => {
     for (const label of ADMIN_TABS) {
       expect(tab(label)).toBeTruthy();
     }
+  });
+
+  it('shows the language toggle to everyone except admins', () => {
+    renderAt('/orders');
+    expect(screen.queryAllByRole('group').length).toBeGreaterThan(0);
+    cleanup();
+
+    Object.assign(auth, { isAdmin: true, labRole: 'ADMIN' });
+    renderAt('/orders');
+    expect(screen.queryAllByRole('group')).toHaveLength(0);
   });
 
   describe('Facturación (billing export)', () => {
