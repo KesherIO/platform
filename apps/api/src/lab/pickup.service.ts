@@ -106,6 +106,8 @@ export class PickupService implements OnModuleInit {
       pickupContactName: string | null;
       pickupContactPhone: string | null;
       pickupInstructions: string | null;
+      isAlternateLocation?: boolean;
+      pickupLocationNotes?: string | null;
     },
     priority: 'ROUTINE' | 'URGENT' | 'STAT'
   ) {
@@ -119,6 +121,8 @@ export class PickupService implements OnModuleInit {
         pickupContactName: collectionSettings.pickupContactName,
         pickupContactPhone: collectionSettings.pickupContactPhone,
         pickupInstructions: collectionSettings.pickupInstructions,
+        isAlternateLocation: collectionSettings.isAlternateLocation ?? false,
+        pickupLocationNotes: collectionSettings.pickupLocationNotes ?? null,
       },
     });
 
@@ -780,6 +784,8 @@ export class PickupService implements OnModuleInit {
       pickupContactName: p.pickupContactName,
       pickupContactPhone: p.pickupContactPhone,
       pickupInstructions: p.pickupInstructions,
+      isAlternateLocation: p.isAlternateLocation,
+      pickupLocationNotes: p.pickupLocationNotes,
       requestedPickupTime: p.requestedPickupTime,
       messengerId: p.messengerId,
       messengerName,

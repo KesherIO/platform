@@ -104,6 +104,7 @@ describe('OrderComponent', () => {
       'c2',
       'LAB_PICKUP',
       'ROUTINE',
+      undefined,
       undefined
     );
     expect(routerSpy.navigate).toHaveBeenCalledWith(
@@ -111,6 +112,62 @@ describe('OrderComponent', () => {
       expect.objectContaining({
         state: expect.objectContaining({ orderId: 'ORD-1234' }),
       })
+    );
+  });
+
+  it('sends the alternate location when "collect at a different address" is on', () => {
+    const fixture = TestBed.createComponent(OrderComponent);
+    fixture.detectChanges();
+    const cmp = fixture.componentInstance;
+    cmp.useAlternateLocation.set(true);
+    cmp.altAddress.set(' Finca La Esperanza ');
+    cmp.altContactName.set('Juan');
+    cmp.altContactPhone.set('222');
+    cmp.altNotes.set('');
+
+    cmp.generateRequisition();
+
+    expect(casesServiceSpy.createOrder).toHaveBeenCalledWith(
+      'c2',
+      'LAB_PICKUP',
+      'ROUTINE',
+      undefined,
+      {
+        address: 'Finca La Esperanza',
+        contactName: 'Juan',
+        contactPhone: '222',
+        notes: undefined,
+      }
+    );
+  });
+
+  it('blocks submit until the alternate location is complete', () => {
+    const fixture = TestBed.createComponent(OrderComponent);
+    fixture.detectChanges();
+    const cmp = fixture.componentInstance;
+    cmp.useAlternateLocation.set(true);
+    cmp.altAddress.set('Somewhere');
+
+    expect(cmp.canSubmitOrder()).toBe(false);
+    cmp.generateRequisition();
+    expect(casesServiceSpy.createOrder).not.toHaveBeenCalled();
+  });
+
+  it('ignores the alternate location for client delivery', () => {
+    const fixture = TestBed.createComponent(OrderComponent);
+    fixture.detectChanges();
+    const cmp = fixture.componentInstance;
+    cmp.useAlternateLocation.set(true);
+    cmp.deliveryMethod.set('CLIENT_DELIVERY');
+
+    expect(cmp.canSubmitOrder()).toBe(true);
+    cmp.generateRequisition();
+    expect(casesServiceSpy.createOrder).toHaveBeenCalledWith(
+      'c2',
+      'CLIENT_DELIVERY',
+      'ROUTINE',
+      undefined,
+      undefined
     );
   });
 

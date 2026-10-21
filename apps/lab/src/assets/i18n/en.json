@@ -1130,6 +1130,10 @@
     "LAB_PICKUP": "Lab pickup",
     "CLIENT_DELIVERY": "Client delivery"
   },
+  "pickup_location": {
+    "alternate_badge": "Alternate location",
+    "notes": "Location notes:"
+  },
   "my_pickups": {
     "empty": "No pickups assigned to you right now.",
     "history_title": "Pickup history",

@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, tap, map, catchError, take } from 'rxjs';
 import {
+  AlternateLocationModel,
   CaseModel,
   CaseStatus,
   PatientSpecies,
@@ -162,12 +163,13 @@ export class CasesService {
     id: string,
     deliveryMethod?: 'LAB_PICKUP' | 'CLIENT_DELIVERY',
     priority?: OrderPriority,
-    orderingVetId?: string
+    orderingVetId?: string,
+    alternateLocation?: AlternateLocationModel
   ): Observable<{ orderId: string; requisitionUrl: string }> {
     return this.http
       .post<{ id: string; requisitionNumber: string; requisitionUrl: string }>(
         `/api/cases/${id}/order`,
-        { deliveryMethod, priority, orderingVetId },
+        { deliveryMethod, priority, orderingVetId, alternateLocation },
         this.tenantHeaders
       )
       .pipe(

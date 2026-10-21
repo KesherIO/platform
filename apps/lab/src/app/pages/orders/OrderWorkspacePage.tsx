@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
+import { PickupLocation } from '../../shared/components/PickupLocation';
 import { Skeleton } from '../../shared/components/Skeleton';
 import { ReleasePdfMenu } from '../../shared/components/ReleasePdfMenu';
 import { AccessionDialog } from './AccessionDialog';
@@ -701,6 +702,14 @@ export function OrderWorkspacePage() {
                 <StatusBadge status={order.pickup.status} size="sm" />
               </div>
               <div className="space-y-1.5 text-sm">
+                <PickupLocation
+                  className="mb-2 border-b border-gray-800 pb-2"
+                  pickupAddress={order.pickup.pickupAddress}
+                  pickupContactName={order.pickup.pickupContactName}
+                  pickupContactPhone={order.pickup.pickupContactPhone}
+                  isAlternateLocation={order.pickup.isAlternateLocation}
+                  pickupLocationNotes={order.pickup.pickupLocationNotes}
+                />
                 {order.pickup.messenger && (
                   <p className="text-gray-400">
                     <span className="text-gray-500">

@@ -1130,6 +1130,10 @@
     "LAB_PICKUP": "Recolección por laboratorio",
     "CLIENT_DELIVERY": "Entrega por el cliente"
   },
+  "pickup_location": {
+    "alternate_badge": "Ubicación alternativa",
+    "notes": "Notas de ubicación:"
+  },
   "my_pickups": {
     "empty": "No tienes recolecciones asignadas por ahora.",
     "history_title": "Historial de recolecciones",

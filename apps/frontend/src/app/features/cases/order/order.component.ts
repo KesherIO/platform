@@ -5,6 +5,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { TranslateService } from '@ngx-translate/core';
 import { take } from 'rxjs';
 import {
+  AlternateLocationModel,
   CaseModel,
   CaseStatus,
   DeliveryMethod,
@@ -18,7 +19,11 @@ import {
   isLabServicesSuspendedError,
 } from '../../../core/services/tenant.service';
 import { CaseWizardLayoutComponent } from '../shared/components/case-wizard-layout/case-wizard-layout.component';
-import { ButtonComponent, ToggleComponent } from '../../../shared/components';
+import {
+  ButtonComponent,
+  InputComponent,
+  ToggleComponent,
+} from '../../../shared/components';
 import { SelectComponent } from '../../../shared/components';
 import { SelectedTestsChipsComponent } from './components/selected-tests-chips/selected-tests-chips.component';
 
@@ -32,6 +37,7 @@ import { SelectedTestsChipsComponent } from './components/selected-tests-chips/s
     CaseWizardLayoutComponent,
     ButtonComponent,
     ToggleComponent,
+    InputComponent,
     SelectComponent,
     SelectedTestsChipsComponent,
   ],
@@ -57,6 +63,21 @@ export class OrderComponent implements OnInit {
     []
   );
   orderingVetId = signal<string>('');
+
+  // "Collect at a different address" — only meaningful with lab pickup
+  useAlternateLocation = signal(false);
+  altAddress = signal('');
+  altContactName = signal('');
+  altContactPhone = signal('');
+  altNotes = signal('');
+
+  showAlternateLocation = computed(() => this.deliveryMethod() === 'LAB_PICKUP');
+  alternateLocationComplete = computed(
+    () =>
+      !!this.altAddress().trim() &&
+      !!this.altContactName().trim() &&
+      !!this.altContactPhone().trim()
+  );
 
   deliveryMethodOptions = [
     { label: 'CASES.ORDER.DELIVERY_CLIENT', value: 'CLIENT_DELIVERY' },
@@ -99,6 +120,13 @@ export class OrderComponent implements OnInit {
   canSubmitOrder = computed(() => {
     // The lab suspended services — the shell's banner explains why
     if (this.tenant.labServicesSuspended()) return false;
+    if (
+      this.showAlternateLocation() &&
+      this.useAlternateLocation() &&
+      !this.alternateLocationComplete()
+    ) {
+      return false;
+    }
     if (this.vets().length === 0) return true; // no vets loaded yet, don't block
     const vet = this.selectedVet();
     return !!vet && vet.status === 'ACTIVE';
@@ -184,6 +212,10 @@ export class OrderComponent implements OnInit {
     this.deliveryMethod.set(value as DeliveryMethod);
   }
 
+  onUseAlternateLocationChange(event: Event): void {
+    this.useAlternateLocation.set((event.target as HTMLInputElement).checked);
+  }
+
   onPriorityChange(value: string): void {
     this.priority.set(value as OrderPriority);
   }
@@ -194,13 +226,23 @@ export class OrderComponent implements OnInit {
 
   generateRequisition(): void {
     if (this.sending() || !this.canSubmitOrder()) return;
+    const alternateLocation: AlternateLocationModel | undefined =
+      this.showAlternateLocation() && this.useAlternateLocation()
+        ? {
+            address: this.altAddress().trim(),
+            contactName: this.altContactName().trim(),
+            contactPhone: this.altContactPhone().trim(),
+            notes: this.altNotes().trim() || undefined,
+          }
+        : undefined;
     this.sending.set(true);
     this.casesService
       .createOrder(
         this.caseId(),
         this.deliveryMethod(),
         this.priority(),
-        this.orderingVetId() || undefined
+        this.orderingVetId() || undefined,
+        alternateLocation
       )
       .pipe(take(1))
       .subscribe({

@@ -24,6 +24,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../api/labApi';
 import { useDocumentTitle } from '../useDocumentTitle';
 import { NotificationBell } from './NotificationBell';
+import { LanguageToggle } from './LanguageToggle';
 
 const ICON_SIZE = 18;
 const ICON_STROKE_WIDTH = 2;
@@ -302,6 +303,7 @@ export function Layout() {
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          {!isAdmin && <LanguageToggle />}
           <NotificationBell />
           {isMessenger ? (
             <button
@@ -407,6 +409,11 @@ export function Layout() {
 
         <div className="border-t border-gray-800 p-4">
           <p className="truncate text-xs text-gray-400">{user?.email}</p>
+          {!isAdmin && (
+            <div className="mt-2">
+              <LanguageToggle />
+            </div>
+          )}
           <button
             onClick={signOut}
             className="mt-2 text-xs text-gray-500 hover:text-white transition"

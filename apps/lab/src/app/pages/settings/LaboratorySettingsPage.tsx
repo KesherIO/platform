@@ -2,7 +2,7 @@ import { useState, FormEvent, ChangeEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
-import i18n from '../../i18n/i18n';
+import i18n, { setLanguage } from '../../i18n/i18n';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
@@ -530,10 +530,7 @@ export function LaboratorySettingsPage() {
               <button
                 key={lng}
                 type="button"
-                onClick={() => {
-                  i18n.changeLanguage(lng);
-                  localStorage.setItem('lang', lng);
-                }}
+                onClick={() => setLanguage(lng)}
                 className={`rounded-lg border px-4 py-2 text-sm font-medium transition ${
                   i18n.language === lng
                     ? 'border-cyan bg-cyan/10 text-cyan'

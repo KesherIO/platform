@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { labApi } from '../../shared/api/labApi';
 import { StatusBadge } from '../../shared/components/StatusBadge';
+import { PickupLocation } from '../../shared/components/PickupLocation';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
 import { useToast } from '../../shared/components/ToastProvider';
 import { usePushSubscription } from './usePushSubscription';
@@ -209,37 +210,14 @@ export function MyPickupsPage() {
                 <StatusBadge status={pickup.status} size="sm" />
               </div>
 
-              {pickup.pickupAddress && (
-                <p className="mt-2 text-sm text-gray-300">
-                  {t('my_pickups.address')} {pickup.pickupAddress}{' '}
-                  <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(
-                      pickup.pickupAddress
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-cyan hover:underline"
-                  >
-                    {t('my_pickups.open_maps')}
-                  </a>
-                </p>
-              )}
-              {pickup.pickupContactName && (
-                <p className="text-sm text-gray-400">
-                  {t('my_pickups.contact')} {pickup.pickupContactName}
-                  {pickup.pickupContactPhone && (
-                    <>
-                      {' · '}
-                      <a
-                        href={`tel:${pickup.pickupContactPhone}`}
-                        className="text-cyan hover:underline"
-                      >
-                        {pickup.pickupContactPhone}
-                      </a>
-                    </>
-                  )}
-                </p>
-              )}
+              <PickupLocation
+                className="mt-2"
+                pickupAddress={pickup.pickupAddress}
+                pickupContactName={pickup.pickupContactName}
+                pickupContactPhone={pickup.pickupContactPhone}
+                isAlternateLocation={pickup.isAlternateLocation}
+                pickupLocationNotes={pickup.pickupLocationNotes}
+              />
               {pickup.pickupInstructions && (
                 <p className="mt-2 text-sm text-gray-400">
                   {t('my_pickups.instructions')} {pickup.pickupInstructions}
