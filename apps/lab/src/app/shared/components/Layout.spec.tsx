@@ -24,6 +24,7 @@ vi.mock('../api/labApi', () => ({
     worklist: { readyCount: vi.fn() },
     verifications: { getPendingCount: vi.fn() },
     orders: { reviewCount: vi.fn() },
+    instruments: { summary: vi.fn() },
     notifications: {
       unreadCount: vi.fn(),
       list: vi.fn(),

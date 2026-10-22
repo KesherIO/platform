@@ -16,6 +16,7 @@ import { ResultsModule } from '../results/results.module';
 import { LabModule } from '../lab/lab.module';
 import { BillingModule } from '../billing/billing.module';
 import { LabConfigModule } from '../lab-config/lab-config.module';
+import { InstrumentsModule } from '../instruments/instruments.module';
 import { VetProfileModule } from '../vet-profile/vet-profile.module';
 import { VetVerificationModule } from '../vet-verification/vet-verification.module';
 import { HealthModule } from '../health/health.module';
@@ -42,6 +43,7 @@ import { LoggingInterceptor } from '../common/interceptors/logging.interceptor';
     LabModule,
     BillingModule,
     LabConfigModule,
+    InstrumentsModule,
     HealthModule,
     VetProfileModule,
     VetVerificationModule,

@@ -25,6 +25,7 @@ import { LabConfigController } from '../lab-config/lab-config.controller';
 import { CatalogController } from '../catalog/catalog.controller';
 import { BillingController } from '../billing/billing.controller';
 import { TemplateController } from '../results/template.controller';
+import { InstrumentReviewController } from '../instruments/instrument-review.controller';
 import type { PrismaService } from '../prisma/prisma.service';
 
 type Route = {
@@ -41,6 +42,7 @@ const CONTROLLERS = [
   CatalogController,
   BillingController,
   TemplateController,
+  InstrumentReviewController,
 ];
 
 function labRoutes(): Route[] {
@@ -118,6 +120,8 @@ const RELEASE_ROUTES = [
   'POST lab/orders/:orderId/amendments/:amendmentId/approve',
   // "Por revisar" badge: only those who can release see what's waiting
   'GET lab/orders/review-count',
+  // Accepting a changed result / expired reagent from an analyzer is a quality decision
+  'POST lab/instruments/messages/:id/approve',
 ];
 
 /** What "Consulta" (RESULTS_VIEWER) reaches: its session, inbox and released results. */

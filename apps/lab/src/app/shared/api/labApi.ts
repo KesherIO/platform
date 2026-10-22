@@ -60,6 +60,11 @@ import type {
   BillingPreview,
   BillingExportFile,
   BillingExportSummary,
+  InstrumentQueueView,
+  InstrumentQueuePage,
+  InstrumentMessageDetail,
+  InstrumentMessageStatus,
+  ConnectorCredentialSummary,
 } from '../../types/lab.types';
 
 /** Non-2xx response. `message` is the response body, as before. */
@@ -142,6 +147,18 @@ async function del(path: string, body?: unknown): Promise<void> {
   });
   if (!res.ok && res.status !== 204)
     throw new ApiError(res.status, await res.text());
+}
+
+async function getBlob(
+  path: string
+): Promise<{ blob: Blob; fileName: string }> {
+  const res = await fetch(`/api/${path}`, { headers: await authHeaders() });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  const fileName =
+    /filename="([^"]+)"/.exec(
+      res.headers.get('Content-Disposition') ?? ''
+    )?.[1] ?? 'message.frame';
+  return { blob: await res.blob(), fileName };
 }
 
 export const labApi = {
@@ -401,6 +418,59 @@ export const labApi = {
   timeline: {
     forOrder: (orderId: string) =>
       get<TimelineEvent[]>(`lab/orders/${orderId}/timeline`),
+  },
+  instruments: {
+    /** Counts for the nav badge: items a person must act on, and interrupted transfers */
+    summary: () =>
+      get<{ needsReview: number; incomplete: number }>(
+        'lab/instruments/summary'
+      ),
+    list: (view: InstrumentQueueView, cursor?: string) => {
+      const sp = new URLSearchParams({ view });
+      if (cursor) sp.set('cursor', cursor);
+      return get<InstrumentQueuePage>(
+        `lab/instruments/messages?${sp.toString()}`
+      );
+    },
+    get: (id: string) =>
+      get<InstrumentMessageDetail>(`lab/instruments/messages/${id}`),
+    /** The exact bytes the analyzer sent, for troubleshooting */
+    downloadRaw: (id: string) => getBlob(`lab/instruments/messages/${id}/raw`),
+    /** "This analyzer sample is that order" — creates an explicit link, then imports as draft */
+    resolveSample: (id: string, orderId: string) =>
+      post<{ id: string; status: InstrumentMessageStatus }>(
+        `lab/instruments/messages/${id}/resolve-sample`,
+        { orderId }
+      ),
+    reprocess: (id: string) =>
+      post<{ id: string; status: InstrumentMessageStatus }>(
+        `lab/instruments/messages/${id}/reprocess`
+      ),
+    /** Reviewer+ only: accept a changed result / expired reagent / typed values being replaced */
+    approve: (id: string, reasons: string[], note: string) =>
+      post<{ id: string; status: InstrumentMessageStatus }>(
+        `lab/instruments/messages/${id}/approve`,
+        { reasons, note }
+      ),
+    dismiss: (id: string, note: string) =>
+      post<{ id: string; status: InstrumentMessageStatus }>(
+        `lab/instruments/messages/${id}/dismiss`,
+        { note }
+      ),
+    credentials: {
+      list: () =>
+        get<ConnectorCredentialSummary[]>('lab/instruments/credentials'),
+      /** The token is in this response only — it cannot be shown again */
+      create: (analyzerId: string, name: string) =>
+        post<{ id: string; name: string; tokenPrefix: string; token: string }>(
+          'lab/instruments/credentials',
+          { analyzerId, name }
+        ),
+      revoke: (id: string) =>
+        post<{ id: string; revokedAt: string }>(
+          `lab/instruments/credentials/${id}/revoke`
+        ),
+    },
   },
   analyzers: {
     list: () => get<Analyzer[]>('lab-config/analyzers'),

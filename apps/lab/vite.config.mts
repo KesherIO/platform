@@ -17,7 +17,8 @@ export default defineConfig(() => {
       host: 'localhost',
       proxy: {
         '/api': {
-          target: 'http://localhost:3000',
+          // override when something else already owns :3000 (e.g. LAB_API_TARGET=http://localhost:3010)
+          target: process.env['LAB_API_TARGET'] ?? 'http://localhost:3000',
           changeOrigin: true,
         },
       },
@@ -58,9 +59,7 @@ export default defineConfig(() => {
       watch: false,
       globals: true,
       environment: 'jsdom',
-      include: [
-        '{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
-      ],
+      include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
       reporters: ['default'],
       coverage: {
         reportsDirectory: './test-output/vitest/coverage',

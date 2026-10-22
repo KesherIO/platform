@@ -73,7 +73,8 @@
     "worklist": "Worklist",
     "verifications": "Verificaciones",
     "results": "Resultados",
-    "billing": "Facturación"
+    "billing": "Facturación",
+    "instruments": "Resultados de analizadores"
   },
   "status": {
     "PENDING": "Pendiente",
@@ -1707,5 +1708,138 @@
       "code_from_deleted": "Código asignado a un ítem del catálogo que fue eliminado",
       "ask_admin": "Un administrador debe asignar este código de facturación antes de poder generar el archivo."
     }
+  },
+  "instruments": {
+    "title": "Resultados de analizadores",
+    "subtitle": "Resultados enviados por los analizadores del laboratorio que requieren a una persona: muestras sin orden vinculada, resultados que cambiaron, reactivo vencido y transferencias interrumpidas. Nada de esto se ha liberado — las importaciones siempre son borradores.",
+    "empty": "Nada requiere atención.",
+    "load_more": "Cargar más",
+    "tab": {
+      "review": "Por revisar",
+      "incomplete": "Transferencias interrumpidas",
+      "all": "Todos (incluye importados)",
+      "connectors": "Conectores"
+    },
+    "col": {
+      "run": "Corrida",
+      "analyzer": "Analizador",
+      "sample": "Muestra",
+      "status": "Estado",
+      "why": "Motivo",
+      "order": "Orden"
+    },
+    "status": {
+      "RECEIVED": "Recibido",
+      "INCOMPLETE": "Incompleto",
+      "DUPLICATE": "Duplicado",
+      "UNMATCHED": "Sin orden vinculada",
+      "AMBIGUOUS": "Ambiguo",
+      "NEEDS_REVIEW": "Por revisar",
+      "IMPORTED": "Importado como borrador",
+      "DISMISSED": "Descartado",
+      "FAILED": "Con error"
+    },
+    "badge": {
+      "incomplete": "Transferencia incompleta",
+      "expired_reagent": "Reactivo vencido",
+      "edited": "Editado en el analizador"
+    },
+    "reasons": {
+      "UNMATCHED": "No hay una orden vinculada a este ID de muestra del analizador",
+      "AMBIGUOUS_SAMPLE": "Hay más de una orden vinculada a este ID de muestra",
+      "CONTENT_CHANGED": "El resultado cambió después de haberse importado",
+      "EXPIRED_REAGENT": "El analizador marcó un reactivo vencido",
+      "EXISTING_MANUAL_VALUES": "Ya hay valores digitados a mano para esta prueba",
+      "UNIT_MISMATCH": "Unidad sin mapeo: {{detail}}",
+      "NO_MAPPED_PARAMETERS": "Ningún parámetro del analizador está mapeado a un campo de resultado",
+      "NO_MATCHING_TEST": "La orden no tiene la prueba {{detail}}",
+      "ANALYTE_NOT_IN_TEMPLATE": "La plantilla de resultados no tiene el campo {{detail}}",
+      "ORDER_NOT_AVAILABLE": "La orden vinculada está cancelada o no existe",
+      "TEST_NOT_EDITABLE": "La prueba no puede recibir resultados ahora (sin aceptar, en revisión o liberada)",
+      "INCOMPLETE_TRANSFER": "La transferencia se interrumpió",
+      "UNPARSEABLE_MESSAGE": "No se pudo leer el mensaje",
+      "PROCESSING_ERROR": "Falló el procesamiento",
+      "DRAFT_MODIFIED_SINCE_IMPORT": "El borrador se editó después de importar los valores del analizador"
+    },
+    "ignored": {
+      "NO_MAPPING": "sin mapeo",
+      "NOT_NUMERIC": "no es un valor de resultado",
+      "EMPTY_OR_INVALID_VALUE": "sin valor"
+    },
+    "detail": {
+      "title": "Mensaje del analizador",
+      "run_time": "Hora de la corrida",
+      "control_id": "ID del mensaje",
+      "received": "Recibido",
+      "analyzer_patient": "Nombre en el analizador",
+      "why": "Por qué requiere atención",
+      "must_fix": "(corregir y reprocesar)",
+      "changes": "Cambios frente a la versión importada",
+      "images_changed": "Histogramas cambiados: {{list}}",
+      "parameters": "Valores del analizador",
+      "parameter": "Parámetro",
+      "value": "Valor",
+      "unit": "Unidad",
+      "range": "Referencia",
+      "incomplete_title": "Transferencia interrumpida — no es un resultado",
+      "incomplete_body": "La transferencia del analizador se cortó ({{reason}}). Estos datos se conservan para diagnóstico y nunca se pueden importar. Vuelva a enviar el resultado desde el analizador.",
+      "link_title": "¿A qué orden corresponde la muestra {{sample}} del analizador?",
+      "link_help": "El número de muestra del analizador no es un número de orden. Al elegir una orden se vincula esta muestra (por tiempo limitado) y se importan los valores como borrador.",
+      "order_search": "Buscar órdenes por número, paciente o clínica…",
+      "no_orders": "No se encontraron órdenes",
+      "change": "Cambiar",
+      "link_and_import": "Vincular e importar como borrador",
+      "fix_then_reprocess": "Corrija lo indicado arriba (vincular una muestra, agregar un mapeo de parámetro, aceptar la muestra…) y luego reprocese.",
+      "approve_title": "Aceptar para importar como borrador",
+      "approve_import": "Aprobar e importar como borrador",
+      "approve_help": "Indique por qué estos valores son aceptables. Los valores se guardan como borrador; la revisión y la liberación siguen aplicando.",
+      "reviewer_only": "Un revisor o administrador debe aprobar esto.",
+      "reprocess": "Reprocesar",
+      "dismiss": "Descartar",
+      "dismiss_help": "Indique por qué no se importa este resultado.",
+      "acknowledge": "Enterado",
+      "acknowledge_help": "Anote lo ocurrido (p. ej. se desconectó el cable). La transferencia sigue marcada como incompleta.",
+      "download_raw": "Descargar mensaje original",
+      "note": "Nota",
+      "history": "Mensajes anteriores de esta muestra",
+      "mapping_title": "Qué se importará",
+      "mapping_summary": "{{count}} de {{total}} valores numéricos se asignan a campos de resultado",
+      "mapping_partial": "Parcial: algunos valores del analizador NO se importarán",
+      "mapping_not_mapped": "Sin mapeo: {{list}}",
+      "mapping_unit": "Unidad sin mapeo: {{list}}",
+      "mapping_to": "→ {{field}}",
+      "mapping_unit_row": "unidad sin mapeo (mapeadas: {{units}})",
+      "mapping_none": "Aún nada se asigna a un campo de resultado",
+      "formula_title": "Algunos campos los calcula la plantilla de resultados",
+      "formula_help": "La plantilla los calcula a partir de otros campos (y los recalcula en cada guardado), por eso no se usó la cifra del propio analizador. Son normales pequeñas diferencias con el impreso del analizador.",
+      "analyzer_said": "analizador:",
+      "open_draft": "Abrir los resultados en borrador",
+      "open_draft_help": "Los valores quedaron guardados como borrador en la prueba de esta orden. Abra la pantalla de resultados para verlos, revisarlos y enviarlos."
+    },
+    "toast": {
+      "linked": "Vinculado — {{status}}",
+      "reprocessed": "Reprocesado — {{status}}",
+      "approved": "Aprobado — {{status}}",
+      "dismissed": "Listo"
+    },
+    "connectors": {
+      "name": "Nombre",
+      "name_placeholder": "p. ej. PC del laboratorio – VH-30",
+      "pick_analyzer": "Elija un analizador",
+      "create": "Crear token de conector",
+      "token": "Token",
+      "last_seen": "Visto por última vez",
+      "revoke": "Revocar",
+      "revoke_title": "¿Revocar {{name}}?",
+      "revoke_message": "El conector que usa este token deja de subir datos de inmediato. Lo que ya guardó permanece en su computador y se sube de nuevo cuando tenga un token nuevo.",
+      "revoked": "Revocado {{when}}",
+      "none": "Aún no hay conectores.",
+      "token_once": "Token de \"{{name}}\" — cópielo ahora, no se volverá a mostrar.",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "done": "Listo",
+      "configure_hint": "En el computador del laboratorio: vh30-receiver --configure --api-url <dirección de este servidor> --token <token>"
+    },
+    "empty_review": "Nada requiere atención. Los resultados importados sin problemas no aparecen aquí: abra la pestaña “Todos” para verlos."
   }
 }
