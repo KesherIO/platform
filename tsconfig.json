@@ -23,6 +23,9 @@
     },
     {
       "path": "./apps/lab"
+    },
+    {
+      "path": "./apps/connector"
     }
   ]
 }
