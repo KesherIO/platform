@@ -21,12 +21,27 @@ describe('summarizeHl7', () => {
   });
 
   const real = loadRealCapture();
-  (real ? it : it.skip)('summarizes the real capture: samples 168,169,168,1111,1111 with 34 OBX each', () => {
-    const { frames } = new FrameDecoder().push(real!);
-    const s = frames.map((f) => summarizeHl7(f.payload));
-    expect(s.map((x) => x.sampleId)).toEqual(['168', '169', '168', '1111', '1111']);
-    expect(s.map((x) => x.controlId)).toEqual(['2577', '2574', '2577', '2580', '2580']);
-    expect(s.every((x) => x.obxCount === 34)).toBe(true);
-    expect(s[0].messageTime).not.toBe(s[2].messageTime); // resend: same control ID, new timestamp
-  });
+  (real ? it : it.skip)(
+    'summarizes the real capture: samples 168,169,168,1111,1111 with 34 OBX each',
+    () => {
+      const { frames } = new FrameDecoder().push(real!);
+      const s = frames.map((f) => summarizeHl7(f.payload));
+      expect(s.map((x) => x.sampleId)).toEqual([
+        '168',
+        '169',
+        '168',
+        '1111',
+        '1111',
+      ]);
+      expect(s.map((x) => x.controlId)).toEqual([
+        '2577',
+        '2574',
+        '2577',
+        '2580',
+        '2580',
+      ]);
+      expect(s.every((x) => x.obxCount === 34)).toBe(true);
+      expect(s[0].messageTime).not.toBe(s[2].messageTime); // resend: same control ID, new timestamp
+    }
+  );
 });

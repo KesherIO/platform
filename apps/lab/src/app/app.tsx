@@ -69,10 +69,7 @@ export function App() {
                 />
                 <Route path="/worklist" element={<WorklistPage />} />
                 <Route path="/results" element={<ResultsPage />} />
-                <Route
-                  path="/instruments"
-                  element={<InstrumentReviewPage />}
-                />
+                <Route path="/instruments" element={<InstrumentReviewPage />} />
                 <Route
                   path="/orders/:orderId/tests/:testId/results"
                   element={<ResultEntryPage />}

@@ -22,4 +22,5 @@ for (const [entry, name] of [
     logLevel: 'info',
   });
 }
-for (const file of readdirSync('windows')) copyFileSync(join('windows', file), join(out, file));
+for (const file of readdirSync('windows'))
+  copyFileSync(join('windows', file), join(out, file));

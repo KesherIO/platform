@@ -115,7 +115,8 @@ export function Layout() {
     enabled: !isRestricted,
   });
   const instrumentCount =
-    (instrumentSummary?.needsReview ?? 0) + (instrumentSummary?.incomplete ?? 0);
+    (instrumentSummary?.needsReview ?? 0) +
+    (instrumentSummary?.incomplete ?? 0);
 
   const onVerificationsPage = location.pathname === '/verifications';
 

@@ -47,22 +47,29 @@ async function main(): Promise<void> {
   const capture = readFileSync(positionals[0]);
   const decoder = new FrameDecoder();
   const { frames, issues } = decoder.push(capture);
-  if (issues.length || decoder.flush()) throw new Error('Capture file is not a clean sequence of VH-30 frames');
+  if (issues.length || decoder.flush())
+    throw new Error('Capture file is not a clean sequence of VH-30 frames');
   const limit = values.frames ? Number(values.frames) : frames.length;
   const toSend = frames.slice(0, limit).map((f) => f.bytes);
-  console.log(`Capture: ${capture.length} bytes, ${frames.length} message(s); sending ${toSend.length}`);
+  console.log(
+    `Capture: ${capture.length} bytes, ${frames.length} message(s); sending ${toSend.length}`
+  );
 
   const chunk = Number(values.chunk);
   const delay = Number(values['chunk-delay-ms']);
   const random = !!values['random-chunks'];
   const connect = () =>
     new Promise<Socket>((resolve, reject) => {
-      const s = createConnection({ host: values.host, port: Number(values.port) }, () => resolve(s));
+      const s = createConnection(
+        { host: values.host, port: Number(values.port) },
+        () => resolve(s)
+      );
       s.once('error', reject);
     });
   const ackTimeout = Number(values['ack-timeout-ms']);
   const maxResends = Number(values['max-resends']);
-  const controlIdOf = (frame: Buffer) => /ORU\^R01\|([^|]*)\|/.exec(frame.toString('latin1', 0, 400))?.[1] ?? null;
+  const controlIdOf = (frame: Buffer) =>
+    /ORU\^R01\|([^|]*)\|/.exec(frame.toString('latin1', 0, 400))?.[1] ?? null;
 
   /** Accumulates replies; resolves once an AA for `id` arrives, or false on timeout. */
   const replies = new WeakMap<Socket, { text: string }>();
@@ -88,7 +95,12 @@ async function main(): Promise<void> {
       replies.get(s)!.text = '';
       await write(s, frame);
       const code = await waitForAck(s, id);
-      if (code) return console.log(`${label}: ACK ${code} for control ID ${id}${attempt ? ` after ${attempt} resend(s)` : ''}`);
+      if (code)
+        return console.log(
+          `${label}: ACK ${code} for control ID ${id}${
+            attempt ? ` after ${attempt} resend(s)` : ''
+          }`
+        );
       console.log(`${label}: no ACK within ${ackTimeout} ms, resending`);
     }
     throw new Error(`${label}: no ACK after ${maxResends} resends`);
@@ -112,15 +124,27 @@ async function main(): Promise<void> {
     for (let i = 0; i < toSend.length; i++) {
       const isLast = i === toSend.length - 1;
       if (isLast && values['cut-mid-frame']) {
-        await write(socket, toSend[i].subarray(0, Math.floor(toSend[i].length / 2)));
+        await write(
+          socket,
+          toSend[i].subarray(0, Math.floor(toSend[i].length / 2))
+        );
         socket.destroy();
         console.log(`round ${round}: message ${i + 1} cut mid-frame`);
         break;
       }
-      if (values['expect-ack']) await sendWithAck(socket, toSend[i], `round ${round}: message ${i + 1}/${toSend.length}`);
+      if (values['expect-ack'])
+        await sendWithAck(
+          socket,
+          toSend[i],
+          `round ${round}: message ${i + 1}/${toSend.length}`
+        );
       else {
         await write(socket, toSend[i]);
-        console.log(`round ${round}: sent message ${i + 1}/${toSend.length} (${toSend[i].length} bytes)`);
+        console.log(
+          `round ${round}: sent message ${i + 1}/${toSend.length} (${
+            toSend[i].length
+          } bytes)`
+        );
       }
       if (values['new-connection'] && !isLast) {
         await close(socket);

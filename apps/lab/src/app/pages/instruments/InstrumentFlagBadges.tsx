@@ -6,7 +6,14 @@ import type { InstrumentMessageSummary } from '../../types/lab.types';
  * The OBX-13 flags are shown as separate badges on purpose: an expired reagent is a quality
  * problem that blocks import; values edited on the analyzer are retained and visible.
  */
-export function InstrumentFlagBadges({ m }: { m: Pick<InstrumentMessageSummary, 'hasExpiredReagent' | 'hasAnalyzerEdits' | 'isComplete'> }) {
+export function InstrumentFlagBadges({
+  m,
+}: {
+  m: Pick<
+    InstrumentMessageSummary,
+    'hasExpiredReagent' | 'hasAnalyzerEdits' | 'isComplete'
+  >;
+}) {
   const { t } = useTranslation();
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">

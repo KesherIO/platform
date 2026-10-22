@@ -1,9 +1,19 @@
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { existsSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
-import type { IncompleteMeta, MessageStore, ReceivedFrameMeta } from './message-store';
+import type {
+  IncompleteMeta,
+  MessageStore,
+  ReceivedFrameMeta,
+} from './message-store';
 
 /**
  * Uploads what the receiver saved to the KesherIO API, independently of the
@@ -56,7 +66,15 @@ export interface UploaderStatus {
 }
 
 export interface UploaderEvents {
-  uploaded: [{ id: string; serverId: string; status: string; duplicateUpload: boolean; complete: boolean }];
+  uploaded: [
+    {
+      id: string;
+      serverId: string;
+      status: string;
+      duplicateUpload: boolean;
+      complete: boolean;
+    }
+  ];
   rejected: [{ id: string; httpStatus: number; error: string }];
   status: [UploaderStatus];
 }
@@ -88,7 +106,10 @@ export class Uploader extends EventEmitter<UploaderEvents> {
   private stopped = false;
   private failures = 0;
   /** per-file failure state, so one bad file backs off alone instead of blocking the queue */
-  private itemState = new Map<string, { count: number; nextAt: number; error: string }>();
+  private itemState = new Map<
+    string,
+    { count: number; nextAt: number; error: string }
+  >();
   private state: UploadState = 'idle';
   private lastUploadAt: string | null = null;
   private lastError: string | null = null;
@@ -123,7 +144,10 @@ export class Uploader extends EventEmitter<UploaderEvents> {
       failing: pending.filter((i) => this.itemState.has(i.base)).length,
       lastUploadAt: this.lastUploadAt,
       // A later success must not hide a file that is still failing.
-      lastError: this.lastError ?? [...this.itemState.values()].find(() => true)?.error ?? null,
+      lastError:
+        this.lastError ??
+        [...this.itemState.values()].find(() => true)?.error ??
+        null,
       nextAttemptAt: this.nextAttemptAt,
       authenticatedAs: this.authenticatedAs,
     };
@@ -170,10 +194,16 @@ export class Uploader extends EventEmitter<UploaderEvents> {
           return;
         }
         const now = Date.now();
-        const item = all.find((i) => (this.itemState.get(i.base)?.nextAt ?? 0) <= now);
+        const item = all.find(
+          (i) => (this.itemState.get(i.base)?.nextAt ?? 0) <= now
+        );
         if (!item) {
           // Every pending file is backing off on its own: wake up when the first is due.
-          this.scheduleAt(Math.min(...all.map((i) => this.itemState.get(i.base)?.nextAt ?? now)));
+          this.scheduleAt(
+            Math.min(
+              ...all.map((i) => this.itemState.get(i.base)?.nextAt ?? now)
+            )
+          );
           return;
         }
         this.setState('uploading');
@@ -204,19 +234,29 @@ export class Uploader extends EventEmitter<UploaderEvents> {
 
   // ── one file ─────────────────────────────────────────────────────────────
 
-  private async send(item: Item): Promise<'done' | 'skip' | 'item-failed' | 'offline' | 'auth-failed'> {
+  private async send(
+    item: Item
+  ): Promise<'done' | 'skip' | 'item-failed' | 'offline' | 'auth-failed'> {
     let bytes: Buffer;
     let meta: ReceivedFrameMeta | IncompleteMeta;
     try {
       bytes = readFileSync(item.dataFile);
       meta = JSON.parse(readFileSync(item.metaFile, 'utf8'));
     } catch (err) {
-      return this.itemFailed(item, `cannot read ${item.dataFile}: ${(err as Error).message}`);
+      return this.itemFailed(
+        item,
+        `cannot read ${item.dataFile}: ${(err as Error).message}`
+      );
     }
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     if (sha256 !== meta.sha256) {
       // The local copy changed after it was saved. Never send something we can't vouch for.
-      this.reject(item, meta.id, 0, 'local file does not match its recorded sha256');
+      this.reject(
+        item,
+        meta.id,
+        0,
+        'local file does not match its recorded sha256'
+      );
       return 'skip';
     }
 
@@ -231,7 +271,9 @@ export class Uploader extends EventEmitter<UploaderEvents> {
           'X-Content-SHA256': sha256,
           'X-Received-At': meta.receivedAt,
           'X-Transfer-Status': item.complete ? 'complete' : 'incomplete',
-          ...(!item.complete && { 'X-Incomplete-Reason': (meta as IncompleteMeta).reason }),
+          ...(!item.complete && {
+            'X-Incomplete-Reason': (meta as IncompleteMeta).reason,
+          }),
           'X-Local-Id': meta.id,
           ...(meta.remoteAddress && { 'X-Remote-Address': meta.remoteAddress }),
           'User-Agent': 'vh30-connector/0.1',
@@ -244,20 +286,29 @@ export class Uploader extends EventEmitter<UploaderEvents> {
     }
 
     if (response.ok) {
-      const body = (await response.json().catch(() => ({}))) as { id?: string; status?: string; duplicateUpload?: boolean };
+      const body = (await response.json().catch(() => ({}))) as {
+        id?: string;
+        status?: string;
+        duplicateUpload?: boolean;
+      };
       this.markUploaded(item, meta.id, body);
       this.lastError = null;
       return 'done';
     }
     const text = await response.text().catch(() => '');
-    const detail = `HTTP ${response.status}${text ? `: ${text.slice(0, 200)}` : ''}`;
+    const detail = `HTTP ${response.status}${
+      text ? `: ${text.slice(0, 200)}` : ''
+    }`;
     if (response.status === 401 || response.status === 403) {
       this.lastError = `credential refused (${detail})`;
       return 'auth-failed';
     }
     if (PERMANENT.has(response.status)) {
       // The server read it and said no. Only after several identical answers is it rejected for good.
-      if ((this.itemState.get(item.base)?.count ?? 0) + 1 >= this.maxPermanent) {
+      if (
+        (this.itemState.get(item.base)?.count ?? 0) + 1 >=
+        this.maxPermanent
+      ) {
         this.reject(item, meta.id, response.status, detail);
         return 'skip';
       }
@@ -271,7 +322,10 @@ export class Uploader extends EventEmitter<UploaderEvents> {
    * A transient failure for one file. Ask the server whether it is healthy: if it is, the problem
    * is this file (it backs off alone); if not, the whole queue waits.
    */
-  private async afterTransient(item: Item, message: string): Promise<'item-failed' | 'offline' | 'auth-failed'> {
+  private async afterTransient(
+    item: Item,
+    message: string
+  ): Promise<'item-failed' | 'offline' | 'auth-failed'> {
     const health = await this.probe();
     if (health === 'auth') {
       this.lastError = 'credential refused';
@@ -286,9 +340,16 @@ export class Uploader extends EventEmitter<UploaderEvents> {
 
   private itemFailed(item: Item, message: string): 'item-failed' {
     const count = (this.itemState.get(item.base)?.count ?? 0) + 1;
-    const exp = Math.min(this.maxDelay, this.baseDelay * 2 ** Math.min(count - 1, 20));
+    const exp = Math.min(
+      this.maxDelay,
+      this.baseDelay * 2 ** Math.min(count - 1, 20)
+    );
     const delay = Math.round(exp * (0.8 + this.random() * 0.4));
-    this.itemState.set(item.base, { count, nextAt: Date.now() + delay, error: message });
+    this.itemState.set(item.base, {
+      count,
+      nextAt: Date.now() + delay,
+      error: message,
+    });
     this.lastError = `${item.base.split(/[\\/]/).pop()}: ${message}`;
     this.emit('status', this.status);
     return 'item-failed';
@@ -310,8 +371,14 @@ export class Uploader extends EventEmitter<UploaderEvents> {
 
   private scheduleRetry(kind: 'offline' | 'auth-failed'): void {
     this.failures++;
-    const exp = Math.min(this.maxDelay, this.baseDelay * 2 ** Math.min(this.failures - 1, 20));
-    const delay = kind === 'auth-failed' ? this.authRetry : Math.round(exp * (0.8 + this.random() * 0.4));
+    const exp = Math.min(
+      this.maxDelay,
+      this.baseDelay * 2 ** Math.min(this.failures - 1, 20)
+    );
+    const delay =
+      kind === 'auth-failed'
+        ? this.authRetry
+        : Math.round(exp * (0.8 + this.random() * 0.4));
     this.setState(kind);
     this.nextAttemptAt = new Date(Date.now() + delay).toISOString();
     this.timer = setTimeout(() => {
@@ -347,9 +414,15 @@ export class Uploader extends EventEmitter<UploaderEvents> {
         signal: AbortSignal.timeout(15_000),
       });
       if (r.ok) {
-        const b = (await r.json()) as { analyzer?: string; credential?: string };
+        const b = (await r.json()) as {
+          analyzer?: string;
+          credential?: string;
+        };
         this.authenticatedAs = `${b.analyzer ?? '?'} (${b.credential ?? '?'})`;
-        if (!this.running && (this.state === 'offline' || this.state === 'auth-failed')) {
+        if (
+          !this.running &&
+          (this.state === 'offline' || this.state === 'auth-failed')
+        ) {
           this.lastError = null;
           if (this.scan().length > 0) this.kick();
           else this.setState('idle');
@@ -371,7 +444,11 @@ export class Uploader extends EventEmitter<UploaderEvents> {
 
   // ── markers + scanning ───────────────────────────────────────────────────
 
-  private markUploaded(item: Item, id: string, body: { id?: string; status?: string; duplicateUpload?: boolean }): void {
+  private markUploaded(
+    item: Item,
+    id: string,
+    body: { id?: string; status?: string; duplicateUpload?: boolean }
+  ): void {
     atomicJson(`${item.base}.uploaded.json`, {
       uploadedAt: new Date().toISOString(),
       serverId: body.id ?? null,
@@ -391,9 +468,18 @@ export class Uploader extends EventEmitter<UploaderEvents> {
     this.emit('status', this.status);
   }
 
-  private reject(item: Item, id: string, httpStatus: number, error: string): void {
+  private reject(
+    item: Item,
+    id: string,
+    httpStatus: number,
+    error: string
+  ): void {
     this.itemState.delete(item.base);
-    atomicJson(`${item.base}.rejected.json`, { rejectedAt: new Date().toISOString(), httpStatus, error });
+    atomicJson(`${item.base}.rejected.json`, {
+      rejectedAt: new Date().toISOString(),
+      httpStatus,
+      error,
+    });
     this.rejected++;
     this.lastError = `rejected ${id}: ${error}`;
     this.emit('rejected', { id, httpStatus, error });
@@ -404,34 +490,65 @@ export class Uploader extends EventEmitter<UploaderEvents> {
   private scan(): Item[] {
     const items: Item[] = [];
     const { inboxDir, incompleteDir } = this.opts.store;
-    const days = existsSync(inboxDir) ? readdirSync(inboxDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort() : [];
+    const days = existsSync(inboxDir)
+      ? readdirSync(inboxDir, { withFileTypes: true })
+          .filter((d) => d.isDirectory())
+          .map((d) => d.name)
+          .sort()
+      : [];
     for (const day of days) {
       const dir = join(inboxDir, day);
-      for (const f of readdirSync(dir).filter((n) => n.endsWith('.frame')).sort()) {
-        items.push(this.item(join(dir, f.slice(0, -'.frame'.length)), '.frame', true));
+      for (const f of readdirSync(dir)
+        .filter((n) => n.endsWith('.frame'))
+        .sort()) {
+        items.push(
+          this.item(join(dir, f.slice(0, -'.frame'.length)), '.frame', true)
+        );
       }
     }
     if (existsSync(incompleteDir)) {
-      for (const f of readdirSync(incompleteDir).filter((n) => n.endsWith('.bin')).sort()) {
-        items.push(this.item(join(incompleteDir, f.slice(0, -'.bin'.length)), '.bin', false));
+      for (const f of readdirSync(incompleteDir)
+        .filter((n) => n.endsWith('.bin'))
+        .sort()) {
+        items.push(
+          this.item(
+            join(incompleteDir, f.slice(0, -'.bin'.length)),
+            '.bin',
+            false
+          )
+        );
       }
     }
     // Chronological across both kinds: file names start with a timestamp
     return items
-      .filter((i) => existsSync(i.metaFile) && !existsSync(`${i.base}.uploaded.json`) && !existsSync(`${i.base}.rejected.json`))
+      .filter(
+        (i) =>
+          existsSync(i.metaFile) &&
+          !existsSync(`${i.base}.uploaded.json`) &&
+          !existsSync(`${i.base}.rejected.json`)
+      )
       .sort((a, b) => stamp(a.base).localeCompare(stamp(b.base)));
   }
 
   private item(base: string, ext: string, complete: boolean): Item {
-    return { base, dataFile: `${base}${ext}`, metaFile: `${base}.json`, complete };
+    return {
+      base,
+      dataFile: `${base}${ext}`,
+      metaFile: `${base}.json`,
+      complete,
+    };
   }
 
   private countMarkers(suffix: string): number {
     const { inboxDir, incompleteDir } = this.opts.store;
     let n = 0;
     const dirs = [incompleteDir];
-    if (existsSync(inboxDir)) for (const d of readdirSync(inboxDir, { withFileTypes: true })) if (d.isDirectory()) dirs.push(join(inboxDir, d.name));
-    for (const dir of dirs) if (existsSync(dir)) n += readdirSync(dir).filter((f) => f.endsWith(suffix)).length;
+    if (existsSync(inboxDir))
+      for (const d of readdirSync(inboxDir, { withFileTypes: true }))
+        if (d.isDirectory()) dirs.push(join(inboxDir, d.name));
+    for (const dir of dirs)
+      if (existsSync(dir))
+        n += readdirSync(dir).filter((f) => f.endsWith(suffix)).length;
     return n;
   }
 
@@ -446,7 +563,9 @@ export class Uploader extends EventEmitter<UploaderEvents> {
 function stamp(base: string): string {
   const name = base.split(/[\\/]/).pop() ?? base;
   const dir = base.split(/[\\/]/).slice(-2, -1)[0] ?? '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(dir) ? `${dir.replace(/-/g, '')}${name}` : name.replace('-', '');
+  return /^\d{4}-\d{2}-\d{2}$/.test(dir)
+    ? `${dir.replace(/-/g, '')}${name}`
+    : name.replace('-', '');
 }
 
 function atomicJson(path: string, value: unknown): void {

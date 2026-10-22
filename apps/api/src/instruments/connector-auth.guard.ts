@@ -1,6 +1,14 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Request } from 'express';
-import { ConnectorContext, ConnectorCredentialService } from './connector-credential.service';
+import {
+  ConnectorContext,
+  ConnectorCredentialService,
+} from './connector-credential.service';
 
 export type ConnectorRequest = Request & { connector: ConnectorContext };
 
@@ -20,7 +28,10 @@ export class ConnectorAuthGuard implements CanActivate {
     const header = request.headers.authorization ?? '';
     const token = /^Bearer\s+(\S+)$/i.exec(header)?.[1];
     const connector = await this.credentials.authenticate(token, request.ip);
-    if (!connector) throw new UnauthorizedException('Invalid or revoked connector credential.');
+    if (!connector)
+      throw new UnauthorizedException(
+        'Invalid or revoked connector credential.'
+      );
     request.connector = connector;
     return true;
   }

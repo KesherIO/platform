@@ -32,8 +32,18 @@ describe('Receiver', () => {
   let sockets: Socket[];
   const errors: Error[] = [];
 
-  const start = async (allowFrom?: string[], ack?: 'length-mllp' | 'mllp', store = new MessageStore(dir)) => {
-    receiver = new Receiver({ host: '127.0.0.1', port: 0, store, allowFrom, ack });
+  const start = async (
+    allowFrom?: string[],
+    ack?: 'length-mllp' | 'mllp',
+    store = new MessageStore(dir)
+  ) => {
+    receiver = new Receiver({
+      host: '127.0.0.1',
+      port: 0,
+      store,
+      allowFrom,
+      ack,
+    });
     receiver.on('error', (e) => errors.push(e));
     await receiver.start();
     return receiver.address().port;
@@ -57,7 +67,11 @@ describe('Receiver', () => {
 
   it('saves fragmented and back-to-back messages exactly, across reconnects, and tracks status', async () => {
     const port = await start();
-    const frames = [makeFrame(hl7For('168', '2577')), makeFrame(hl7For('169', '2574')), makeFrame(hl7For('1111', '2580'))];
+    const frames = [
+      makeFrame(hl7For('168', '2577')),
+      makeFrame(hl7For('169', '2574')),
+      makeFrame(hl7For('1111', '2580')),
+    ];
 
     const s1 = await open(port);
     await until(() => receiver.status.connections.length === 1);
@@ -73,7 +87,9 @@ describe('Receiver', () => {
     s2.write(frames[2]);
     await until(() => receiver.status.savedCount === 3);
 
-    expect(savedFrames(dir).map((b) => b.toString('hex'))).toEqual(frames.map((b) => b.toString('hex')));
+    expect(savedFrames(dir).map((b) => b.toString('hex'))).toEqual(
+      frames.map((b) => b.toString('hex'))
+    );
     expect(receiver.status.lastSampleId).toBe('1111');
     expect(receiver.status.lastControlId).toBe('2580');
     expect(receiver.status.errorCount).toBe(0);
@@ -87,8 +103,14 @@ describe('Receiver', () => {
     await sleep(30);
     s1.destroy();
     await until(() => receiver.status.errorCount === 1);
-    const kept = readdirSync(join(dir, 'incomplete')).filter((f) => f.endsWith('.bin'));
-    expect(readFileSync(join(dir, 'incomplete', kept[0])).equals(frame.subarray(0, 50))).toBe(true);
+    const kept = readdirSync(join(dir, 'incomplete')).filter((f) =>
+      f.endsWith('.bin')
+    );
+    expect(
+      readFileSync(join(dir, 'incomplete', kept[0])).equals(
+        frame.subarray(0, 50)
+      )
+    ).toBe(true);
     expect(receiver.status.incompleteCount).toBe(1);
     expect(receiver.status.savedCount).toBe(0); // never counted as a message
 
@@ -142,13 +164,26 @@ describe('Receiver', () => {
       const reply = collectReply(s);
       const f = makeFrame(hl7For('168', '2577'));
       s.write(Buffer.concat([f, f, makeFrame(hl7For('169', '2574'))]));
-      await until(() => (reply().toString('latin1').match(/MSA\|AA\|/g) ?? []).length === 3);
+      await until(
+        () =>
+          (
+            reply()
+              .toString('latin1')
+              .match(/MSA\|AA\|/g) ?? []
+          ).length === 3
+      );
       expect(receiver.status.ackedCount).toBe(3);
-      expect(reply().toString('latin1').match(/MSA\|AA\|(\d+)/g)).toEqual(['MSA|AA|2577', 'MSA|AA|2577', 'MSA|AA|2574']);
+      expect(
+        reply()
+          .toString('latin1')
+          .match(/MSA\|AA\|(\d+)/g)
+      ).toEqual(['MSA|AA|2577', 'MSA|AA|2577', 'MSA|AA|2574']);
     });
 
     it('does NOT ACK when the stored copy fails the read-back check', async () => {
-      const store = new MessageStore(dir, { readBack: () => Buffer.from('corrupt') });
+      const store = new MessageStore(dir, {
+        readBack: () => Buffer.from('corrupt'),
+      });
       const port = await start(undefined, 'length-mllp', store);
       const s = await open(port);
       const reply = collectReply(s);
@@ -177,17 +212,20 @@ describe('Receiver', () => {
   });
 
   const real = loadRealCapture();
-  (real ? it : it.skip)('stores the real 3.4 MB capture exactly when sent in random fragments', async () => {
-    const port = await start();
-    const s = await open(port);
-    for (let off = 0; off < real!.length; ) {
-      const n = 1 + Math.floor(Math.random() * 20_000);
-      s.write(real!.subarray(off, off + n));
-      off += n;
+  (real ? it : it.skip)(
+    'stores the real 3.4 MB capture exactly when sent in random fragments',
+    async () => {
+      const port = await start();
+      const s = await open(port);
+      for (let off = 0; off < real!.length; ) {
+        const n = 1 + Math.floor(Math.random() * 20_000);
+        s.write(real!.subarray(off, off + n));
+        off += n;
+      }
+      await until(() => receiver.status.savedCount === 5, 10_000);
+      expect(errors).toEqual([]);
+      expect(Buffer.concat(savedFrames(dir)).equals(real!)).toBe(true);
+      expect(new FrameDecoder().push(real!).frames).toHaveLength(5);
     }
-    await until(() => receiver.status.savedCount === 5, 10_000);
-    expect(errors).toEqual([]);
-    expect(Buffer.concat(savedFrames(dir)).equals(real!)).toBe(true);
-    expect(new FrameDecoder().push(real!).frames).toHaveLength(5);
-  });
+  );
 });

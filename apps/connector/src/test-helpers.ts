@@ -3,13 +3,21 @@ import { resolve } from 'node:path';
 
 /** Build a frame exactly like the VH-30: <u32 BE L><0B><hl7><1C><0D>. */
 export function makeFrame(hl7: string): Buffer {
-  const body = Buffer.concat([Buffer.from([0x0b]), Buffer.from(hl7, 'latin1'), Buffer.from([0x1c, 0x0d])]);
+  const body = Buffer.concat([
+    Buffer.from([0x0b]),
+    Buffer.from(hl7, 'latin1'),
+    Buffer.from([0x1c, 0x0d]),
+  ]);
   const prefix = Buffer.alloc(4);
   prefix.writeUInt32BE(body.length);
   return Buffer.concat([prefix, body]);
 }
 
-export const hl7For = (sampleId: string, controlId: string, time = '20261020090403') =>
+export const hl7For = (
+  sampleId: string,
+  controlId: string,
+  time = '20261020090403'
+) =>
   [
     `MSH|^~\\&|Genrui|VH30|||${time}||ORU^R01|${controlId}|P|2.3.1|||||CHA|UTF-8|||`,
     `PID|1||${sampleId}|||dog||O|||||||||||||||||||||||`,

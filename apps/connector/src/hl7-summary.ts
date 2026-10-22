@@ -30,7 +30,8 @@ export function summarizeHl7(payload: Buffer): Hl7Summary {
   let obxCount = 0;
   for (const segment of segments) {
     if (segment.startsWith('MSH|')) msh = segment.split('|');
-    else if (segment.startsWith('PID|') && pid.length === 0) pid = segment.split('|');
+    else if (segment.startsWith('PID|') && pid.length === 0)
+      pid = segment.split('|');
     else if (segment.startsWith('OBX|')) obxCount++;
   }
   // MSH-1 is the separator itself, so MSH-n sits at index n-1.

@@ -11,7 +11,10 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiExcludeController } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
-import { ConnectorAuthGuard, type ConnectorRequest } from './connector-auth.guard';
+import {
+  ConnectorAuthGuard,
+  type ConnectorRequest,
+} from './connector-auth.guard';
 import { InstrumentIngestService } from './instrument-ingest.service';
 import { readRawBody } from './raw-body.util';
 
@@ -36,7 +39,12 @@ export class InstrumentIngestController {
   @Get('ping')
   ping(@Req() req: ConnectorRequest) {
     const c = req.connector;
-    return { ok: true, analyzer: c.analyzerName, credential: c.credentialName, serverTime: new Date().toISOString() };
+    return {
+      ok: true,
+      analyzer: c.analyzerName,
+      credential: c.credentialName,
+      serverTime: new Date().toISOString(),
+    };
   }
 
   /**
@@ -55,11 +63,17 @@ export class InstrumentIngestController {
     @Headers('x-local-id') localId: string | undefined,
     @Headers('x-remote-address') remoteAddress: string | undefined
   ) {
-    if (!sha256 || !SHA256_HEX.test(sha256)) throw new BadRequestException('X-Content-SHA256 (64 hex chars) is required.');
+    if (!sha256 || !SHA256_HEX.test(sha256))
+      throw new BadRequestException(
+        'X-Content-SHA256 (64 hex chars) is required.'
+      );
     const received = receivedAt ? new Date(receivedAt) : null;
-    if (!received || Number.isNaN(received.getTime())) throw new BadRequestException('X-Received-At must be an ISO date.');
+    if (!received || Number.isNaN(received.getTime()))
+      throw new BadRequestException('X-Received-At must be an ISO date.');
     if (transferStatus !== 'complete' && transferStatus !== 'incomplete') {
-      throw new BadRequestException('X-Transfer-Status must be "complete" or "incomplete".');
+      throw new BadRequestException(
+        'X-Transfer-Status must be "complete" or "incomplete".'
+      );
     }
     const bytes = await readRawBody(req, MAX_UPLOAD_BYTES);
     return this.ingest.ingest({

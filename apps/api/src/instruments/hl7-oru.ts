@@ -53,21 +53,26 @@ const LENGTH_PREFIX = 4;
 
 /** Strip the length prefix + MLLP wrapper, verifying both. Throws InvalidFrameError. */
 export function decodeFrame(frame: Buffer): Buffer {
-  if (frame.length < LENGTH_PREFIX + 4) throw new InvalidFrameError('Frame too short');
+  if (frame.length < LENGTH_PREFIX + 4)
+    throw new InvalidFrameError('Frame too short');
   const declared = frame.readUInt32BE(0);
   if (declared !== frame.length - LENGTH_PREFIX) {
     throw new InvalidFrameError(
-      `Length prefix says ${declared} bytes but ${frame.length - LENGTH_PREFIX} follow`
+      `Length prefix says ${declared} bytes but ${
+        frame.length - LENGTH_PREFIX
+      } follow`
     );
   }
-  if (frame[LENGTH_PREFIX] !== 0x0b) throw new InvalidFrameError('Missing 0x0B start byte');
+  if (frame[LENGTH_PREFIX] !== 0x0b)
+    throw new InvalidFrameError('Missing 0x0B start byte');
   if (frame[frame.length - 2] !== 0x1c || frame[frame.length - 1] !== 0x0d) {
     throw new InvalidFrameError('Missing 0x1C 0x0D trailer');
   }
   return frame.subarray(LENGTH_PREFIX + 1, frame.length - 2);
 }
 
-const field = (parts: string[], index: number): string => (parts[index] ?? '').trim();
+const field = (parts: string[], index: number): string =>
+  (parts[index] ?? '').trim();
 const orNull = (v: string): string | null => (v === '' ? null : v);
 
 export function parseOru(payload: Buffer): ParsedOru {
@@ -79,8 +84,10 @@ export function parseOru(payload: Buffer): ParsedOru {
 
   for (const segment of segments) {
     if (segment.startsWith('MSH|')) msh = segment.split('|');
-    else if (segment.startsWith('PID|') && pid.length === 0) pid = segment.split('|');
-    else if (segment.startsWith('OBR|') && obr.length === 0) obr = segment.split('|');
+    else if (segment.startsWith('PID|') && pid.length === 0)
+      pid = segment.split('|');
+    else if (segment.startsWith('OBR|') && obr.length === 0)
+      obr = segment.split('|');
     else if (segment.startsWith('OBX|')) {
       const p = segment.split('|');
       const id = field(p, 3).split('^');
@@ -103,7 +110,8 @@ export function parseOru(payload: Buffer): ParsedOru {
   if (!msh) throw new InvalidFrameError('No MSH segment');
   // MSH-1 is the separator itself, so MSH-n is at index n-1
   const type = field(msh, 8);
-  if (!type.startsWith('ORU^R01')) throw new InvalidFrameError(`Unsupported message type "${type}"`);
+  if (!type.startsWith('ORU^R01'))
+    throw new InvalidFrameError(`Unsupported message type "${type}"`);
 
   return {
     messageType: orNull(type),
@@ -136,12 +144,22 @@ function zoneOffsetMinutes(timeZone: string, at: Date): number {
     second: '2-digit',
   }).formatToParts(at);
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
-  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  const asUtc = Date.UTC(
+    get('year'),
+    get('month') - 1,
+    get('day'),
+    get('hour'),
+    get('minute'),
+    get('second')
+  );
   return Math.round((asUtc - Math.floor(at.getTime() / 1000) * 1000) / 60_000);
 }
 
 /** yyyymmddhhmmss in the lab's IANA time zone (the analyzer sends its local clock) -> Date. */
-export function parseHl7Time(raw: string | null, timeZone = 'UTC'): Date | null {
+export function parseHl7Time(
+  raw: string | null,
+  timeZone = 'UTC'
+): Date | null {
   const m = /^(\d{4})(\d{2})(\d{2})(\d{2})?(\d{2})?(\d{2})?/.exec(raw ?? '');
   if (!m) return null;
   const [, y, mo, d, h = '0', mi = '0', s = '0'] = m;
@@ -175,7 +193,9 @@ export function contentHash(oru: ParsedOru, payload: Buffer): string {
     if (field(p, 2) === 'ED') imageHash.set(field(p, 1), sha(p[5] ?? ''));
   }
   const lines = [
-    `PID|${oru.patient.sampleId ?? ''}|${oru.patient.name ?? ''}|${oru.patient.speciesText ?? ''}|${oru.patient.sex ?? ''}`,
+    `PID|${oru.patient.sampleId ?? ''}|${oru.patient.name ?? ''}|${
+      oru.patient.speciesText ?? ''
+    }|${oru.patient.sex ?? ''}`,
     `OBR7|${oru.observationTimeRaw ?? ''}`,
     ...oru.observations.map((o) =>
       o.isImage
@@ -228,14 +248,25 @@ export function toStoredSummary(oru: ParsedOru, payload: Buffer) {
 export type StoredSummary = ReturnType<typeof toStoredSummary>;
 
 export interface MessageDiff {
-  changed: Array<{ code: string; before: ParsedParameter; after: ParsedParameter }>;
+  changed: Array<{
+    code: string;
+    before: ParsedParameter;
+    after: ParsedParameter;
+  }>;
   added: ParsedParameter[];
   removed: ParsedParameter[];
   imagesChanged: string[];
-  patientChanged: Array<{ field: string; before: string | null; after: string | null }>;
+  patientChanged: Array<{
+    field: string;
+    before: string | null;
+    after: string | null;
+  }>;
 }
 
-export const diffSummaries = (before: StoredSummary, after: StoredSummary): MessageDiff => {
+export const diffSummaries = (
+  before: StoredSummary,
+  after: StoredSummary
+): MessageDiff => {
   const key = (p: ParsedParameter) => p.code;
   const b = new Map(before.parameters.map((p) => [key(p), p]));
   const a = new Map(after.parameters.map((p) => [key(p), p]));
@@ -249,16 +280,23 @@ export const diffSummaries = (before: StoredSummary, after: StoredSummary): Mess
   const changed: MessageDiff['changed'] = [];
   for (const [code, after1] of a) {
     const before1 = b.get(code);
-    if (before1 && !same(before1, after1)) changed.push({ code, before: before1, after: after1 });
+    if (before1 && !same(before1, after1))
+      changed.push({ code, before: before1, after: after1 });
   }
   const bi = new Map(before.images.map((i) => [i.code, i.hash]));
   const ai = new Map(after.images.map((i) => [i.code, i.hash]));
-  const imagesChanged = [...new Set([...bi.keys(), ...ai.keys()])].filter((c) => bi.get(c) !== ai.get(c));
+  const imagesChanged = [...new Set([...bi.keys(), ...ai.keys()])].filter(
+    (c) => bi.get(c) !== ai.get(c)
+  );
 
   const patientChanged: MessageDiff['patientChanged'] = [];
   for (const f of ['sampleId', 'name', 'speciesText', 'sex'] as const) {
     if (before.patient[f] !== after.patient[f]) {
-      patientChanged.push({ field: f, before: before.patient[f], after: after.patient[f] });
+      patientChanged.push({
+        field: f,
+        before: before.patient[f],
+        after: after.patient[f],
+      });
     }
   }
   return {
@@ -274,7 +312,11 @@ export const diffSummaries = (before: StoredSummary, after: StoredSummary): Mess
  * Best-effort header read from bytes that are NOT a complete message
  * (interrupted transfer). For display only — the message is never imported.
  */
-export function peekHeader(bytes: Buffer): { controlId: string | null; sampleId: string | null; messageTime: string | null } {
+export function peekHeader(bytes: Buffer): {
+  controlId: string | null;
+  sampleId: string | null;
+  messageTime: string | null;
+} {
   const text = bytes.subarray(0, 4096).toString('latin1');
   const msh = /MSH\|[^\r]*/.exec(text)?.[0].split('|');
   const pid = /PID\|[^\r]*/.exec(text)?.[0].split('|');

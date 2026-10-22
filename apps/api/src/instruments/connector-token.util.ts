@@ -25,7 +25,9 @@ export function generateToken(): GeneratedToken {
   return { token, prefix, hash: hashToken(token) };
 }
 
-export function parseToken(token: string | undefined | null): { prefix: string } | null {
+export function parseToken(
+  token: string | undefined | null
+): { prefix: string } | null {
   const m = TOKEN_RE.exec(token ?? '');
   return m ? { prefix: m[1] } : null;
 }

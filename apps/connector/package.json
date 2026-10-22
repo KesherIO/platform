@@ -10,7 +10,9 @@
           "command": "node scripts/bundle.mjs",
           "cwd": "apps/connector"
         },
-        "outputs": ["{projectRoot}/dist"]
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
       }
     }
   }

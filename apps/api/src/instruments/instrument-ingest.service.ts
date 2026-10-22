@@ -47,15 +47,29 @@ export class InstrumentIngestService {
     const { connector, bytes } = input;
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     if (sha256 !== input.claimedSha256.toLowerCase()) {
-      throw new BadRequestException('Content hash mismatch: the body was altered or truncated in transit.');
+      throw new BadRequestException(
+        'Content hash mismatch: the body was altered or truncated in transit.'
+      );
     }
     if (bytes.length === 0) throw new BadRequestException('Empty message.');
 
     const key = {
-      labTenantId_analyzerId_sha256: { labTenantId: connector.labTenantId, analyzerId: connector.analyzerId, sha256 },
+      labTenantId_analyzerId_sha256: {
+        labTenantId: connector.labTenantId,
+        analyzerId: connector.analyzerId,
+        sha256,
+      },
     };
-    const existing = await this.prisma.instrumentMessage.findUnique({ where: key, select: { id: true, status: true } });
-    if (existing) return { id: existing.id, status: existing.status, duplicateUpload: true };
+    const existing = await this.prisma.instrumentMessage.findUnique({
+      where: key,
+      select: { id: true, status: true },
+    });
+    if (existing)
+      return {
+        id: existing.id,
+        status: existing.status,
+        duplicateUpload: true,
+      };
 
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: connector.labTenantId },
@@ -76,22 +90,38 @@ export class InstrumentIngestService {
           connectorLocalId: input.localId ?? null,
           remoteAddress: input.remoteAddress ?? null,
           ...record,
-          payload: { create: { compression: 'gzip', bytes: new Uint8Array(gzipSync(bytes)) } },
+          payload: {
+            create: {
+              compression: 'gzip',
+              bytes: new Uint8Array(gzipSync(bytes)),
+            },
+          },
         },
         select: { id: true },
       });
       id = created.id;
     } catch (err) {
       // Two uploads of the same bytes raced: the other one won.
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        const winner = await this.prisma.instrumentMessage.findUniqueOrThrow({ where: key, select: { id: true, status: true } });
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        const winner = await this.prisma.instrumentMessage.findUniqueOrThrow({
+          where: key,
+          select: { id: true, status: true },
+        });
         return { id: winner.id, status: winner.status, duplicateUpload: true };
       }
       throw err;
     }
 
     if (record.isComplete && record.status === 'RECEIVED') {
-      await this.resolveEarlierIncomplete(connector, id, record.controlId, record.sampleId);
+      await this.resolveEarlierIncomplete(
+        connector,
+        id,
+        record.controlId,
+        record.sampleId
+      );
       try {
         const status = await this.processor.process(id);
         return { id, status, duplicateUpload: false };
@@ -101,7 +131,11 @@ export class InstrumentIngestService {
         this.logger.error(`Processing message ${id} failed: ${message}`);
         await this.prisma.instrumentMessage.update({
           where: { id },
-          data: { status: 'FAILED', processingError: message.slice(0, 1000), reasons: ['PROCESSING_ERROR'] },
+          data: {
+            status: 'FAILED',
+            processingError: message.slice(0, 1000),
+            reasons: ['PROCESSING_ERROR'],
+          },
         });
         return { id, status: 'FAILED', duplicateUpload: false };
       }
@@ -116,7 +150,9 @@ export class InstrumentIngestService {
       const peek = peekHeader(bytes);
       return {
         isComplete: false,
-        incompleteReason: (input.incompleteReason ?? 'interrupted-transfer').slice(0, 100),
+        incompleteReason: (
+          input.incompleteReason ?? 'interrupted-transfer'
+        ).slice(0, 100),
         status: 'INCOMPLETE' as const,
         reasons: ['INCOMPLETE_TRANSFER'],
         controlId: peek.controlId,
@@ -139,14 +175,20 @@ export class InstrumentIngestService {
         contentHash: contentHash(oru, payload),
         hasAnalyzerEdits: flags.some((f) => f === 'E' || f === 'e'),
         hasExpiredReagent: flags.some((f) => f === 'O'),
-        parsed: toStoredSummary(oru, payload) as unknown as Prisma.InputJsonValue,
+        parsed: toStoredSummary(
+          oru,
+          payload
+        ) as unknown as Prisma.InputJsonValue,
       };
     } catch (err) {
       return {
         isComplete: true,
         status: 'FAILED' as const,
         reasons: ['UNPARSEABLE_MESSAGE'],
-        processingError: (err instanceof Error ? err.message : String(err)).slice(0, 1000),
+        processingError: (err instanceof Error
+          ? err.message
+          : String(err)
+        ).slice(0, 1000),
       };
     }
   }
@@ -168,7 +210,10 @@ export class InstrumentIngestService {
         controlId,
         sampleId,
       },
-      data: { resolvedAt: new Date(), reviewNote: `A complete copy arrived (message ${messageId}).` },
+      data: {
+        resolvedAt: new Date(),
+        reviewNote: `A complete copy arrived (message ${messageId}).`,
+      },
     });
   }
 }

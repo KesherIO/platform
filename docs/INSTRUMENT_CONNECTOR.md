@@ -55,7 +55,7 @@ staff from the review queue ("Link and import as draft"; the window is run time 
 `instrument_parameter_mappings` keys `(analyzer, parameter code, unit the analyzer sends, catalog code)` →
 `template analyte code` × `multiplier`. A mapped parameter arriving in a unit that has no row (e.g. HGB in
 `g/L` when only `g/dL` is mapped) is **not imported**: `UNIT_MISMATCH:HGB:g/L` goes to review, and adding a
-mapping row (`g/L`, ×0.1) then *Reprocess* imports it converted. Parameters with no mapping at all, text
+mapping row (`g/L`, ×0.1) then _Reprocess_ imports it converted. Parameters with no mapping at all, text
 parameters, alarms and images are ignored and listed on the message ("not mapped").
 Dev mappings (see `seed-instrument-dev.mjs`): WBC RBC HGB HCT MCV MCH MCHC PLT MPV (HGB and MCHC also in g/L ×0.1).
 Deliberately **not** mapped: `Lym#/Lym%/Mid#/Mid%/Gran#/Gran%` (the whole differential, see the lab decision below), (a 3-part differential is not NEU/MON/EOS/BAS), RDW, PDW,
@@ -74,17 +74,18 @@ is a 3-part differential analyzer and never sends those five. Follow-up (same da
   seen for that run (same analyzer + sample ID + OBR-7) → `DUPLICATE`; nothing imported or queued.
 - **Changed**: a different hash for a run that was already `IMPORTED` → `NEEDS_REVIEW` with reason
   `CONTENT_CHANGED` and a per-parameter before/after diff (values, units, ranges, flags, histogram-only
-  changes, patient fields). The draft is untouched until a reviewer approves. Re-sending an *old* version is
+  changes, patient fields). The draft is untouched until a reviewer approves. Re-sending an _old_ version is
   treated as a duplicate of it, not as a new change.
 
 ## OBX-13 flags (kept separate)
 
 Stored per parameter (`parsed.parameters[].userFlag`) and summarised as two independent booleans.
+
 - `O` expired reagent → `hasExpiredReagent`, reason **`EXPIRED_REAGENT`**: always held for review, shown with its own badge.
 - `E` / `e` edited on the analyzer → `hasAnalyzerEdits`: retained and shown ("Edited on analyzer"); not blocking
   by itself. If the edit arrives after an import it is caught as `CONTENT_CHANGED`.
-The PDF defines these only in its table; **whether an edit changes MSH-10 / OBR-7 is unknown until the hardware
-checklist (step 10) is done** — change detection does not depend on it.
+  The PDF defines these only in its table; **whether an edit changes MSH-10 / OBR-7 is unknown until the hardware
+  checklist (step 10) is done** — change detection does not depend on it.
 
 ## Interrupted transfers
 
@@ -98,24 +99,25 @@ stay `INCOMPLETE` forever — they are acknowledged, not relabelled.
 
 `NEEDS_REVIEW`, `UNMATCHED`, `AMBIGUOUS`, `FAILED` (unresolved) + interrupted transfers. Reason codes:
 
-| Code | Meaning | Resolve by |
-| --- | --- | --- |
-| `UNMATCHED`, `AMBIGUOUS_SAMPLE` | no / several links | link to an order (or end a bad link) |
-| `CONTENT_CHANGED` | differs from what was imported | **approve** (reviewer+) |
-| `EXPIRED_REAGENT` | OBX-13 = O | **approve** (reviewer+) |
-| `EXISTING_MANUAL_VALUES` | a technician already typed values for these analytes | **approve** (reviewer+) |
-| `DRAFT_MODIFIED_SINCE_IMPORT` | the draft no longer holds what the analyzer import wrote (someone edited it) | **approve** (reviewer+) |
-| `UNIT_MISMATCH:<code>:<unit>` | unit has no mapping | add mapping, reprocess |
-| `NO_MAPPED_PARAMETERS`, `NO_MATCHING_TEST:<code>`, `ANALYTE_NOT_IN_TEMPLATE:<code>` | configuration gap | fix config, reprocess |
-| `ORDER_NOT_AVAILABLE`, `TEST_NOT_EDITABLE` | order cancelled; test not accepted / in review / released | fix, reprocess (a released test needs the amendment workflow) |
+| Code                                                                                | Meaning                                                                      | Resolve by                                                    |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `UNMATCHED`, `AMBIGUOUS_SAMPLE`                                                     | no / several links                                                           | link to an order (or end a bad link)                          |
+| `CONTENT_CHANGED`                                                                   | differs from what was imported                                               | **approve** (reviewer+)                                       |
+| `EXPIRED_REAGENT`                                                                   | OBX-13 = O                                                                   | **approve** (reviewer+)                                       |
+| `EXISTING_MANUAL_VALUES`                                                            | a technician already typed values for these analytes                         | **approve** (reviewer+)                                       |
+| `DRAFT_MODIFIED_SINCE_IMPORT`                                                       | the draft no longer holds what the analyzer import wrote (someone edited it) | **approve** (reviewer+)                                       |
+| `UNIT_MISMATCH:<code>:<unit>`                                                       | unit has no mapping                                                          | add mapping, reprocess                                        |
+| `NO_MAPPED_PARAMETERS`, `NO_MATCHING_TEST:<code>`, `ANALYTE_NOT_IN_TEMPLATE:<code>` | configuration gap                                                            | fix config, reprocess                                         |
+| `ORDER_NOT_AVAILABLE`, `TEST_NOT_EDITABLE`                                          | order cancelled; test not accepted / in review / released                    | fix, reprocess (a released test needs the amendment workflow) |
 
-Only the four approvable codes above can be approved; approving requires accepting *all* of them and a note, and
+Only the four approvable codes above can be approved; approving requires accepting _all_ of them and a note, and
 is refused outright when nothing approvable is open. Everything else must be fixed and reprocessed.
 
 ## Approval rechecks the live state
 
 Approving never replays an old decision: `process()` re-reads everything at the moment of approval — the
 current mappings, the test's status and release state, and the current draft values. So:
+
 - the draft is compared with what this analyzer run last wrote; if anyone edited it since, that is a new
   reason (`DRAFT_MODIFIED_SINCE_IMPORT`) and an approval of only `CONTENT_CHANGED` goes **back to review**
   without overwriting anything — the reviewer must accept both, knowingly;
@@ -171,6 +173,7 @@ cd apps/api
 INTEGRATION_DATABASE_URL=postgresql://localhost/vh30_it \
   node ../../node_modules/.bin/jest --config jest.config.js --runInBand instruments
 ```
+
 The migrations themselves were additionally applied on top of the previous schema in a scratch database
 (both files apply cleanly; RLS is on for all five tables).
 `instruments.pipeline.int.spec.ts` drives the real capture through every rule above on a real database.
@@ -185,6 +188,7 @@ rows table-wide and interfere with each other when run in parallel against one d
 DATABASE_URL=<DEV ONLY> node apps/api/prisma/seeds/seed-instrument-dev.mjs \
   --lab <lab id|slug> --clinic <clinic id|slug> --catalog-code CBC --sample-id 9001
 ```
+
 Creates (or reuses) analyzer "VH-30 (dev)", the mapping rows, one clearly-labelled development order
 (`DEV-VH30-…`, patient "ZZ VH-30 DEV") with a `READY` CBC test, a sample link for the given analyzer sample ID,
 and prints a connector token once. `--catalog-code` must be the code on the lab's CBC ordered test / template.

@@ -7,14 +7,22 @@ const oru = summarizeHl7(Buffer.from(hl7For('168', '2577')));
 
 describe('ACK^R01', () => {
   it('echoes the control ID in MSA-2 and swaps sender/receiver', () => {
-    const lines = buildAckPayload(oru, 'AA', new Date(2026, 9, 20, 9, 4, 3))!.split('\r');
-    expect(lines[0]).toBe('MSH|^~\\&|KesherIO|Connector|Genrui|VH30|20261020090403||ACK^R01|2577|P|2.3.1');
+    const lines = buildAckPayload(
+      oru,
+      'AA',
+      new Date(2026, 9, 20, 9, 4, 3)
+    )!.split('\r');
+    expect(lines[0]).toBe(
+      'MSH|^~\\&|KesherIO|Connector|Genrui|VH30|20261020090403||ACK^R01|2577|P|2.3.1'
+    );
     expect(lines[1]).toBe('MSA|AA|2577||||');
     expect(lines[2]).toBe(''); // segments end with CR
   });
 
   it('length-mllp framing decodes with the same decoder as inbound frames', () => {
-    const { frames, issues } = new FrameDecoder().push(buildAckFrame(oru, 'length-mllp')!);
+    const { frames, issues } = new FrameDecoder().push(
+      buildAckFrame(oru, 'length-mllp')!
+    );
     expect(issues).toEqual([]);
     expect(frames).toHaveLength(1);
     expect(frames[0].payload.toString()).toContain('MSA|AA|2577||||');

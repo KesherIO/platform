@@ -33,10 +33,14 @@ import {
   ResolveSampleDto,
   UpsertMappingDto,
 } from './dto/instruments.dto';
-import { InstrumentReviewService, type QueueView } from './instrument-review.service';
+import {
+  InstrumentReviewService,
+  type QueueView,
+} from './instrument-review.service';
 
 const ADMIN_ROLES = [TenantRole.ADMIN, TenantRole.OWNER];
-const actorName = (u: AuthenticatedUser) => [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
+const actorName = (u: AuthenticatedUser) =>
+  [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email;
 const VIEWS: QueueView[] = ['review', 'incomplete', 'attention', 'all'];
 
 /** Lab staff: the analyzer review queue, sample links, parameter mappings, connector credentials. */
@@ -66,7 +70,12 @@ export class InstrumentReviewController {
     @Query('take', new ParseIntPipe({ optional: true })) take?: number,
     @Query('cursor') cursor?: string
   ) {
-    return this.review.list(t.tenantId, VIEWS.includes(view as QueueView) ? (view as QueueView) : 'attention', take, cursor);
+    return this.review.list(
+      t.tenantId,
+      VIEWS.includes(view as QueueView) ? (view as QueueView) : 'attention',
+      take,
+      cursor
+    );
   }
 
   @Get('messages/:id')
@@ -77,9 +86,16 @@ export class InstrumentReviewController {
 
   @Get('messages/:id/raw')
   @Roles(...LAB_STAFF_ROLES)
-  async raw(@CurrentTenant() t: TenantContext, @Param('id') id: string, @Res({ passthrough: true }) res: Response) {
+  async raw(
+    @CurrentTenant() t: TenantContext,
+    @Param('id') id: string,
+    @Res({ passthrough: true }) res: Response
+  ) {
     const { bytes, fileName } = await this.review.raw(t.tenantId, id);
-    res.set({ 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${fileName}"` });
+    res.set({
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+    });
     return new StreamableFile(bytes);
   }
 
@@ -112,7 +128,13 @@ export class InstrumentReviewController {
     @Param('id') id: string,
     @Body() dto: ApproveDto
   ) {
-    return this.review.approve(t.tenantId, id, { id: user.id, name: actorName(user) }, dto.reasons, dto.note);
+    return this.review.approve(
+      t.tenantId,
+      id,
+      { id: user.id, name: actorName(user) },
+      dto.reasons,
+      dto.note
+    );
   }
 
   @Post('messages/:id/dismiss')
@@ -131,13 +153,24 @@ export class InstrumentReviewController {
 
   @Get('sample-links')
   @Roles(...LAB_STAFF_ROLES)
-  listLinks(@CurrentTenant() t: TenantContext, @Query('analyzerId') analyzerId?: string, @Query('orderId') orderId?: string) {
-    return this.review.listLinks(t.tenantId, { ...(analyzerId && { analyzerId }), ...(orderId && { orderId }) });
+  listLinks(
+    @CurrentTenant() t: TenantContext,
+    @Query('analyzerId') analyzerId?: string,
+    @Query('orderId') orderId?: string
+  ) {
+    return this.review.listLinks(t.tenantId, {
+      ...(analyzerId && { analyzerId }),
+      ...(orderId && { orderId }),
+    });
   }
 
   @Post('sample-links')
   @Roles(...LAB_STAFF_ROLES)
-  createLink(@CurrentTenant() t: TenantContext, @CurrentUser() user: AuthenticatedUser, @Body() dto: CreateSampleLinkDto) {
+  createLink(
+    @CurrentTenant() t: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateSampleLinkDto
+  ) {
     return this.review.createLink(t.tenantId, dto, user.id);
   }
 
@@ -152,13 +185,19 @@ export class InstrumentReviewController {
 
   @Get('mappings')
   @Roles(...LAB_STAFF_ROLES)
-  listMappings(@CurrentTenant() t: TenantContext, @Query('analyzerId') analyzerId?: string) {
+  listMappings(
+    @CurrentTenant() t: TenantContext,
+    @Query('analyzerId') analyzerId?: string
+  ) {
     return this.review.listMappings(t.tenantId, analyzerId);
   }
 
   @Put('mappings')
   @Roles(...ADMIN_ROLES)
-  upsertMapping(@CurrentTenant() t: TenantContext, @Body() dto: UpsertMappingDto) {
+  upsertMapping(
+    @CurrentTenant() t: TenantContext,
+    @Body() dto: UpsertMappingDto
+  ) {
     return this.review.upsertMapping(t.tenantId, dto);
   }
 
@@ -179,14 +218,27 @@ export class InstrumentReviewController {
   /** The token is in this response only. Store it in the connector; it cannot be shown again. */
   @Post('credentials')
   @Roles(...ADMIN_ROLES)
-  createCredential(@CurrentTenant() t: TenantContext, @CurrentUser() user: AuthenticatedUser, @Body() dto: CreateCredentialDto) {
-    return this.credentials.create(t.tenantId, dto.analyzerId, dto.name, user.id);
+  createCredential(
+    @CurrentTenant() t: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateCredentialDto
+  ) {
+    return this.credentials.create(
+      t.tenantId,
+      dto.analyzerId,
+      dto.name,
+      user.id
+    );
   }
 
   @Post('credentials/:id/revoke')
   @Roles(...ADMIN_ROLES)
   @HttpCode(HttpStatus.OK)
-  revokeCredential(@CurrentTenant() t: TenantContext, @CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  revokeCredential(
+    @CurrentTenant() t: TenantContext,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string
+  ) {
     return this.credentials.revoke(t.tenantId, id, user.id);
   }
 }

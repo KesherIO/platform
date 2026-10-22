@@ -2,7 +2,12 @@ import type { TFunction } from 'i18next';
 import type { InstrumentMessageStatus } from '../../types/lab.types';
 
 /** Reasons a reviewer may knowingly accept. Everything else must be fixed, then reprocessed. */
-export const APPROVABLE = ['CONTENT_CHANGED', 'EXPIRED_REAGENT', 'EXISTING_MANUAL_VALUES', 'DRAFT_MODIFIED_SINCE_IMPORT'];
+export const APPROVABLE = [
+  'CONTENT_CHANGED',
+  'EXPIRED_REAGENT',
+  'EXISTING_MANUAL_VALUES',
+  'DRAFT_MODIFIED_SINCE_IMPORT',
+];
 
 export const reasonCode = (reason: string) => reason.split(':')[0];
 
@@ -13,7 +18,10 @@ function detail(reason: string): string {
 }
 
 export const reasonLabel = (t: TFunction, reason: string) =>
-  t(`instruments.reasons.${reasonCode(reason)}`, { detail: detail(reason), defaultValue: reason });
+  t(`instruments.reasons.${reasonCode(reason)}`, {
+    detail: detail(reason),
+    defaultValue: reason,
+  });
 
 export const STATUS_STYLE: Record<InstrumentMessageStatus, string> = {
   RECEIVED: 'bg-gray-400/15 text-gray-300',

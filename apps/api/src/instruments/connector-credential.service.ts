@@ -1,6 +1,14 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { generateToken, parseToken, tokenMatches } from './connector-token.util';
+import {
+  generateToken,
+  parseToken,
+  tokenMatches,
+} from './connector-token.util';
 
 export interface ConnectorContext {
   credentialId: string;
@@ -18,18 +26,38 @@ export class ConnectorCredentialService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Creates a credential for ONE lab's ONE analyzer. The token is returned here and never again. */
-  async create(labTenantId: string, analyzerId: string, name: string, createdById: string) {
+  async create(
+    labTenantId: string,
+    analyzerId: string,
+    name: string,
+    createdById: string
+  ) {
     const analyzer = await this.prisma.analyzer.findFirst({
       where: { id: analyzerId, labTenantId },
       select: { id: true, isActive: true },
     });
-    if (!analyzer) throw new NotFoundException('Analyzer not found in this laboratory.');
-    if (!analyzer.isActive) throw new BadRequestException('Analyzer is disabled.');
+    if (!analyzer)
+      throw new NotFoundException('Analyzer not found in this laboratory.');
+    if (!analyzer.isActive)
+      throw new BadRequestException('Analyzer is disabled.');
 
     const { token, prefix, hash } = generateToken();
     const row = await this.prisma.connectorCredential.create({
-      data: { labTenantId, analyzerId, name, tokenPrefix: prefix, tokenHash: hash, createdById },
-      select: { id: true, name: true, analyzerId: true, tokenPrefix: true, createdAt: true },
+      data: {
+        labTenantId,
+        analyzerId,
+        name,
+        tokenPrefix: prefix,
+        tokenHash: hash,
+        createdById,
+      },
+      select: {
+        id: true,
+        name: true,
+        analyzerId: true,
+        tokenPrefix: true,
+        createdAt: true,
+      },
     });
     return { ...row, token };
   }
@@ -68,7 +96,10 @@ export class ConnectorCredentialService {
   }
 
   /** null for anything that is not a valid, unrevoked credential of an active analyzer. */
-  async authenticate(token: string | undefined, address?: string): Promise<ConnectorContext | null> {
+  async authenticate(
+    token: string | undefined,
+    address?: string
+  ): Promise<ConnectorContext | null> {
     const parsed = parseToken(token);
     if (!parsed || !token) return null;
     const row = await this.prisma.connectorCredential.findUnique({
@@ -84,13 +115,21 @@ export class ConnectorCredentialService {
         analyzer: { select: { name: true, isActive: true, labTenantId: true } },
       },
     });
-    if (!row || row.revokedAt || !tokenMatches(token, row.tokenHash)) return null;
+    if (!row || row.revokedAt || !tokenMatches(token, row.tokenHash))
+      return null;
     // Defense in depth: the analyzer must still belong to the credential's lab.
-    if (!row.analyzer.isActive || row.analyzer.labTenantId !== row.labTenantId) return null;
+    if (!row.analyzer.isActive || row.analyzer.labTenantId !== row.labTenantId)
+      return null;
 
-    if (!row.lastSeenAt || Date.now() - row.lastSeenAt.getTime() > TOUCH_INTERVAL_MS) {
+    if (
+      !row.lastSeenAt ||
+      Date.now() - row.lastSeenAt.getTime() > TOUCH_INTERVAL_MS
+    ) {
       void this.prisma.connectorCredential
-        .update({ where: { id: row.id }, data: { lastSeenAt: new Date(), lastSeenAddress: address ?? null } })
+        .update({
+          where: { id: row.id },
+          data: { lastSeenAt: new Date(), lastSeenAddress: address ?? null },
+        })
         .catch(() => undefined);
     }
     return {

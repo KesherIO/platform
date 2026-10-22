@@ -1,9 +1,18 @@
 import { EventEmitter } from 'node:events';
-import { createServer, type AddressInfo, type Server, type Socket } from 'node:net';
+import {
+  createServer,
+  type AddressInfo,
+  type Server,
+  type Socket,
+} from 'node:net';
 import { buildAckFrame, type AckFraming } from './ack';
 import { FrameDecoder, type FramingIssue } from './framing';
 import { summarizeHl7, type Hl7Summary } from './hl7-summary';
-import { MessageStore, type IncompleteMeta, type ReceivedFrameMeta } from './message-store';
+import {
+  MessageStore,
+  type IncompleteMeta,
+  type ReceivedFrameMeta,
+} from './message-store';
 
 export interface ReceiverOptions {
   host: string;
@@ -83,7 +92,10 @@ export class Receiver extends EventEmitter<ReceiverEvents> {
   }
 
   get status(): ReceiverStatus {
-    return { ...this.state, connections: [...this.sockets.values()].map((c) => ({ ...c })) };
+    return {
+      ...this.state,
+      connections: [...this.sockets.values()].map((c) => ({ ...c })),
+    };
   }
 
   address(): AddressInfo {
@@ -126,7 +138,11 @@ export class Receiver extends EventEmitter<ReceiverEvents> {
     }
 
     const remotePort = socket.remotePort ?? null; // gone once the socket closes
-    const info: ConnectionInfo = { remote: `${ip}:${remotePort}`, since: new Date().toISOString(), bytes: 0 };
+    const info: ConnectionInfo = {
+      remote: `${ip}:${remotePort}`,
+      since: new Date().toISOString(),
+      bytes: 0,
+    };
     this.sockets.set(socket, info);
     socket.setNoDelay(true);
     socket.setKeepAlive(true, 15_000); // notice a cable pulled without a TCP close
@@ -140,7 +156,12 @@ export class Receiver extends EventEmitter<ReceiverEvents> {
       try {
         const { frames, issues } = decoder.push(chunk);
         for (const frame of frames) {
-          const meta = this.storeFrame(frame.bytes, frame.payload, ip, remotePort);
+          const meta = this.storeFrame(
+            frame.bytes,
+            frame.payload,
+            ip,
+            remotePort
+          );
           if (meta) this.sendAck(socket, info.remote, meta.hl7);
         }
         for (const issue of issues) this.storeIssue(issue, ip, remotePort);
@@ -148,7 +169,9 @@ export class Receiver extends EventEmitter<ReceiverEvents> {
         this.fail(err);
       }
     });
-    socket.on('error', (err) => this.fail(new Error(`Connection ${info.remote}: ${err.message}`)));
+    socket.on('error', (err) =>
+      this.fail(new Error(`Connection ${info.remote}: ${err.message}`))
+    );
     socket.on('close', () => {
       this.sockets.delete(socket);
       try {
@@ -163,10 +186,18 @@ export class Receiver extends EventEmitter<ReceiverEvents> {
   }
 
   /** Returns the saved record, or null if it could not be saved (then NO ack is sent). */
-  private storeFrame(bytes: Buffer, payload: Buffer, remoteAddress: string, remotePort: number | null) {
+  private storeFrame(
+    bytes: Buffer,
+    payload: Buffer,
+    remoteAddress: string,
+    remotePort: number | null
+  ) {
     try {
       const hl7 = summarizeHl7(payload);
-      const meta = this.opts.store.saveFrame(bytes, hl7, { remoteAddress, remotePort });
+      const meta = this.opts.store.saveFrame(bytes, hl7, {
+        remoteAddress,
+        remotePort,
+      });
       this.state.savedCount = this.opts.store.savedCount;
       this.state.lastSampleId = hl7.sampleId;
       this.state.lastControlId = hl7.controlId;
@@ -186,7 +217,8 @@ export class Receiver extends EventEmitter<ReceiverEvents> {
     const frame = buildAckFrame(hl7, this.opts.ack);
     if (!frame) return;
     socket.write(frame, (err) => {
-      if (err) return this.fail(new Error(`ACK to ${remote} failed: ${err.message}`));
+      if (err)
+        return this.fail(new Error(`ACK to ${remote} failed: ${err.message}`));
       this.state.ackedCount++;
       this.emit('acked', { controlId: hl7.controlId as string, remote });
       this.emit('status', this.status);
@@ -194,11 +226,22 @@ export class Receiver extends EventEmitter<ReceiverEvents> {
   }
 
   /** Interrupted or unframeable bytes: preserved and visibly marked INCOMPLETE, never treated as a result. */
-  private storeIssue(issue: FramingIssue, remoteAddress: string, remotePort: number | null): void {
-    const meta = this.opts.store.saveIncomplete(issue.discarded, issue.reason, { remoteAddress, remotePort });
+  private storeIssue(
+    issue: FramingIssue,
+    remoteAddress: string,
+    remotePort: number | null
+  ): void {
+    const meta = this.opts.store.saveIncomplete(issue.discarded, issue.reason, {
+      remoteAddress,
+      remotePort,
+    });
     this.state.incompleteCount = this.opts.store.incompleteCount;
     this.emit('incomplete', { issue, meta });
-    this.fail(new Error(`INCOMPLETE transfer: ${issue.message}; ${issue.discarded.length} byte(s) kept in incomplete/ and will not be imported`));
+    this.fail(
+      new Error(
+        `INCOMPLETE transfer: ${issue.message}; ${issue.discarded.length} byte(s) kept in incomplete/ and will not be imported`
+      )
+    );
   }
 
   private fail(err: unknown): void {

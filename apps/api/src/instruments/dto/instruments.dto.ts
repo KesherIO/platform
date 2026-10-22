@@ -33,7 +33,10 @@ export class CreateSampleLinkDto {
   @IsNotEmpty()
   analyzerId!: string;
 
-  @ApiProperty({ description: "The analyzer's own sample ID (PID-3). NOT an order number.", example: '168' })
+  @ApiProperty({
+    description: "The analyzer's own sample ID (PID-3). NOT an order number.",
+    example: '168',
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)
@@ -65,10 +68,21 @@ export class ResolveSampleDto {
 }
 
 export class ApproveDto {
-  @ApiProperty({ example: ['CONTENT_CHANGED'], description: 'Reason codes being accepted' })
+  @ApiProperty({
+    example: ['CONTENT_CHANGED'],
+    description: 'Reason codes being accepted',
+  })
   @IsArray()
   @ArrayMinSize(1)
-  @IsIn(['CONTENT_CHANGED', 'EXPIRED_REAGENT', 'EXISTING_MANUAL_VALUES', 'DRAFT_MODIFIED_SINCE_IMPORT'], { each: true })
+  @IsIn(
+    [
+      'CONTENT_CHANGED',
+      'EXPIRED_REAGENT',
+      'EXISTING_MANUAL_VALUES',
+      'DRAFT_MODIFIED_SINCE_IMPORT',
+    ],
+    { each: true }
+  )
   reasons!: string[];
 
   @ApiProperty()
@@ -92,18 +106,27 @@ export class UpsertMappingDto {
   @IsNotEmpty()
   analyzerId!: string;
 
-  @ApiProperty({ example: 'HGB', description: 'As sent by the analyzer (OBX-3)' })
+  @ApiProperty({
+    example: 'HGB',
+    description: 'As sent by the analyzer (OBX-3)',
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(40)
   parameterCode!: string;
 
-  @ApiProperty({ example: 'g/dL', description: 'Exact unit string the analyzer sends' })
+  @ApiProperty({
+    example: 'g/dL',
+    description: 'Exact unit string the analyzer sends',
+  })
   @IsString()
   @MaxLength(40)
   analyzerUnit!: string;
 
-  @ApiProperty({ example: 'CBC', description: 'Catalog code of the ordered test' })
+  @ApiProperty({
+    example: 'CBC',
+    description: 'Catalog code of the ordered test',
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(60)
@@ -115,7 +138,10 @@ export class UpsertMappingDto {
   @MaxLength(60)
   analyteCode!: string;
 
-  @ApiPropertyOptional({ example: 0.1, description: 'analyte value = analyzer value × multiplier' })
+  @ApiPropertyOptional({
+    example: 0.1,
+    description: 'analyte value = analyzer value × multiplier',
+  })
   @IsOptional()
   @IsNumber({ allowNaN: false, allowInfinity: false })
   @IsPositive()

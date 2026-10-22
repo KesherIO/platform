@@ -42,14 +42,17 @@ const { values: a } = parseArgs({
   },
 });
 if (!a.lab || !a.clinic) {
-  console.error('Usage: --lab <id|slug> --clinic <id|slug> [--catalog-code CBC] [--sample-id 1111] [--no-credential]');
+  console.error(
+    'Usage: --lab <id|slug> --clinic <id|slug> [--catalog-code CBC] [--sample-id 1111] [--no-credential]'
+  );
   process.exit(1);
 }
 const url = new URL(process.env.DATABASE_URL ?? 'postgres://missing');
 console.log(`Database host: ${url.hostname}`);
 
 const prisma = new PrismaClient();
-const tenant = (key) => prisma.tenant.findFirst({ where: { OR: [{ id: key }, { slug: key }] } });
+const tenant = (key) =>
+  prisma.tenant.findFirst({ where: { OR: [{ id: key }, { slug: key }] } });
 
 const MAPPINGS = [
   ['WBC', '10^9/L', 'WBC', 1],
@@ -68,26 +71,65 @@ const MAPPINGS = [
 try {
   const lab = await tenant(a.lab);
   const clinic = await tenant(a.clinic);
-  if (!lab || lab.type === 'CLINIC') throw new Error(`Lab tenant not found (or is a clinic): ${a.lab}`);
+  if (!lab || lab.type === 'CLINIC')
+    throw new Error(`Lab tenant not found (or is a clinic): ${a.lab}`);
   if (!clinic) throw new Error(`Clinic tenant not found: ${a.clinic}`);
   const code = a['catalog-code'];
 
   const DRY = !!a['dry-run'];
   const say = (m) => console.log(DRY ? `[dry-run] would: ${m}` : m);
-  const existingAnalyzer = await prisma.analyzer.findFirst({ where: { labTenantId: lab.id, name: a.analyzer } });
-  const creator = await prisma.userTenantMembership.findFirst({ where: { tenantId: clinic.id, status: 'ACTIVE' }, select: { userId: true } });
-  if (!creator) throw new Error('The clinic has no active members to own the development case.');
-  const template = await prisma.resultTemplateDefinition.count({ where: { catalogItemCode: code, activeVersionId: { not: null } } });
-  if (template === 0) throw new Error(`No active result template for catalog code "${code}" — results could not be saved.`);
-  const connection = await prisma.clinicLabConnection.findFirst({ where: { clinicId: clinic.id, labId: lab.id } });
-  console.log(`Lab:     ${lab.name} (${lab.id})\nClinic:  ${clinic.name} (${clinic.id}); connection to the lab: ${connection?.status ?? 'NONE'}`);
+  const existingAnalyzer = await prisma.analyzer.findFirst({
+    where: { labTenantId: lab.id, name: a.analyzer },
+  });
+  const creator = await prisma.userTenantMembership.findFirst({
+    where: { tenantId: clinic.id, status: 'ACTIVE' },
+    select: { userId: true },
+  });
+  if (!creator)
+    throw new Error(
+      'The clinic has no active members to own the development case.'
+    );
+  const template = await prisma.resultTemplateDefinition.count({
+    where: { catalogItemCode: code, activeVersionId: { not: null } },
+  });
+  if (template === 0)
+    throw new Error(
+      `No active result template for catalog code "${code}" — results could not be saved.`
+    );
+  const connection = await prisma.clinicLabConnection.findFirst({
+    where: { clinicId: clinic.id, labId: lab.id },
+  });
+  console.log(
+    `Lab:     ${lab.name} (${lab.id})\nClinic:  ${clinic.name} (${
+      clinic.id
+    }); connection to the lab: ${connection?.status ?? 'NONE'}`
+  );
   console.log(`Catalog: "${code}" — ${template} active template definition(s)`);
-  console.log(`Analyzer: ${existingAnalyzer ? `reuse existing "${existingAnalyzer.name}"` : `create "${a.analyzer}"`}`);
+  console.log(
+    `Analyzer: ${
+      existingAnalyzer
+        ? `reuse existing "${existingAnalyzer.name}"`
+        : `create "${a.analyzer}"`
+    }`
+  );
 
-  const validFrom = a.from ? new Date(a.from) : new Date(Date.now() - 12 * 3_600_000);
-  const validUntil = a.until ? new Date(a.until) : new Date(Date.now() + 48 * 3_600_000);
-  if (!(validUntil > validFrom)) throw new Error('--until must be after --from');
-  say(`create ${MAPPINGS.length} parameter mappings for "${code}", 1 development order (patient "ZZ VH-30 DEV"), 1 accepted EDTA specimen, a link analyzer sample "${a['sample-id']}" -> that order (${validFrom.toISOString()} … ${validUntil.toISOString()})${a['no-credential'] ? '' : ', and 1 connector credential'}`);
+  const validFrom = a.from
+    ? new Date(a.from)
+    : new Date(Date.now() - 12 * 3_600_000);
+  const validUntil = a.until
+    ? new Date(a.until)
+    : new Date(Date.now() + 48 * 3_600_000);
+  if (!(validUntil > validFrom))
+    throw new Error('--until must be after --from');
+  say(
+    `create ${
+      MAPPINGS.length
+    } parameter mappings for "${code}", 1 development order (patient "ZZ VH-30 DEV"), 1 accepted EDTA specimen, a link analyzer sample "${
+      a['sample-id']
+    }" -> that order (${validFrom.toISOString()} … ${validUntil.toISOString()})${
+      a['no-credential'] ? '' : ', and 1 connector credential'
+    }`
+  );
   if (DRY) {
     console.log('[dry-run] nothing written.');
     process.exit(0);
@@ -96,14 +138,41 @@ try {
   const analyzer =
     existingAnalyzer ??
     (await prisma.analyzer.create({
-      data: { labTenantId: lab.id, name: a.analyzer, model: 'VH-30', manufacturer: 'Genrui', department: 'HEMATOLOGY', connectionType: 'CONNECTOR' },
+      data: {
+        labTenantId: lab.id,
+        name: a.analyzer,
+        model: 'VH-30',
+        manufacturer: 'Genrui',
+        department: 'HEMATOLOGY',
+        connectionType: 'CONNECTOR',
+      },
     }));
   console.log(`Analyzer: ${analyzer.name} (${analyzer.id})`);
 
-  for (const [parameterCode, analyzerUnit, analyteCode, multiplier] of MAPPINGS) {
+  for (const [
+    parameterCode,
+    analyzerUnit,
+    analyteCode,
+    multiplier,
+  ] of MAPPINGS) {
     await prisma.instrumentParameterMapping.upsert({
-      where: { analyzerId_parameterCode_analyzerUnit_catalogItemCode: { analyzerId: analyzer.id, parameterCode, analyzerUnit, catalogItemCode: code } },
-      create: { labTenantId: lab.id, analyzerId: analyzer.id, parameterCode, analyzerUnit, catalogItemCode: code, analyteCode, multiplier },
+      where: {
+        analyzerId_parameterCode_analyzerUnit_catalogItemCode: {
+          analyzerId: analyzer.id,
+          parameterCode,
+          analyzerUnit,
+          catalogItemCode: code,
+        },
+      },
+      create: {
+        labTenantId: lab.id,
+        analyzerId: analyzer.id,
+        parameterCode,
+        analyzerUnit,
+        catalogItemCode: code,
+        analyteCode,
+        multiplier,
+      },
       update: { analyteCode, multiplier },
     });
   }
@@ -113,7 +182,13 @@ try {
   const now = new Date();
   const suffix = randomBytes(3).toString('hex').toUpperCase();
   const kase = await prisma.case.create({
-    data: { tenantId: clinic.id, patientName: 'ZZ VH-30 DEV (test patient)', patientSpecies: 'DOG', ownerName: 'Development', createdByUserId: creator.userId },
+    data: {
+      tenantId: clinic.id,
+      patientName: 'ZZ VH-30 DEV (test patient)',
+      patientSpecies: 'DOG',
+      ownerName: 'Development',
+      createdByUserId: creator.userId,
+    },
   });
   const order = await prisma.order.create({
     data: {
@@ -128,30 +203,71 @@ try {
     },
   });
   const test = await prisma.orderedTest.create({
-    data: { orderId: order.id, catalogItemName: 'Hemograma (dev)', catalogItemCode: code, status: 'READY', department: 'HEMATOLOGY', receivedAt: now },
+    data: {
+      orderId: order.id,
+      catalogItemName: 'Hemograma (dev)',
+      catalogItemCode: code,
+      status: 'READY',
+      department: 'HEMATOLOGY',
+      receivedAt: now,
+    },
   });
   const specimen = await prisma.specimen.create({
-    data: { orderId: order.id, labTenantId: lab.id, accessionNumber: `SPEC-DEV-${suffix}`, specimenType: 'EDTA_BLOOD', containerType: 'EDTA_TUBE', status: 'ACCEPTED', receivedAt: now },
+    data: {
+      orderId: order.id,
+      labTenantId: lab.id,
+      accessionNumber: `SPEC-DEV-${suffix}`,
+      specimenType: 'EDTA_BLOOD',
+      containerType: 'EDTA_TUBE',
+      status: 'ACCEPTED',
+      receivedAt: now,
+    },
   });
-  await prisma.orderedTestSpecimen.create({ data: { orderedTestId: test.id, specimenId: specimen.id } });
-  console.log(`Order: ${order.requisitionNumber} (${order.id}); CBC test ${test.id} is READY; specimen ${specimen.accessionNumber} accepted`);
+  await prisma.orderedTestSpecimen.create({
+    data: { orderedTestId: test.id, specimenId: specimen.id },
+  });
+  console.log(
+    `Order: ${order.requisitionNumber} (${order.id}); CBC test ${test.id} is READY; specimen ${specimen.accessionNumber} accepted`
+  );
 
   await prisma.instrumentSampleLink.create({
-    data: { labTenantId: lab.id, analyzerId: analyzer.id, sampleId: a['sample-id'], orderId: order.id, validFrom, validUntil, createdVia: 'MANUAL' },
+    data: {
+      labTenantId: lab.id,
+      analyzerId: analyzer.id,
+      sampleId: a['sample-id'],
+      orderId: order.id,
+      validFrom,
+      validUntil,
+      createdVia: 'MANUAL',
+    },
   });
-  console.log(`Link: analyzer sample "${a['sample-id']}" -> ${order.requisitionNumber}, valid ${validFrom.toISOString()} … ${validUntil.toISOString()}`);
+  console.log(
+    `Link: analyzer sample "${a['sample-id']}" -> ${
+      order.requisitionNumber
+    }, valid ${validFrom.toISOString()} … ${validUntil.toISOString()}`
+  );
 
   if (!a['no-credential']) {
     const prefix = randomBytes(4).toString('hex');
     const token = `kvc_${prefix}_${randomBytes(32).toString('base64url')}`;
     await prisma.connectorCredential.create({
-      data: { labTenantId: lab.id, analyzerId: analyzer.id, name: 'dev connector', tokenPrefix: prefix, tokenHash: createHash('sha256').update(token).digest('hex') },
+      data: {
+        labTenantId: lab.id,
+        analyzerId: analyzer.id,
+        name: 'dev connector',
+        tokenPrefix: prefix,
+        tokenHash: createHash('sha256').update(token).digest('hex'),
+      },
     });
     if (a['token-file']) {
       writeFileSync(a['token-file'], token + '\n', { mode: 0o600 });
-      console.log(`\nConnector token kvc_${prefix}_… written to ${a['token-file']} (owner-only). It exists nowhere else — keep it.`);
+      console.log(
+        `\nConnector token kvc_${prefix}_… written to ${a['token-file']} (owner-only). It exists nowhere else — keep it.`
+      );
     } else {
-      console.log(`\nConnector token (shown once — store it with: vh30-receiver --configure --api-url <url> --token <token>):\n${token}`);
+      console.log(
+        `\nConnector token (shown once — store it with: vh30-receiver --configure --api-url <url> --token <token>):\n${token}`
+      );
     }
   }
 } catch (err) {

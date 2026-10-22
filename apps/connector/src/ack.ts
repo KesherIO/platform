@@ -17,30 +17,49 @@ const SAFE_CONTROL_ID = /^[A-Za-z0-9._-]{1,20}$/;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const hl7Time = (d: Date) =>
-  `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(
+    d.getHours()
+  )}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 
-const safeField = (v: string | null) => (v && /^[A-Za-z0-9._ -]{1,40}$/.test(v) ? v : '');
+const safeField = (v: string | null) =>
+  v && /^[A-Za-z0-9._ -]{1,40}$/.test(v) ? v : '';
 
-export function buildAckPayload(hl7: Hl7Summary, code: 'AA' | 'AE' | 'AR' = 'AA', now = new Date()): string | null {
+export function buildAckPayload(
+  hl7: Hl7Summary,
+  code: 'AA' | 'AE' | 'AR' = 'AA',
+  now = new Date()
+): string | null {
   const id = hl7.controlId;
   if (!id || !SAFE_CONTROL_ID.test(id)) return null;
   return [
     // sender/receiver swapped relative to the ORU
-    `MSH|^~\\&|KesherIO|Connector|${safeField(hl7.sendingApplication)}|${safeField(hl7.sendingFacility)}|${hl7Time(now)}||ACK^R01|${id}|P|2.3.1`,
+    `MSH|^~\\&|KesherIO|Connector|${safeField(
+      hl7.sendingApplication
+    )}|${safeField(hl7.sendingFacility)}|${hl7Time(
+      now
+    )}||ACK^R01|${id}|P|2.3.1`,
     `MSA|${code}|${id}||||`,
     '',
   ].join('\r');
 }
 
 export function frameAck(payload: string, framing: AckFraming): Buffer {
-  const body = Buffer.concat([Buffer.from([MLLP_START]), Buffer.from(payload, 'utf8'), Buffer.from([MLLP_END, MLLP_CR])]);
+  const body = Buffer.concat([
+    Buffer.from([MLLP_START]),
+    Buffer.from(payload, 'utf8'),
+    Buffer.from([MLLP_END, MLLP_CR]),
+  ]);
   if (framing === 'mllp') return body;
   const prefix = Buffer.alloc(LENGTH_PREFIX_BYTES);
   prefix.writeUInt32BE(body.length);
   return Buffer.concat([prefix, body]);
 }
 
-export function buildAckFrame(hl7: Hl7Summary, framing: AckFraming, now = new Date()): Buffer | null {
+export function buildAckFrame(
+  hl7: Hl7Summary,
+  framing: AckFraming,
+  now = new Date()
+): Buffer | null {
   const payload = buildAckPayload(hl7, 'AA', now);
   return payload ? frameAck(payload, framing) : null;
 }

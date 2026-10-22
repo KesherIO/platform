@@ -12,7 +12,11 @@
  */
 import 'reflect-metadata';
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
-import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import {
+  GUARDS_METADATA,
+  METHOD_METADATA,
+  PATH_METADATA,
+} from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { TenantRole } from '@vet-ai/shared-types';
@@ -50,25 +54,46 @@ const MATRIX: Record<string, string[]> = {
   'POST lab/instruments/credentials/:id/revoke': ADMIN,
 };
 
-type Route = { key: string; handler: (...a: unknown[]) => unknown; roles: string[] | undefined };
+type Route = {
+  key: string;
+  handler: (...a: unknown[]) => unknown;
+  roles: string[] | undefined;
+};
 const C = InstrumentReviewController;
 const base = Reflect.getMetadata(PATH_METADATA, C) as string;
 
 const routes: Route[] = Object.getOwnPropertyNames(C.prototype)
-  .filter((n) => n !== 'constructor' && Reflect.getMetadata(PATH_METADATA, C.prototype[n as keyof typeof C.prototype]) !== undefined)
+  .filter(
+    (n) =>
+      n !== 'constructor' &&
+      Reflect.getMetadata(
+        PATH_METADATA,
+        C.prototype[n as keyof typeof C.prototype]
+      ) !== undefined
+  )
   .map((n) => {
-    const handler = C.prototype[n as keyof typeof C.prototype] as unknown as Route['handler'];
+    const handler = C.prototype[
+      n as keyof typeof C.prototype
+    ] as unknown as Route['handler'];
     const method = RequestMethod[Reflect.getMetadata(METHOD_METADATA, handler)];
     return {
-      key: `${method} ${`${base}/${Reflect.getMetadata(PATH_METADATA, handler)}`.replace(/\/+/g, '/')}`,
+      key: `${method} ${`${base}/${Reflect.getMetadata(
+        PATH_METADATA,
+        handler
+      )}`.replace(/\/+/g, '/')}`,
       handler,
-      roles: Reflect.getMetadata(ROLES_KEY, handler) ?? Reflect.getMetadata(ROLES_KEY, C),
+      roles:
+        Reflect.getMetadata(ROLES_KEY, handler) ??
+        Reflect.getMetadata(ROLES_KEY, C),
     };
   });
 
 const ALL_ROLES = Object.values(TenantRole) as string[];
 
-function guardFor(role: string, over: { status?: string; tenantType?: string } = {}) {
+function guardFor(
+  role: string,
+  over: { status?: string; tenantType?: string } = {}
+) {
   return new LabTenantGuard(
     {
       userTenantMembership: {
@@ -77,7 +102,12 @@ function guardFor(role: string, over: { status?: string; tenantType?: string } =
           status: over.status ?? 'ACTIVE',
           canPerformPickups: role === 'MESSENGER',
           canViewInProgress: true, // even Consulta's "view in progress" box must not open these routes
-          tenant: { id: 'lab-1', name: 'Lab', logoUrl: null, type: over.tenantType ?? 'LAB' },
+          tenant: {
+            id: 'lab-1',
+            name: 'Lab',
+            logoUrl: null,
+            type: over.tenantType ?? 'LAB',
+          },
         }),
       },
     } as unknown as PrismaService,
@@ -86,20 +116,32 @@ function guardFor(role: string, over: { status?: string; tenantType?: string } =
 }
 const contextFor = (route: Route) =>
   ({
-    switchToHttp: () => ({ getRequest: () => ({ user: { id: 'u1' }, headers: { 'x-tenant-id': 'lab-1' } }) }),
+    switchToHttp: () => ({
+      getRequest: () => ({
+        user: { id: 'u1' },
+        headers: { 'x-tenant-id': 'lab-1' },
+      }),
+    }),
     getHandler: () => route.handler,
     getClass: () => C,
   } as unknown as ExecutionContext);
 
 describe('analyzer routes: explicit role matrix', () => {
   it('the controller is behind LabTenantGuard and every route is in the matrix (and vice versa)', () => {
-    expect((Reflect.getMetadata(GUARDS_METADATA, C) as { name: string }[]).map((g) => g.name)).toContain('LabTenantGuard');
+    expect(
+      (Reflect.getMetadata(GUARDS_METADATA, C) as { name: string }[]).map(
+        (g) => g.name
+      )
+    ).toContain('LabTenantGuard');
     expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(MATRIX).sort());
   });
 
-  it.each(routes.map((r) => [r.key, r] as const))('%s declares exactly the roles in the matrix', (key, route) => {
-    expect([...(route.roles ?? [])].sort()).toEqual([...MATRIX[key]].sort());
-  });
+  it.each(routes.map((r) => [r.key, r] as const))(
+    '%s declares exactly the roles in the matrix',
+    (key, route) => {
+      expect([...(route.roles ?? [])].sort()).toEqual([...MATRIX[key]].sort());
+    }
+  );
 
   // The real guard, every role × every route: allowed iff the matrix says so.
   describe.each(routes.map((r) => [r.key, r] as const))('%s', (key, route) => {
@@ -112,26 +154,49 @@ describe('analyzer routes: explicit role matrix', () => {
 
   it('messengers are refused on every analyzer route', async () => {
     for (const route of routes) {
-      await expect(guardFor('MESSENGER').canActivate(contextFor(route))).rejects.toThrow(ForbiddenException);
+      await expect(
+        guardFor('MESSENGER').canActivate(contextFor(route))
+      ).rejects.toThrow(ForbiddenException);
     }
   });
 
   it('Consulta (results viewer) is refused everywhere, including raw message download and the queue', async () => {
     for (const route of routes) {
-      await expect(guardFor('RESULTS_VIEWER').canActivate(contextFor(route))).rejects.toThrow(ForbiddenException);
+      await expect(
+        guardFor('RESULTS_VIEWER').canActivate(contextFor(route))
+      ).rejects.toThrow(ForbiddenException);
     }
   });
 
   it('an Analyst cannot approve, edit mappings or manage credentials', async () => {
-    for (const key of ['POST lab/instruments/messages/:id/approve', 'PUT lab/instruments/mappings', 'DELETE lab/instruments/mappings/:id', 'POST lab/instruments/credentials', 'POST lab/instruments/credentials/:id/revoke', 'GET lab/instruments/credentials']) {
+    for (const key of [
+      'POST lab/instruments/messages/:id/approve',
+      'PUT lab/instruments/mappings',
+      'DELETE lab/instruments/mappings/:id',
+      'POST lab/instruments/credentials',
+      'POST lab/instruments/credentials/:id/revoke',
+      'GET lab/instruments/credentials',
+    ]) {
       const route = routes.find((r) => r.key === key) as Route;
-      await expect(guardFor('ANALYST').canActivate(contextFor(route))).rejects.toThrow(ForbiddenException);
+      await expect(
+        guardFor('ANALYST').canActivate(contextFor(route))
+      ).rejects.toThrow(ForbiddenException);
     }
   });
 
   it('even an Owner is refused when the membership is not active or the tenant is a clinic', async () => {
-    const approve = routes.find((r) => r.key === 'POST lab/instruments/messages/:id/approve') as Route;
-    await expect(guardFor('OWNER', { status: 'SUSPENDED' }).canActivate(contextFor(approve))).rejects.toThrow(ForbiddenException);
-    await expect(guardFor('OWNER', { tenantType: 'CLINIC' }).canActivate(contextFor(approve))).rejects.toThrow(ForbiddenException);
+    const approve = routes.find(
+      (r) => r.key === 'POST lab/instruments/messages/:id/approve'
+    ) as Route;
+    await expect(
+      guardFor('OWNER', { status: 'SUSPENDED' }).canActivate(
+        contextFor(approve)
+      )
+    ).rejects.toThrow(ForbiddenException);
+    await expect(
+      guardFor('OWNER', { tenantType: 'CLINIC' }).canActivate(
+        contextFor(approve)
+      )
+    ).rejects.toThrow(ForbiddenException);
   });
 });

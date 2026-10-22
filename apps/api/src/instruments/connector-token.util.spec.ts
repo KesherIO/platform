@@ -1,4 +1,9 @@
-import { generateToken, hashToken, parseToken, tokenMatches } from './connector-token.util';
+import {
+  generateToken,
+  hashToken,
+  parseToken,
+  tokenMatches,
+} from './connector-token.util';
 
 describe('connector token', () => {
   it('has the kvc_<prefix>_<secret> shape and parses back to its prefix', () => {
@@ -21,7 +26,14 @@ describe('connector token', () => {
     expect(tokenMatches(generateToken().token, t.hash)).toBe(false);
     expect(tokenMatches(t.token, 'zz')).toBe(false);
   });
-  it.each([undefined, null, '', 'Bearer x', 'kvc_short_x', 'kvc_12345678_tooshort'])('rejects malformed %p', (bad) => {
+  it.each([
+    undefined,
+    null,
+    '',
+    'Bearer x',
+    'kvc_short_x',
+    'kvc_12345678_tooshort',
+  ])('rejects malformed %p', (bad) => {
     expect(parseToken(bad as string)).toBeNull();
   });
 });

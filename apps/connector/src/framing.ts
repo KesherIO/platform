@@ -28,7 +28,11 @@ export interface DecodedFrame {
 }
 
 export interface FramingIssue {
-  reason: 'invalid-header' | 'invalid-trailer' | 'oversize' | 'trailing-partial';
+  reason:
+    | 'invalid-header'
+    | 'invalid-trailer'
+    | 'oversize'
+    | 'trailing-partial';
   message: string;
   /** Bytes that could not be framed; persisted separately, never dropped. */
   discarded: Buffer;
@@ -64,11 +68,19 @@ export class FrameDecoder {
         const length = head.readUInt32BE(0);
         const minimum = 1 + 1 + 1 + 1; // 0B + at least one byte + 1C 0D
         if (head[LENGTH_PREFIX_BYTES] !== MLLP_START || length < minimum) {
-          this.resync(result, 'invalid-header', 'Frame header is not <length><0x0B>');
+          this.resync(
+            result,
+            'invalid-header',
+            'Frame header is not <length><0x0B>'
+          );
           continue;
         }
         if (length > this.maxFrameBytes) {
-          this.resync(result, 'oversize', `Frame length ${length} exceeds limit ${this.maxFrameBytes}`);
+          this.resync(
+            result,
+            'oversize',
+            `Frame length ${length} exceeds limit ${this.maxFrameBytes}`
+          );
           continue;
         }
         this.expected = length;
@@ -113,7 +125,9 @@ export class FrameDecoder {
       message:
         expected === null
           ? `Connection closed with ${discarded.length} unframed byte(s) pending`
-          : `Connection closed mid-frame (${discarded.length} of ${LENGTH_PREFIX_BYTES + expected} bytes)`,
+          : `Connection closed mid-frame (${discarded.length} of ${
+              LENGTH_PREFIX_BYTES + expected
+            } bytes)`,
       discarded,
     };
   }
@@ -122,15 +136,27 @@ export class FrameDecoder {
    * Discard bytes up to the next plausible frame start (<4 byte prefix> 0x0B "MSH|").
    * Discarded bytes are reported so the caller can persist them.
    */
-  private resync(result: DecodeResult, reason: FramingIssue['reason'], message: string): void {
+  private resync(
+    result: DecodeResult,
+    reason: FramingIssue['reason'],
+    message: string
+  ): void {
     const all = this.flatten();
     let at = all.indexOf(RESYNC_MARKER, 1);
-    while (at !== -1 && at < LENGTH_PREFIX_BYTES) at = all.indexOf(RESYNC_MARKER, at + 1);
+    while (at !== -1 && at < LENGTH_PREFIX_BYTES)
+      at = all.indexOf(RESYNC_MARKER, at + 1);
     // No marker: keep a short tail in case the next frame header is split across reads.
     // Always advance by at least one byte so a bad header can never loop forever.
     const keepTail = LENGTH_PREFIX_BYTES + RESYNC_MARKER.length - 1;
-    const cut = Math.max(1, at === -1 ? all.length - keepTail : at - LENGTH_PREFIX_BYTES);
-    result.issues.push({ reason, message, discarded: Buffer.from(all.subarray(0, cut)) });
+    const cut = Math.max(
+      1,
+      at === -1 ? all.length - keepTail : at - LENGTH_PREFIX_BYTES
+    );
+    result.issues.push({
+      reason,
+      message,
+      discarded: Buffer.from(all.subarray(0, cut)),
+    });
     const rest = all.subarray(cut);
     this.chunks = rest.length ? [Buffer.from(rest)] : [];
     this.pendingLength = rest.length;
@@ -142,7 +168,8 @@ export class FrameDecoder {
   }
 
   private flatten(): Buffer {
-    if (this.chunks.length > 1) this.chunks = [Buffer.concat(this.chunks, this.pendingLength)];
+    if (this.chunks.length > 1)
+      this.chunks = [Buffer.concat(this.chunks, this.pendingLength)];
     return this.chunks[0] ?? Buffer.alloc(0);
   }
 }

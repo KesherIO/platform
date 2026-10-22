@@ -35,13 +35,19 @@ const clean = (n: number) => Number(n.toPrecision(12));
  * The single place that decides, for each analyzer parameter, whether it is imported, ignored or a unit
  * problem. Used by the importer AND by the review screen, so what a reviewer sees is what would happen.
  */
-export function planMapping(parameters: Array<ParsedParameter & { valueType: string }>, mappings: MappingRow[]): MappingPlan {
+export function planMapping(
+  parameters: Array<ParsedParameter & { valueType: string }>,
+  mappings: MappingRow[]
+): MappingPlan {
   const byKey = new Map<string, MappingRow[]>();
   const unitsByCode = new Map<string, Set<string>>();
   for (const m of mappings) {
     const k = `${m.parameterCode}\u0000${m.analyzerUnit}`;
     byKey.set(k, [...(byKey.get(k) ?? []), m]);
-    unitsByCode.set(m.parameterCode, (unitsByCode.get(m.parameterCode) ?? new Set()).add(m.analyzerUnit));
+    unitsByCode.set(
+      m.parameterCode,
+      (unitsByCode.get(m.parameterCode) ?? new Set()).add(m.analyzerUnit)
+    );
   }
   const out: MappingPlan = { plan: [], ignored: [], unitMismatches: [] };
   for (const p of parameters) {
@@ -52,7 +58,12 @@ export function planMapping(parameters: Array<ParsedParameter & { valueType: str
     const rows = byKey.get(`${p.code}\u0000${p.unit}`);
     if (!rows) {
       const mapped = unitsByCode.get(p.code);
-      if (mapped) out.unitMismatches.push({ code: p.code, unit: p.unit, mappedUnits: [...mapped] });
+      if (mapped)
+        out.unitMismatches.push({
+          code: p.code,
+          unit: p.unit,
+          mappedUnits: [...mapped],
+        });
       else out.ignored.push({ code: p.code, reason: 'NO_MAPPING' });
       continue;
     }

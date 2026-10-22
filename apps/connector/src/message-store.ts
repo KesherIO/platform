@@ -83,7 +83,9 @@ export class MessageStore {
     mkdirSync(this.inboxDir, { recursive: true });
     mkdirSync(this.incompleteDir, { recursive: true });
     this.saved = this.countExisting();
-    this.incomplete = readdirSync(this.incompleteDir).filter((f) => f.endsWith('.bin')).length;
+    this.incomplete = readdirSync(this.incompleteDir).filter((f) =>
+      f.endsWith('.bin')
+    ).length;
   }
 
   get savedCount(): number {
@@ -94,13 +96,24 @@ export class MessageStore {
     return this.incomplete;
   }
 
-  saveFrame(frame: Buffer, hl7: Hl7Summary, ctx: SaveContext, now = new Date()): ReceivedFrameMeta {
+  saveFrame(
+    frame: Buffer,
+    hl7: Hl7Summary,
+    ctx: SaveContext,
+    now = new Date()
+  ): ReceivedFrameMeta {
     const sha256 = sha(frame);
     const day = now.toISOString().slice(0, 10);
     const dayDir = join(this.inboxDir, day);
     mkdirSync(dayDir, { recursive: true });
 
-    const base = this.uniqueBase(dayDir, `${timeOfDay(now)}-${String(++this.seq).padStart(4, '0')}-${sha256.slice(0, 8)}`);
+    const base = this.uniqueBase(
+      dayDir,
+      `${timeOfDay(now)}-${String(++this.seq).padStart(4, '0')}-${sha256.slice(
+        0,
+        8
+      )}`
+    );
     const frameFile = join(dayDir, `${base}.frame`);
     const metaFile = join(dayDir, `${base}.json`);
     const meta: ReceivedFrameMeta = {
@@ -117,7 +130,9 @@ export class MessageStore {
     try {
       writeDurably(frameFile, frame);
       if (sha(this.io.readBack(frameFile)) !== sha256) {
-        throw new Error(`read-back of ${base}.frame does not match the bytes received`);
+        throw new Error(
+          `read-back of ${base}.frame does not match the bytes received`
+        );
       }
       writeDurably(metaFile, Buffer.from(JSON.stringify(meta, null, 2)));
       fsyncDir(dayDir);
@@ -137,10 +152,22 @@ export class MessageStore {
   }
 
   /** Bytes that never formed a valid frame (garbage, or a connection cut mid-frame). */
-  saveIncomplete(bytes: Buffer, reason: string, ctx: SaveContext = { remoteAddress: null, remotePort: null }, now = new Date()): IncompleteMeta {
+  saveIncomplete(
+    bytes: Buffer,
+    reason: string,
+    ctx: SaveContext = { remoteAddress: null, remotePort: null },
+    now = new Date()
+  ): IncompleteMeta {
     const sha256 = sha(bytes);
-    const stamp = now.toISOString().replace(/[-:.]/g, '').replace('T', '-').slice(0, 18);
-    const base = this.uniqueBase(this.incompleteDir, `${stamp}-${String(++this.seq).padStart(4, '0')}-${reason}`);
+    const stamp = now
+      .toISOString()
+      .replace(/[-:.]/g, '')
+      .replace('T', '-')
+      .slice(0, 18);
+    const base = this.uniqueBase(
+      this.incompleteDir,
+      `${stamp}-${String(++this.seq).padStart(4, '0')}-${reason}`
+    );
     const dataFile = join(this.incompleteDir, `${base}.bin`);
     const meta: IncompleteMeta = {
       id: `incomplete/${base}`,
@@ -154,7 +181,10 @@ export class MessageStore {
       dataFile: `${base}.bin`,
     };
     writeDurably(dataFile, bytes);
-    writeDurably(join(this.incompleteDir, `${base}.json`), Buffer.from(JSON.stringify(meta, null, 2)));
+    writeDurably(
+      join(this.incompleteDir, `${base}.json`),
+      Buffer.from(JSON.stringify(meta, null, 2))
+    );
     fsyncDir(this.incompleteDir);
     this.incomplete++;
     return meta;
@@ -162,7 +192,12 @@ export class MessageStore {
 
   private uniqueBase(dir: string, base: string): string {
     let candidate = base;
-    for (let n = 1; existsSync(join(dir, `${candidate}.frame`)) || existsSync(join(dir, `${candidate}.bin`)); n++) {
+    for (
+      let n = 1;
+      existsSync(join(dir, `${candidate}.frame`)) ||
+      existsSync(join(dir, `${candidate}.bin`));
+      n++
+    ) {
       candidate = `${base}-${n}`;
     }
     return candidate;
@@ -172,14 +207,17 @@ export class MessageStore {
     let count = 0;
     for (const day of readdirSync(this.inboxDir, { withFileTypes: true })) {
       if (!day.isDirectory()) continue;
-      count += readdirSync(join(this.inboxDir, day.name)).filter((f) => f.endsWith('.frame')).length;
+      count += readdirSync(join(this.inboxDir, day.name)).filter((f) =>
+        f.endsWith('.frame')
+      ).length;
     }
     return count;
   }
 }
 
 const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
-const timeOfDay = (d: Date) => d.toISOString().slice(11, 23).replace(/[:.]/g, '');
+const timeOfDay = (d: Date) =>
+  d.toISOString().slice(11, 23).replace(/[:.]/g, '');
 
 function writeDurably(path: string, data: Buffer): void {
   const tmp = `${path}.tmp`;

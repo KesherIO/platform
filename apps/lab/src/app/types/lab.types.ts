@@ -1748,11 +1748,19 @@ export interface InstrumentParameter {
 }
 
 export interface InstrumentMessageDiff {
-  changed: Array<{ code: string; before: InstrumentParameter; after: InstrumentParameter }>;
+  changed: Array<{
+    code: string;
+    before: InstrumentParameter;
+    after: InstrumentParameter;
+  }>;
   added: InstrumentParameter[];
   removed: InstrumentParameter[];
   imagesChanged: string[];
-  patientChanged: Array<{ field: string; before: string | null; after: string | null }>;
+  patientChanged: Array<{
+    field: string;
+    before: string | null;
+    after: string | null;
+  }>;
 }
 
 export interface InstrumentMessageDetail extends InstrumentMessageSummary {
@@ -1764,21 +1772,44 @@ export interface InstrumentMessageDetail extends InstrumentMessageSummary {
   reviewedAt: string | null;
   importedAt: string | null;
   parsed: {
-    patient: { sampleId: string | null; name: string | null; speciesText: string | null; sex: string | null };
+    patient: {
+      sampleId: string | null;
+      name: string | null;
+      speciesText: string | null;
+      sex: string | null;
+    };
     parameters: InstrumentParameter[];
     images: Array<{ code: string }>;
     import?: {
-      plan: Array<{ analyzerCode: string; analyzerUnit: string; rawValue: string; analyteCode: string; multiplier: number; value: number }>;
+      plan: Array<{
+        analyzerCode: string;
+        analyzerUnit: string;
+        rawValue: string;
+        analyteCode: string;
+        multiplier: number;
+        value: number;
+      }>;
       ignored: Array<{ code: string; reason: string }>;
       /** fields the result template computes by formula: the analyzer's figure was not used */
-      formulaComputed?: Array<{ analyteCode: string; analyzerCode: string; analyzerValue: number }>;
+      formulaComputed?: Array<{
+        analyteCode: string;
+        analyzerCode: string;
+        analyzerValue: number;
+      }>;
     };
   } | null;
   diff: InstrumentMessageDiff | null;
   previousMessageId: string | null;
   orderedTestId: string | null;
   order: { id: string; requisitionNumber: string; status: string } | null;
-  history: Array<{ id: string; status: InstrumentMessageStatus; controlId: string | null; messageTime: string | null; createdAt: string; isComplete: boolean }>;
+  history: Array<{
+    id: string;
+    status: InstrumentMessageStatus;
+    controlId: string | null;
+    messageTime: string | null;
+    createdAt: string;
+    isComplete: boolean;
+  }>;
   approvableReasons: string[];
   /** What the importer would do under the CURRENT mappings (null for incomplete transfers) */
   mappingPreview: InstrumentMappingPreview | null;
@@ -1786,7 +1817,15 @@ export interface InstrumentMessageDetail extends InstrumentMessageSummary {
 
 export interface InstrumentMappingPreview {
   numericParameters: number;
-  importable: Array<{ analyzerCode: string; analyzerUnit: string; rawValue: string; catalogItemCode: string; analyteCode: string; multiplier: number; value: number }>;
+  importable: Array<{
+    analyzerCode: string;
+    analyzerUnit: string;
+    rawValue: string;
+    catalogItemCode: string;
+    analyteCode: string;
+    multiplier: number;
+    value: number;
+  }>;
   unitMismatches: Array<{ code: string; unit: string; mappedUnits: string[] }>;
   notMapped: string[];
   notImported: Array<{ code: string; reason: string }>;
