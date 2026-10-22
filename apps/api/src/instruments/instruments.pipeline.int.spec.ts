@@ -39,7 +39,8 @@ describeWithDb('Analyzer pipeline against Postgres (real VH-30 frames)', () => {
   let review: InstrumentReviewService;
   let resultEntry: ResultEntryService;
   const runId = randomUUID().slice(0, 8);
-  const frames = realFrames(); // 168, 169, 168 resend, 1111, 1111 resend
+  // Jest runs this body even when skipped, and the capture is gitignored (absent in CI)
+  const frames = hasCapture ? realFrames() : []; // 168, 169, 168 resend, 1111, 1111 resend
   const SAMPLE_1111 = frames[3];
   const CATALOG = `CBC-${runId}`;
 
