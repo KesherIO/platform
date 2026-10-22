@@ -17,7 +17,8 @@ export default defineConfig(() => {
       host: 'localhost',
       proxy: {
         '/api': {
-          target: 'http://localhost:3000',
+          // override when something else already owns :3000 (e.g. LAB_API_TARGET=http://localhost:3010)
+          target: process.env['LAB_API_TARGET'] ?? 'http://localhost:3000',
           changeOrigin: true,
         },
       },

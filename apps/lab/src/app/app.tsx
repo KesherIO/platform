@@ -17,6 +17,7 @@ import { ReviewReleasePage } from './pages/orders/ReviewReleasePage';
 import { LaboratorySettingsPage } from './pages/settings/LaboratorySettingsPage';
 import { TeamPage } from './pages/settings/TeamPage';
 import { AnalyzersPage } from './pages/settings/AnalyzersPage';
+import { InstrumentReviewPage } from './pages/instruments/InstrumentReviewPage';
 import { TestConfigPage } from './pages/settings/TestConfigPage';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { ClientDetailPage } from './pages/clients/ClientDetailPage';
@@ -68,6 +69,10 @@ export function App() {
                 />
                 <Route path="/worklist" element={<WorklistPage />} />
                 <Route path="/results" element={<ResultsPage />} />
+                <Route
+                  path="/instruments"
+                  element={<InstrumentReviewPage />}
+                />
                 <Route
                   path="/orders/:orderId/tests/:testId/results"
                   element={<ResultEntryPage />}

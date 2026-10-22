@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Search,
   Receipt,
+  Activity,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
@@ -105,6 +106,17 @@ export function Layout() {
   });
   const reviewCount = reviewCountData?.count ?? 0;
 
+  // Analyzer results waiting for a person (unmatched / changed / expired reagent / interrupted)
+  const { data: instrumentSummary } = useQuery({
+    queryKey: ['instrument-summary'],
+    queryFn: () => labApi.instruments.summary(),
+    refetchInterval: POLL_MS,
+    refetchIntervalInBackground: false,
+    enabled: !isRestricted,
+  });
+  const instrumentCount =
+    (instrumentSummary?.needsReview ?? 0) + (instrumentSummary?.incomplete ?? 0);
+
   const onVerificationsPage = location.pathname === '/verifications';
 
   const { data: pendingVerificationsData } = useQuery({
@@ -189,6 +201,12 @@ export function Layout() {
           badge: worklistReadyCount > 0 ? worklistReadyCount : undefined,
         },
         { to: RESULTS_VIEWER_HOME, label: t('nav.results'), icon: Search },
+        {
+          to: '/instruments',
+          label: t('nav.instruments'),
+          icon: Activity,
+          badge: instrumentCount > 0 ? instrumentCount : undefined,
+        },
         // Catalog management is admin-only server-side (LabTenantGuard +
         // @Roles(ADMIN) on every /catalog admin route) — hide the tab entirely
         // for non-admins rather than showing a page that 403s on load.

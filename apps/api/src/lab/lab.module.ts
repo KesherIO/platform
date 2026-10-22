@@ -54,6 +54,6 @@ import { PdfModule } from '../pdf/pdf.module';
     AmendmentService,
     LabTenantGuard,
   ],
-  exports: [PickupService, ReadinessService, OrderStatusService],
+  exports: [PickupService, ReadinessService, OrderStatusService, ResultEntryService],
 })
 export class LabModule {}

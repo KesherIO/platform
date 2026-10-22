@@ -1695,3 +1695,118 @@ export interface NotificationUnreadCount {
   count: number;
   otherTenants: { tenantId: string; count: number }[];
 }
+
+// ---------------------------------------------------------------------------
+// Analyzer connector (apps/connector → /api/lab/instruments)
+// ---------------------------------------------------------------------------
+
+export type InstrumentMessageStatus =
+  | 'RECEIVED'
+  | 'INCOMPLETE'
+  | 'DUPLICATE'
+  | 'UNMATCHED'
+  | 'AMBIGUOUS'
+  | 'NEEDS_REVIEW'
+  | 'IMPORTED'
+  | 'DISMISSED'
+  | 'FAILED';
+
+export type InstrumentQueueView = 'review' | 'incomplete' | 'attention' | 'all';
+
+export interface InstrumentMessageSummary {
+  id: string;
+  status: InstrumentMessageStatus;
+  /** Why a person has to look: UNMATCHED, CONTENT_CHANGED, EXPIRED_REAGENT, UNIT_MISMATCH:HGB:g/L … */
+  reasons: string[];
+  isComplete: boolean;
+  incompleteReason: string | null;
+  /** The analyzer's own sample ID — not an order number */
+  sampleId: string | null;
+  controlId: string | null;
+  observationTime: string | null;
+  receivedAtConnector: string;
+  createdAt: string;
+  /** OBX-13 E/e: values edited on the analyzer */
+  hasAnalyzerEdits: boolean;
+  /** OBX-13 O: expired reagent — kept separate from edits */
+  hasExpiredReagent: boolean;
+  importedCount: number;
+  resolvedAt: string | null;
+  orderId: string | null;
+  analyzer: { id: string; name: string };
+  order: { requisitionNumber: string } | null;
+}
+
+export interface InstrumentParameter {
+  code: string;
+  valueType: string;
+  value: string;
+  unit: string;
+  referenceRange: string;
+  abnormalFlag: string;
+  userFlag: string;
+}
+
+export interface InstrumentMessageDiff {
+  changed: Array<{ code: string; before: InstrumentParameter; after: InstrumentParameter }>;
+  added: InstrumentParameter[];
+  removed: InstrumentParameter[];
+  imagesChanged: string[];
+  patientChanged: Array<{ field: string; before: string | null; after: string | null }>;
+}
+
+export interface InstrumentMessageDetail extends InstrumentMessageSummary {
+  sha256: string;
+  byteLength: number;
+  remoteAddress: string | null;
+  processingError: string | null;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  importedAt: string | null;
+  parsed: {
+    patient: { sampleId: string | null; name: string | null; speciesText: string | null; sex: string | null };
+    parameters: InstrumentParameter[];
+    images: Array<{ code: string }>;
+    import?: {
+      plan: Array<{ analyzerCode: string; analyzerUnit: string; rawValue: string; analyteCode: string; multiplier: number; value: number }>;
+      ignored: Array<{ code: string; reason: string }>;
+      /** fields the result template computes by formula: the analyzer's figure was not used */
+      formulaComputed?: Array<{ analyteCode: string; analyzerCode: string; analyzerValue: number }>;
+    };
+  } | null;
+  diff: InstrumentMessageDiff | null;
+  previousMessageId: string | null;
+  orderedTestId: string | null;
+  order: { id: string; requisitionNumber: string; status: string } | null;
+  history: Array<{ id: string; status: InstrumentMessageStatus; controlId: string | null; messageTime: string | null; createdAt: string; isComplete: boolean }>;
+  approvableReasons: string[];
+  /** What the importer would do under the CURRENT mappings (null for incomplete transfers) */
+  mappingPreview: InstrumentMappingPreview | null;
+}
+
+export interface InstrumentMappingPreview {
+  numericParameters: number;
+  importable: Array<{ analyzerCode: string; analyzerUnit: string; rawValue: string; catalogItemCode: string; analyteCode: string; multiplier: number; value: number }>;
+  unitMismatches: Array<{ code: string; unit: string; mappedUnits: string[] }>;
+  notMapped: string[];
+  notImported: Array<{ code: string; reason: string }>;
+  /** fewer values will be imported than the analyzer sent */
+  isPartial: boolean;
+}
+
+export interface InstrumentQueuePage {
+  items: InstrumentMessageSummary[];
+  nextCursor: string | null;
+}
+
+export interface ConnectorCredentialSummary {
+  id: string;
+  name: string;
+  analyzerId: string;
+  tokenPrefix: string;
+  createdAt: string;
+  lastSeenAt: string | null;
+  lastSeenAddress: string | null;
+  revokedAt: string | null;
+  analyzer: { name: string };
+}

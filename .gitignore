@@ -59,3 +59,13 @@ apps/frontend/src/environments/environment.sentry.ts
 
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
+
+# Analyzer captures contain patient data; connector config holds the upload token — never commit
+*.hl7
+*.frame
+connector.json
+vh30-dev-connector-token*
+apps/connector/data/
+
+# Vendor interface documents (not ours to redistribute; this repo is public)
+docs/*.pdf

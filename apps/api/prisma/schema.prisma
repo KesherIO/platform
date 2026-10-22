@@ -87,6 +87,8 @@ enum TimelineEventType {
   SAMPLE_REQUESTED
   // The lab added tests to an open order
   TESTS_ADDED
+  // Draft results written from an analyzer message (connector)
+  INSTRUMENT_RESULTS_IMPORTED
 }
 
 enum OnboardingTokenType {
@@ -418,6 +420,10 @@ model Tenant {
   labPickups             Pickup[]                   @relation("LabPickups")
   clinicPickups          Pickup[]                   @relation("ClinicPickups")
   labAnalyzers           Analyzer[]                 @relation("LabAnalyzers")
+  connectorCredentials   ConnectorCredential[]
+  instrumentMessages     InstrumentMessage[]
+  instrumentSampleLinks  InstrumentSampleLink[]
+  instrumentMappings     InstrumentParameterMapping[]
   labTestConfigs         LabTestConfiguration[]     @relation("LabTestConfigs")
   labTemplateDefinitions ResultTemplateDefinition[] @relation("LabTemplateDefinitions")
   labVerifications       VetLabVerification[]       @relation("LabVerifications")
@@ -756,6 +762,8 @@ model Order {
   pickup         Pickup?
   timelineEvents TimelineEvent[]
   notifications  Notification[]
+  instrumentSampleLinks InstrumentSampleLink[]
+  instrumentMessages    InstrumentMessage[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -1192,10 +1200,186 @@ model Analyzer {
   labTenant             Tenant                 @relation("LabAnalyzers", fields: [labTenantId], references: [id], onDelete: Cascade)
   labTestConfigurations LabTestConfiguration[]
   orderedTests          OrderedTest[]
+  connectorCredentials  ConnectorCredential[]
+  instrumentMessages    InstrumentMessage[]
+  sampleLinks           InstrumentSampleLink[]
+  parameterMappings     InstrumentParameterMapping[]
 
   @@unique([labTenantId, name])
   @@index([labTenantId])
   @@map("analyzers")
+}
+
+// ---------------------------------------------------------------------------
+// Analyzer connector (VH-30 and similar) — see apps/connector
+// ---------------------------------------------------------------------------
+
+enum InstrumentMessageStatus {
+  RECEIVED // stored, not processed yet
+  INCOMPLETE // interrupted / unframed transfer — kept, NEVER imported
+  DUPLICATE // same run, same content as one already processed
+  UNMATCHED // no explicit sample link for this analyzer + sample ID
+  AMBIGUOUS // more than one sample link applies
+  NEEDS_REVIEW // matched, but a person must approve before importing
+  IMPORTED // draft results written through the result-entry service
+  DISMISSED // a reviewer decided not to import
+  FAILED // could not be parsed / processed
+}
+
+/// One credential per connector installation: bound to ONE lab and ONE analyzer,
+/// revocable. Only the SHA-256 of the secret is stored; the secret is shown once.
+model ConnectorCredential {
+  id              String    @id @default(cuid())
+  labTenantId     String
+  analyzerId      String
+  name            String
+  tokenPrefix     String    @unique // public part of the token, used for lookup
+  tokenHash       String // sha256 hex of the full token
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  lastSeenAt      DateTime?
+  lastSeenAddress String?
+  revokedAt       DateTime?
+  revokedById     String?
+
+  labTenant Tenant              @relation(fields: [labTenantId], references: [id], onDelete: Cascade)
+  analyzer  Analyzer            @relation(fields: [analyzerId], references: [id], onDelete: Cascade)
+  messages  InstrumentMessage[]
+
+  @@index([labTenantId])
+  @@index([analyzerId])
+  @@map("connector_credentials")
+}
+
+/// Every message the connector uploaded (complete or not), kept for troubleshooting.
+/// Raw bytes live in InstrumentMessagePayload so list queries never load them.
+model InstrumentMessage {
+  id           String @id @default(cuid())
+  labTenantId  String
+  analyzerId   String
+  credentialId String
+
+  /// sha256 (hex) of the exact frame bytes — idempotency key for uploads
+  sha256     String
+  byteLength Int
+
+  /// When the connector received it from the analyzer (connector clock)
+  receivedAtConnector DateTime
+  /// Connector-side file id, for tracing
+  connectorLocalId    String?
+  remoteAddress       String?
+
+  isComplete       Boolean                 @default(true)
+  incompleteReason String?
+  status           InstrumentMessageStatus @default(RECEIVED)
+  /// Reason codes that put it in the review queue (e.g. EXPIRED_REAGENT, CONTENT_CHANGED)
+  reasons          String[]
+
+  // Parsed header (null when the bytes could not be parsed)
+  controlId       String?
+  sampleId        String? // analyzer's own sample ID (PID-3) — NOT an order number
+  messageTime     String? // MSH-7 as sent: changes on every resend
+  observationTime DateTime? // OBR-7: when the analyzer ran the sample
+  /// sha256 over the result content, excluding MSH-7 and MSH-10 (see hl7 canonicalization)
+  contentHash     String?
+
+  /// OBX-13 flags, kept separate on purpose
+  hasAnalyzerEdits  Boolean @default(false) // E / e
+  hasExpiredReagent Boolean @default(false) // O
+
+  /// Parsed patient + parameters (+ which were ignored) for the review screen
+  parsed            Json?
+  /// For CONTENT_CHANGED: per-parameter before/after against previousMessageId
+  diff              Json?
+  previousMessageId String?
+
+  orderId       String?
+  orderedTestId String?
+  sampleLinkId  String?
+
+  processingError String?
+  processedAt     DateTime?
+  importedAt      DateTime?
+  importedCount   Int       @default(0)
+
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  /// Set when a later complete message replaced this one (e.g. an INCOMPLETE transfer that was resent)
+  resolvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  labTenant  Tenant                    @relation(fields: [labTenantId], references: [id], onDelete: Cascade)
+  analyzer   Analyzer                  @relation(fields: [analyzerId], references: [id], onDelete: Cascade)
+  credential ConnectorCredential       @relation(fields: [credentialId], references: [id])
+  order      Order?                    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  payload    InstrumentMessagePayload?
+
+  @@unique([labTenantId, analyzerId, sha256])
+  @@index([labTenantId, status])
+  @@index([labTenantId, analyzerId, sampleId])
+  @@index([labTenantId, analyzerId, controlId])
+  @@index([labTenantId, createdAt])
+  @@map("instrument_messages")
+}
+
+model InstrumentMessagePayload {
+  messageId   String @id
+  /// "gzip" — bytes are the gzip of the exact frame received from the analyzer
+  compression String @default("gzip")
+  bytes       Bytes
+
+  message InstrumentMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("instrument_message_payloads")
+}
+
+/// EXPLICIT "analyzer sample ID X means order Y" — never inferred. Analyzers reuse
+/// sample IDs, so a link only applies to runs observed inside [validFrom, validUntil].
+model InstrumentSampleLink {
+  id          String    @id @default(cuid())
+  labTenantId String
+  analyzerId  String
+  sampleId    String
+  orderId     String
+  validFrom   DateTime
+  validUntil  DateTime
+  endedAt     DateTime? // ended early by staff
+  createdById String?
+  createdVia  String    @default("MANUAL") // MANUAL | REVIEW
+  createdAt   DateTime  @default(now())
+
+  labTenant Tenant   @relation(fields: [labTenantId], references: [id], onDelete: Cascade)
+  analyzer  Analyzer @relation(fields: [analyzerId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([labTenantId, analyzerId, sampleId])
+  @@index([orderId])
+  @@map("instrument_sample_links")
+}
+
+/// Explicit analyzer parameter -> template analyte, keyed by the unit the analyzer
+/// sends. A parameter that arrives in a unit with no row here is NOT imported
+/// (UNIT_MISMATCH goes to review); multiplier converts into the analyte's unit.
+model InstrumentParameterMapping {
+  id              String   @id @default(cuid())
+  labTenantId     String
+  analyzerId      String
+  parameterCode   String // as sent in OBX-3 component 2, e.g. "HGB", "Lym#"
+  analyzerUnit    String // exact unit string sent, e.g. "g/dL"
+  catalogItemCode String // ordered test it belongs to, e.g. "CBC"
+  analyteCode     String // ResultTemplateAnalyte.code, e.g. "HGB"
+  multiplier      Float    @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  labTenant Tenant   @relation(fields: [labTenantId], references: [id], onDelete: Cascade)
+  analyzer  Analyzer @relation(fields: [analyzerId], references: [id], onDelete: Cascade)
+
+  @@unique([analyzerId, parameterCode, analyzerUnit, catalogItemCode])
+  @@index([labTenantId, analyzerId])
+  @@map("instrument_parameter_mappings")
 }
 
 model LabTestConfiguration {

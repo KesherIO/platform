@@ -73,7 +73,8 @@
     "worklist": "Worklist",
     "verifications": "Verifications",
     "results": "Results",
-    "billing": "Billing"
+    "billing": "Billing",
+    "instruments": "Analyzer results"
   },
   "status": {
     "PENDING": "Pending",
@@ -1707,5 +1708,138 @@
       "code_from_deleted": "Code assigned to a catalog item that was deleted",
       "ask_admin": "An administrator needs to assign this billing code before the file can be generated."
     }
+  },
+  "instruments": {
+    "title": "Analyzer results",
+    "subtitle": "Results sent by lab analyzers that need a person: samples with no linked order, results that changed, expired reagent, and interrupted transfers. Nothing here has been released — imports are always drafts.",
+    "empty": "Nothing needs attention.",
+    "load_more": "Load more",
+    "tab": {
+      "review": "Needs review",
+      "incomplete": "Interrupted transfers",
+      "all": "All (including imported)",
+      "connectors": "Connectors"
+    },
+    "col": {
+      "run": "Run",
+      "analyzer": "Analyzer",
+      "sample": "Sample",
+      "status": "Status",
+      "why": "Why",
+      "order": "Order"
+    },
+    "status": {
+      "RECEIVED": "Received",
+      "INCOMPLETE": "Incomplete",
+      "DUPLICATE": "Duplicate",
+      "UNMATCHED": "No linked order",
+      "AMBIGUOUS": "Ambiguous",
+      "NEEDS_REVIEW": "Needs review",
+      "IMPORTED": "Imported as draft",
+      "DISMISSED": "Dismissed",
+      "FAILED": "Failed"
+    },
+    "badge": {
+      "incomplete": "Incomplete transfer",
+      "expired_reagent": "Expired reagent",
+      "edited": "Edited on analyzer"
+    },
+    "reasons": {
+      "UNMATCHED": "No order is linked to this analyzer sample ID",
+      "AMBIGUOUS_SAMPLE": "More than one order is linked to this sample ID",
+      "CONTENT_CHANGED": "The result changed after it was already imported",
+      "EXPIRED_REAGENT": "The analyzer flagged an expired reagent",
+      "EXISTING_MANUAL_VALUES": "Values were already typed in by hand for this test",
+      "UNIT_MISMATCH": "Unit with no mapping: {{detail}}",
+      "NO_MAPPED_PARAMETERS": "None of the analyzer parameters are mapped to result fields",
+      "NO_MATCHING_TEST": "The order has no test {{detail}}",
+      "ANALYTE_NOT_IN_TEMPLATE": "The result template has no field {{detail}}",
+      "ORDER_NOT_AVAILABLE": "The linked order is cancelled or missing",
+      "TEST_NOT_EDITABLE": "The test cannot take results right now (not accepted, in review or released)",
+      "INCOMPLETE_TRANSFER": "The transfer was interrupted",
+      "UNPARSEABLE_MESSAGE": "The message could not be read",
+      "PROCESSING_ERROR": "Processing failed",
+      "DRAFT_MODIFIED_SINCE_IMPORT": "The draft was edited after the analyzer values were imported"
+    },
+    "ignored": {
+      "NO_MAPPING": "not mapped",
+      "NOT_NUMERIC": "not a result value",
+      "EMPTY_OR_INVALID_VALUE": "no value"
+    },
+    "detail": {
+      "title": "Analyzer message",
+      "run_time": "Run time",
+      "control_id": "Message ID",
+      "received": "Received",
+      "analyzer_patient": "Name on analyzer",
+      "why": "Why it needs attention",
+      "must_fix": "(fix, then reprocess)",
+      "changes": "Changed since the imported version",
+      "images_changed": "Histograms changed: {{list}}",
+      "parameters": "Values from the analyzer",
+      "parameter": "Parameter",
+      "value": "Value",
+      "unit": "Unit",
+      "range": "Reference",
+      "incomplete_title": "Interrupted transfer — not a result",
+      "incomplete_body": "The analyzer's transfer was cut off ({{reason}}). These bytes are kept for troubleshooting and can never be imported. Send the result again from the analyzer.",
+      "link_title": "Which order is analyzer sample {{sample}}?",
+      "link_help": "The analyzer's sample number is not an order number. Choosing an order links this sample to it (for a limited time) and imports the values as a draft.",
+      "order_search": "Search orders by number, patient or clinic…",
+      "no_orders": "No orders found",
+      "change": "Change",
+      "link_and_import": "Link and import as draft",
+      "fix_then_reprocess": "Fix what is listed above (link a sample, add a parameter mapping, accept the specimen…), then reprocess.",
+      "approve_title": "Accept to import as a draft",
+      "approve_import": "Approve and import as draft",
+      "approve_help": "Say why these values are acceptable. The values are saved as a draft; review and release still apply.",
+      "reviewer_only": "A reviewer or administrator must approve this.",
+      "reprocess": "Reprocess",
+      "dismiss": "Dismiss",
+      "dismiss_help": "Say why this result is not being imported.",
+      "acknowledge": "Acknowledge",
+      "acknowledge_help": "Note what happened (e.g. the cable was unplugged). The transfer stays marked incomplete.",
+      "download_raw": "Download raw message",
+      "note": "Note",
+      "history": "Earlier messages for this sample",
+      "mapping_title": "What will be imported",
+      "mapping_summary": "{{count}} of {{total}} numeric values map to result fields",
+      "mapping_partial": "Partial: some analyzer values will NOT be imported",
+      "mapping_not_mapped": "Not mapped: {{list}}",
+      "mapping_unit": "Unmapped unit: {{list}}",
+      "mapping_to": "→ {{field}}",
+      "mapping_unit_row": "unit not mapped (mapped: {{units}})",
+      "mapping_none": "Nothing maps to a result field yet",
+      "formula_title": "Some fields are computed by the result template",
+      "formula_help": "The template calculates these from other fields (and recalculates on every save), so the analyzer's own figure was not used. Small differences from the analyzer's printout are expected.",
+      "analyzer_said": "analyzer:",
+      "open_draft": "Open the draft results",
+      "open_draft_help": "The values are saved as a draft on this order's test. Open the results screen to see, check and submit them."
+    },
+    "toast": {
+      "linked": "Linked — {{status}}",
+      "reprocessed": "Reprocessed — {{status}}",
+      "approved": "Approved — {{status}}",
+      "dismissed": "Done"
+    },
+    "connectors": {
+      "name": "Name",
+      "name_placeholder": "e.g. Lab PC – VH-30",
+      "pick_analyzer": "Choose an analyzer",
+      "create": "Create connector token",
+      "token": "Token",
+      "last_seen": "Last seen",
+      "revoke": "Revoke",
+      "revoke_title": "Revoke {{name}}?",
+      "revoke_message": "The connector using this token stops uploading immediately. What it already saved stays on its computer and uploads again once it has a new token.",
+      "revoked": "Revoked {{when}}",
+      "none": "No connectors yet.",
+      "token_once": "Token for \"{{name}}\" — copy it now, it will not be shown again.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "done": "Done",
+      "configure_hint": "On the lab computer: vh30-receiver --configure --api-url <this server's address> --token <token>"
+    },
+    "empty_review": "Nothing needs attention. Results that imported cleanly are not listed here — open the “All” tab to see them."
   }
 }

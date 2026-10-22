@@ -1,0 +1,17 @@
+{
+  "name": "@vet-ai/connector",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "targets": {
+      "bundle": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "node scripts/bundle.mjs",
+          "cwd": "apps/connector"
+        },
+        "outputs": ["{projectRoot}/dist"]
+      }
+    }
+  }
+}
