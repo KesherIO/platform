@@ -11,6 +11,7 @@ import { AccessionDialog } from './AccessionDialog';
 import { ReceiveSpecimenDialog } from './ReceiveSpecimenDialog';
 import { RequestSampleDialog } from './RequestSampleDialog';
 import { AddTestsDialog } from './AddTestsDialog';
+import { AnalyzerNumberPanel } from './AnalyzerNumberPanel';
 import { useToast } from '../../shared/components/ToastProvider';
 import { useAuth } from '../../auth/AuthContext';
 import { useConfirm } from '../../shared/components/ConfirmDialogProvider';
@@ -655,6 +656,8 @@ export function OrderWorkspacePage() {
           ))}
         </div>
       </div>
+
+      <AnalyzerNumberPanel orderId={order.id} />
 
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-1 space-y-4">

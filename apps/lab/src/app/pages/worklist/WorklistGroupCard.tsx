@@ -57,8 +57,14 @@ export function WorklistGroupCard({
   const allUnassigned = items.every((i) => !i.assignedUserId);
   const someAssigned = items.some((i) => i.assignedUserId);
 
-  const canClaimAll = allUnassigned && items.every((i) => i.status === 'READY');
-  const canStartAll = allMine && items.every((i) => i.status === 'READY');
+  // A test can already be IN_PROGRESS with nobody assigned (analyzer values imported as a draft):
+  // it can be claimed with the rest, and "start all" starts only the ones still READY.
+  const workable = items.every(
+    (i) => i.status === 'READY' || i.status === 'IN_PROGRESS'
+  );
+  const canClaimAll = allUnassigned && workable;
+  const canStartAll =
+    allMine && workable && items.some((i) => i.status === 'READY');
   const canEnterResults =
     allMine && items.every((i) => i.status === 'IN_PROGRESS');
   const canUnclaimAll = someAssigned && (allMine || isAdmin);
@@ -158,6 +164,14 @@ export function WorklistGroupCard({
           <span>{first.clinicName}</span>
           <span className="text-gray-600">&middot;</span>
           <span>{first.requisitionNumber}</span>
+          {first.analyzerNumber && (
+            <span
+              title={t('instruments.order.title')}
+              className="font-mono text-cyan/80"
+            >
+              #{first.analyzerNumber}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">

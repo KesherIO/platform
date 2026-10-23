@@ -41,14 +41,38 @@ error), so the connector never retries because of a processing bug.
 
 ## Matching: explicit, never inferred
 
-The analyzer's sample ID (PID-3) is its own counter and is reused. **Nothing ever treats it as an order
-number.** A message matches an order only through an `instrument_sample_links` row:
-`(lab, analyzer, sampleId) → order`, valid in `[validFrom, validUntil]`, checked against the run time
-(OBR-7, converted from the analyzer's wall clock using the lab's time zone). Zero links → `UNMATCHED`;
-links to different orders → `AMBIGUOUS`. Creating a link refuses an overlapping window for a different order
-(409) and requires both the analyzer and the order to belong to the caller's lab. Links are created by
-staff from the review queue ("Link and import as draft"; the window is run time −1 h … +24 h), by
-`POST /lab/instruments/sample-links`, or by the dev seed.
+`OrderMatchService` decides which order a result belongs to. It is analyzer-agnostic (it sees only lab,
+analyzer, sample ID and run time; HL7 parsing and parameter mapping live elsewhere). The lab and analyzer
+always come from the connector credential. Two sources, nothing else — never a patient name, a fuzzy search
+or a "nearby" number:
+
+1. **Explicit link** — an `instrument_sample_links` row `(lab, analyzer, sampleId) → order`, valid in
+   `[validFrom, validUntil]`, checked against the run time (OBR-7, converted from the analyzer's wall clock
+   using the lab's time zone). Links to different orders → `AMBIGUOUS`. Creating a link refuses an overlapping
+   window for a different order (409) and requires both the analyzer and the order to belong to the caller's
+   lab. Links are created by staff from the review queue ("Link and import as draft"; the window is run time
+   −1 h … +24 h), by `POST /lab/instruments/sample-links`, or by the dev seed.
+2. **Analyzer number** — only for an analyzer with `autoMatchOrders` on (Owner/Admin setting, **off by
+   default**; Analyzer results → Connectors). The technician types the order's analyzer number as the sample
+   number: `REQ-2026-000012 ⇄ 26000012` (two-digit year + six-digit sequence, `orders/analyzer-number.util.ts`).
+   It is **derived, never stored**: requisition numbers are unique per lab (`@@unique([labTenantId,
+requisitionNumber])`), generated from the per-lab, per-year counter and never edited. PID-3 must be exactly
+   8 digits (`NOT_AN_ORDER_NUMBER` otherwise — e.g. the analyzer's own counter), the order is looked up by the
+   lab's requisition number (`ORDER_NUMBER_NOT_FOUND`), and a run from before the order existed (−1 h clock
+   allowance) is refused (`RUN_BEFORE_ORDER_CREATED`). The year comes from the number, never from today's date.
+   Legacy formats (`DEV-VH30-…`, a 7-digit sequence) have no analyzer number and are linked by hand.
+
+One number per **order**, shared by every analyzer and every tube. Which tests a message may fill comes from
+the authenticated analyzer's own mappings, so the VH-30 and a chemistry analyzer sending the same number reach
+different tests. Matched by number (no person involved), each target test must also have **exactly one
+accepted tube** through `ordered_test_specimens`, received before the run: otherwise `SPECIMEN_NOT_ACCEPTED`,
+`MULTIPLE_ACCEPTED_SPECIMENS` or `RUN_BEFORE_SPECIMEN_RECEIVED` — never an arbitrary tube. A manual link keeps
+the earlier rules (a test can be `READY` without any tube when its template was resolved by hand).
+
+A link and the number naming **different orders** → `ORDER_NUMBER_LINK_CONFLICT:<requisition>` (approvable,
+Reviewer+): approving imports into the **linked** order — the manual link wins. Same order → no conflict.
+`instrument_messages.matchedBy` records `SAMPLE_LINK` or `ORDER_NUMBER`; `parsed.import.tests` records the
+tube (specimen + accession number) used for each test.
 
 ## Mapping and units: explicit
 
@@ -68,6 +92,10 @@ is a 3-part differential analyzer and never sends those five. Follow-up (same da
 
 ## Duplicates and changed results
 
+- **Rerun** (same order, a different run — new OBR-7 — or a second analyzer for the same test): any earlier
+  `IMPORTED` message for that order and test → `NEEDS_REVIEW` with `ANALYZER_RERUN` and a before/after diff. The
+  draft is untouched until a reviewer approves; a draft edited since also raises `DRAFT_MODIFIED_SINCE_IMPORT`.
+  A technician who leaves the previous number on the analyzer for the next sample lands here too.
 - **Same bytes again** (connector retry): the unique key `(lab, analyzer, sha256)` returns the original record.
 - **Resend** (same run, new MSH-7): `contentHash` excludes MSH-7 and MSH-10 and covers PID fields, OBR-7, every
   parameter with unit / range / both flags, and a hash of each histogram. Same hash as a message already
@@ -99,18 +127,22 @@ stay `INCOMPLETE` forever — they are acknowledged, not relabelled.
 
 `NEEDS_REVIEW`, `UNMATCHED`, `AMBIGUOUS`, `FAILED` (unresolved) + interrupted transfers. Reason codes:
 
-| Code                                                                                | Meaning                                                                      | Resolve by                                                    |
-| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `UNMATCHED`, `AMBIGUOUS_SAMPLE`                                                     | no / several links                                                           | link to an order (or end a bad link)                          |
-| `CONTENT_CHANGED`                                                                   | differs from what was imported                                               | **approve** (reviewer+)                                       |
-| `EXPIRED_REAGENT`                                                                   | OBX-13 = O                                                                   | **approve** (reviewer+)                                       |
-| `EXISTING_MANUAL_VALUES`                                                            | a technician already typed values for these analytes                         | **approve** (reviewer+)                                       |
-| `DRAFT_MODIFIED_SINCE_IMPORT`                                                       | the draft no longer holds what the analyzer import wrote (someone edited it) | **approve** (reviewer+)                                       |
-| `UNIT_MISMATCH:<code>:<unit>`                                                       | unit has no mapping                                                          | add mapping, reprocess                                        |
-| `NO_MAPPED_PARAMETERS`, `NO_MATCHING_TEST:<code>`, `ANALYTE_NOT_IN_TEMPLATE:<code>` | configuration gap                                                            | fix config, reprocess                                         |
-| `ORDER_NOT_AVAILABLE`, `TEST_NOT_EDITABLE`                                          | order cancelled; test not accepted / in review / released                    | fix, reprocess (a released test needs the amendment workflow) |
+| Code                                                                                                        | Meaning                                                                        | Resolve by                                                    |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `UNMATCHED`, `AMBIGUOUS_SAMPLE`                                                                             | no / several links                                                             | link to an order (or end a bad link)                          |
+| `CONTENT_CHANGED`                                                                                           | differs from what was imported                                                 | **approve** (reviewer+)                                       |
+| `EXPIRED_REAGENT`                                                                                           | OBX-13 = O                                                                     | **approve** (reviewer+)                                       |
+| `EXISTING_MANUAL_VALUES`                                                                                    | a technician already typed values for these analytes                           | **approve** (reviewer+)                                       |
+| `DRAFT_MODIFIED_SINCE_IMPORT`                                                                               | the draft no longer holds what the analyzer import wrote (someone edited it)   | **approve** (reviewer+)                                       |
+| `ANALYZER_RERUN`                                                                                            | the test already holds values from an earlier run or another analyzer          | **approve** (reviewer+)                                       |
+| `ORDER_NUMBER_LINK_CONFLICT:<requisition>`                                                                  | the number names another order than the manual link                            | **approve** (reviewer+): the link wins                        |
+| `NOT_AN_ORDER_NUMBER`, `ORDER_NUMBER_NOT_FOUND:<req>`, `RUN_BEFORE_ORDER_CREATED:<req>`                     | the sample number does not identify an order (with automatic matching on)      | link to an order                                              |
+| `SPECIMEN_NOT_ACCEPTED:<code>`, `MULTIPLE_ACCEPTED_SPECIMENS:<code>`, `RUN_BEFORE_SPECIMEN_RECEIVED:<code>` | matched by number, but the tube is not a single accepted, already-received one | accept the tube, reprocess (or link by hand)                  |
+| `UNIT_MISMATCH:<code>:<unit>`                                                                               | unit has no mapping                                                            | add mapping, reprocess                                        |
+| `NO_MAPPED_PARAMETERS`, `NO_MATCHING_TEST:<code>`, `ANALYTE_NOT_IN_TEMPLATE:<code>`                         | configuration gap                                                              | fix config, reprocess                                         |
+| `ORDER_NOT_AVAILABLE`, `TEST_NOT_EDITABLE`                                                                  | order cancelled; test not accepted / in review / released                      | fix, reprocess (a released test needs the amendment workflow) |
 
-Only the four approvable codes above can be approved; approving requires accepting _all_ of them and a note, and
+Only the six approvable codes above can be approved; approving requires accepting _all_ of them and a note, and
 is refused outright when nothing approvable is open. Everything else must be fixed and reprocessed.
 
 ## Approval rechecks the live state
@@ -155,7 +187,8 @@ is reported on the message.
 Connector: `GET /api/instrument-ingest/ping`, `POST /api/instrument-ingest/messages`.
 Staff (`/api/lab/instruments/…`): `summary`, `messages`, `messages/:id`, `messages/:id/raw`,
 `messages/:id/{resolve-sample,reprocess,approve,dismiss}`, `sample-links` (+`/:id/end`), `mappings`,
-`credentials` (+`/:id/revoke`). Lab portal: `/instruments` (queue, detail, connectors tab for admins);
+`credentials` (+`/:id/revoke`), `orders/:orderId/status` (analyzer number + per-analyzer state for the order
+page). The `autoMatchOrders` switch is `PATCH /api/lab-config/analyzers/:id` (Owner/Admin). Lab portal: `/instruments` (queue, detail, connectors tab for admins);
 nav badge = needs-review + interrupted.
 
 ## Verifying locally (nothing touches dev or prod)
@@ -220,3 +253,12 @@ and prints a connector token once. `--catalog-code` must be the code on the lab'
 - Reading the analyzer's patient name/species is display-only; it is never used for matching.
 - ACK on the real device (see the connector README, Phase C); histogram images are stored raw but not rendered or imported.
 - Amendments for already-released tests: a changed result for a released test stays in review (use the amendment workflow).
+- **Production connector packaging (separate production-readiness task).** Lab technicians must not run terminal
+  commands. The connector should be installed as a Windows service (or an auto-started app) that starts at boot,
+  receives HL7 without terminal interaction, reconnects to the analyzer on its own, keeps storing results during
+  internet outages, retries uploads automatically (all already true of the receiver itself), and shows its
+  connection and upload status clearly to the lab. Not part of the matching work.
+- Before enabling `autoMatchOrders` on a production analyzer, verify on the device: an 8-digit sample number
+  arrives exactly in PID-3; whether the analyzer auto-increments, keeps or clears the number after a run (an
+  auto-incremented number can name a different, real order); what it sends when the field is empty; and that
+  its clock matches lab time (run-time checks depend on it).

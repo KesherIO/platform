@@ -26,6 +26,7 @@ import { ConnectorCredentialService } from './connector-credential.service';
 import { InstrumentIngestService } from './instrument-ingest.service';
 import { InstrumentProcessorService } from './instrument-processor.service';
 import { InstrumentReviewService } from './instrument-review.service';
+import { OrderMatchService } from './order-match.service';
 import { hasCapture, realFrames, rewriteFrame } from './test-frames';
 
 const DATABASE_URL = process.env['INTEGRATION_DATABASE_URL'];
@@ -248,7 +249,11 @@ describeWithDb('Analyzer pipeline against Postgres (real VH-30 frames)', () => {
       prisma,
       new TemplateVersionService(prisma)
     );
-    const processor = new InstrumentProcessorService(prisma, resultEntry);
+    const processor = new InstrumentProcessorService(
+      prisma,
+      resultEntry,
+      new OrderMatchService(prisma)
+    );
     credentials = new ConnectorCredentialService(prisma);
     ingest = new InstrumentIngestService(prisma, processor);
     review = new InstrumentReviewService(prisma, processor);
@@ -998,6 +1003,462 @@ describeWithDb('Analyzer pipeline against Postgres (real VH-30 frames)', () => {
       expect(approved.status).toBe('NEEDS_REVIEW'); // still blocked: use the amendment workflow
       expect((await message(r.id)).reasons).toContain('TEST_NOT_EDITABLE');
       expect((await analyteValues(rig.test.id)).WBC).toBe(71.36);
+    });
+  });
+
+  // ── Automatic matching by the order's analyzer number ───────────────────
+  // REQ-20YY-NNNNNN ⇄ YYNNNNNN, typed into the analyzer as the sample number.
+
+  describe('automatic matching by analyzer number', () => {
+    const RUN_1111 = '20261020092938'; // OBR-7 of the real sample-1111 frame (14:29 UTC)
+    /** The real 1111 frame, as if the technician had typed `sampleId` (and optionally a new run time / WBC). */
+    const typed = (
+      sampleId: string,
+      opts: { run?: string; wbc?: string; resend?: boolean } = {}
+    ) =>
+      rewriteFrame(frames[opts.resend ? 4 : 3], (t) => {
+        let out = t.replace('PID|1||1111|', `PID|1||${sampleId}|`);
+        if (opts.run) out = out.split(RUN_1111).join(opts.run);
+        if (opts.wbc) out = out.replace('71.36', opts.wbc);
+        return out;
+      });
+
+    /** A real-shaped order: given requisition number, CBC (+ optional other tests), tubes linked through OrderedTestSpecimen. */
+    async function numberedOrder(
+      forLab: string,
+      requisitionNumber: string,
+      opts: {
+        createdAt?: Date;
+        cbcStatus?: string;
+        cbcTubes?: string[]; // statuses of the EDTA tubes linked to the CBC
+        withoutCbc?: boolean;
+        serumTest?: boolean; // an ALT test on its own accepted serum tube
+      } = {}
+    ) {
+      const kase = await prisma.case.create({
+        data: {
+          tenantId: clinicId,
+          patientName: `IT ${runId}`,
+          patientSpecies: 'DOG',
+          ownerName: 'Owner',
+          createdByUserId: userId,
+        },
+      });
+      created.cases.push(kase.id);
+      const order = await prisma.order.create({
+        data: {
+          requisitionNumber,
+          caseId: kase.id,
+          tenantId: clinicId,
+          labTenantId: forLab,
+          orderedItems: [],
+          createdAt: opts.createdAt ?? new Date('2026-10-19T00:00:00Z'),
+        },
+      });
+      created.orders.push(order.id);
+      const tube = (status: string, i: number, type = 'EDTA_BLOOD') =>
+        prisma.specimen.create({
+          data: {
+            orderId: order.id,
+            labTenantId: forLab,
+            accessionNumber: `${requisitionNumber}-${type}-${i}`,
+            specimenType: type,
+            containerType: type === 'SERUM' ? 'SST_TUBE' : 'EDTA_TUBE',
+            tubeIndex: i,
+            status: status as never,
+            receivedAt: new Date(
+              (opts.createdAt ?? new Date('2026-10-19T00:00:00Z')).getTime() +
+                60_000
+            ),
+          },
+        });
+      let cbc: { id: string } | null = null;
+      if (!opts.withoutCbc) {
+        cbc = await prisma.orderedTest.create({
+          data: {
+            orderId: order.id,
+            catalogItemName: 'Hemograma',
+            catalogItemCode: CATALOG,
+            status: (opts.cbcStatus ?? 'READY') as never,
+          },
+        });
+        let i = 0;
+        for (const st of opts.cbcTubes ?? ['ACCEPTED']) {
+          const sp = await tube(st, ++i);
+          await prisma.orderedTestSpecimen.create({
+            data: { orderedTestId: cbc.id, specimenId: sp.id },
+          });
+        }
+      }
+      let alt: { id: string } | null = null;
+      if (opts.serumTest || opts.withoutCbc) {
+        alt = await prisma.orderedTest.create({
+          data: {
+            orderId: order.id,
+            catalogItemName: 'ALT',
+            catalogItemCode: `ALT-${runId}`,
+            status: 'READY',
+          },
+        });
+        const sp = await tube('ACCEPTED', 1, 'SERUM');
+        await prisma.orderedTestSpecimen.create({
+          data: { orderedTestId: alt.id, specimenId: sp.id },
+        });
+      }
+      return { order, cbc, alt };
+    }
+
+    const autoRig = async (forLab = labId) => {
+      const rig = await newRig(forLab, 'auto');
+      await prisma.analyzer.update({
+        where: { id: rig.analyzer.id },
+        data: { autoMatchOrders: true },
+      });
+      return rig;
+    };
+    const values = (testId?: string | null) => analyteValues(testId as string);
+
+    it('1. the correct number imports a draft automatically: no manual link', async () => {
+      const rig = await autoRig();
+      const { cbc } = await numberedOrder(labId, 'REQ-2026-000101');
+      const r = await upload(rig, typed('26000101'));
+      expect(r.status).toBe('IMPORTED');
+      const m = await message(r.id);
+      expect(m).toMatchObject({
+        matchedBy: 'ORDER_NUMBER',
+        sampleLinkId: null,
+      });
+      expect((await values(cbc?.id)).WBC).toBe(71.36);
+      expect(
+        await prisma.instrumentSampleLink.count({
+          where: { analyzerId: rig.analyzer.id },
+        })
+      ).toBe(0);
+      const report = await prisma.resultReport.findFirstOrThrow({
+        where: { orderId: m.orderId as string },
+      });
+      expect(report.status).toBe('DRAFT');
+      expect(await values(rig.test.id)).toEqual({}); // the rig's own order is untouched
+    });
+
+    it('2. an unknown number stays in review, nothing imported', async () => {
+      const rig = await autoRig();
+      const r = await upload(rig, typed('26000199'));
+      expect(r.status).toBe('UNMATCHED');
+      expect((await message(r.id)).reasons).toEqual([
+        'UNMATCHED',
+        'ORDER_NUMBER_NOT_FOUND:REQ-2026-000199',
+      ]);
+    });
+
+    it("3. a sample ID that is not an analyzer number (the analyzer's own counter) is never read as one", async () => {
+      const rig = await autoRig();
+      await numberedOrder(labId, 'REQ-2026-001111');
+      const r = await upload(rig, frames[3]); // PID-3 = 1111
+      expect(r.status).toBe('UNMATCHED');
+      expect((await message(r.id)).reasons).toEqual([
+        'UNMATCHED',
+        'NOT_AN_ORDER_NUMBER',
+      ]);
+    });
+
+    it('4. the tube is not accepted yet: held, then imported once accepted (reprocess)', async () => {
+      const rig = await autoRig();
+      const { cbc } = await numberedOrder(labId, 'REQ-2026-000104', {
+        cbcStatus: 'PENDING',
+        cbcTubes: ['RECEIVED'],
+      });
+      const r = await upload(rig, typed('26000104'));
+      expect(r.status).toBe('NEEDS_REVIEW');
+      expect((await message(r.id)).reasons).toEqual([
+        `SPECIMEN_NOT_ACCEPTED:${CATALOG}`,
+      ]);
+      expect(await values(cbc?.id)).toEqual({});
+
+      await prisma.specimen.updateMany({
+        where: { orderedTests: { some: { orderedTestId: cbc?.id } } },
+        data: { status: 'ACCEPTED' },
+      });
+      await prisma.orderedTest.update({
+        where: { id: cbc?.id },
+        data: { status: 'READY' },
+      });
+      expect((await review.reprocess(labId, r.id)).status).toBe('IMPORTED');
+      expect((await values(cbc?.id)).WBC).toBe(71.36);
+    });
+
+    it('5. an order with no CBC (chemistry only) is held; its other test is untouched', async () => {
+      const rig = await autoRig();
+      const { alt } = await numberedOrder(labId, 'REQ-2026-000105', {
+        withoutCbc: true,
+      });
+      const r = await upload(rig, typed('26000105'));
+      expect(r.status).toBe('NEEDS_REVIEW');
+      expect((await message(r.id)).reasons).toEqual([
+        `NO_MATCHING_TEST:${CATALOG}`,
+      ]);
+      expect(await values(alt?.id)).toEqual({});
+    });
+
+    it('6. the same result delivered again (same bytes, or a resend) imports nothing twice', async () => {
+      const rig = await autoRig();
+      const { cbc } = await numberedOrder(labId, 'REQ-2026-000106');
+      const bytes = typed('26000106');
+      const first = await upload(rig, bytes);
+      expect(first.status).toBe('IMPORTED');
+      const again = await upload(rig, bytes);
+      expect(again).toMatchObject({ id: first.id, duplicateUpload: true });
+      const resend = await upload(rig, typed('26000106', { resend: true }));
+      expect(resend.status).toBe('DUPLICATE');
+      expect(
+        await prisma.timelineEvent.count({
+          where: {
+            orderId: (await message(first.id)).orderId as string,
+            eventType: 'INSTRUMENT_RESULTS_IMPORTED',
+          },
+        })
+      ).toBe(1);
+      expect((await values(cbc?.id)).WBC).toBe(71.36);
+    });
+
+    it('7. a rerun with different values is held as ANALYZER_RERUN with a diff, and replaces the draft only when approved', async () => {
+      const rig = await autoRig();
+      const { cbc } = await numberedOrder(labId, 'REQ-2026-000107');
+      expect((await upload(rig, typed('26000107'))).status).toBe('IMPORTED');
+      const rerun = await upload(
+        rig,
+        typed('26000107', { run: '20261020101500', wbc: '65.10' })
+      );
+      expect(rerun.status).toBe('NEEDS_REVIEW');
+      const m = await message(rerun.id);
+      expect(m.reasons).toEqual(['ANALYZER_RERUN']);
+      expect(
+        (m.diff as { changed: Array<{ code: string }> }).changed.map(
+          (c) => c.code
+        )
+      ).toContain('WBC');
+      expect((await values(cbc?.id)).WBC).toBe(71.36); // untouched until approved
+
+      const approved = await review.approve(
+        labId,
+        rerun.id,
+        { id: userId, name: 'Rev' },
+        ['ANALYZER_RERUN'],
+        'rerun accepted'
+      );
+      expect(approved.status).toBe('IMPORTED');
+      expect((await values(cbc?.id)).WBC).toBe(65.1);
+    });
+
+    it('8. a released report is never overwritten: a rerun after release stays in review, even when approved', async () => {
+      const rig = await autoRig();
+      const { cbc } = await numberedOrder(labId, 'REQ-2026-000108');
+      expect((await upload(rig, typed('26000108'))).status).toBe('IMPORTED');
+      await prisma.orderedTest.update({
+        where: { id: cbc?.id },
+        data: { status: 'COMPLETED' },
+      });
+      await prisma.resultReportTest.updateMany({
+        where: { orderedTestId: cbc?.id },
+        data: { status: 'RELEASED' },
+      });
+      const rerun = await upload(
+        rig,
+        typed('26000108', { run: '20261020101500', wbc: '65.10' })
+      );
+      expect(rerun.status).toBe('NEEDS_REVIEW');
+      const approved = await review.approve(
+        labId,
+        rerun.id,
+        { id: userId, name: 'Rev' },
+        ['ANALYZER_RERUN'],
+        'attempt on released'
+      );
+      expect(approved.status).toBe('NEEDS_REVIEW');
+      expect((await message(rerun.id)).reasons).toContain('TEST_NOT_EDITABLE');
+      expect((await values(cbc?.id)).WBC).toBe(71.36);
+    });
+
+    it('9. the same sequence in different years goes to the right year', async () => {
+      const rig = await autoRig();
+      const y26 = await numberedOrder(labId, 'REQ-2026-000109');
+      const y27 = await numberedOrder(labId, 'REQ-2027-000109', {
+        createdAt: new Date('2027-01-10T12:00:00Z'),
+      });
+      expect(
+        (await upload(rig, typed('27000109', { run: '20270115100000' }))).status
+      ).toBe('IMPORTED');
+      expect((await values(y27.cbc?.id)).WBC).toBe(71.36);
+      expect(await values(y26.cbc?.id)).toEqual({});
+      expect((await upload(rig, typed('26000109'))).status).toBe('IMPORTED');
+      expect((await values(y26.cbc?.id)).WBC).toBe(71.36);
+    });
+
+    it("10. the same number in two labs: each lab's analyzer only ever reaches its own order", async () => {
+      const rigA = await autoRig(labId);
+      const a = await numberedOrder(labId, 'REQ-2026-000110');
+      const b = await numberedOrder(labBId, 'REQ-2026-000110');
+      expect((await upload(rigA, typed('26000110'))).status).toBe('IMPORTED');
+      expect((await values(a.cbc?.id)).WBC).toBe(71.36);
+      expect(await values(b.cbc?.id)).toEqual({});
+
+      // a number that exists only in lab B is unknown to lab A
+      await numberedOrder(labBId, 'REQ-2026-000210');
+      const r = await upload(rigA, typed('26000210'));
+      expect(r.status).toBe('UNMATCHED');
+      expect((await message(r.id)).reasons).toContain(
+        'ORDER_NUMBER_NOT_FOUND:REQ-2026-000210'
+      );
+    });
+
+    it('11. several tubes: CBC values go to the CBC test on its EDTA tube; two accepted EDTA tubes are never guessed', async () => {
+      const rig = await autoRig();
+      const { cbc, alt } = await numberedOrder(labId, 'REQ-2026-000111', {
+        serumTest: true,
+      });
+      const r = await upload(rig, typed('26000111'));
+      expect(r.status).toBe('IMPORTED');
+      expect((await values(cbc?.id)).WBC).toBe(71.36);
+      expect(await values(alt?.id)).toEqual({});
+      const tests = (
+        (await message(r.id)).parsed as {
+          import: {
+            tests: Array<{ orderedTestId: string; accessionNumber: string }>;
+          };
+        }
+      ).import.tests;
+      expect(tests).toEqual([
+        expect.objectContaining({
+          orderedTestId: cbc?.id,
+          accessionNumber: 'REQ-2026-000111-EDTA_BLOOD-1',
+        }),
+      ]);
+
+      const two = await numberedOrder(labId, 'REQ-2026-000211', {
+        cbcTubes: ['ACCEPTED', 'ACCEPTED'],
+      });
+      const r2 = await upload(rig, typed('26000211'));
+      expect(r2.status).toBe('NEEDS_REVIEW');
+      expect((await message(r2.id)).reasons).toEqual([
+        `MULTIPLE_ACCEPTED_SPECIMENS:${CATALOG}`,
+      ]);
+      expect(await values(two.cbc?.id)).toEqual({});
+    });
+
+    it("12. two analyzers sending the same number never overwrite each other's results", async () => {
+      const hema = await autoRig();
+      const { cbc } = await numberedOrder(labId, 'REQ-2026-000112');
+      expect((await upload(hema, typed('26000112'))).status).toBe('IMPORTED');
+
+      // a chemistry analyzer: its mappings name only its own test, so it cannot reach the CBC
+      const chem = await prisma.analyzer.create({
+        data: {
+          labTenantId: labId,
+          name: `Chem ${randomUUID().slice(0, 6)}`,
+          department: 'HEMATOLOGY',
+          autoMatchOrders: true,
+        },
+      });
+      await prisma.instrumentParameterMapping.create({
+        data: {
+          labTenantId: labId,
+          analyzerId: chem.id,
+          parameterCode: 'WBC',
+          analyzerUnit: '10^9/L',
+          catalogItemCode: `CHEM-${runId}`,
+          analyteCode: 'WBC',
+        },
+      });
+      const chemCred = await credentials.create(labId, chem.id, 'chem', userId);
+      const chemRig = {
+        ...hema,
+        analyzer: chem,
+        connector: (await credentials.authenticate(chemCred.token))!,
+      };
+      const c = await upload(chemRig, typed('26000112', { wbc: '99.99' }));
+      expect(c.status).toBe('NEEDS_REVIEW');
+      expect((await message(c.id)).reasons).toEqual([
+        `NO_MATCHING_TEST:CHEM-${runId}`,
+      ]);
+
+      // a second hematology analyzer mapping the same test is held, never a silent overwrite
+      const hema2 = await autoRig();
+      const h2 = await upload(hema2, typed('26000112', { wbc: '99.99' }));
+      expect(h2.status).toBe('NEEDS_REVIEW');
+      expect((await message(h2.id)).reasons).toEqual(['ANALYZER_RERUN']);
+      expect((await values(cbc?.id)).WBC).toBe(71.36);
+    });
+
+    it('13. a legacy requisition format has no number, but a manual link still imports', async () => {
+      const rig = await autoRig(); // rig.order is "IT-xxxxxxxx": no analyzer number
+      await link(rig);
+      const r = await upload(rig, frames[3]);
+      expect(r.status).toBe('IMPORTED');
+      expect((await message(r.id)).matchedBy).toBe('SAMPLE_LINK');
+      expect((await values(rig.test.id)).WBC).toBe(71.36);
+    });
+
+    it('14. a manual link and the number naming different orders: held; approving imports into the LINKED order', async () => {
+      const rig = await autoRig();
+      const numbered = await numberedOrder(labId, 'REQ-2026-000114');
+      await link(rig, '26000114'); // a person linked it to the rig's (other) order
+      const r = await upload(rig, typed('26000114'));
+      expect(r.status).toBe('NEEDS_REVIEW');
+      expect((await message(r.id)).reasons).toEqual([
+        'ORDER_NUMBER_LINK_CONFLICT:REQ-2026-000114',
+      ]);
+      expect(await values(numbered.cbc?.id)).toEqual({});
+
+      const approved = await review.approve(
+        labId,
+        r.id,
+        { id: userId, name: 'Rev' },
+        ['ORDER_NUMBER_LINK_CONFLICT'],
+        'tech typed the wrong number'
+      );
+      expect(approved.status).toBe('IMPORTED');
+      expect((await values(rig.test.id)).WBC).toBe(71.36);
+      expect(await values(numbered.cbc?.id)).toEqual({});
+    });
+
+    it('15. with automatic matching off, the number is ignored and the manual workflow works as before', async () => {
+      const rig = await newRig(); // autoMatchOrders defaults to false
+      const { order, cbc } = await numberedOrder(labId, 'REQ-2026-000115');
+      const r = await upload(rig, typed('26000115'));
+      expect(r.status).toBe('UNMATCHED');
+      expect((await message(r.id)).reasons).toEqual(['UNMATCHED']);
+      expect(
+        (await review.resolveSample(labId, r.id, order.id, userId)).status
+      ).toBe('IMPORTED');
+      expect((await values(cbc?.id)).WBC).toBe(71.36);
+    });
+
+    it('the order page status reflects what arrived', async () => {
+      const rig = await autoRig();
+      const { order } = await numberedOrder(labId, 'REQ-2026-000116');
+      let status = await review.orderStatus(labId, order.id);
+      expect(status.analyzerNumber).toBe('26000116');
+      expect(status.analyzers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            analyzerId: rig.analyzer.id,
+            state: 'WAITING',
+          }),
+        ])
+      );
+      await upload(rig, typed('26000116'));
+      status = await review.orderStatus(labId, order.id);
+      expect(status.analyzers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            analyzerId: rig.analyzer.id,
+            state: 'IMPORTED',
+          }),
+        ])
+      );
+      await expect(review.orderStatus(labBId, order.id)).rejects.toBeInstanceOf(
+        NotFoundException
+      );
     });
   });
 });

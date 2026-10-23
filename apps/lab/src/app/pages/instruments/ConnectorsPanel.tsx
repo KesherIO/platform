@@ -33,6 +33,22 @@ export function ConnectorsPanel() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['connector-credentials'] });
 
+  const setAutoMatch = async (id: string, autoMatchOrders: boolean) => {
+    try {
+      await labApi.analyzers.update(id, { autoMatchOrders });
+      toast.success(
+        t(
+          autoMatchOrders
+            ? 'instruments.connectors.auto_match_on'
+            : 'instruments.connectors.auto_match_off'
+        )
+      );
+      queryClient.invalidateQueries({ queryKey: ['analyzers'] });
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    }
+  };
+
   const create = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -65,6 +81,37 @@ export function ConnectorsPanel() {
 
   return (
     <div className="space-y-6">
+      <section className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+        <h2 className="text-sm font-semibold text-gray-300">
+          {t('instruments.connectors.auto_match_title')}
+        </h2>
+        <p className="mt-1 max-w-2xl text-xs text-gray-400">
+          {t('instruments.connectors.auto_match_help')}
+        </p>
+        <ul className="mt-3 space-y-2">
+          {analyzers
+            .filter((a) => a.isActive)
+            .map((a) => (
+              <li key={a.id}>
+                <label className="flex items-center gap-3 text-sm text-gray-200">
+                  <input
+                    type="checkbox"
+                    checked={a.autoMatchOrders}
+                    onChange={(e) => setAutoMatch(a.id, e.target.checked)}
+                    className="h-4 w-4 accent-cyan"
+                  />
+                  <span>
+                    {a.name} —{' '}
+                    <span className="text-gray-400">
+                      {t('instruments.connectors.auto_match_label')}
+                    </span>
+                  </span>
+                </label>
+              </li>
+            ))}
+        </ul>
+      </section>
+
       <form
         onSubmit={create}
         className="flex flex-wrap items-end gap-3 rounded-xl border border-gray-800 bg-gray-900 p-4"

@@ -17,6 +17,7 @@ import type {
 } from './dto/instruments.dto';
 import type { StoredSummary } from './hl7-oru';
 import { planMapping } from './instrument-mapping.util';
+import { analyzerNumberFor } from '../orders/analyzer-number.util';
 
 const HOUR = 3_600_000;
 /** Statuses a person has to act on. INCOMPLETE is listed separately: it can only be re-sent, never approved. */
@@ -91,6 +92,7 @@ export class InstrumentReviewService {
         importedCount: true,
         resolvedAt: true,
         orderId: true,
+        matchedBy: true,
         analyzer: { select: { id: true, name: true } },
         order: { select: { requisitionNumber: true } },
       },
@@ -171,6 +173,85 @@ export class InstrumentReviewService {
         .map((i) => i.code),
       notImported: ignored,
       isPartial: plan.length < numeric,
+    };
+  }
+
+  /**
+   * For the order page: the number to type into every analyzer, and per analyzer whether its
+   * results arrived. WAITING is only claimed for analyzers that auto-match and map one of the
+   * order's tests; a manually linked analyzer shows up once a message for this order exists.
+   */
+  async orderStatus(labTenantId: string, orderId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, labTenantId },
+      select: {
+        requisitionNumber: true,
+        orderedTests: {
+          where: { status: { not: 'CANCELLED' } },
+          select: { catalogItemCode: true },
+        },
+      },
+    });
+    if (!order) throw new NotFoundException('Order not found.');
+    const codes = [
+      ...new Set(
+        order.orderedTests
+          .map((t) => t.catalogItemCode)
+          .filter((c): c is string => !!c)
+      ),
+    ];
+    const [autoAnalyzers, messages] = await Promise.all([
+      codes.length
+        ? this.prisma.analyzer.findMany({
+            where: {
+              labTenantId,
+              isActive: true,
+              autoMatchOrders: true,
+              parameterMappings: { some: { catalogItemCode: { in: codes } } },
+            },
+            select: { id: true, name: true },
+          })
+        : [],
+      this.prisma.instrumentMessage.findMany({
+        where: {
+          labTenantId,
+          orderId,
+          status: { in: ['IMPORTED', ...REVIEW_STATUSES] },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          status: true,
+          reasons: true,
+          resolvedAt: true,
+          createdAt: true,
+          importedAt: true,
+          analyzer: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+    const analyzers = new Map<string, { id: string; name: string }>();
+    for (const a of autoAnalyzers) analyzers.set(a.id, a);
+    for (const m of messages) analyzers.set(m.analyzer.id, m.analyzer);
+    return {
+      analyzerNumber: analyzerNumberFor(order.requisitionNumber),
+      analyzers: [...analyzers.values()].map((a) => {
+        const mine = messages.filter((m) => m.analyzer.id === a.id);
+        const open = mine.find(
+          (m) => m.status !== 'IMPORTED' && m.resolvedAt === null
+        );
+        const imported = mine.find((m) => m.status === 'IMPORTED');
+        const shown = open ?? imported;
+        return {
+          analyzerId: a.id,
+          analyzerName: a.name,
+          state: open ? 'NEEDS_REVIEW' : imported ? 'IMPORTED' : 'WAITING',
+          messageId: shown?.id ?? null,
+          reasons: open?.reasons ?? [],
+          at: shown ? shown.importedAt ?? shown.createdAt : null,
+        };
+      }),
     };
   }
 

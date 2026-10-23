@@ -1759,7 +1759,15 @@
       "INCOMPLETE_TRANSFER": "The transfer was interrupted",
       "UNPARSEABLE_MESSAGE": "The message could not be read",
       "PROCESSING_ERROR": "Processing failed",
-      "DRAFT_MODIFIED_SINCE_IMPORT": "The draft was edited after the analyzer values were imported"
+      "DRAFT_MODIFIED_SINCE_IMPORT": "The draft was edited after the analyzer values were imported",
+      "NOT_AN_ORDER_NUMBER": "The sample number is not a KesherIO analyzer number (8 digits, e.g. 26000012)",
+      "ORDER_NUMBER_NOT_FOUND": "This laboratory has no order {{detail}}",
+      "RUN_BEFORE_ORDER_CREATED": "The analyzer ran this sample before order {{detail}} existed (reused or mistyped number?)",
+      "SPECIMEN_NOT_ACCEPTED": "The tube for {{detail}} has not been accepted yet",
+      "MULTIPLE_ACCEPTED_SPECIMENS": "More than one accepted tube for {{detail}}: link it by hand",
+      "RUN_BEFORE_SPECIMEN_RECEIVED": "The analyzer ran this sample before the tube for {{detail}} was received",
+      "ANALYZER_RERUN": "This test already has analyzer results from an earlier run",
+      "ORDER_NUMBER_LINK_CONFLICT": "The sample number points to order {{detail}}, but a manual link points to another order (approving keeps the manual link)"
     },
     "ignored": {
       "NO_MAPPING": "not mapped",
@@ -1784,7 +1792,7 @@
       "incomplete_title": "Interrupted transfer — not a result",
       "incomplete_body": "The analyzer's transfer was cut off ({{reason}}). These bytes are kept for troubleshooting and can never be imported. Send the result again from the analyzer.",
       "link_title": "Which order is analyzer sample {{sample}}?",
-      "link_help": "The analyzer's sample number is not an order number. Choosing an order links this sample to it (for a limited time) and imports the values as a draft.",
+      "link_help": "Use this when the result was not matched to an order automatically. Choosing an order links this analyzer sample to it (for a limited time) and imports the values as a draft.",
       "order_search": "Search orders by number, patient or clinic…",
       "no_orders": "No orders found",
       "change": "Change",
@@ -1814,7 +1822,10 @@
       "formula_help": "The template calculates these from other fields (and recalculates on every save), so the analyzer's own figure was not used. Small differences from the analyzer's printout are expected.",
       "analyzer_said": "analyzer:",
       "open_draft": "Open the draft results",
-      "open_draft_help": "The values are saved as a draft on this order's test. Open the results screen to see, check and submit them."
+      "open_draft_help": "The values are saved as a draft on this order's test. Open the results screen to see, check and submit them.",
+      "matched_by": "Matched",
+      "matched_by_number": "Automatically by analyzer number {{number}} → {{requisition}}",
+      "matched_by_link": "By a manual link"
     },
     "toast": {
       "linked": "Linked — {{status}}",
@@ -1838,8 +1849,24 @@
       "copy": "Copy",
       "copied": "Copied",
       "done": "Done",
-      "configure_hint": "On the lab computer: vh30-receiver --configure --api-url <this server's address> --token <token>"
+      "configure_hint": "On the lab computer: vh30-receiver --configure --api-url <this server's address> --token <token>",
+      "auto_match_title": "Automatic matching",
+      "auto_match_label": "Automatically match results using the KesherIO order number",
+      "auto_match_help": "When on, a result whose sample number is an order's analyzer number (REQ-2026-000012 → 26000012) is imported as a draft into that order, only if its tube is accepted and the test can take results. Anything else stays in Needs review. Manual linking keeps working either way.",
+      "auto_match_on": "Automatic matching turned on",
+      "auto_match_off": "Automatic matching turned off"
     },
-    "empty_review": "Nothing needs attention. Results that imported cleanly are not listed here — open the “All” tab to see them."
+    "empty_review": "Nothing needs attention. Results that imported cleanly are not listed here — open the “All” tab to see them.",
+    "order": {
+      "title": "Analyzer sample number",
+      "hint": "Type this number as the sample number (Número de muestra) on the analyzer. It is the same for every analyzer and every tube of this order.",
+      "no_number": "This order's number cannot be typed into an analyzer. Link its results by hand from Analyzer results.",
+      "open": "Open",
+      "state": {
+        "IMPORTED": "Results imported as draft",
+        "NEEDS_REVIEW": "Results need review",
+        "WAITING": "Waiting for analyzer results"
+      }
+    }
   }
 }

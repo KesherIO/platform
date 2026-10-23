@@ -84,6 +84,16 @@ export class InstrumentReviewController {
     return this.review.get(t.tenantId, id);
   }
 
+  /** Order page: the analyzer number to type in, and whether each analyzer's results arrived */
+  @Get('orders/:orderId/status')
+  @Roles(...LAB_STAFF_ROLES)
+  orderStatus(
+    @CurrentTenant() t: TenantContext,
+    @Param('orderId') orderId: string
+  ) {
+    return this.review.orderStatus(t.tenantId, orderId);
+  }
+
   @Get('messages/:id/raw')
   @Roles(...LAB_STAFF_ROLES)
   async raw(

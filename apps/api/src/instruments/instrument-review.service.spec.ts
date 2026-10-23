@@ -28,7 +28,7 @@ describe('InstrumentReviewService', () => {
       upsert: jest.fn(),
       delete: jest.fn(),
     },
-    analyzer: { findFirst: jest.fn() },
+    analyzer: { findFirst: jest.fn(), findMany: jest.fn() },
     order: { findFirst: jest.fn() },
   };
   const processor = { process: jest.fn() };
@@ -463,6 +463,96 @@ describe('InstrumentReviewService', () => {
     it('delete is scoped to the lab', async () => {
       prisma.instrumentParameterMapping.findFirst.mockResolvedValue(null);
       await expect(service.deleteMapping('lab2', 'mp1')).rejects.toThrow(
+        NotFoundException
+      );
+    });
+  });
+  describe('orderStatus (order page)', () => {
+    const order = (requisitionNumber = 'REQ-2026-000012') => ({
+      requisitionNumber,
+      orderedTests: [{ catalogItemCode: 'CBC' }, { catalogItemCode: 'ALT' }],
+    });
+    const message = (over = {}) => ({
+      id: 'm1',
+      status: 'IMPORTED',
+      reasons: [],
+      resolvedAt: null,
+      createdAt: new Date('2026-10-22T10:00:00Z'),
+      importedAt: new Date('2026-10-22T10:00:05Z'),
+      analyzer: { id: 'vh30', name: 'VH-30' },
+      ...over,
+    });
+
+    it("gives the analyzer number and each analyzer's state, scoped to the caller's lab", async () => {
+      prisma.order.findFirst.mockResolvedValue(order());
+      prisma.analyzer.findMany.mockResolvedValue([
+        { id: 'vh30', name: 'VH-30' },
+        { id: 'chem', name: 'Chemistry' },
+      ]);
+      prisma.instrumentMessage.findMany.mockResolvedValue([message()]);
+      const r = await service.orderStatus('lab1', 'o12');
+      expect(prisma.order.findFirst.mock.calls[0][0].where).toEqual({
+        id: 'o12',
+        labTenantId: 'lab1',
+      });
+      expect(prisma.analyzer.findMany.mock.calls[0][0].where).toMatchObject({
+        labTenantId: 'lab1',
+        isActive: true,
+        autoMatchOrders: true,
+        parameterMappings: {
+          some: { catalogItemCode: { in: ['CBC', 'ALT'] } },
+        },
+      });
+      expect(
+        prisma.instrumentMessage.findMany.mock.calls[0][0].where
+      ).toMatchObject({
+        labTenantId: 'lab1',
+        orderId: 'o12',
+      });
+      expect(r.analyzerNumber).toBe('26000012');
+      expect(r.analyzers).toEqual([
+        expect.objectContaining({
+          analyzerId: 'vh30',
+          state: 'IMPORTED',
+          messageId: 'm1',
+        }),
+        expect.objectContaining({
+          analyzerId: 'chem',
+          state: 'WAITING',
+          messageId: null,
+        }),
+      ]);
+    });
+
+    it('an open review item wins over an earlier import; resolved ones do not count', async () => {
+      prisma.order.findFirst.mockResolvedValue(order());
+      prisma.analyzer.findMany.mockResolvedValue([]);
+      prisma.instrumentMessage.findMany.mockResolvedValue([
+        message({
+          id: 'm3',
+          status: 'NEEDS_REVIEW',
+          reasons: ['ANALYZER_RERUN'],
+        }),
+        message({ id: 'm2', status: 'NEEDS_REVIEW', resolvedAt: new Date() }),
+        message(),
+      ]);
+      const [vh30] = (await service.orderStatus('lab1', 'o12')).analyzers;
+      expect(vh30).toMatchObject({
+        state: 'NEEDS_REVIEW',
+        messageId: 'm3',
+        reasons: ['ANALYZER_RERUN'],
+      });
+    });
+
+    it("a legacy requisition has no analyzer number; another lab's order is a 404", async () => {
+      prisma.order.findFirst.mockResolvedValue(order('DEV-VH30-0F3A84'));
+      prisma.analyzer.findMany.mockResolvedValue([]);
+      prisma.instrumentMessage.findMany.mockResolvedValue([]);
+      expect(
+        (await service.orderStatus('lab1', 'o1')).analyzerNumber
+      ).toBeNull();
+      prisma.order.findFirst.mockResolvedValue(null);
+      await expect(service.orderStatus('lab1', 'other')).rejects.toBeInstanceOf(
         NotFoundException
       );
     });

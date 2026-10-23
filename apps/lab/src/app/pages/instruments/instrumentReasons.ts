@@ -7,6 +7,8 @@ export const APPROVABLE = [
   'EXPIRED_REAGENT',
   'EXISTING_MANUAL_VALUES',
   'DRAFT_MODIFIED_SINCE_IMPORT',
+  'ANALYZER_RERUN',
+  'ORDER_NUMBER_LINK_CONFLICT',
 ];
 
 export const reasonCode = (reason: string) => reason.split(':')[0];

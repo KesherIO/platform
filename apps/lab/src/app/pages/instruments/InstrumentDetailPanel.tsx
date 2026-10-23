@@ -298,6 +298,21 @@ export function InstrumentDetailPanel({
                 '—'
               )}
             </dd>
+            {m.order && m.matchedBy && (
+              <>
+                <dt className="text-gray-500">
+                  {t('instruments.detail.matched_by')}
+                </dt>
+                <dd className="text-gray-200">
+                  {m.matchedBy === 'ORDER_NUMBER'
+                    ? t('instruments.detail.matched_by_number', {
+                        number: m.sampleId,
+                        requisition: m.order.requisitionNumber,
+                      })
+                    : t('instruments.detail.matched_by_link')}
+                </dd>
+              </>
+            )}
             {m.parsed?.patient.name && (
               <>
                 <dt className="text-gray-500">

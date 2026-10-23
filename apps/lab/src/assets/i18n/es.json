@@ -1759,7 +1759,15 @@
       "INCOMPLETE_TRANSFER": "La transferencia se interrumpió",
       "UNPARSEABLE_MESSAGE": "No se pudo leer el mensaje",
       "PROCESSING_ERROR": "Falló el procesamiento",
-      "DRAFT_MODIFIED_SINCE_IMPORT": "El borrador se editó después de importar los valores del analizador"
+      "DRAFT_MODIFIED_SINCE_IMPORT": "El borrador se editó después de importar los valores del analizador",
+      "NOT_AN_ORDER_NUMBER": "El número de muestra no es un número de analizador de KesherIO (8 dígitos, p. ej. 26000012)",
+      "ORDER_NUMBER_NOT_FOUND": "Este laboratorio no tiene la orden {{detail}}",
+      "RUN_BEFORE_ORDER_CREATED": "El analizador procesó esta muestra antes de que existiera la orden {{detail}} (¿número reutilizado o mal digitado?)",
+      "SPECIMEN_NOT_ACCEPTED": "El tubo para {{detail}} aún no ha sido aceptado",
+      "MULTIPLE_ACCEPTED_SPECIMENS": "Hay más de un tubo aceptado para {{detail}}: vincúlelo manualmente",
+      "RUN_BEFORE_SPECIMEN_RECEIVED": "El analizador procesó esta muestra antes de recibir el tubo para {{detail}}",
+      "ANALYZER_RERUN": "Esta prueba ya tiene resultados del analizador de una corrida anterior",
+      "ORDER_NUMBER_LINK_CONFLICT": "El número de muestra corresponde a la orden {{detail}}, pero un vínculo manual apunta a otra orden (al aprobar se conserva el vínculo manual)"
     },
     "ignored": {
       "NO_MAPPING": "sin mapeo",
@@ -1784,7 +1792,7 @@
       "incomplete_title": "Transferencia interrumpida — no es un resultado",
       "incomplete_body": "La transferencia del analizador se cortó ({{reason}}). Estos datos se conservan para diagnóstico y nunca se pueden importar. Vuelva a enviar el resultado desde el analizador.",
       "link_title": "¿A qué orden corresponde la muestra {{sample}} del analizador?",
-      "link_help": "El número de muestra del analizador no es un número de orden. Al elegir una orden se vincula esta muestra (por tiempo limitado) y se importan los valores como borrador.",
+      "link_help": "Úselo cuando el resultado no se vinculó automáticamente a una orden. Al elegir una orden se vincula esta muestra del analizador (por tiempo limitado) y se importan los valores como borrador.",
       "order_search": "Buscar órdenes por número, paciente o clínica…",
       "no_orders": "No se encontraron órdenes",
       "change": "Cambiar",
@@ -1814,7 +1822,10 @@
       "formula_help": "La plantilla los calcula a partir de otros campos (y los recalcula en cada guardado), por eso no se usó la cifra del propio analizador. Son normales pequeñas diferencias con el impreso del analizador.",
       "analyzer_said": "analizador:",
       "open_draft": "Abrir los resultados en borrador",
-      "open_draft_help": "Los valores quedaron guardados como borrador en la prueba de esta orden. Abra la pantalla de resultados para verlos, revisarlos y enviarlos."
+      "open_draft_help": "Los valores quedaron guardados como borrador en la prueba de esta orden. Abra la pantalla de resultados para verlos, revisarlos y enviarlos.",
+      "matched_by": "Vinculación",
+      "matched_by_number": "Automática por número de analizador {{number}} → {{requisition}}",
+      "matched_by_link": "Por un vínculo manual"
     },
     "toast": {
       "linked": "Vinculado — {{status}}",
@@ -1838,8 +1849,24 @@
       "copy": "Copiar",
       "copied": "Copiado",
       "done": "Listo",
-      "configure_hint": "En el computador del laboratorio: vh30-receiver --configure --api-url <dirección de este servidor> --token <token>"
+      "configure_hint": "En el computador del laboratorio: vh30-receiver --configure --api-url <dirección de este servidor> --token <token>",
+      "auto_match_title": "Vinculación automática",
+      "auto_match_label": "Vincular resultados automáticamente con el número de orden de KesherIO",
+      "auto_match_help": "Si está activa, un resultado cuyo número de muestra es el número de analizador de una orden (REQ-2026-000012 → 26000012) se importa como borrador en esa orden, solo si su tubo fue aceptado y la prueba puede recibir resultados. Todo lo demás queda en Por revisar. La vinculación manual sigue funcionando en ambos casos.",
+      "auto_match_on": "Vinculación automática activada",
+      "auto_match_off": "Vinculación automática desactivada"
     },
-    "empty_review": "Nada requiere atención. Los resultados importados sin problemas no aparecen aquí: abra la pestaña “Todos” para verlos."
+    "empty_review": "Nada requiere atención. Los resultados importados sin problemas no aparecen aquí: abra la pestaña “Todos” para verlos.",
+    "order": {
+      "title": "Número de muestra para analizadores",
+      "hint": "Ingrese este número como «Número de muestra» en el analizador. Es el mismo para todos los analizadores y todos los tubos de esta orden.",
+      "no_number": "El número de esta orden no se puede ingresar en un analizador. Vincule sus resultados manualmente desde Resultados de analizadores.",
+      "open": "Abrir",
+      "state": {
+        "IMPORTED": "Resultados importados como borrador",
+        "NEEDS_REVIEW": "Resultados por revisar",
+        "WAITING": "Esperando resultados del analizador"
+      }
+    }
   }
 }

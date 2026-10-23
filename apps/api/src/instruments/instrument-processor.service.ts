@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ResultEntryService } from '../lab/result-entry.service';
 import { diffSummaries, type MessageDiff, type StoredSummary } from './hl7-oru';
 import { planMapping, type PlannedValue } from './instrument-mapping.util';
+import { CLOCK_SKEW_MS, OrderMatchService } from './order-match.service';
 
 /**
  * Reasons a person may knowingly accept. Everything else (no sample link, unit
@@ -15,6 +16,10 @@ export const APPROVABLE_REASONS = [
   'EXPIRED_REAGENT',
   'EXISTING_MANUAL_VALUES',
   'DRAFT_MODIFIED_SINCE_IMPORT',
+  // an earlier run (or another analyzer) was already imported into the test
+  'ANALYZER_RERUN',
+  // the analyzer number names another order than the explicit link; approving = the link wins
+  'ORDER_NUMBER_LINK_CONFLICT',
 ] as const;
 
 export interface ProcessOptions {
@@ -30,14 +35,15 @@ const reasonCode = (reason: string) => reason.split(':')[0];
 export class InstrumentProcessorService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly resultEntry: ResultEntryService
+    private readonly resultEntry: ResultEntryService,
+    private readonly orderMatch: OrderMatchService
   ) {}
 
   /** Runs one complete message through dedupe → match → map → (maybe) draft import. Returns its final status. */
   async process(messageId: string, opts: ProcessOptions = {}): Promise<string> {
     const msg = await this.prisma.instrumentMessage.findUniqueOrThrow({
       where: { id: messageId },
-      include: { analyzer: { select: { name: true } } },
+      include: { analyzer: { select: { name: true, autoMatchOrders: true } } },
     });
     // Interrupted transfers are never processed, whatever calls this.
     if (!msg.isComplete || msg.status === 'INCOMPLETE') return 'INCOMPLETE';
@@ -100,41 +106,35 @@ export class InstrumentProcessorService {
     // ── 2. OBX-13 flags — expired reagent is its own review reason ────────────
     if (msg.hasExpiredReagent) reasons.push('EXPIRED_REAGENT');
 
-    // ── 3. Explicit sample link (never "sample 168 = order 168") ──────────────
+    // ── 3. Which order: explicit link, or the order's analyzer number ──────
+    // (never "sample 168 = order 168", never a patient name; see OrderMatchService)
     const at = msg.observationTime ?? msg.receivedAtConnector;
-    const links = await this.prisma.instrumentSampleLink.findMany({
-      where: {
-        labTenantId: msg.labTenantId,
-        analyzerId: msg.analyzerId,
-        sampleId: msg.sampleId,
-        endedAt: null,
-        validFrom: { lte: at },
-        validUntil: { gte: at },
-      },
-      select: { id: true, orderId: true },
+    const match = await this.orderMatch.match({
+      labTenantId: msg.labTenantId,
+      analyzerId: msg.analyzerId,
+      sampleId: msg.sampleId,
+      runAt: at,
+      autoMatchOrders: msg.analyzer.autoMatchOrders === true,
     });
-    const orderIds = [...new Set(links.map((l) => l.orderId))];
     const common = { diff, previousMessageId };
-    if (orderIds.length === 0)
+    if (match.status !== 'MATCHED')
       return this.finish(
         msg.id,
-        'UNMATCHED',
-        ['UNMATCHED', ...reasons],
+        match.status,
+        [...match.reasons, ...reasons],
         common
       );
-    if (orderIds.length > 1)
-      return this.finish(
-        msg.id,
-        'AMBIGUOUS',
-        ['AMBIGUOUS_SAMPLE', ...reasons],
-        common
-      );
-    const link = links[0];
-    const matched = { ...common, orderId: link.orderId, sampleLinkId: link.id };
+    reasons.unshift(...match.reasons);
+    const matched = {
+      ...common,
+      orderId: match.orderId,
+      sampleLinkId: match.sampleLinkId ?? undefined,
+      matchedBy: match.matchedBy,
+    };
 
     // ── 4. The order must be this lab's and still open ───────────────────────
     const order = await this.prisma.order.findFirst({
-      where: { id: link.orderId, labTenantId: msg.labTenantId },
+      where: { id: match.orderId, labTenantId: msg.labTenantId },
       select: {
         id: true,
         status: true,
@@ -144,6 +144,18 @@ export class InstrumentProcessorService {
             catalogItemCode: true,
             catalogItemName: true,
             status: true,
+            specimens: {
+              select: {
+                specimen: {
+                  select: {
+                    id: true,
+                    accessionNumber: true,
+                    status: true,
+                    receivedAt: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -177,19 +189,73 @@ export class InstrumentProcessorService {
         ...(byCatalog.get(item.catalogItemCode) ?? []),
         item,
       ]);
+    // Only the tests this analyzer's own mappings name. Matched by number (no person involved),
+    // each test also needs exactly one accepted tube (via OrderedTestSpecimen) received before
+    // the run — never an arbitrary tube. A manual link is a person's decision and keeps the
+    // existing rules: a test can be READY without any tube (template resolved later).
+    const byNumber = match.matchedBy === 'ORDER_NUMBER';
+    type Test = (typeof order.orderedTests)[number];
     const targets: Array<{
-      test: (typeof order.orderedTests)[number];
+      test: Test;
       items: Planned[];
+      specimen: Test['specimens'][number]['specimen'] | null;
     }> = [];
     for (const [code, items] of byCatalog) {
       const test = order.orderedTests.find(
         (t) => t.catalogItemCode === code && t.status !== 'CANCELLED'
       );
-      if (!test) reasons.push(`NO_MATCHING_TEST:${code}`);
-      else targets.push({ test, items });
+      if (!test) {
+        reasons.push(`NO_MATCHING_TEST:${code}`);
+        continue;
+      }
+      const accepted = test.specimens
+        .map((s) => s.specimen)
+        .filter((sp) => sp.status === 'ACCEPTED');
+      if (!byNumber) {
+        targets.push({
+          test,
+          items,
+          specimen: accepted.length === 1 ? accepted[0] : null,
+        });
+        continue;
+      }
+      if (accepted.length === 0) {
+        reasons.push(`SPECIMEN_NOT_ACCEPTED:${code}`);
+        continue;
+      }
+      if (accepted.length > 1) {
+        reasons.push(`MULTIPLE_ACCEPTED_SPECIMENS:${code}`);
+        continue;
+      }
+      const [specimen] = accepted;
+      if (
+        specimen.receivedAt &&
+        at.getTime() < specimen.receivedAt.getTime() - CLOCK_SKEW_MS
+      ) {
+        reasons.push(`RUN_BEFORE_SPECIMEN_RECEIVED:${code}`);
+        continue;
+      }
+      targets.push({ test, items, specimen });
     }
 
     // ── 7. Template + existing-values check (read only) ──────────────────────
+    // Every earlier import into this order, from any run and any analyzer: a rerun or a second
+    // analyzer must never silently replace values already in the draft.
+    const earlierImports = targets.length
+      ? await this.prisma.instrumentMessage.findMany({
+          where: {
+            labTenantId: msg.labTenantId,
+            orderId: order.id,
+            status: 'IMPORTED',
+            id: { not: msg.id },
+          },
+          orderBy: { importedAt: 'desc' },
+          select: { id: true, parsed: true, orderedTestId: true },
+        })
+      : [];
+    const planOf = (p: { parsed: unknown }) =>
+      (p.parsed as { import?: { plan?: Planned[] } } | null)?.import?.plan ??
+      [];
     const sessions = new Map<string, Map<string, string>>();
     const writeItems = new Map<string, Planned[]>();
     const formulaComputed: Array<{
@@ -266,20 +332,28 @@ export class InstrumentProcessorService {
       // (so an approval made on an old screen is re-checked against today's state):
       //  - this analyzer run never wrote to this test: values already there were typed by hand;
       //  - it did: the draft must still hold exactly what that import wrote, else someone edited it since.
-      const lastImport = priors
-        .filter((p) => p.orderedTestId === test.id && p.status === 'IMPORTED')
-        .sort(
-          (a, b) =>
-            (b.importedAt?.getTime() ?? 0) - (a.importedAt?.getTime() ?? 0)
-        )[0];
+      const lastImport = earlierImports.find(
+        (p) =>
+          p.orderedTestId === test.id ||
+          planOf(p).some((i) => i.catalogItemCode === test.catalogItemCode)
+      );
       if (!lastImport) {
         if (manualValues) reasons.push('EXISTING_MANUAL_VALUES');
       } else {
+        // Same run again is CONTENT_CHANGED (step 1); a different run is a rerun.
+        if (
+          !priors.some((p) => p.id === lastImport.id) &&
+          !reasons.includes('ANALYZER_RERUN')
+        ) {
+          reasons.push('ANALYZER_RERUN');
+          matched.previousMessageId ??= lastImport.id;
+          matched.diff ??= diffSummaries(
+            lastImport.parsed as unknown as StoredSummary,
+            summary
+          );
+        }
         const wrote = new Map(
-          (
-            (lastImport.parsed as { import?: { plan?: Planned[] } } | null)
-              ?.import?.plan ?? []
-          )
+          planOf(lastImport)
             .filter((p) => p.catalogItemCode === (test.catalogItemCode ?? ''))
             .map((p) => [p.analyteCode, p.value] as const)
         );
@@ -314,7 +388,18 @@ export class InstrumentProcessorService {
     ) {
       reasons.push('NO_MAPPED_PARAMETERS'); // everything mapped is computed by the template
     }
-    const importInfo = { plan: writePlan, formulaComputed, ignored };
+    const importInfo = {
+      plan: writePlan,
+      formulaComputed,
+      ignored,
+      // which tube each test's values came from, for traceability
+      tests: targets.map(({ test, specimen }) => ({
+        orderedTestId: test.id,
+        catalogItemCode: test.catalogItemCode,
+        specimenId: specimen?.id ?? null,
+        accessionNumber: specimen?.accessionNumber ?? null,
+      })),
+    };
 
     const unresolved = reasons.filter((r) => !approved.has(reasonCode(r)));
     if (unresolved.length > 0) {
@@ -385,6 +470,7 @@ export class InstrumentProcessorService {
             orderedTestId: test.id,
             messageId: msg.id,
             analyzerId: msg.analyzerId,
+            matchedBy: match.matchedBy,
             approvedReasons: [...approved],
           },
         },
@@ -441,6 +527,7 @@ export class InstrumentProcessorService {
       orderId?: string;
       orderedTestId?: string | null;
       sampleLinkId?: string;
+      matchedBy?: 'SAMPLE_LINK' | 'ORDER_NUMBER';
       importedCount?: number;
       processingError?: string;
       importInfo?: unknown;
@@ -465,6 +552,7 @@ export class InstrumentProcessorService {
           ? (extra.diff as unknown as Prisma.InputJsonValue)
           : Prisma.DbNull,
         previousMessageId: extra.previousMessageId ?? null,
+        matchedBy: extra.matchedBy ?? null,
         ...(extra.orderId && { orderId: extra.orderId }),
         ...(extra.sampleLinkId && { sampleLinkId: extra.sampleLinkId }),
         ...(extra.orderedTestId !== undefined && {

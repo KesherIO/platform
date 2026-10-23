@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Activity } from 'lucide-react';
@@ -22,8 +23,11 @@ type Tab = InstrumentQueueView | 'connectors';
 export function InstrumentReviewPage() {
   const { t } = useTranslation();
   const { isAdmin } = useAuth();
-  const [tab, setTab] = useState<Tab>('review');
-  const [selected, setSelected] = useState<string | null>(null);
+  // ?message=<id> (from the order page) opens that message on the "All" tab
+  const [params] = useSearchParams();
+  const linked = params.get('message');
+  const [tab, setTab] = useState<Tab>(linked ? 'all' : 'review');
+  const [selected, setSelected] = useState<string | null>(linked);
 
   const view = tab === 'connectors' ? 'review' : tab;
   const {
