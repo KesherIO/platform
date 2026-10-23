@@ -31,7 +31,7 @@ PKG="$DL/KesherIO-Connector"; mkdir -p "$PKG/bin"
 cp "$DL/node.exe" "$DL/WinSW-x64.exe" "$PKG/bin/"
 cp "$DIST/vh30-receiver.cjs" "$PKG/bin/"
 [ -f "$DIST/vh30-replay.cjs" ] && cp "$DIST/vh30-replay.cjs" "$PKG/bin/"
-for f in install.ps1 common.ps1 update-config.ps1 uninstall.ps1 install.bat update-config.bat status.bat KesherIOConnector.xml.template; do
+for f in install.ps1 common.ps1 update-config.ps1 status.ps1 uninstall.ps1 install.bat update-config.bat status.bat KesherIOConnector.xml.template; do
   cp "$HERE/$f" "$PKG/" || fail "missing $f"
 done
 # Windows batch files need CRLF line endings
