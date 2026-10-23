@@ -1,0 +1,45 @@
+<!--
+  WinSW service definition, one per analyzer. install.ps1 substitutes the double-brace NAME markers below
+  (do not write a literal double brace in this file, not even in comments); nothing secret is written here (the API address + token live only in connector.json inside the data directory, which
+  only SYSTEM, Administrators and the service account can read).
+-->
+<service>
+  <id>{{SERVICE_ID}}</id>
+  <name>{{SERVICE_NAME}}</name>
+  <description>Receives HL7 results from the {{ANALYZER_NAME}} analyzer and uploads them to KesherIO. Messages are saved to disk before anything else, so a stopped service or a lost internet connection never loses a result.</description>
+
+  <executable>{{NODE_EXE}}</executable>
+  <arguments>"{{RECEIVER_CJS}}"</arguments>
+  <workingdirectory>{{DATA_DIR}}</workingdirectory>
+
+  <env name="VH30_HOST" value="{{LISTEN_IP}}"/>
+  <env name="VH30_PORT" value="{{LISTEN_PORT}}"/>
+  <env name="VH30_ALLOW_FROM" value="{{ANALYZER_IP}}"/>
+  <env name="VH30_ACK" value="off"/>
+  <env name="VH30_DATA_DIR" value="{{DATA_DIR}}"/>
+
+  <!-- Low-privilege built-in account (no password, no interactive logon, limited rights). -->
+  <!-- WinSW 2.x element names are <domain>/<user> ("username" is a 3.x name and would be ignored, leaving LocalSystem). -->
+  <serviceaccount>
+    <domain>NT AUTHORITY</domain>
+    <user>LocalService</user>
+  </serviceaccount>
+
+  <startmode>Automatic</startmode>
+  <delayedAutoStart/>
+
+  <!-- Restart after any crash: 10 s, 30 s, then every 60 s; the failure counter resets after a quiet day. -->
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <resetfailure>1 day</resetfailure>
+
+  <!-- Stop = Ctrl+C first (the receiver finishes in-flight work), then kill after the timeout. -->
+  <stoptimeout>15 sec</stoptimeout>
+
+  <log mode="roll-by-size">
+    <sizeThreshold>5120</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+  <logpath>{{DATA_DIR}}\logs</logpath>
+</service>

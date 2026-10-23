@@ -602,10 +602,16 @@ describe('InstrumentProcessorService', () => {
 
   describe('matching by the order analyzer number (REQ-2026-000012 = 26000012)', () => {
     const ORDER_CREATED = new Date('2026-10-19T10:00:00Z'); // the run is 2026-10-20T00:14:57Z
-    const orderRow = (tests: unknown[]) => ({
+    const orderRow = (
+      tests: unknown[],
+      over: Record<string, unknown> = {}
+    ) => ({
       id: 'o12',
       status: 'RECEIVED_BY_LAB',
+      receivedByLabAt: new Date('2026-10-19T12:00:00Z'),
+      _count: { specimens: 1 }, // the default fixture has an accepted tube
       orderedTests: tests,
+      ...over,
     });
     const cbc = (over: Record<string, unknown> = {}) => ({
       id: 't-cbc',
@@ -630,6 +636,8 @@ describe('InstrumentProcessorService', () => {
             ? {
                 id: 'o1',
                 status: 'RECEIVED_BY_LAB',
+                receivedByLabAt: new Date('2026-10-19T12:00:00Z'),
+                _count: { specimens: 1 },
                 orderedTests: [cbc({ id: 't1' })],
               }
             : null
@@ -664,6 +672,7 @@ describe('InstrumentProcessorService', () => {
         {
           orderedTestId: 't-cbc',
           catalogItemCode: 'CBC',
+          sampleBasis: 'SPECIMEN',
           specimenId: 'sp1',
           accessionNumber: 'REQ-2026-000012',
         },
@@ -730,6 +739,98 @@ describe('InstrumentProcessorService', () => {
       expect(statusWritten().reasons).toEqual(['SPECIMEN_NOT_ACCEPTED:CBC']);
       expect(resultEntry.getResultSession).not.toHaveBeenCalled();
       expect(resultEntry.saveAnalytes).not.toHaveBeenCalled();
+    });
+
+    describe('specimen requirements are optional: an order with no tube records at all', () => {
+      const noTubes = (over: Record<string, unknown> = {}) =>
+        orders(
+          orderRow([cbc({ specimens: [] })], {
+            _count: { specimens: 0 },
+            ...over,
+          })
+        );
+
+      it('the lab received the order: that is the acceptance, imported as a draft', async () => {
+        noTubes();
+        expect(await service.process('m1')).toBe('IMPORTED');
+        expect(resultEntry.saveAnalytes.mock.calls[0][0]).toBe('t-cbc');
+        const data = statusWritten();
+        expect(data.matchedBy).toBe('ORDER_NUMBER');
+        expect(data.parsed.import.tests).toEqual([
+          {
+            orderedTestId: 't-cbc',
+            catalogItemCode: 'CBC',
+            sampleBasis: 'ORDER_RECEIPT',
+            specimenId: null,
+            accessionNumber: null,
+          },
+        ]);
+      });
+
+      it('also while the order is being processed', async () => {
+        noTubes({ status: 'PROCESSING' });
+        expect(await service.process('m1')).toBe('IMPORTED');
+      });
+
+      it('an order the lab has not received yet is still held', async () => {
+        noTubes({ status: 'PENDING_PICKUP', receivedByLabAt: null });
+        expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+        expect(statusWritten().reasons).toEqual(['SPECIMEN_NOT_ACCEPTED:CBC']);
+        expect(resultEntry.saveAnalytes).not.toHaveBeenCalled();
+      });
+
+      it('a received status without a receipt time is still held', async () => {
+        noTubes({ receivedByLabAt: null });
+        expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+        expect(statusWritten().reasons).toEqual(['SPECIMEN_NOT_ACCEPTED:CBC']);
+      });
+
+      it('a run from before the lab received the order is held', async () => {
+        noTubes({ receivedByLabAt: new Date('2026-10-20T03:00:00Z') });
+        expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+        expect(statusWritten().reasons).toEqual([
+          'RUN_BEFORE_SPECIMEN_RECEIVED:CBC',
+        ]);
+        expect(resultEntry.saveAnalytes).not.toHaveBeenCalled();
+      });
+
+      it('once ANY tube record exists the tubes decide: a rejected or expected tube holds the import', async () => {
+        for (const status of ['REJECTED', 'EXPECTED']) {
+          jest.clearAllMocks();
+          prisma.instrumentSampleLink.findMany.mockResolvedValue([]);
+          numbered();
+          orders(
+            orderRow([
+              cbc({
+                specimens: [
+                  { specimen: { ...acceptedTube[0].specimen, status } },
+                ],
+              }),
+            ])
+          );
+          expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+          expect(statusWritten().reasons).toEqual([
+            'SPECIMEN_NOT_ACCEPTED:CBC',
+          ]);
+        }
+      });
+
+      it('a tube on the order that is not linked to this test also means the tubes decide', async () => {
+        orders(
+          orderRow([cbc({ specimens: [] })], { _count: { specimens: 1 } })
+        );
+        expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+        expect(statusWritten().reasons).toEqual(['SPECIMEN_NOT_ACCEPTED:CBC']);
+      });
+
+      it('approving cannot skip it (not an approvable reason)', async () => {
+        noTubes({ receivedByLabAt: null });
+        await service.process('m1', {
+          approved: ['SPECIMEN_NOT_ACCEPTED'],
+          actor: { id: 'u1', name: 'U' },
+        });
+        expect(statusWritten().status).toBe('NEEDS_REVIEW');
+      });
     });
 
     it('the order has no CBC (only chemistry): held for review', async () => {
