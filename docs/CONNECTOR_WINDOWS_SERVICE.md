@@ -6,11 +6,11 @@ Plan written 2026-10-22. Companion to `docs/INSTRUMENT_CONNECTOR.md` (API side) 
 
 ## Status at a glance
 
-| Piece                           | Where                                                                       | State                                                              |
-| ------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Piece                           | Where                                                                       | State                                                                                           |
+| ------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Windows service package         | `apps/connector/windows-service/`                                           | installed and used at the Biomet lab (Dev); new installer flow not yet run on Windows (see §1a) |
-| Production-safe mapping script  | `apps/api/prisma/seeds/instrument-mappings.mjs` (+ `.lib.mjs`, `.test.mjs`) | written; unit-tested; dry-run/apply exercised against **dev** only |
-| Production migrations / rollout | §3–§4                                                                       | not started — manual, by the owner                                 |
+| Production-safe mapping script  | `apps/api/prisma/seeds/instrument-mappings.mjs` (+ `.lib.mjs`, `.test.mjs`) | written; unit-tested; dry-run/apply exercised against **dev** only                              |
+| Production migrations / rollout | §3–§4                                                                       | not started — manual, by the owner                                                              |
 
 ## 1. Windows service
 
