@@ -106,5 +106,5 @@ test('no secret in the template and the token is never an argument', () => {
 
 test('PowerShell 5.1 hygiene: scripts are pure ASCII (BOM-less files are read as ANSI)', () => {
   for (const f of ['install.ps1', 'uninstall.ps1'])
-    assert.doesNotMatch(readFileSync(join(here, f), 'utf8'), /[^\x00-\x7F]/, f);
+    assert.doesNotMatch(readFileSync(join(here, f), 'utf8'), /[^\t\n\r -~]/, f);
 });

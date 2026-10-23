@@ -47,7 +47,7 @@ const run = (args, env = {}) =>
 
 test('every PowerShell/batch file is ASCII (Windows PowerShell 5.1 reads BOM-less files as ANSI)', () => {
   for (const f of [...scripts, ...bats])
-    assert.doesNotMatch(read(f), /[^\x00-\x7F]/, f);
+    assert.doesNotMatch(read(f), /[^\t\n\r -~]/, f);
 });
 
 test('batch files have CRLF line endings, as cmd.exe expects', () => {
