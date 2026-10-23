@@ -1,16 +1,23 @@
 @echo off
-rem Shows every KesherIO connector service on this PC: service state + the receiver's own status file.
-setlocal enabledelayedexpansion
-set ROOT=%ProgramData%\KesherIO\Connector
-set FOUND=0
-for /d %%D in ("%ROOT%\*") do (
-  set FOUND=1
-  echo ==========================================================
-  echo Analyzer connector: %%~nxD
-  sc query "KesherIOConnector-%%~nxD" | findstr /i "STATE"
-  if exist "%%D\status.json" (type "%%D\status.json") else (echo No status file yet - the service has not started.)
-  echo Logs: %%D\logs
-  echo.
+rem Double-click to see every KesherIO connector on this PC. Runs status.ps1 as administrator (the data folder is
+rem readable only by Administrators and the service). Takes no arguments.
+setlocal
+cd /d "%~dp0"
+if not exist "%~dp0status.ps1" (
+  echo status.ps1 was not found next to this file. Unzip the whole package first.
+  pause
+  exit /b 1
 )
-if "!FOUND!"=="0" echo No connector is installed (nothing under %ROOT%).
+fltmc >nul 2>&1
+if errorlevel 1 (
+  echo Asking Windows for administrator permission...
+  set "KESHERIO_SELF=%~f0"
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath $env:KESHERIO_SELF -Verb RunAs"
+  exit /b
+)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0status.ps1"
+set "RC=%errorlevel%"
+echo.
+if not "%RC%"=="0" echo The script finished with code %RC%. Read the messages above.
 pause
+exit /b %RC%
