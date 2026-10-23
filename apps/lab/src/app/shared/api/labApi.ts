@@ -63,6 +63,7 @@ import type {
   InstrumentQueueView,
   InstrumentQueuePage,
   InstrumentMessageDetail,
+  OrderAnalyzerStatus,
   InstrumentMessageStatus,
   ConnectorCredentialSummary,
 } from '../../types/lab.types';
@@ -434,6 +435,9 @@ export const labApi = {
     },
     get: (id: string) =>
       get<InstrumentMessageDetail>(`lab/instruments/messages/${id}`),
+    /** Order page: the analyzer number, and whether each analyzer's results arrived */
+    orderStatus: (orderId: string) =>
+      get<OrderAnalyzerStatus>(`lab/instruments/orders/${orderId}/status`),
     /** The exact bytes the analyzer sent, for troubleshooting */
     downloadRaw: (id: string) => getBlob(`lab/instruments/messages/${id}/raw`),
     /** "This analyzer sample is that order" — creates an explicit link, then imports as draft */

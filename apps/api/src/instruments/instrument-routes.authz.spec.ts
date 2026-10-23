@@ -36,6 +36,7 @@ const MATRIX: Record<string, string[]> = {
   'GET lab/instruments/messages': STAFF,
   'GET lab/instruments/messages/:id': STAFF,
   'GET lab/instruments/messages/:id/raw': STAFF,
+  'GET lab/instruments/orders/:orderId/status': STAFF, // order page: analyzer number + results state
   // acting on a message
   'POST lab/instruments/messages/:id/resolve-sample': STAFF, // links a sample to an order
   'POST lab/instruments/messages/:id/reprocess': STAFF,

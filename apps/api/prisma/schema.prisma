@@ -1194,6 +1194,8 @@ model Analyzer {
   department     Department
   connectionType String     @default("NONE")
   isActive       Boolean    @default(true)
+  /// Match results to orders by the order's analyzer number (REQ-2026-000012 -> 26000012). Off until the lab enables it.
+  autoMatchOrders Boolean   @default(false)
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -1296,6 +1298,8 @@ model InstrumentMessage {
   orderId       String?
   orderedTestId String?
   sampleLinkId  String?
+  /// How the order was found: SAMPLE_LINK | ORDER_NUMBER (analyzer number = the order's) | null (not matched)
+  matchedBy     String?
 
   processingError String?
   processedAt     DateTime?

@@ -274,7 +274,10 @@ export function WorklistPage() {
   async function handleStartAll(groupItems: WorklistItem[]) {
     setBusyTestId(groupItems[0].id);
     try {
-      await labApi.worklist.batchStart(groupItems.map((i) => i.id));
+      // already IN_PROGRESS (e.g. analyzer values imported as a draft) needs no start
+      await labApi.worklist.batchStart(
+        groupItems.filter((i) => i.status === 'READY').map((i) => i.id)
+      );
       toast.success(t('worklist.success.started'));
     } catch {
       toast.error(t('worklist.errors.start'));

@@ -45,7 +45,9 @@ export function WorklistCard({
 
   const isMine = item.assignedUserId === currentUserId;
   const isUnassigned = !item.assignedUserId;
-  const canClaim = isUnassigned && item.status === 'READY';
+  // IN_PROGRESS + unassigned = analyzer values were imported as a draft: claim it to finish the entry
+  const canClaim =
+    isUnassigned && (item.status === 'READY' || item.status === 'IN_PROGRESS');
   const canStart = isMine && item.status === 'READY';
   const canUnclaim = item.assignedUserId && (isMine || isAdmin);
   const canReassign =
@@ -133,6 +135,14 @@ export function WorklistCard({
           <span>{item.clinicName}</span>
           <span className="text-gray-600">&middot;</span>
           <span>{item.requisitionNumber}</span>
+          {item.analyzerNumber && (
+            <span
+              title={t('instruments.order.title')}
+              className="font-mono text-cyan/80"
+            >
+              #{item.analyzerNumber}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">

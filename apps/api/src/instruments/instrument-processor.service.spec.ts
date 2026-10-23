@@ -2,6 +2,7 @@ import { ConflictException } from '@nestjs/common';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { ResultEntryService } from '../lab/result-entry.service';
 import { InstrumentProcessorService } from './instrument-processor.service';
+import { OrderMatchService } from './order-match.service';
 import { decodeFrame, contentHash, parseOru, toStoredSummary } from './hl7-oru';
 import { makeFrame, sampleHl7 } from './test-frames';
 
@@ -30,6 +31,17 @@ function messageRow(
     ...over,
   };
 }
+/** The test's one accepted tube, received before the run (2026-10-20T00:14:57Z). */
+const acceptedTube = [
+  {
+    specimen: {
+      id: 'sp1',
+      accessionNumber: 'REQ-2026-000012',
+      status: 'ACCEPTED',
+      receivedAt: new Date('2026-10-19T12:00:00Z'),
+    },
+  },
+];
 const mapping = (
   parameterCode: string,
   analyzerUnit: string,
@@ -61,7 +73,8 @@ describe('InstrumentProcessorService', () => {
   const resultEntry = { getResultSession: jest.fn(), saveAnalytes: jest.fn() };
   const service = new InstrumentProcessorService(
     prisma as unknown as PrismaService,
-    resultEntry as unknown as ResultEntryService
+    resultEntry as unknown as ResultEntryService,
+    new OrderMatchService(prisma as unknown as PrismaService)
   );
   const session = (savedWbc: number | null = null) => ({
     sections: [
@@ -115,6 +128,7 @@ describe('InstrumentProcessorService', () => {
           catalogItemCode: 'CBC',
           catalogItemName: 'CBC',
           status: 'READY',
+          specimens: acceptedTube,
         },
       ],
     });
@@ -571,6 +585,7 @@ describe('InstrumentProcessorService', () => {
           catalogItemCode: 'CBC',
           catalogItemName: 'CBC',
           status: 'IN_REVIEW',
+          specimens: acceptedTube,
         },
       ],
     });
@@ -583,6 +598,336 @@ describe('InstrumentProcessorService', () => {
     expect(await service.process('m1')).toBe('NEEDS_REVIEW');
     expect(statusWritten().reasons).toContain('TEST_NOT_EDITABLE');
     expect(prisma.orderedTest.update).not.toHaveBeenCalled(); // nothing marked as imported
+  });
+
+  describe('matching by the order analyzer number (REQ-2026-000012 = 26000012)', () => {
+    const ORDER_CREATED = new Date('2026-10-19T10:00:00Z'); // the run is 2026-10-20T00:14:57Z
+    const orderRow = (tests: unknown[]) => ({
+      id: 'o12',
+      status: 'RECEIVED_BY_LAB',
+      orderedTests: tests,
+    });
+    const cbc = (over: Record<string, unknown> = {}) => ({
+      id: 't-cbc',
+      catalogItemCode: 'CBC',
+      catalogItemName: 'Hemograma',
+      status: 'READY',
+      specimens: acceptedTube,
+      ...over,
+    });
+    /** Number lookups resolve REQ-2026-000012 in lab1 only; id lookups return `order`. */
+    const orders = (order: unknown, created = ORDER_CREATED) =>
+      prisma.order.findFirst.mockImplementation(
+        async ({ where }: { where: Record<string, string> }) =>
+          'requisitionNumber' in where
+            ? where.labTenantId === 'lab1' &&
+              where.requisitionNumber === 'REQ-2026-000012'
+              ? { id: 'o12', createdAt: created }
+              : null
+            : where.id === 'o12' && where.labTenantId === 'lab1'
+            ? order
+            : where.id === 'o1'
+            ? {
+                id: 'o1',
+                status: 'RECEIVED_BY_LAB',
+                orderedTests: [cbc({ id: 't1' })],
+              }
+            : null
+      );
+    const numbered = (sampleId = '26000012', auto = true, o = {}) =>
+      prisma.instrumentMessage.findUniqueOrThrow.mockResolvedValue(
+        messageRow(
+          { sampleId, ...o },
+          { analyzer: { name: 'VH30', autoMatchOrders: auto } }
+        )
+      );
+    beforeEach(() => {
+      prisma.instrumentSampleLink.findMany.mockResolvedValue([]); // nobody linked it by hand
+      orders(orderRow([cbc()]));
+      numbered();
+    });
+
+    it('a correct number imports a draft automatically, matched by ORDER_NUMBER, looked up in this lab only', async () => {
+      expect(await service.process('m1')).toBe('IMPORTED');
+      expect(prisma.order.findFirst.mock.calls[0][0].where).toEqual({
+        labTenantId: 'lab1',
+        requisitionNumber: 'REQ-2026-000012',
+      });
+      expect(resultEntry.saveAnalytes.mock.calls[0][0]).toBe('t-cbc');
+      const data = statusWritten();
+      expect(data).toMatchObject({
+        status: 'IMPORTED',
+        matchedBy: 'ORDER_NUMBER',
+        orderId: 'o12',
+      });
+      expect(data.parsed.import.tests).toEqual([
+        {
+          orderedTestId: 't-cbc',
+          catalogItemCode: 'CBC',
+          specimenId: 'sp1',
+          accessionNumber: 'REQ-2026-000012',
+        },
+      ]);
+    });
+
+    it('an unknown number stays unmatched and says why', async () => {
+      numbered('26000099');
+      expect(await service.process('m1')).toBe('UNMATCHED');
+      expect(statusWritten()).toMatchObject({
+        reasons: ['UNMATCHED', 'ORDER_NUMBER_NOT_FOUND:REQ-2026-000099'],
+        matchedBy: null,
+      });
+      expect(resultEntry.saveAnalytes).not.toHaveBeenCalled();
+    });
+
+    it.each(['168', '2600012', '260000123', '2600001A'])(
+      'sample ID %p is not an analyzer number: unmatched, no order lookup',
+      async (sampleId) => {
+        numbered(sampleId);
+        expect(await service.process('m1')).toBe('UNMATCHED');
+        expect(statusWritten().reasons).toEqual([
+          'UNMATCHED',
+          'NOT_AN_ORDER_NUMBER',
+        ]);
+        expect(prisma.order.findFirst).not.toHaveBeenCalled();
+      }
+    );
+
+    it('a run from before the order existed is a reused number, not this order', async () => {
+      orders(orderRow([cbc()]), new Date('2026-10-21T08:00:00Z'));
+      expect(await service.process('m1')).toBe('UNMATCHED');
+      expect(statusWritten().reasons).toEqual([
+        'UNMATCHED',
+        'RUN_BEFORE_ORDER_CREATED:REQ-2026-000012',
+      ]);
+    });
+
+    it('with automatic matching off the number is ignored: the manual workflow is unchanged', async () => {
+      numbered('26000012', false);
+      expect(await service.process('m1')).toBe('UNMATCHED');
+      expect(statusWritten().reasons).toEqual(['UNMATCHED']);
+      expect(prisma.order.findFirst).not.toHaveBeenCalled();
+      // …and a manual link still imports
+      prisma.instrumentSampleLink.findMany.mockResolvedValue([
+        { id: 'l1', orderId: 'o12' },
+      ]);
+      expect(await service.process('m1')).toBe('IMPORTED');
+      expect(statusWritten().matchedBy).toBe('SAMPLE_LINK');
+    });
+
+    it('the tube is not accepted yet: held for review, nothing written', async () => {
+      orders(
+        orderRow([
+          cbc({
+            status: 'PENDING',
+            specimens: [
+              { specimen: { ...acceptedTube[0].specimen, status: 'RECEIVED' } },
+            ],
+          }),
+        ])
+      );
+      expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+      expect(statusWritten().reasons).toEqual(['SPECIMEN_NOT_ACCEPTED:CBC']);
+      expect(resultEntry.getResultSession).not.toHaveBeenCalled();
+      expect(resultEntry.saveAnalytes).not.toHaveBeenCalled();
+    });
+
+    it('the order has no CBC (only chemistry): held for review', async () => {
+      orders(orderRow([cbc({ id: 't-alt', catalogItemCode: 'ALT' })]));
+      expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+      expect(statusWritten().reasons).toEqual(['NO_MATCHING_TEST:CBC']);
+    });
+
+    it('several tubes: only the CBC test and its own accepted EDTA tube are used', async () => {
+      orders(
+        orderRow([
+          cbc({ id: 't-alt', catalogItemCode: 'ALT', catalogItemName: 'ALT' }),
+          cbc(),
+        ])
+      );
+      expect(await service.process('m1')).toBe('IMPORTED');
+      expect(resultEntry.saveAnalytes).toHaveBeenCalledTimes(1);
+      expect(resultEntry.saveAnalytes.mock.calls[0][0]).toBe('t-cbc');
+    });
+
+    it('two accepted tubes for the CBC: no tube is picked arbitrarily', async () => {
+      const second = {
+        specimen: {
+          ...acceptedTube[0].specimen,
+          id: 'sp2',
+          accessionNumber: 'X-2',
+        },
+      };
+      orders(orderRow([cbc({ specimens: [...acceptedTube, second] })]));
+      expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+      expect(statusWritten().reasons).toEqual([
+        'MULTIPLE_ACCEPTED_SPECIMENS:CBC',
+      ]);
+    });
+
+    it('a MANUAL link keeps the existing rules: a READY test without any tube still imports', async () => {
+      prisma.instrumentSampleLink.findMany.mockResolvedValue([
+        { id: 'l1', orderId: 'o12' },
+      ]);
+      orders(orderRow([cbc({ specimens: [] })]));
+      expect(await service.process('m1')).toBe('IMPORTED');
+      expect(statusWritten().parsed.import.tests[0]).toMatchObject({
+        orderedTestId: 't-cbc',
+        specimenId: null,
+      });
+    });
+
+    it('a run from before the tube was received is held', async () => {
+      orders(
+        orderRow([
+          cbc({
+            specimens: [
+              {
+                specimen: {
+                  ...acceptedTube[0].specimen,
+                  receivedAt: new Date('2026-10-20T03:00:00Z'),
+                },
+              },
+            ],
+          }),
+        ])
+      );
+      expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+      expect(statusWritten().reasons).toEqual([
+        'RUN_BEFORE_SPECIMEN_RECEIVED:CBC',
+      ]);
+    });
+
+    describe('a rerun of the same order with different values', () => {
+      const first = messageRow({ sampleId: '26000012', wbc: '13.23' });
+      const earlierImport = {
+        id: 'first-run',
+        parsed: {
+          ...first.parsed,
+          import: {
+            plan: [
+              { catalogItemCode: 'CBC', analyteCode: 'WBC', value: 13.23 },
+              { catalogItemCode: 'CBC', analyteCode: 'HGB', value: 5.7 },
+            ],
+          },
+        },
+        orderedTestId: 't-cbc',
+      };
+      const sessionWith = (wbc: number) => ({
+        sections: [
+          {
+            analytes: [
+              {
+                id: 'a-wbc',
+                code: 'WBC',
+                isHeader: false,
+                numericValue: wbc,
+                textValue: null,
+                booleanValue: null,
+                selectValue: null,
+              },
+              {
+                id: 'a-hgb',
+                code: 'HGB',
+                isHeader: false,
+                numericValue: 5.7,
+                textValue: null,
+                booleanValue: null,
+                selectValue: null,
+              },
+            ],
+          },
+        ],
+      });
+      beforeEach(() => {
+        numbered('26000012', true, { wbc: '14.00', obs: '20261020101500' }); // a new run
+        // 1st findMany = same-run priors (none), 2nd = earlier imports into this order
+        prisma.instrumentMessage.findMany
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([earlierImport]);
+        resultEntry.getResultSession.mockResolvedValue(sessionWith(13.23));
+      });
+
+      it('is held as ANALYZER_RERUN with the previous and new values; nothing is replaced', async () => {
+        expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+        const data = statusWritten();
+        expect(data.reasons).toEqual(['ANALYZER_RERUN']);
+        expect(data.previousMessageId).toBe('first-run');
+        expect(data.diff.changed[0]).toMatchObject({
+          code: 'WBC',
+          before: { value: '13.23' },
+          after: { value: '14.00' },
+        });
+        expect(
+          prisma.instrumentMessage.findMany.mock.calls[1][0].where
+        ).toEqual({
+          labTenantId: 'lab1',
+          orderId: 'o12',
+          status: 'IMPORTED',
+          id: { not: 'm1' },
+        });
+        expect(resultEntry.saveAnalytes).not.toHaveBeenCalled();
+      });
+
+      it('a technician edit since the first import must be accepted too (manual edits are never overwritten silently)', async () => {
+        resultEntry.getResultSession.mockResolvedValue(sessionWith(9));
+        await service.process('m1');
+        expect(statusWritten().reasons).toEqual([
+          'ANALYZER_RERUN',
+          'DRAFT_MODIFIED_SINCE_IMPORT',
+        ]);
+      });
+
+      it('a reviewer approving the rerun imports the new values as draft', async () => {
+        expect(
+          await service.process('m1', {
+            approved: ['ANALYZER_RERUN'],
+            actor: { id: 'u1', name: 'Rev' },
+          })
+        ).toBe('IMPORTED');
+        expect(resultEntry.saveAnalytes.mock.calls[0][2][0]).toEqual({
+          templateAnalyteId: 'a-wbc',
+          numericValue: 14,
+        });
+      });
+    });
+
+    describe('a manual link and the number name different orders', () => {
+      beforeEach(() => {
+        prisma.instrumentSampleLink.findMany.mockResolvedValue([
+          { id: 'l1', orderId: 'o1' },
+        ]);
+      });
+
+      it('is held for review, naming the order the number points to', async () => {
+        expect(await service.process('m1')).toBe('NEEDS_REVIEW');
+        expect(statusWritten()).toMatchObject({
+          reasons: ['ORDER_NUMBER_LINK_CONFLICT:REQ-2026-000012'],
+          orderId: 'o1',
+          matchedBy: 'SAMPLE_LINK',
+        });
+        expect(resultEntry.saveAnalytes).not.toHaveBeenCalled();
+      });
+
+      it('approving it imports into the LINKED order: the manual link wins', async () => {
+        expect(
+          await service.process('m1', {
+            approved: ['ORDER_NUMBER_LINK_CONFLICT'],
+            actor: { id: 'u1', name: 'Rev' },
+          })
+        ).toBe('IMPORTED');
+        expect(resultEntry.saveAnalytes.mock.calls[0][0]).toBe('t1');
+        expect(statusWritten().orderId).toBe('o1');
+      });
+
+      it('no conflict when both name the same order', async () => {
+        prisma.instrumentSampleLink.findMany.mockResolvedValue([
+          { id: 'l1', orderId: 'o12' },
+        ]);
+        expect(await service.process('m1')).toBe('IMPORTED');
+        expect(statusWritten().matchedBy).toBe('SAMPLE_LINK');
+      });
+    });
   });
 
   it('a cancelled order is not imported into', async () => {

@@ -50,6 +50,7 @@ const base: InstrumentMessageDetail = {
   importedCount: 0,
   resolvedAt: null,
   orderId: null,
+  matchedBy: null,
   analyzer: { id: 'an1', name: 'VH30' },
   order: null,
   sha256: 'x',
@@ -337,5 +338,23 @@ describe('InstrumentDetailPanel', () => {
     await waitFor(() =>
       expect(labApi.instruments.resolveSample).toHaveBeenCalledWith('m1', 'o9')
     );
+  });
+
+  it('says how the order was matched: automatically by analyzer number, or by a manual link', async () => {
+    show({
+      status: 'IMPORTED',
+      reasons: [],
+      sampleId: '26000012',
+      orderId: 'o12',
+      matchedBy: 'ORDER_NUMBER',
+      order: {
+        id: 'o12',
+        requisitionNumber: 'REQ-2026-000012',
+        status: 'IN_PROGRESS',
+      } as never,
+    });
+    expect(
+      await screen.findByText('instruments.detail.matched_by_number')
+    ).toBeTruthy();
   });
 });

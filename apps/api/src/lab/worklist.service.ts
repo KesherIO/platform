@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LAB_STAFF_ROLES } from './lab-roles';
 import type { ListWorklistDto } from './dto/list-worklist.dto';
 import type { TenantRole } from '@prisma/client';
+import { analyzerNumberFor } from '../orders/analyzer-number.util';
 
 const DEFAULT_PAGE_SIZE = 50;
 const ACTIONABLE_STATUSES = ['READY', 'IN_PROGRESS'];
@@ -161,6 +162,8 @@ export class WorklistService {
       blockReasonDetail: t.blockReasonDetail,
       orderId: t.orderId,
       requisitionNumber: t.order.requisitionNumber,
+      // what the technician types into the analyzer (null for legacy formats)
+      analyzerNumber: analyzerNumberFor(t.order.requisitionNumber),
       orderPriority: t.order.priority,
       orderStatus: t.order.status,
       patientName: t.order.case.patientName,

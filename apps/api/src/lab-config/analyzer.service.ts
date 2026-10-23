@@ -48,6 +48,9 @@ export class AnalyzerService {
           manufacturer: dto.manufacturer,
         }),
         ...(dto.department !== undefined && { department: dto.department }),
+        ...(dto.autoMatchOrders !== undefined && {
+          autoMatchOrders: dto.autoMatchOrders,
+        }),
       },
     });
   }

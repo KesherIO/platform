@@ -9,6 +9,7 @@ import { InstrumentIngestService } from './instrument-ingest.service';
 import { InstrumentProcessorService } from './instrument-processor.service';
 import { InstrumentReviewController } from './instrument-review.controller';
 import { InstrumentReviewService } from './instrument-review.service';
+import { OrderMatchService } from './order-match.service';
 
 /** Analyzer connector backend: authenticated ingest, review queue, draft import. */
 @Module({
@@ -20,6 +21,7 @@ import { InstrumentReviewService } from './instrument-review.service';
     InstrumentIngestService,
     InstrumentProcessorService,
     InstrumentReviewService,
+    OrderMatchService,
   ],
 })
 export class InstrumentsModule {}

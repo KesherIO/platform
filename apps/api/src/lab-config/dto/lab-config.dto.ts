@@ -73,6 +73,14 @@ export class UpdateAnalyzerDto {
   @IsOptional()
   @IsEnum(DepartmentDto)
   department?: DepartmentDto;
+
+  @ApiPropertyOptional({
+    description:
+      "Match this analyzer's results to orders by the order's analyzer number (REQ-2026-000012 → 26000012)",
+  })
+  @IsOptional()
+  @IsBoolean()
+  autoMatchOrders?: boolean;
 }
 
 // ---------------------------------------------------------------------------

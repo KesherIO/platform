@@ -1146,6 +1146,8 @@ export interface Analyzer {
   department: Department;
   connectionType: string;
   isActive: boolean;
+  /** Match this analyzer's results to orders by the order's analyzer number */
+  autoMatchOrders: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -1288,6 +1290,8 @@ export interface WorklistItem {
   blockReasonDetail: string | null;
   orderId: string;
   requisitionNumber: string;
+  /** What the technician types into the analyzer (REQ-2026-000012 → 26000012); null for legacy formats */
+  analyzerNumber: string | null;
   orderPriority: Priority;
   orderStatus: OrderStatus;
   patientName: string;
@@ -1733,8 +1737,23 @@ export interface InstrumentMessageSummary {
   importedCount: number;
   resolvedAt: string | null;
   orderId: string | null;
+  /** How the order was found: an explicit link, or the order's analyzer number */
+  matchedBy: 'SAMPLE_LINK' | 'ORDER_NUMBER' | null;
   analyzer: { id: string; name: string };
   order: { requisitionNumber: string } | null;
+}
+
+/** Order page: the number to type into the analyzers, and what each analyzer sent. */
+export interface OrderAnalyzerStatus {
+  analyzerNumber: string | null;
+  analyzers: Array<{
+    analyzerId: string;
+    analyzerName: string;
+    state: 'IMPORTED' | 'NEEDS_REVIEW' | 'WAITING';
+    messageId: string | null;
+    reasons: string[];
+    at: string | null;
+  }>;
 }
 
 export interface InstrumentParameter {
