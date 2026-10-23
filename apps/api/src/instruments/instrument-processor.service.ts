@@ -11,6 +11,9 @@ import { CLOCK_SKEW_MS, OrderMatchService } from './order-match.service';
  * mismatch, missing test…) has to be FIXED — link the sample, add the mapping,
  * accept the specimen — and the message reprocessed; approving can't skip it.
  */
+/** Order statuses in which the lab has the sample (same list the add-tests flow uses). */
+const RECEIVED_ORDER_STATUSES: string[] = ['RECEIVED_BY_LAB', 'PROCESSING'];
+
 export const APPROVABLE_REASONS = [
   'CONTENT_CHANGED',
   'EXPIRED_REAGENT',
@@ -138,6 +141,9 @@ export class InstrumentProcessorService {
       select: {
         id: true,
         status: true,
+        receivedByLabAt: true,
+        // Tubes are optional (a lab with no specimen requirements never has any): see the byNumber rule below
+        _count: { select: { specimens: true } },
         orderedTests: {
           select: {
             id: true,
@@ -220,7 +226,23 @@ export class InstrumentProcessorService {
         continue;
       }
       if (accepted.length === 0) {
-        reasons.push(`SPECIMEN_NOT_ACCEPTED:${code}`);
+        // Specimen requirements are optional, so an order can be accessioned with no tube records at all;
+        // staff accessioning it is the lab saying the sample was received and is suitable. That counts - but
+        // ONLY when the order has no tube records whatsoever: once any exist (expected, pending, rejected),
+        // the tubes decide and an ACCEPTED one is required.
+        const receiptAccepted =
+          order._count.specimens === 0 &&
+          RECEIVED_ORDER_STATUSES.includes(order.status) &&
+          order.receivedByLabAt != null;
+        if (!receiptAccepted || !order.receivedByLabAt) {
+          reasons.push(`SPECIMEN_NOT_ACCEPTED:${code}`);
+          continue;
+        }
+        if (at.getTime() < order.receivedByLabAt.getTime() - CLOCK_SKEW_MS) {
+          reasons.push(`RUN_BEFORE_SPECIMEN_RECEIVED:${code}`);
+          continue;
+        }
+        targets.push({ test, items, specimen: null });
         continue;
       }
       if (accepted.length > 1) {
@@ -396,6 +418,13 @@ export class InstrumentProcessorService {
       tests: targets.map(({ test, specimen }) => ({
         orderedTestId: test.id,
         catalogItemCode: test.catalogItemCode,
+        // SPECIMEN: an accepted tube; ORDER_RECEIPT: no tube records, the lab received the order;
+        // EXPLICIT_LINK: a person linked the sample
+        sampleBasis: specimen
+          ? 'SPECIMEN'
+          : byNumber
+          ? 'ORDER_RECEIPT'
+          : 'EXPLICIT_LINK',
         specimenId: specimen?.id ?? null,
         accessionNumber: specimen?.accessionNumber ?? null,
       })),

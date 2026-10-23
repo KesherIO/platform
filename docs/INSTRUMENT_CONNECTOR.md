@@ -69,6 +69,14 @@ accepted tube** through `ordered_test_specimens`, received before the run: other
 `MULTIPLE_ACCEPTED_SPECIMENS` or `RUN_BEFORE_SPECIMEN_RECEIVED` — never an arbitrary tube. A manual link keeps
 the earlier rules (a test can be `READY` without any tube when its template was resolved by hand).
 
+**Specimen requirements are optional**, so a lab that configures none accessions orders with no tube records at
+all. For a number-matched message that counts as accepted — the lab received the order and said so — **only when
+the order has no specimen records whatsoever**, its status is `RECEIVED_BY_LAB`/`PROCESSING`, it has a
+`receivedByLabAt`, and the run is not earlier than that (same clock-skew tolerance). As soon as any tube exists
+(expected, pending, rejected, or one not linked to this test) the tubes decide and an accepted one is required.
+`SPECIMEN_NOT_ACCEPTED` is still not approvable. `parsed.import.tests[].sampleBasis` is `SPECIMEN`,
+`ORDER_RECEIPT` or `EXPLICIT_LINK`.
+
 A link and the number naming **different orders** → `ORDER_NUMBER_LINK_CONFLICT:<requisition>` (approvable,
 Reviewer+): approving imports into the **linked** order — the manual link wins. Same order → no conflict.
 `instrument_messages.matchedBy` records `SAMPLE_LINK` or `ORDER_NUMBER`; `parsed.import.tests` records the
@@ -137,7 +145,7 @@ stay `INCOMPLETE` forever — they are acknowledged, not relabelled.
 | `ANALYZER_RERUN`                                                                                            | the test already holds values from an earlier run or another analyzer          | **approve** (reviewer+)                                       |
 | `ORDER_NUMBER_LINK_CONFLICT:<requisition>`                                                                  | the number names another order than the manual link                            | **approve** (reviewer+): the link wins                        |
 | `NOT_AN_ORDER_NUMBER`, `ORDER_NUMBER_NOT_FOUND:<req>`, `RUN_BEFORE_ORDER_CREATED:<req>`                     | the sample number does not identify an order (with automatic matching on)      | link to an order                                              |
-| `SPECIMEN_NOT_ACCEPTED:<code>`, `MULTIPLE_ACCEPTED_SPECIMENS:<code>`, `RUN_BEFORE_SPECIMEN_RECEIVED:<code>` | matched by number, but the tube is not a single accepted, already-received one | accept the tube, reprocess (or link by hand)                  |
+| `SPECIMEN_NOT_ACCEPTED:<code>`, `MULTIPLE_ACCEPTED_SPECIMENS:<code>`, `RUN_BEFORE_SPECIMEN_RECEIVED:<code>` | matched by number, but the order has tube records and none is a single accepted, already-received one (or the order has no tubes and was not received) | accept the tube, reprocess (or link by hand)                  |
 | `UNIT_MISMATCH:<code>:<unit>`                                                                               | unit has no mapping                                                            | add mapping, reprocess                                        |
 | `NO_MAPPED_PARAMETERS`, `NO_MATCHING_TEST:<code>`, `ANALYTE_NOT_IN_TEMPLATE:<code>`                         | configuration gap                                                              | fix config, reprocess                                         |
 | `ORDER_NOT_AVAILABLE`, `TEST_NOT_EDITABLE`                                                                  | order cancelled; test not accepted / in review / released                      | fix, reprocess (a released test needs the amendment workflow) |
