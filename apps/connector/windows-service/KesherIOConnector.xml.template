@@ -1,6 +1,6 @@
 <!--
-  WinSW service definition, one per analyzer. install.ps1 fills the {{...}} values; nothing secret is
-  written here (the API address + token live only in connector.json inside the data directory, which
+  WinSW service definition, one per analyzer. install.ps1 substitutes the double-brace NAME markers below
+  (do not write a literal double brace in this file, not even in comments); nothing secret is written here (the API address + token live only in connector.json inside the data directory, which
   only SYSTEM, Administrators and the service account can read).
 -->
 <service>
@@ -19,12 +19,14 @@
   <env name="VH30_DATA_DIR" value="{{DATA_DIR}}"/>
 
   <!-- Low-privilege built-in account (no password, no interactive logon, limited rights). -->
+  <!-- WinSW 2.x element names are <domain>/<user> ("username" is a 3.x name and would be ignored, leaving LocalSystem). -->
   <serviceaccount>
-    <username>NT AUTHORITY\LocalService</username>
+    <domain>NT AUTHORITY</domain>
+    <user>LocalService</user>
   </serviceaccount>
 
   <startmode>Automatic</startmode>
-  <delayedAutoStart>true</delayedAutoStart>
+  <delayedAutoStart/>
 
   <!-- Restart after any crash: 10 s, 30 s, then every 60 s; the failure counter resets after a quiet day. -->
   <onfailure action="restart" delay="10 sec"/>

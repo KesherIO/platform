@@ -63,7 +63,35 @@ $configFile  = Join-Path $dataDir 'connector.json'
 $wrapperExe  = Join-Path $svcDir "$serviceId.exe"
 $existing    = Get-Service -Name $serviceId -ErrorAction SilentlyContinue
 $xmlFile     = Join-Path $svcDir "$serviceId.xml"
-$keepConfig  = (Test-Path $configFile) -and -not $Reconfigure   # token + API address already saved
+$tokenPattern = '^kvc_[0-9a-f]{8}_[A-Za-z0-9_-]{43}$'
+
+function Read-SavedConfig {
+  # The saved connector.json if it is complete and valid, else $null. (Used so a retry after a partial
+  # install keeps the existing token instead of asking for it again.)
+  try {
+    $c = Get-Content $configFile -Raw -ErrorAction Stop | ConvertFrom-Json
+    if ($c.token -match $tokenPattern -and $c.apiUrl -match '^https://') { return $c }
+  } catch { }
+  return $null
+}
+function Normalize-ApiUrl($text) {
+  try { $u = [Uri]$text } catch { Fail "Not a valid URL: $text" }
+  if (-not $u.IsAbsoluteUri -or $u.Scheme -ne 'https') { Fail 'The API address must start with https://' }
+  return $u.GetLeftPart([UriPartial]::Path).TrimEnd('/')
+}
+function Save-Config($url, $token) {
+  $json = [ordered]@{ apiUrl = $url; token = $token } | ConvertTo-Json
+  $tmp = "$configFile.tmp"
+  [IO.File]::WriteAllText($tmp, $json, (New-Object Text.UTF8Encoding($false)))   # inherits the folder ACL
+  Move-Item -Force $tmp $configFile
+}
+
+$saved = $null
+if ((Test-Path $configFile) -and -not $Reconfigure) {
+  $saved = Read-SavedConfig
+  if (-not $saved) { Warn "$configFile exists but is not valid; a new token will be asked for." }
+}
+$keepConfig  = [bool]$saved                                      # token + API address already saved
 $keepNetwork = $keepConfig -and (Test-Path $xmlFile)             # ...and so are IP/port settings
 
 function Ask($prompt, $default) {
@@ -86,8 +114,9 @@ if (-not $keepNetwork) {
   if ($current -match 'VH30_ALLOW_FROM" value="([^"]+)"') { $AnalyzerIp = $Matches[1] }
 }
 $parsed = $null
-if (-not [Net.IPAddress]::TryParse($ListenIp, [ref]$parsed) -or $parsed.AddressFamily -ne 'InterNetwork') { Fail "Not an IPv4 address: $ListenIp" }
-if (-not [Net.IPAddress]::TryParse($AnalyzerIp, [ref]$parsed) -or $parsed.AddressFamily -ne 'InterNetwork') { Fail "Not an IPv4 address: $AnalyzerIp" }
+foreach ($ip in @($ListenIp, $AnalyzerIp)) {
+  if ($ip -notmatch '^\d{1,3}(\.\d{1,3}){3}$' -or -not [Net.IPAddress]::TryParse($ip, [ref]$parsed)) { Fail "Not an IPv4 address: $ip" }
+}
 if ($ListenPort -lt 1 -or $ListenPort -gt 65535) { Fail "Port out of range: $ListenPort" }
 if ($ListenIp -ne '0.0.0.0') {
   $mine = @(Get-NetIPAddress -AddressFamily IPv4 | ForEach-Object { $_.IPAddress })
@@ -101,11 +130,16 @@ if (-not $existing) {
 }
 
 $apiUrlFinal = $null
-if (-not $keepConfig) {
+$updateUrl = $false
+if ($keepConfig) {
+  Ok "Keeping the token and API address already saved in $configFile"
+  if ($ApiUrl) {
+    $apiUrlFinal = Normalize-ApiUrl $ApiUrl
+    if ($apiUrlFinal -ne $saved.apiUrl) { $updateUrl = $true; Ok "API address will change to $apiUrlFinal (token kept)" }
+  }
+} else {
   if (-not $ApiUrl) { $ApiUrl = Read-Host 'KesherIO API address (https://...)' }
-  try { $u = [Uri]$ApiUrl } catch { Fail "Not a valid URL: $ApiUrl" }
-  if ($u.Scheme -ne 'https') { Fail 'The API address must start with https://' }
-  $apiUrlFinal = $u.GetLeftPart([UriPartial]::Path).TrimEnd('/')
+  $apiUrlFinal = Normalize-ApiUrl $ApiUrl
 }
 
 # ---------------------------------------------------------------- program files
@@ -138,15 +172,15 @@ if (-not $keepConfig) {
     try { $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
   }
-  if ($plain -notmatch '^kvc_[0-9a-f]{8}_[A-Za-z0-9_-]{43}$') { Fail 'That is not a connector token (expected kvc_<8 hex>_<43 characters>).' }
-  $json = [ordered]@{ apiUrl = $apiUrlFinal; token = $plain } | ConvertTo-Json
+  if ($plain -notmatch $tokenPattern) { Fail 'That is not a connector token (expected kvc_<8 hex>_<43 characters>).' }
+  Save-Config $apiUrlFinal $plain
   $plain = $null
-  $tmp = "$configFile.tmp"
-  [IO.File]::WriteAllText($tmp, $json, (New-Object Text.UTF8Encoding($false)))   # inherits the folder ACL above
-  Move-Item -Force $tmp $configFile
-  $json = $null
   Ok "Saved $configFile"
+} elseif ($updateUrl) {
+  Save-Config $apiUrlFinal $saved.token
+  Ok "Updated the API address in $configFile (token unchanged)"
 }
+$saved = $null
 
 # ---------------------------------------------------------------- service
 Step 'Installing the service'
@@ -162,12 +196,15 @@ $map = @{
   DATA_DIR = $dataDir; LISTEN_IP = $ListenIp; LISTEN_PORT = "$ListenPort"; ANALYZER_IP = $AnalyzerIp
 }
 foreach ($k in $map.Keys) { $xml = $xml.Replace("{{$k}}", (XmlEsc $map[$k])) }
-if ($xml -match '\{\{') { Fail 'Internal error: unfilled placeholder in the service definition.' }
+$left = [regex]::Matches($xml, '\{\{[A-Z_]+\}\}') | ForEach-Object { $_.Value } | Select-Object -Unique
+if ($left) { Fail "Internal error: unfilled placeholder(s) in the service definition: $($left -join ', ')" }
 [IO.File]::WriteAllText((Join-Path $svcDir "$serviceId.xml"), $xml, (New-Object Text.UTF8Encoding($false)))
 New-Item -ItemType Directory -Force -Path (Join-Path $dataDir 'logs') | Out-Null
 & $wrapperExe install
 if ($LASTEXITCODE -ne 0) { Fail 'Service installation failed (see the message above).' }
-Ok "$displayName installed (automatic start at boot, restarts itself after a crash)"
+$acct = (Get-CimInstance Win32_Service -Filter "Name='$serviceId'").StartName
+if ($acct -notmatch 'LocalService$') { Fail "The service was registered to run as '$acct', not LocalService. Not starting it; uninstall.ps1 -Name $Name removes it." }
+Ok "$displayName installed (automatic start at boot, restarts itself after a crash, account $acct)"
 
 # ---------------------------------------------------------------- firewall: this port, only from the analyzer
 Step 'Firewall'
@@ -180,9 +217,9 @@ Ok "Inbound TCP $ListenPort allowed only from $AnalyzerIp"
 # ---------------------------------------------------------------- power
 if (-not $DisableSleep -and -not $Unattended) {
   $a = Read-Host 'Turn off automatic sleep/hibernate on this PC while plugged in (recommended for a lab PC)? [Y/n]'
-  $DisableSleep = ($a -eq '' -or $a -match '^[Yy]')
-}
-if ($DisableSleep) {
+  $sleepOff = ($a -eq '' -or $a -match '^[Yy]')
+} else { $sleepOff = [bool]$DisableSleep }
+if ($sleepOff) {
   & powercfg.exe /change standby-timeout-ac 0 | Out-Null
   & powercfg.exe /change hibernate-timeout-ac 0 | Out-Null
   Ok 'Sleep and hibernate are off while plugged in'

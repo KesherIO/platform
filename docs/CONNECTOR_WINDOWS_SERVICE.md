@@ -62,6 +62,12 @@ package anything token-, password-, JWT-, `connector.json`- or capture-shaped.
 
 Use `vh30-replay.cjs` (shipped in `app\`) to simulate the analyzer.
 
+First Windows run (2026-10-22): the install failed with "unfilled placeholder" because the template's own header comment
+contained a literal double-brace marker. Fixed; the same review also found WinSW 2.x does not know `<username>` (the
+service would have run as LocalSystem) - now `<domain>/<user>`, and the installer verifies the registered account. A retry
+after a partial install keeps a valid saved `connector.json` (no token rotation); `-ApiUrl` on a retry changes only the
+address. Static/render tests: `node --test apps/connector/windows-service/install-template.test.mjs`.
+
 ## 2. Production-safe mapping script
 
 Dev rows came from `seed-instrument-dev.mjs`, which also creates a test order — **never run that on production**.
