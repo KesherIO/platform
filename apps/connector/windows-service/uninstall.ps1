@@ -9,11 +9,10 @@
 [CmdletBinding()]
 param([string]$Name = 'vh30')
 $ErrorActionPreference = 'Stop'
-$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-  Write-Host 'ERROR: Run this from an elevated PowerShell.' -ForegroundColor Red; exit 1
-}
-if ($Name -notmatch '^[a-z0-9][a-z0-9-]{0,30}$') { Write-Host "ERROR: bad -Name '$Name'" -ForegroundColor Red; exit 1 }
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $here 'common.ps1')
+Assert-Administrator
+if (-not (Test-ServiceName $Name)) { Fail "-Name must be lowercase letters, digits and dashes (got '$Name')." }
 
 $serviceId = "KesherIOConnector-$Name"
 $progRoot  = Join-Path $env:ProgramFiles 'KesherIO\Connector'

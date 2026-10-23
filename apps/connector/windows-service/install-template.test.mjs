@@ -10,10 +10,19 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const template = readFileSync(join(here, 'KesherIOConnector.xml.template'), 'utf8');
+const template = readFileSync(
+  join(here, 'KesherIOConnector.xml.template'),
+  'utf8'
+);
 const ps1 = readFileSync(join(here, 'install.ps1'), 'utf8');
 
-const xmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+const xmlEsc = (s) =>
+  String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 // the same keys install.ps1 puts in $map
 const mapBlock = /\$map = @\{([\s\S]*?)\n\}/.exec(ps1)?.[1] ?? '';
 const psKeys = [...mapBlock.matchAll(/\b([A-Z][A-Z_]+)\s*=/g)].map((m) => m[1]);
@@ -22,16 +31,23 @@ const values = {
   SERVICE_NAME: 'KesherIO Connector \u2013 VH-30 Test (test)',
   ANALYZER_NAME: 'VH-30 Test',
   NODE_EXE: 'C:\\Program Files\\KesherIO\\Connector\\app\\node.exe',
-  RECEIVER_CJS: 'C:\\Program Files\\KesherIO\\Connector\\app\\vh30-receiver.cjs',
+  RECEIVER_CJS:
+    'C:\\Program Files\\KesherIO\\Connector\\app\\vh30-receiver.cjs',
   DATA_DIR: 'C:\\ProgramData\\KesherIO\\Connector\\test',
   LISTEN_IP: '127.0.0.1',
   LISTEN_PORT: '8011',
   ANALYZER_IP: '127.0.0.1',
 };
-const render = (vals) => Object.entries(vals).reduce((x, [k, v]) => x.split(`{{${k}}}`).join(xmlEsc(v)), template);
+const render = (vals) =>
+  Object.entries(vals).reduce(
+    (x, [k, v]) => x.split(`{{${k}}}`).join(xmlEsc(v)),
+    template
+  );
 
 test('every placeholder in the template is supplied by install.ps1, and vice versa', () => {
-  const inTemplate = [...new Set([...template.matchAll(/\{\{([A-Z_]+)\}\}/g)].map((m) => m[1]))].sort();
+  const inTemplate = [
+    ...new Set([...template.matchAll(/\{\{([A-Z_]+)\}\}/g)].map((m) => m[1])),
+  ].sort();
   assert.deepEqual([...new Set(psKeys)].sort(), inTemplate);
   assert.deepEqual(Object.keys(values).sort(), inTemplate);
 });
@@ -61,7 +77,10 @@ test('rendered XML is well-formed and has the expected values', () => {
   assert.match(out, /<id>KesherIOConnector-test<\/id>/);
   assert.match(out, /name="VH30_PORT" value="8011"/);
   assert.match(out, /name="VH30_ACK" value="off"/);
-  assert.match(out, /<logpath>C:\\ProgramData\\KesherIO\\Connector\\test\\logs<\/logpath>/);
+  assert.match(
+    out,
+    /<logpath>C:\\ProgramData\\KesherIO\\Connector\\test\\logs<\/logpath>/
+  );
 });
 
 test('values with XML-special characters are escaped, not injected', () => {
@@ -70,13 +89,19 @@ test('values with XML-special characters are escaped, not injected', () => {
 });
 
 test('the service runs as LocalService using WinSW 2.x element names', () => {
-  assert.match(template, /<domain>NT AUTHORITY<\/domain>\s*<user>LocalService<\/user>/);
+  assert.match(
+    template,
+    /<domain>NT AUTHORITY<\/domain>\s*<user>LocalService<\/user>/
+  );
   assert.doesNotMatch(template.replace(/<!--[\s\S]*?-->/g, ''), /<username>/); // a 3.x name; 2.x ignores it -> LocalSystem
 });
 
 test('no secret in the template and the token is never an argument', () => {
   assert.doesNotMatch(template, /kvc_|VH30_API_TOKEN|--token/);
-  assert.doesNotMatch(ps1.replace(/^\s*#.*$/gm, '').replace(/<#[\s\S]*?#>/, ''), /--token/);
+  assert.doesNotMatch(
+    ps1.replace(/^\s*#.*$/gm, '').replace(/<#[\s\S]*?#>/, ''),
+    /--token/
+  );
 });
 
 test('PowerShell 5.1 hygiene: scripts are pure ASCII (BOM-less files are read as ANSI)', () => {

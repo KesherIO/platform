@@ -31,7 +31,17 @@ PKG="$DL/KesherIO-Connector"; mkdir -p "$PKG/bin"
 cp "$DL/node.exe" "$DL/WinSW-x64.exe" "$PKG/bin/"
 cp "$DIST/vh30-receiver.cjs" "$PKG/bin/"
 [ -f "$DIST/vh30-replay.cjs" ] && cp "$DIST/vh30-replay.cjs" "$PKG/bin/"
-cp "$HERE/install.ps1" "$HERE/uninstall.ps1" "$HERE/status.bat" "$HERE/KesherIOConnector.xml.template" "$PKG/"
+for f in install.ps1 common.ps1 update-config.ps1 uninstall.ps1 install.bat update-config.bat status.bat KesherIOConnector.xml.template; do
+  cp "$HERE/$f" "$PKG/" || fail "missing $f"
+done
+# Windows batch files need CRLF line endings
+for f in "$PKG"/*.bat; do grep -q $'\r' "$f" || fail "$(basename "$f") does not have CRLF line endings"; done
+# every script must parse (PowerShell is optional here; the checksum below is what ships either way)
+if command -v pwsh >/dev/null 2>&1; then
+  for f in "$PKG"/*.ps1; do
+    KIO_FILE="$f" pwsh -NoProfile -Command '$e=$null;$t=$null;[void][System.Management.Automation.Language.Parser]::ParseFile($env:KIO_FILE,[ref]$t,[ref]$e); if($e){ $e | ForEach-Object { Write-Error $_.Message }; exit 1 }' || fail "$(basename "$f") does not parse"
+  done
+fi
 printf 'node %s\nwinsw %s\nreceiver sha256 %s\n' "$NODE_VERSION" "$WINSW_VERSION" "$(sha "$PKG/bin/vh30-receiver.cjs")" > "$PKG/VERSION.txt"
 
 # nothing secret may ship
@@ -40,6 +50,10 @@ if grep -raEl 'kvc_[0-9a-f]{8}_[A-Za-z0-9_-]{43}|postgres(ql)?://[^ :/@]+:[^ @]+
 fi
 find "$PKG" \( -name 'connector.json' -o -name 'status.json' -o -name '*.hl7' -o -name '*.frame' \) | grep -q . && fail "a data/config file is in the package"
 
+# install.ps1 verifies every file against this list before installing anything
+( cd "$PKG" && find . -type f ! -name SHA256SUMS.txt | sed 's#^\./##' | LC_ALL=C sort | while read -r f; do printf '%s  %s\n' "$(sha "$f")" "$f"; done > SHA256SUMS.txt )
+FINGERPRINT=$(sha "$PKG/SHA256SUMS.txt" | cut -c1-12)
+
 ZIP="$OUT/KesherIO-Connector-Service-node$NODE_VERSION-winsw$WINSW_VERSION.zip"
 rm -f "$ZIP"; ( cd "$DL" && zip -q -r -X "$ZIP" KesherIO-Connector )
-echo "$ZIP"; echo "sha256 $(sha "$ZIP")"; unzip -Z1 "$ZIP"
+echo "$ZIP"; echo "zip sha256       $(sha "$ZIP")"; echo "package fingerprint (shown by install.ps1) $FINGERPRINT"; unzip -Z1 "$ZIP"

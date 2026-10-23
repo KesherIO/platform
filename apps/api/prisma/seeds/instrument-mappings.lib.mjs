@@ -49,12 +49,20 @@ export function normaliseRows(rows) {
       ['analyteCode', analyteCode],
     ])
       if (typeof v !== 'string' || v.trim() !== v || v === '')
-        throw new Error(`Row ${i + 1}: ${label} must be a non-empty trimmed string.`);
-    if (typeof multiplier !== 'number' || !Number.isFinite(multiplier) || multiplier <= 0)
+        throw new Error(
+          `Row ${i + 1}: ${label} must be a non-empty trimmed string.`
+        );
+    if (
+      typeof multiplier !== 'number' ||
+      !Number.isFinite(multiplier) ||
+      multiplier <= 0
+    )
       throw new Error(`Row ${i + 1}: multiplier must be a positive number.`);
     const key = `${parameterCode}\u0000${analyzerUnit}`;
     if (seen.has(key))
-      throw new Error(`Row ${i + 1}: duplicate ${parameterCode} / ${analyzerUnit}.`);
+      throw new Error(
+        `Row ${i + 1}: duplicate ${parameterCode} / ${analyzerUnit}.`
+      );
     seen.add(key);
     return { parameterCode, analyzerUnit, analyteCode, multiplier };
   });
@@ -71,7 +79,8 @@ export function applicableDefinitions(definitions, labId) {
     if (!d.activeVersion) continue;
     const band = `${d.species}|${d.ageMinWeeks}|${d.ageMaxWeeks}`;
     const cur = byBand.get(band);
-    if (!cur || (d.ownerKey === labId && cur.ownerKey !== labId)) byBand.set(band, d);
+    if (!cur || (d.ownerKey === labId && cur.ownerKey !== labId))
+      byBand.set(band, d);
   }
   return [...byBand.values()];
 }
@@ -84,15 +93,21 @@ export function applicableDefinitions(definitions, labId) {
 export function validateAgainstTemplates(rows, defs) {
   const errors = [];
   const computed = new Set();
-  if (defs.length === 0) errors.push('No active result template applies to this lab for the catalog code.');
+  if (defs.length === 0)
+    errors.push(
+      'No active result template applies to this lab for the catalog code.'
+    );
   for (const d of defs) {
-    const label = `${d.species} ${d.ageMinWeeks}-${d.ageMaxWeeks}w (${d.ownerKey === 'platform' ? 'platform' : 'lab'} template)`;
+    const label = `${d.species} ${d.ageMinWeeks}-${d.ageMaxWeeks}w (${
+      d.ownerKey === 'platform' ? 'platform' : 'lab'
+    } template)`;
     const byCode = new Map(d.activeVersion.analytes.map((a) => [a.code, a]));
     for (const code of new Set(rows.map((r) => r.analyteCode))) {
       const a = byCode.get(code);
       if (!a) errors.push(`${code}: not in the active template for ${label}`);
       else if (a.isHeader) errors.push(`${code}: is a header row in ${label}`);
-      else if (a.valueType !== 'NUMERIC') errors.push(`${code}: is ${a.valueType}, not NUMERIC, in ${label}`);
+      else if (a.valueType !== 'NUMERIC')
+        errors.push(`${code}: is ${a.valueType}, not NUMERIC, in ${label}`);
       else if (a.formula) computed.add(code);
     }
   }
@@ -111,7 +126,11 @@ export function planChanges(rows, existing) {
   for (const row of rows) {
     const cur = stored.get(key(row));
     if (!cur) out.create.push(row);
-    else if (cur.analyteCode === row.analyteCode && cur.multiplier === row.multiplier) out.unchanged.push(row);
+    else if (
+      cur.analyteCode === row.analyteCode &&
+      cur.multiplier === row.multiplier
+    )
+      out.unchanged.push(row);
     else out.differ.push({ row, current: cur });
   }
   return out;

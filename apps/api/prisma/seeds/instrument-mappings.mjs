@@ -43,10 +43,17 @@ const { values: a } = parseArgs({
     overwrite: { type: 'boolean' },
   },
 });
-if (!a.lab || !a.analyzer || (!a.profile && !a['mappings-file']) || (a.profile && a['mappings-file'])) {
+if (
+  !a.lab ||
+  !a.analyzer ||
+  (!a.profile && !a['mappings-file']) ||
+  (a.profile && a['mappings-file'])
+) {
   console.error(
     'Usage: --lab <id|slug> --analyzer <name> (--profile <name> | --mappings-file <rows.json>) [--catalog-code CBC]\n' +
-      `       [--create-analyzer] [--overwrite] [--apply --confirm-host <host>]\nProfiles: ${Object.keys(PROFILES).join(', ')}`
+      `       [--create-analyzer] [--overwrite] [--apply --confirm-host <host>]\nProfiles: ${Object.keys(
+        PROFILES
+      ).join(', ')}`
   );
   process.exit(1);
 }
@@ -61,56 +68,129 @@ const fail = (m) => {
 
 try {
   console.log(`Database host: ${host}`);
-  console.log(APPLY ? 'Mode: APPLY' : 'Mode: DRY RUN (nothing is written; add --apply to write)');
+  console.log(
+    APPLY
+      ? 'Mode: APPLY'
+      : 'Mode: DRY RUN (nothing is written; add --apply to write)'
+  );
   if (APPLY && a['confirm-host'] !== host)
-    fail(`--apply requires --confirm-host ${host} (confirms this is the database you mean to write to).`);
+    fail(
+      `--apply requires --confirm-host ${host} (confirms this is the database you mean to write to).`
+    );
 
-  const profile = a.profile ? PROFILES[a.profile] ?? fail(`Unknown profile "${a.profile}".`) : null;
-  const rows = normaliseRows(a['mappings-file'] ? JSON.parse(readFileSync(a['mappings-file'], 'utf8')) : profile.rows);
-  const code = a['catalog-code'] ?? profile?.catalogCode ?? fail('--catalog-code is required with --mappings-file.');
+  const profile = a.profile
+    ? PROFILES[a.profile] ?? fail(`Unknown profile "${a.profile}".`)
+    : null;
+  const rows = normaliseRows(
+    a['mappings-file']
+      ? JSON.parse(readFileSync(a['mappings-file'], 'utf8'))
+      : profile.rows
+  );
+  const code =
+    a['catalog-code'] ??
+    profile?.catalogCode ??
+    fail('--catalog-code is required with --mappings-file.');
 
-  const lab = await prisma.tenant.findFirst({ where: { OR: [{ id: a.lab }, { slug: a.lab }] } });
-  if (!lab || lab.type === 'CLINIC') fail(`Lab tenant not found (or is a clinic): ${a.lab}`);
+  const lab = await prisma.tenant.findFirst({
+    where: { OR: [{ id: a.lab }, { slug: a.lab }] },
+  });
+  if (!lab || lab.type === 'CLINIC')
+    fail(`Lab tenant not found (or is a clinic): ${a.lab}`);
   console.log(`Lab: ${lab.name} (${lab.id})`);
 
   // --- template validation -------------------------------------------------------------------------------
   const defs = applicableDefinitions(
     await prisma.resultTemplateDefinition.findMany({
-      where: { catalogItemCode: code, ownerKey: { in: ['platform', lab.id] }, activeVersionId: { not: null } },
+      where: {
+        catalogItemCode: code,
+        ownerKey: { in: ['platform', lab.id] },
+        activeVersionId: { not: null },
+      },
       include: { activeVersion: { include: { analytes: true } } },
     }),
     lab.id
   );
-  console.log(`Templates for "${code}": ${defs.length} applicable active definition(s)`);
+  console.log(
+    `Templates for "${code}": ${defs.length} applicable active definition(s)`
+  );
   const { errors, computed } = validateAgainstTemplates(rows, defs);
   if (computed.length)
-    console.log(`  computed by the template (analyzer figure reported, not written): ${computed.join(', ')}`);
-  if (errors.length) fail(`Template validation failed:\n  - ${errors.join('\n  - ')}`);
-  console.log(`  all ${new Set(rows.map((r) => r.analyteCode)).size} analyte codes are valid NUMERIC fields`);
+    console.log(
+      `  computed by the template (analyzer figure reported, not written): ${computed.join(
+        ', '
+      )}`
+    );
+  if (errors.length)
+    fail(`Template validation failed:\n  - ${errors.join('\n  - ')}`);
+  console.log(
+    `  all ${
+      new Set(rows.map((r) => r.analyteCode)).size
+    } analyte codes are valid NUMERIC fields`
+  );
 
   // --- analyzer --------------------------------------------------------------------------------------------
-  const existing = await prisma.analyzer.findFirst({ where: { labTenantId: lab.id, name: a.analyzer } });
+  const existing = await prisma.analyzer.findFirst({
+    where: { labTenantId: lab.id, name: a.analyzer },
+  });
   if (!existing && !a['create-analyzer'])
-    fail(`Analyzer "${a.analyzer}" does not exist in this lab. Create it in the portal, or pass --create-analyzer.`);
-  if (existing && !existing.isActive) fail(`Analyzer "${a.analyzer}" is disabled.`);
-  console.log(`Analyzer: ${existing ? `use existing "${existing.name}" (${existing.id})` : `CREATE "${a.analyzer}"`}`);
+    fail(
+      `Analyzer "${a.analyzer}" does not exist in this lab. Create it in the portal, or pass --create-analyzer.`
+    );
+  if (existing && !existing.isActive)
+    fail(`Analyzer "${a.analyzer}" is disabled.`);
+  console.log(
+    `Analyzer: ${
+      existing
+        ? `use existing "${existing.name}" (${existing.id})`
+        : `CREATE "${a.analyzer}"`
+    }`
+  );
 
   // --- plan ------------------------------------------------------------------------------------------------
   const stored = existing
     ? await prisma.instrumentParameterMapping.findMany({
         where: { analyzerId: existing.id, catalogItemCode: code },
-        select: { parameterCode: true, analyzerUnit: true, analyteCode: true, multiplier: true },
+        select: {
+          parameterCode: true,
+          analyzerUnit: true,
+          analyteCode: true,
+          multiplier: true,
+        },
       })
     : [];
   const plan = planChanges(rows, stored);
-  const fmt = (r) => `${r.parameterCode} [${r.analyzerUnit}] -> ${r.analyteCode} ×${r.multiplier}`;
-  console.log(`Mappings for "${code}": ${plan.create.length} to create, ${plan.unchanged.length} unchanged, ${plan.differ.length} differ`);
+  const fmt = (r) =>
+    `${r.parameterCode} [${r.analyzerUnit}] -> ${r.analyteCode} ×${r.multiplier}`;
+  console.log(
+    `Mappings for "${code}": ${plan.create.length} to create, ${plan.unchanged.length} unchanged, ${plan.differ.length} differ`
+  );
   for (const r of plan.create) console.log(`  + ${fmt(r)}`);
   for (const { row, current } of plan.differ)
-    console.log(`  ! ${fmt(row)}   (stored: ${current.analyteCode} ×${current.multiplier}${a.overwrite ? ' — will be overwritten' : ' — LEFT AS IS, pass --overwrite to change'})`);
-  const extra = stored.filter((s) => !rows.some((r) => r.parameterCode === s.parameterCode && r.analyzerUnit === s.analyzerUnit));
-  for (const s of extra) console.log(`  ? stored row not in this table (left untouched): ${s.parameterCode} [${s.analyzerUnit}] -> ${s.analyteCode}`);
-  if (plan.differ.length && !a.overwrite) console.log('Rows that differ are skipped; the exit code is 2 so this is not mistaken for a clean run.');
+    console.log(
+      `  ! ${fmt(row)}   (stored: ${current.analyteCode} ×${
+        current.multiplier
+      }${
+        a.overwrite
+          ? ' — will be overwritten'
+          : ' — LEFT AS IS, pass --overwrite to change'
+      })`
+    );
+  const extra = stored.filter(
+    (s) =>
+      !rows.some(
+        (r) =>
+          r.parameterCode === s.parameterCode &&
+          r.analyzerUnit === s.analyzerUnit
+      )
+  );
+  for (const s of extra)
+    console.log(
+      `  ? stored row not in this table (left untouched): ${s.parameterCode} [${s.analyzerUnit}] -> ${s.analyteCode}`
+    );
+  if (plan.differ.length && !a.overwrite)
+    console.log(
+      'Rows that differ are skipped; the exit code is 2 so this is not mistaken for a clean run.'
+    );
 
   if (!APPLY) {
     console.log('DRY RUN — nothing written.');
@@ -129,7 +209,10 @@ try {
             connectionType: 'CONNECTOR',
           },
         }));
-      const todo = [...plan.create, ...(a.overwrite ? plan.differ.map((d) => d.row) : [])];
+      const todo = [
+        ...plan.create,
+        ...(a.overwrite ? plan.differ.map((d) => d.row) : []),
+      ];
       for (const r of todo)
         await tx.instrumentParameterMapping.upsert({
           where: {
@@ -140,12 +223,19 @@ try {
               catalogItemCode: code,
             },
           },
-          create: { labTenantId: lab.id, analyzerId: analyzer.id, catalogItemCode: code, ...r },
+          create: {
+            labTenantId: lab.id,
+            analyzerId: analyzer.id,
+            catalogItemCode: code,
+            ...r,
+          },
           update: { analyteCode: r.analyteCode, multiplier: r.multiplier },
         });
       return todo.length;
     });
-    console.log(`Applied: ${writes} mapping row(s) written. Re-run without --apply to confirm "0 to create".`);
+    console.log(
+      `Applied: ${writes} mapping row(s) written. Re-run without --apply to confirm "0 to create".`
+    );
     process.exitCode = plan.differ.length && !a.overwrite ? 2 : 0;
   }
 } catch (err) {
