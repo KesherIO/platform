@@ -64,6 +64,10 @@ export function App() {
                 <Route index element={<Navigate to="/orders" replace />} />
                 <Route path="/orders" element={<OrdersQueuePage />} />
                 <Route
+                  path="/review"
+                  element={<OrdersQueuePage reviewOnly />}
+                />
+                <Route
                   path="/orders/:orderId"
                   element={<OrderWorkspacePage />}
                 />

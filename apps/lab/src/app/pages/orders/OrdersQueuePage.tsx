@@ -55,12 +55,17 @@ function reviewTags(order: LabOrderSummary) {
 
 const AWAITING_SPECIMENS = 'awaiting-specimens';
 
-export function OrdersQueuePage() {
+export function OrdersQueuePage({
+  reviewOnly = false,
+}: {
+  /** Pinned to "For review": the reviewer's own tab, without the status filters */
+  reviewOnly?: boolean;
+}) {
   const { t } = useTranslation();
   const { canRelease, labRole } = useAuth();
   // Reviewers come here to release, so they start on what's waiting for them
   const [activeFilter, setActiveFilter] = useState<string | undefined>(
-    labRole === 'REVIEWER' ? FOR_REVIEW : undefined
+    reviewOnly || labRole === 'REVIEWER' ? FOR_REVIEW : undefined
   );
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -164,7 +169,9 @@ export function OrdersQueuePage() {
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">{t('orders.title')}</h1>
+        <h1 className="text-xl font-bold text-white">
+          {reviewOnly ? t('nav.review') : t('orders.title')}
+        </h1>
         <span className="text-sm text-gray-400">
           {total} {t('common.orders')}
         </span>
@@ -176,7 +183,7 @@ export function OrdersQueuePage() {
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          {FILTER_TABS.map((tab) => (
+          {(reviewOnly ? [] : FILTER_TABS).map((tab) => (
             <button
               key={tab.value ?? 'all'}
               onClick={() => handleFilterChange(tab.value)}
