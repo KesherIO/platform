@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 const ROUTE_TITLE_KEYS: Record<string, string> = {
   '/orders': 'nav.orders_queue',
+  '/review': 'nav.review',
   '/worklist': 'nav.worklist',
   '/verifications': 'nav.verifications',
   '/clients': 'nav.clients',

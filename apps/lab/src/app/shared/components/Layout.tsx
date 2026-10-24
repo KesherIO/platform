@@ -19,6 +19,7 @@ import {
   Search,
   Receipt,
   Activity,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
@@ -193,8 +194,17 @@ export function Layout() {
           to: '/orders',
           label: t('nav.orders_queue'),
           icon: ClipboardList,
-          badge: canRelease && reviewCount > 0 ? reviewCount : undefined,
         },
+        ...(canRelease
+          ? [
+              {
+                to: '/review',
+                label: t('nav.review'),
+                icon: ClipboardCheck,
+                badge: reviewCount > 0 ? reviewCount : undefined,
+              },
+            ]
+          : []),
         {
           to: '/worklist',
           label: t('nav.worklist'),
